@@ -35,6 +35,10 @@ function findAssetById(state, assetId) {
 }
 
 function getFieldType(param) {
+  if (param?.type === "text") {
+    return "text";
+  }
+
   if (param?.type === "color") {
     return "color";
   }
@@ -68,7 +72,12 @@ function coerceParamValue(rawValue, param, previousValue) {
     return Number.isFinite(parsed) ? parsed : Number(previousValue) || 0;
   }
 
-  if (param?.type === "string" || param?.type === "color" || param?.type === "select") {
+  if (
+    param?.type === "text"
+    || param?.type === "string"
+    || param?.type === "color"
+    || param?.type === "select"
+  ) {
     return String(rawValue);
   }
 
