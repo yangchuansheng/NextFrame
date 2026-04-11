@@ -1,4 +1,5 @@
 import { validateTimeline } from "./engine/index.js";
+import { showExportDialog } from "./export/dialog.js";
 import { createDefaultTimeline } from "./store.js";
 
 const DEFAULT_SAVE_NAME = "Untitled.nfproj";
@@ -209,8 +210,7 @@ export function initMenu({ bridge, store }) {
           showNotice("Project closed");
           return;
         case "export":
-          showNotice("Export is not implemented yet", { dirty: store.state.dirty });
-          await logInfo(bridge, "Export requested but not implemented yet");
+          await showExportDialog({ store });
           return;
         case "cut":
         case "copy":

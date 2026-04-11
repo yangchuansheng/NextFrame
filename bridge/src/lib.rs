@@ -2,10 +2,49 @@
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+const EXPORT_RUNNING: &str = "running";
+const EXPORT_DONE: &str = "done";
+const EXPORT_FAILED: &str = "failed";
+const EXPORT_ERROR_NOT_FOUND: &str = "recorder_not_found";
+const EXPORT_ERROR_ALREADY_RUNNING: &str = "export_already_running";
+const EXPORT_ERROR_CANCELED: &str = "canceled";
+
+struct ProcessHandle {
+    child: Child,
+    output_path: PathBuf,
+    log_path: PathBuf,
+    duration_secs: f64,
+    started_at: Instant,
+    terminal: Option<ProcessTerminal>,
+}
+
+struct ProcessTerminal {
+    state: &'static str,
+    error: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum RecorderLauncher {
+    Binary(PathBuf),
+    Cargo(PathBuf),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RecorderLaunchPlan {
+    launcher: RecorderLauncher,
+    recorder_args: Vec<String>,
+}
+
+static PROCESS_REGISTRY: OnceLock<Mutex<HashMap<u32, ProcessHandle>>> = OnceLock::new();
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Request {
@@ -48,6 +87,10 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "fs.listDir" => handle_fs_list_dir(&params),
         "fs.dialogOpen" => handle_fs_dialog_open(&params),
         "fs.dialogSave" => handle_fs_dialog_save(&params),
+        "fs.reveal" => handle_fs_reveal(&params),
+        "export.start" => handle_export_start(&params),
+        "export.status" => handle_export_status(&params),
+        "export.cancel" => handle_export_cancel(&params),
         "log" => handle_log(&params),
         "scene.list" => handle_scene_list(&params),
         "timeline.load" => handle_timeline_load(&params),
@@ -139,6 +182,136 @@ fn handle_fs_dialog_save(params: &Value) -> Result<Value, String> {
     Ok(json!({
         "path": selected.as_ref().map(|path| path.display().to_string()),
         "canceled": selected.is_none(),
+    }))
+}
+
+fn handle_fs_reveal(params: &Value) -> Result<Value, String> {
+    let path = require_string(params, "path")?;
+    let path_buf = resolve_reveal_path(path)?;
+    reveal_in_file_manager(&path_buf)
+        .map_err(|error| format!("failed to reveal '{}': {error}", path_buf.display()))?;
+
+    Ok(json!({
+        "path": path_buf.display().to_string(),
+        "revealed": true,
+    }))
+}
+
+fn handle_export_start(params: &Value) -> Result<Value, String> {
+    let output_path_raw = require_string_alias(params, &["outputPath", "output_path"])?;
+    let output_path = resolve_write_path(output_path_raw)?;
+    let width = require_positive_u32(params, "width")?;
+    let height = require_positive_u32(params, "height")?;
+    let fps = require_positive_u32(params, "fps")?;
+    let duration = require_positive_f64(params, "duration")?;
+    let current_dir =
+        env::current_dir().map_err(|error| format!("failed to read current directory: {error}"))?;
+
+    {
+        let mut processes = lock_process_registry()?;
+        if refresh_running_export_state(&mut processes)? {
+            return Ok(json!({
+                "ok": false,
+                "error": EXPORT_ERROR_ALREADY_RUNNING,
+            }));
+        }
+    }
+
+    let Some(plan) = build_export_plan(&current_dir, &output_path, width, height, fps, duration)?
+    else {
+        return Ok(json!({
+            "ok": false,
+            "error": EXPORT_ERROR_NOT_FOUND,
+        }));
+    };
+
+    let Some(parent) = output_path.parent() else {
+        return Err(format!(
+            "failed to resolve parent for '{}'",
+            output_path.display()
+        ));
+    };
+    fs::create_dir_all(parent).map_err(|error| {
+        format!(
+            "failed to create export directory '{}': {error}",
+            parent.display()
+        )
+    })?;
+
+    let log_path = create_export_log_path()?;
+    let child = match spawn_recorder(&plan, &log_path) {
+        Ok(child) => child,
+        Err(error) => {
+            return Ok(json!({
+                "ok": false,
+                "error": error,
+                "logPath": log_path.display().to_string(),
+            }));
+        }
+    };
+    let pid = child.id();
+
+    let handle = ProcessHandle {
+        child,
+        output_path,
+        log_path: log_path.clone(),
+        duration_secs: duration,
+        started_at: Instant::now(),
+        terminal: None,
+    };
+
+    lock_process_registry()?.insert(pid, handle);
+
+    Ok(json!({
+        "ok": true,
+        "pid": pid,
+        "logPath": log_path.display().to_string(),
+    }))
+}
+
+fn handle_export_status(params: &Value) -> Result<Value, String> {
+    let pid = require_u32(params, "pid")?;
+    let mut processes = lock_process_registry()?;
+    let Some(handle) = processes.get_mut(&pid) else {
+        return Ok(json!({
+            "state": EXPORT_FAILED,
+            "percent": 0,
+            "eta": 0,
+            "outputPath": Value::Null,
+            "error": "unknown_pid",
+        }));
+    };
+
+    refresh_process_state(handle)?;
+    Ok(export_status_json(handle))
+}
+
+fn handle_export_cancel(params: &Value) -> Result<Value, String> {
+    let pid = require_u32(params, "pid")?;
+    let mut processes = lock_process_registry()?;
+    let Some(handle) = processes.get_mut(&pid) else {
+        return Ok(json!({
+            "ok": false,
+            "error": "unknown_pid",
+        }));
+    };
+
+    refresh_process_state(handle)?;
+    if handle.terminal.is_none() {
+        handle
+            .child
+            .kill()
+            .map_err(|error| format!("failed to cancel export pid {pid}: {error}"))?;
+        let _ = handle.child.wait();
+        handle.terminal = Some(ProcessTerminal {
+            state: EXPORT_FAILED,
+            error: Some(EXPORT_ERROR_CANCELED.to_string()),
+        });
+    }
+
+    Ok(json!({
+        "ok": true,
+        "pid": pid,
     }))
 }
 
@@ -258,6 +431,35 @@ fn require_array<'a>(params: &'a Value, key: &str) -> Result<&'a Vec<Value>, Str
         .ok_or_else(|| format!("params.{key} must be an array"))
 }
 
+fn require_u32(params: &Value, key: &str) -> Result<u32, String> {
+    let value = require_value(params, key)?
+        .as_u64()
+        .ok_or_else(|| format!("params.{key} must be an unsigned integer"))?;
+
+    u32::try_from(value).map_err(|_| format!("params.{key} is out of range"))
+}
+
+fn require_positive_u32(params: &Value, key: &str) -> Result<u32, String> {
+    let value = require_u32(params, key)?;
+    if value == 0 {
+        Err(format!("params.{key} must be greater than 0"))
+    } else {
+        Ok(value)
+    }
+}
+
+fn require_positive_f64(params: &Value, key: &str) -> Result<f64, String> {
+    let value = require_value(params, key)?
+        .as_f64()
+        .ok_or_else(|| format!("params.{key} must be a number"))?;
+
+    if value.is_finite() && value > 0.0 {
+        Ok(value)
+    } else {
+        Err(format!("params.{key} must be greater than 0"))
+    }
+}
+
 fn parse_dialog_filters(params: &Value) -> Result<Vec<String>, String> {
     let filters = require_array(params, "filters")?;
     let mut extensions = Vec::new();
@@ -370,16 +572,367 @@ fn show_save_dialog(default_name: &str) -> Option<PathBuf> {
     Some(env::temp_dir().join(default_name))
 }
 
+#[cfg(not(test))]
+fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        run_platform_command("open", [String::from("-R"), path.display().to_string()])
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        run_platform_command("explorer", [format!("/select,{}", path.display())])
+    }
+
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    {
+        let target = if path.is_dir() {
+            path
+        } else {
+            path.parent().unwrap_or(path)
+        };
+        run_platform_command("xdg-open", [target.display().to_string()])
+    }
+}
+
+#[cfg(not(test))]
+fn run_platform_command(
+    program: &str,
+    args: impl IntoIterator<Item = String>,
+) -> Result<(), String> {
+    let status = Command::new(program)
+        .args(args)
+        .status()
+        .map_err(|error| error.to_string())?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "command exited with {}",
+            format_exit_status(status)
+        ))
+    }
+}
+
+#[cfg(test)]
+fn reveal_in_file_manager(_path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+fn lock_process_registry(
+) -> Result<std::sync::MutexGuard<'static, HashMap<u32, ProcessHandle>>, String> {
+    process_registry()
+        .lock()
+        .map_err(|_| "process registry is unavailable".to_string())
+}
+
+fn process_registry() -> &'static Mutex<HashMap<u32, ProcessHandle>> {
+    PROCESS_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn refresh_running_export_state(
+    processes: &mut HashMap<u32, ProcessHandle>,
+) -> Result<bool, String> {
+    for handle in processes.values_mut() {
+        refresh_process_state(handle)?;
+        if handle.terminal.is_none() {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+fn refresh_process_state(handle: &mut ProcessHandle) -> Result<(), String> {
+    if handle.terminal.is_some() {
+        return Ok(());
+    }
+
+    if let Some(status) = handle
+        .child
+        .try_wait()
+        .map_err(|error| format!("failed to read export process state: {error}"))?
+    {
+        handle.terminal = Some(if status.success() {
+            ProcessTerminal {
+                state: EXPORT_DONE,
+                error: None,
+            }
+        } else {
+            ProcessTerminal {
+                state: EXPORT_FAILED,
+                error: Some(format_exit_status(status)),
+            }
+        });
+    }
+
+    Ok(())
+}
+
+fn export_status_json(handle: &ProcessHandle) -> Value {
+    let elapsed = handle.started_at.elapsed().as_secs_f64();
+    let (state, percent, eta, error) = match &handle.terminal {
+        Some(terminal) => (
+            terminal.state,
+            if terminal.state == EXPORT_DONE {
+                100.0
+            } else {
+                percent_complete(elapsed, handle.duration_secs)
+            },
+            0.0,
+            terminal.error.clone(),
+        ),
+        None => (
+            EXPORT_RUNNING,
+            percent_complete(elapsed, handle.duration_secs).min(99.0),
+            remaining_secs(elapsed, handle.duration_secs),
+            None,
+        ),
+    };
+
+    json!({
+        "state": state,
+        "percent": percent,
+        "eta": eta,
+        "outputPath": handle.output_path.display().to_string(),
+        "logPath": handle.log_path.display().to_string(),
+        "error": error,
+    })
+}
+
+fn percent_complete(elapsed: f64, duration_secs: f64) -> f64 {
+    if duration_secs.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+        return 0.0;
+    }
+
+    ((elapsed / duration_secs) * 100.0).clamp(0.0, 100.0)
+}
+
+fn remaining_secs(elapsed: f64, duration_secs: f64) -> f64 {
+    if duration_secs.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+        return 0.0;
+    }
+
+    (duration_secs - elapsed).max(0.0)
+}
+
+fn resolve_recorder_launch_plan(current_dir: &Path) -> Option<RecorderLaunchPlan> {
+    let env_override = env::var_os("NEXTFRAME_RECORDER_PATH")
+        .map(PathBuf::from)
+        .map(|path| absolutize_path(current_dir, path));
+    let release_path = current_dir
+        .join("../MediaAgentTeam/recorder/target/release")
+        .join(recorder_binary_name());
+    let manifest_path = current_dir.join("../MediaAgentTeam/recorder/Cargo.toml");
+
+    resolve_recorder_launch_plan_with(env_override, release_path, manifest_path).map(|launcher| {
+        RecorderLaunchPlan {
+            launcher,
+            recorder_args: Vec::new(),
+        }
+    })
+}
+
+fn resolve_recorder_launch_plan_with(
+    env_override: Option<PathBuf>,
+    release_path: PathBuf,
+    manifest_path: PathBuf,
+) -> Option<RecorderLauncher> {
+    if let Some(path) = env_override.filter(|path| path.is_file()) {
+        return Some(RecorderLauncher::Binary(path));
+    }
+
+    if release_path.is_file() {
+        return Some(RecorderLauncher::Binary(release_path));
+    }
+
+    if manifest_path.is_file() {
+        return Some(RecorderLauncher::Cargo(manifest_path));
+    }
+
+    None
+}
+
+fn build_export_plan(
+    current_dir: &Path,
+    output_path: &Path,
+    width: u32,
+    height: u32,
+    fps: u32,
+    duration: f64,
+) -> Result<Option<RecorderLaunchPlan>, String> {
+    let Some(mut plan) = resolve_recorder_launch_plan(current_dir) else {
+        return Ok(None);
+    };
+
+    let url = build_recording_url(current_dir)?;
+    plan.recorder_args =
+        build_recorder_args(url, output_path.to_path_buf(), width, height, fps, duration);
+    Ok(Some(plan))
+}
+
+fn build_recorder_args(
+    url: String,
+    output_path: PathBuf,
+    width: u32,
+    height: u32,
+    fps: u32,
+    duration: f64,
+) -> Vec<String> {
+    vec![
+        "--url".to_string(),
+        url,
+        "--out".to_string(),
+        output_path.display().to_string(),
+        "--width".to_string(),
+        width.to_string(),
+        "--height".to_string(),
+        height.to_string(),
+        "--fps".to_string(),
+        fps.to_string(),
+        "--duration".to_string(),
+        trim_float(duration),
+    ]
+}
+
+fn build_recording_url(current_dir: &Path) -> Result<String, String> {
+    let web_path = current_dir
+        .join("runtime/web/index.html")
+        .canonicalize()
+        .map_err(|error| format!("failed to resolve runtime/web/index.html: {error}"))?;
+
+    Ok(format!("{}?record=true", path_to_file_url(&web_path)))
+}
+
+fn spawn_recorder(plan: &RecorderLaunchPlan, log_path: &Path) -> Result<Child, String> {
+    let stdout = fs::File::create(log_path).map_err(|error| {
+        format!(
+            "failed to create export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+    let stderr = stdout
+        .try_clone()
+        .map_err(|error| format!("failed to clone export log handle: {error}"))?;
+
+    let mut command = match &plan.launcher {
+        RecorderLauncher::Binary(path) => {
+            let mut command = Command::new(path);
+            command.args(&plan.recorder_args);
+            command
+        }
+        RecorderLauncher::Cargo(manifest_path) => {
+            let mut command = Command::new("cargo");
+            command
+                .args(["run", "--release", "-p", "recorder", "--manifest-path"])
+                .arg(manifest_path)
+                .arg("--")
+                .args(&plan.recorder_args);
+            command
+        }
+    };
+
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::from(stderr))
+        .spawn()
+        .map_err(|error| error.to_string())
+}
+
+fn create_export_log_path() -> Result<PathBuf, String> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("system clock before unix epoch: {error}"))?
+        .as_secs();
+
+    Ok(env::temp_dir().join(format!("nextframe-export-{timestamp}.log")))
+}
+
+fn format_exit_status(status: ExitStatus) -> String {
+    match status.code() {
+        Some(code) => format!("exit_code_{code}"),
+        None => "terminated_by_signal".to_string(),
+    }
+}
+
+fn recorder_binary_name() -> &'static str {
+    if cfg!(windows) {
+        "recorder.exe"
+    } else {
+        "recorder"
+    }
+}
+
+fn absolutize_path(current_dir: &Path, path: PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        path
+    } else {
+        current_dir.join(path)
+    }
+}
+
+fn trim_float(value: f64) -> String {
+    let mut rendered = format!("{value:.3}");
+    while rendered.contains('.') && rendered.ends_with('0') {
+        rendered.pop();
+    }
+    if rendered.ends_with('.') {
+        rendered.pop();
+    }
+    rendered
+}
+
+fn path_to_file_url(path: &Path) -> String {
+    let raw = path.to_string_lossy().replace('\\', "/");
+    let prefix = if raw.starts_with('/') {
+        "file://"
+    } else {
+        "file:///"
+    };
+    format!("{prefix}{}", percent_encode_path(&raw))
+}
+
+fn percent_encode_path(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+
+    for byte in value.bytes() {
+        let keep = matches!(
+            byte,
+            b'A'..=b'Z'
+                | b'a'..=b'z'
+                | b'0'..=b'9'
+                | b'/'
+                | b':'
+                | b'-'
+                | b'_'
+                | b'.'
+                | b'~'
+        );
+
+        if keep {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push_str(&format!("{byte:02X}"));
+        }
+    }
+
+    encoded
+}
+
 fn validate_path(raw_path: &str) -> Result<PathBuf, String> {
-    if raw_path.trim().is_empty() {
+    let normalized = raw_path.trim();
+    if normalized.is_empty() {
         return Err("path must not be empty".to_string());
     }
 
-    if raw_path.contains("..") {
+    if normalized.contains("..") {
         return Err(format!("path is outside sandbox: {raw_path}"));
     }
 
-    Ok(PathBuf::from(raw_path))
+    Ok(expand_home_dir(normalized))
 }
 
 fn resolve_existing_path(raw_path: &str) -> Result<PathBuf, String> {
@@ -394,8 +947,14 @@ fn resolve_existing_path(raw_path: &str) -> Result<PathBuf, String> {
 fn resolve_write_path(raw_path: &str) -> Result<PathBuf, String> {
     let path = validate_path(raw_path)?;
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
-    let canonical_parent = fs::canonicalize(parent)
-        .map_err(|error| format!("failed to resolve parent for '{}': {error}", path.display()))?;
+    let existing_parent = nearest_existing_ancestor(parent)
+        .ok_or_else(|| format!("failed to resolve parent for '{}'", path.display()))?;
+    let canonical_parent = fs::canonicalize(&existing_parent).map_err(|error| {
+        format!(
+            "failed to resolve parent for '{}': {error}",
+            existing_parent.display()
+        )
+    })?;
 
     ensure_allowed_path(&canonical_parent, raw_path)?;
 
@@ -413,6 +972,22 @@ fn resolve_write_path(raw_path: &str) -> Result<PathBuf, String> {
     }
 
     Ok(path)
+}
+
+fn resolve_reveal_path(raw_path: &str) -> Result<PathBuf, String> {
+    resolve_existing_path(raw_path).or_else(|_| resolve_write_path(raw_path))
+}
+
+fn nearest_existing_ancestor(path: &Path) -> Option<PathBuf> {
+    let mut current = path;
+
+    loop {
+        if current.exists() {
+            return Some(current.to_path_buf());
+        }
+
+        current = current.parent()?;
+    }
 }
 
 fn ensure_allowed_path(path: &Path, raw_path: &str) -> Result<(), String> {
@@ -444,6 +1019,20 @@ fn canonical_or_raw(path: PathBuf) -> PathBuf {
     fs::canonicalize(&path).unwrap_or(path)
 }
 
+fn expand_home_dir(path: &str) -> PathBuf {
+    if path == "~" {
+        return home_dir().unwrap_or_else(|| PathBuf::from(path));
+    }
+
+    if let Some(stripped) = path.strip_prefix("~/").or_else(|| path.strip_prefix("~\\")) {
+        if let Some(home) = home_dir() {
+            return home.join(stripped);
+        }
+    }
+
+    PathBuf::from(path)
+}
+
 fn home_dir() -> Option<PathBuf> {
     env::var_os("HOME")
         .map(PathBuf::from)
@@ -457,7 +1046,10 @@ fn home_dir() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{dispatch, Request};
+    use super::{
+        build_recorder_args, dispatch, home_dir, recorder_binary_name,
+        resolve_recorder_launch_plan_with, resolve_write_path, RecorderLauncher, Request,
+    };
     use serde_json::{json, Value};
     use std::env;
     use std::fs;
@@ -688,6 +1280,24 @@ mod tests {
     }
 
     #[test]
+    fn fs_reveal_dispatch_happy_and_error() {
+        let temp = TestDir::new("fs-reveal");
+        let file_path = temp.join("export.mp4");
+        fs::write(&file_path, "video").expect("write export file");
+
+        let response = dispatch(request(
+            "fs.reveal",
+            json!({ "path": file_path.display().to_string() }),
+        ));
+        assert!(response.ok);
+        assert_eq!(response.result.get("revealed"), Some(&json!(true)));
+
+        let error_response = dispatch(request("fs.reveal", json!({})));
+        assert!(!error_response.ok);
+        assert_error_contains(&error_response.error, "missing params.path");
+    }
+
+    #[test]
     fn log_dispatch_happy_and_error() {
         let response = dispatch(request(
             "log",
@@ -869,6 +1479,87 @@ mod tests {
 
         assert!(!response.ok);
         assert_error_contains(&response.error, "outside sandbox");
+    }
+
+    #[test]
+    fn resolve_write_path_expands_home_and_allows_missing_export_dirs() {
+        let home = home_dir().expect("home dir");
+        let result = resolve_write_path("~/Movies/NextFrame/render.mp4")
+            .expect("resolve export path under home");
+        assert_eq!(result, home.join("Movies/NextFrame/render.mp4"));
+    }
+
+    #[test]
+    fn resolve_recorder_launch_plan_prefers_env_override() {
+        let temp = TestDir::new("recorder-env");
+        let env_binary = temp.join(recorder_binary_name());
+        let release_binary = temp.join("release").join(recorder_binary_name());
+        let manifest = temp.join("Cargo.toml");
+        fs::create_dir_all(release_binary.parent().expect("release parent"))
+            .expect("create release dir");
+        fs::write(&env_binary, "").expect("write env binary");
+        fs::write(&release_binary, "").expect("write release binary");
+        fs::write(
+            &manifest,
+            "[package]\nname = \"recorder\"\nversion = \"0.1.0\"\n",
+        )
+        .expect("write manifest");
+
+        let launcher =
+            resolve_recorder_launch_plan_with(Some(env_binary.clone()), release_binary, manifest)
+                .expect("resolve launcher");
+
+        assert_eq!(launcher, RecorderLauncher::Binary(env_binary));
+    }
+
+    #[test]
+    fn resolve_recorder_launch_plan_falls_back_to_cargo_manifest() {
+        let temp = TestDir::new("recorder-cargo");
+        let manifest = temp.join("Cargo.toml");
+        fs::write(
+            &manifest,
+            "[package]\nname = \"recorder\"\nversion = \"0.1.0\"\n",
+        )
+        .expect("write manifest");
+
+        let launcher =
+            resolve_recorder_launch_plan_with(None, temp.join("missing"), manifest.clone())
+                .expect("resolve cargo launcher");
+
+        assert_eq!(launcher, RecorderLauncher::Cargo(manifest));
+    }
+
+    #[test]
+    fn build_recorder_args_matches_expected_contract() {
+        let args = build_recorder_args(
+            "file:///tmp/runtime/web/index.html?record=true".to_string(),
+            PathBuf::from("/tmp/output.mp4"),
+            1920,
+            1080,
+            60,
+            12.5,
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--url",
+                "file:///tmp/runtime/web/index.html?record=true",
+                "--out",
+                "/tmp/output.mp4",
+                "--width",
+                "1920",
+                "--height",
+                "1080",
+                "--fps",
+                "60",
+                "--duration",
+                "12.5",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
+        );
     }
 
     fn request(method: &str, params: Value) -> Request {
