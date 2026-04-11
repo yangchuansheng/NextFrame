@@ -105,7 +105,7 @@ export function mountTimeline(container, store) {
 
       let row = trackRows.get(id);
       if (!row || forceRender || trackSignatures.get(id) !== signature) {
-        const replacement = createTrackRow({ ...track, id }, { duration, zoom });
+        const replacement = createTrackRow({ ...track, id }, { duration, zoom, store });
         if (row) {
           row.replaceWith(replacement);
         } else {

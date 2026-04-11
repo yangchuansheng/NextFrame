@@ -1,3 +1,5 @@
+import { clampClipDuration, getClipDuration, hasTrackOverlap, snapClipTime } from "./timeline/clip-range.js";
+
 function cloneValue(value) {
   if (typeof globalThis.structuredClone === "function") {
     return globalThis.structuredClone(value);
@@ -5,6 +7,8 @@ function cloneValue(value) {
 
   return JSON.parse(JSON.stringify(value));
 }
+
+const ABORT_COMMAND = Symbol("abort-command");
 
 function assertCommand(command) {
   if (!command || typeof command !== "object") {
@@ -89,6 +93,24 @@ function findClipLocation(tracks, clipId, preferredTrackId = null) {
   return null;
 }
 
+function normalizeClipStart(value, fallback = 0) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return snapClipTime(fallback);
+  }
+
+  return snapClipTime(numeric);
+}
+
+function normalizeClipDuration(value, fallback = 0.1) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return clampClipDuration(fallback);
+  }
+
+  return clampClipDuration(numeric);
+}
+
 function getPreviousClip(prevState, clipId, trackId) {
   const tracks = Array.isArray(prevState?.timeline?.tracks) ? prevState.timeline.tracks : [];
   const location = findClipLocation(tracks, clipId, trackId);
@@ -102,7 +124,81 @@ function getPreviousClip(prevState, clipId, trackId) {
   };
 }
 
+export function moveClipCommand({ clipId, newStart, newDur }) {
+  let previousClip = null;
+  let didApply = false;
+
+  return {
+    type: "moveClip",
+    clipId,
+    newStart,
+    newDur,
+    exec(state) {
+      const tracks = cloneTracks(getTimelineState(state));
+      const location = findClipLocation(tracks, clipId);
+      if (!location) {
+        throw new Error(`moveClip: clip "${clipId}" not found`);
+      }
+
+      const track = tracks[location.trackIndex];
+      const clip = track.clips[location.clipIndex];
+      const previousStart = Number(clip?.start) || 0;
+      const previousDur = getClipDuration(clip);
+      const nextStart = normalizeClipStart(newStart, previousStart);
+      const nextDur = normalizeClipDuration(newDur ?? previousDur, previousDur);
+
+      if (nextStart === previousStart && nextDur === previousDur) {
+        return ABORT_COMMAND;
+      }
+
+      if (hasTrackOverlap(track, nextStart, nextDur, { ignoreClipId: clipId })) {
+        return ABORT_COMMAND;
+      }
+
+      previousClip = {
+        start: previousStart,
+        dur: previousDur,
+      };
+      didApply = true;
+
+      const nextClip = {
+        ...clip,
+        start: nextStart,
+        dur: nextDur,
+      };
+
+      if (Object.prototype.hasOwnProperty.call(nextClip, "duration")) {
+        nextClip.duration = nextDur;
+      }
+
+      const nextClips = [...track.clips];
+      nextClips[location.clipIndex] = nextClip;
+      tracks[location.trackIndex] = {
+        ...track,
+        clips: sortClips(nextClips),
+      };
+
+      return withUpdatedTimeline(state, tracks);
+    },
+    invert() {
+      if (!didApply || !previousClip) {
+        return null;
+      }
+
+      return moveClipCommand({
+        clipId,
+        newStart: previousClip.start,
+        newDur: previousClip.dur,
+      });
+    },
+  };
+}
+
 function createBuiltInCommand(command) {
+  if (typeof command.exec === "function") {
+    return command;
+  }
+
   switch (command.type) {
     case "addClip":
       return {
@@ -344,7 +440,13 @@ export function createDispatcher(store) {
     const normalized = normalizeCommand(command);
     const previousState = cloneValue(store.state);
     const draftState = cloneValue(store.state);
-    const nextState = normalized.exec(draftState) ?? draftState;
+    const result = normalized.exec(draftState);
+
+    if (result === ABORT_COMMAND) {
+      return store.state;
+    }
+
+    const nextState = result ?? draftState;
 
     if (!nextState || typeof nextState !== "object") {
       throw new TypeError(`Command "${normalized.type}" must return a state object`);

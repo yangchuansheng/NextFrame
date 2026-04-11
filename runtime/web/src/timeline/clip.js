@@ -1,4 +1,5 @@
 import { SCENE_MANIFEST } from "../scenes/index.js";
+import { attachClipInteractions } from "./clip-interact.js";
 
 const CATEGORY_COLORS = {
   Audio: "#14b8a6",
@@ -27,7 +28,7 @@ function hexToRgba(hex, alpha) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-export function createClip(clip, zoom) {
+export function createClip(clip, zoom, store) {
   const scene = typeof clip.scene === "string" ? SCENE_META.get(clip.scene) : null;
   const category = clip.category || scene?.category || "";
   const labelText = clip.name || scene?.name || clip.scene || clip.assetId || "Untitled clip";
@@ -46,6 +47,10 @@ export function createClip(clip, zoom) {
   element.style.setProperty("--clip-fill-end", hexToRgba(accent, 0.2));
   element.title = labelText;
 
+  const preview = document.createElement("span");
+  preview.className = "timeline-clip-preview";
+  preview.setAttribute("aria-hidden", "true");
+
   const leftHandle = document.createElement("span");
   leftHandle.className = "timeline-clip-handle timeline-clip-handle-left";
   leftHandle.setAttribute("aria-hidden", "true");
@@ -58,7 +63,8 @@ export function createClip(clip, zoom) {
   rightHandle.className = "timeline-clip-handle timeline-clip-handle-right";
   rightHandle.setAttribute("aria-hidden", "true");
 
-  element.append(leftHandle, label, rightHandle);
+  element.append(preview, leftHandle, label, rightHandle);
+  attachClipInteractions(element, clip.id || "", store, zoom);
   return element;
 }
 
