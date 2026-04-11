@@ -1,0 +1,10 @@
+[package]
+name = "shell"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bridge = { path = "../bridge" }
+engine = { path = "../engine" }
+project = { path = "../project" }
