@@ -217,7 +217,7 @@ edit clips and tracks, and save the result back through `timeline.save`.
 - Keep `track.id` and `clip.id` stable when editing existing items. Generate new unique ids when adding tracks or clips.
 - Keep `durationMs >= 1`, `startMs >= 0`, and `offsetMs >= 0`.
 - Keep `assetPath` `null` for generated clips and a string path for file-backed clips.
-- `sceneId` should correspond to a valid scene block. This round returns stub ids: `gradientBg`, `text`, `shape`, `image`, `counter`.
+- `sceneId` should correspond to a valid scene block. The built-in scene ids are: `auroraGradient`, `kineticHeadline`, `neonGrid`, `barChartReveal`, `lowerThirdVelvet`.
 - Sorting clips by `startMs` within each track is recommended before saving.
 
 ## Commands
@@ -605,7 +605,7 @@ edit clips and tracks, and save the result back through `timeline.save`.
     "properties": {
       "id": {
         "type": "string",
-        "enum": ["gradientBg", "text", "shape", "image", "counter"]
+        "enum": ["auroraGradient", "kineticHeadline", "neonGrid", "barChartReveal", "lowerThirdVelvet"]
       },
       "name": {
         "type": "string"
@@ -980,7 +980,7 @@ edit clips and tracks, and save the result back through `timeline.save`.
           "clips": [
             {
               "id": "clip-1",
-              "sceneId": "text",
+              "sceneId": "kineticHeadline",
               "label": "Title",
               "startMs": 0,
               "durationMs": 3000,
