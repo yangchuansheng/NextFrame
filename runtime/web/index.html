@@ -41,7 +41,7 @@
         --timeline-max: 480px;
         --preview-min: 480px;
         --splitter-size: 10px;
-        --track-label-w: 88px;
+        --track-label-w: 120px;
         --lane-h: 58px;
       }
 
@@ -721,6 +721,7 @@
         max-height: var(--timeline-max);
         display: flex;
         flex-direction: column;
+        min-width: 0;
       }
 
       .timeline-toolbar {
@@ -738,149 +739,248 @@
         display: flex;
         flex-direction: column;
         padding: 0 16px 16px;
+        gap: 0;
       }
 
-      .timeline-ruler {
+      .timeline-zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .timeline-zoom-button,
+      .timeline-fit-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .timeline-zoom-slider {
+        width: 168px;
+        accent-color: #ef4444;
+      }
+
+      .timeline-ruler-shell {
         display: grid;
-        grid-template-columns: var(--track-label-w) 1fr;
+        grid-template-columns: var(--track-label-w) minmax(0, 1fr);
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
 
-      .timeline-ruler-label {
+      .timeline-ruler-side {
         display: flex;
         align-items: center;
-        padding: 0 12px;
+        padding: 0 14px;
+        background: linear-gradient(180deg, rgba(39, 39, 49, 0.96), rgba(28, 28, 36, 0.98));
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
         color: var(--text-faint);
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
 
-      .ruler-scale {
+      .timeline-ruler-scroll {
         position: relative;
-        height: 40px;
-        display: grid;
-        grid-template-columns: repeat(31, minmax(0, 1fr));
-        gap: 0;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
         background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / calc(100% / 30) 100%,
           linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
       }
 
-      .tick {
-        position: relative;
-        height: 100%;
-        padding-top: 5px;
+      .timeline-ruler-scroll::-webkit-scrollbar {
+        display: none;
       }
 
-      .tick::before,
-      .tick::after {
+      .timeline-ruler-canvas {
+        position: relative;
+        height: 42px;
+      }
+
+      .timeline-ruler-tick {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+      }
+
+      .timeline-ruler-tick::before {
         content: "";
         position: absolute;
         left: 0;
-        background: rgba(255, 255, 255, 0.18);
-      }
-
-      .tick::before {
         top: 0;
         width: 1px;
-        height: 12px;
+        background: rgba(255, 255, 255, 0.22);
       }
 
-      .tick::after {
-        top: 0;
-        width: 1px;
-        height: 5px;
-        transform: translateX(calc(50% - 1px));
-        opacity: 0.55;
+      .timeline-ruler-tick-minor::before {
+        height: 7px;
       }
 
-      .tick span {
+      .timeline-ruler-tick-major::before {
+        height: 15px;
+      }
+
+      .timeline-ruler-tick span {
+        position: absolute;
+        top: 6px;
+        left: 8px;
         display: inline-block;
-        padding-left: 8px;
         color: var(--text-faint);
         font-family: "SFMono-Regular", Menlo, Consolas, monospace;
         font-size: 11px;
       }
 
-      .timeline-tracks {
+      .timeline-tracks-scroll {
         flex: 1 1 auto;
         min-height: 0;
-        overflow: hidden;
+        overflow: auto;
+        position: relative;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0)),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
+        scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
       }
 
-      .track-row {
+      .timeline-tracks-canvas {
+        position: relative;
+        min-height: 100%;
+      }
+
+      .timeline-track-list {
+        min-width: 100%;
+      }
+
+      .timeline-track-row {
         position: relative;
         display: grid;
-        grid-template-columns: var(--track-label-w) 1fr;
-        min-height: var(--lane-h);
+        min-height: 64px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        min-width: 100%;
       }
 
-      .track-head {
-        padding: 10px 12px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 3px;
-        color: var(--text-dim);
-      }
-
-      .track-head strong {
-        color: var(--text);
-      }
-
-      .track-lane {
-        position: relative;
-        overflow: hidden;
-        background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / calc(100% / 30) 100%,
-          linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
-      }
-
-      .playhead {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 41%;
-        width: 2px;
-        background: #f43f5e;
-        box-shadow: 0 0 10px rgba(244, 63, 94, 0.45);
-        z-index: 4;
-      }
-
-      .playhead::before {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 0;
-        width: 10px;
-        height: 10px;
-        background: #f43f5e;
-        transform: translate(-50%, -50%) rotate(45deg);
-        border-radius: 2px;
-      }
-
-      .clip {
-        position: absolute;
-        top: 8px;
-        height: calc(var(--lane-h) - 16px);
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.28);
+      .timeline-track-header {
+        position: sticky;
+        left: 0;
+        z-index: 2;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 0 12px;
+        padding: 10px 12px;
+        background: linear-gradient(180deg, rgba(41, 41, 49, 0.98), rgba(30, 30, 38, 0.98));
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        color: var(--text-dim);
+      }
+
+      .timeline-track-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .timeline-track-copy strong {
+        color: var(--text);
+      }
+
+      .timeline-track-copy span {
+        color: var(--text-faint);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .timeline-track-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .timeline-track-badge {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        color: var(--text-faint);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .timeline-track-badge.is-active {
+        color: var(--text);
+        border-color: rgba(239, 68, 68, 0.38);
+        background: rgba(239, 68, 68, 0.12);
+      }
+
+      .timeline-track-icon {
+        width: 14px;
+        height: 14px;
+      }
+
+      .timeline-track-lane {
+        position: relative;
+        min-height: 64px;
+        overflow: hidden;
+        background:
+          repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent var(--timeline-minor-step)),
+          repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent var(--timeline-major-step)),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
+      }
+
+      .timeline-playhead-line,
+      .timeline-playhead-marker {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #ef4444;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.48);
+        z-index: 5;
+        pointer-events: none;
+      }
+
+      .timeline-playhead-marker::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 0;
+        height: 0;
+        transform: translate(-50%, 0);
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 9px solid #ef4444;
+      }
+
+      .timeline-clip {
+        position: absolute;
+        top: 10px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-radius: 3px;
+        border: 1px solid var(--clip-accent);
+        background: linear-gradient(135deg, var(--clip-fill-start), var(--clip-fill-end));
+        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.28);
         overflow: hidden;
       }
 
-      .clip::before {
+      .timeline-clip::before {
         content: "";
         position: absolute;
         inset: 0;
         background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 56%),
           repeating-linear-gradient(
             90deg,
             rgba(255, 255, 255, 0.08) 0,
@@ -888,71 +988,35 @@
             transparent 8px,
             transparent 18px
           );
-        opacity: 0.22;
+        opacity: 0.28;
       }
 
-      .clip > span {
+      .timeline-clip-label {
         position: relative;
         z-index: 1;
-      }
-
-      .clip-title {
+        min-width: 0;
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .clip-length {
-        color: rgba(255, 255, 255, 0.72);
-        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
-        font-size: 11px;
-      }
-
-      .clip.video {
-        background: var(--track-video);
-      }
-
-      .clip.video-alt {
-        background: var(--track-video-alt);
-      }
-
-      .clip.audio {
-        background: var(--track-audio);
-      }
-
-      .clip.audio::after {
-        content: "";
+      .timeline-clip-handle {
         position: absolute;
-        left: 12px;
-        right: 12px;
-        height: 16px;
-        top: calc(50% - 8px);
-        background:
-          repeating-linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.44) 0,
-            rgba(255, 255, 255, 0.44) 4px,
-            transparent 4px,
-            transparent 11px
-          );
-        opacity: 0.34;
-        z-index: 0;
+        top: 5px;
+        bottom: 5px;
+        width: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.26);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
       }
 
-      .clip.selected {
-        box-shadow:
-          0 0 0 2px rgba(99, 102, 241, 0.78),
-          0 10px 18px rgba(0, 0, 0, 0.3);
+      .timeline-clip-handle-left {
+        left: 5px;
       }
 
-      .scroll-shadow {
-        position: absolute;
-        inset: 0 0 auto;
-        height: 18px;
-        background: linear-gradient(180deg, rgba(11, 11, 20, 0.44), transparent);
-        pointer-events: none;
-      }
-
-      .muted {
-        color: var(--text-faint);
+      .timeline-clip-handle-right {
+        right: 5px;
       }
     </style>
   </head>
@@ -1191,123 +1255,83 @@
           aria-orientation="horizontal"
         ></div>
 
-        <section id="bottom-timeline" class="panel">
-          <div class="timeline-toolbar">
-            <div class="panel-title">
-              <strong>Timeline</strong>
-              <span>30 second sequence • Multi-track arrangement</span>
-            </div>
-            <div class="chip-row">
-              <div class="mini-chip">Snap</div>
-              <div class="mini-chip">Magnet</div>
-              <div class="mini-chip">1.00x</div>
-            </div>
-          </div>
-          <div class="timeline-body">
-            <div class="timeline-ruler">
-              <div class="timeline-ruler-label">Ruler</div>
-              <div class="ruler-scale" aria-label="Timeline ruler">
-                <div class="tick"><span>0s</span></div>
-                <div class="tick"><span>1s</span></div>
-                <div class="tick"><span>2s</span></div>
-                <div class="tick"><span>3s</span></div>
-                <div class="tick"><span>4s</span></div>
-                <div class="tick"><span>5s</span></div>
-                <div class="tick"><span>6s</span></div>
-                <div class="tick"><span>7s</span></div>
-                <div class="tick"><span>8s</span></div>
-                <div class="tick"><span>9s</span></div>
-                <div class="tick"><span>10s</span></div>
-                <div class="tick"><span>11s</span></div>
-                <div class="tick"><span>12s</span></div>
-                <div class="tick"><span>13s</span></div>
-                <div class="tick"><span>14s</span></div>
-                <div class="tick"><span>15s</span></div>
-                <div class="tick"><span>16s</span></div>
-                <div class="tick"><span>17s</span></div>
-                <div class="tick"><span>18s</span></div>
-                <div class="tick"><span>19s</span></div>
-                <div class="tick"><span>20s</span></div>
-                <div class="tick"><span>21s</span></div>
-                <div class="tick"><span>22s</span></div>
-                <div class="tick"><span>23s</span></div>
-                <div class="tick"><span>24s</span></div>
-                <div class="tick"><span>25s</span></div>
-                <div class="tick"><span>26s</span></div>
-                <div class="tick"><span>27s</span></div>
-                <div class="tick"><span>28s</span></div>
-                <div class="tick"><span>29s</span></div>
-                <div class="tick"><span>30s</span></div>
-              </div>
-            </div>
-            <div class="timeline-tracks">
-              <div class="track-row">
-                <div class="track-head">
-                  <strong>V1</strong>
-                  <span>Video 1</span>
-                </div>
-                <div class="track-lane">
-                  <div class="scroll-shadow"></div>
-                  <div class="playhead"></div>
-                  <div class="clip video selected" style="left: 3%; width: 34%;">
-                    <span class="clip-title">City Opener</span>
-                    <span class="clip-length">00:10</span>
-                  </div>
-                  <div class="clip video-alt" style="left: 39%; width: 27%;">
-                    <span class="clip-title">Product Macro</span>
-                    <span class="clip-length">00:08</span>
-                  </div>
-                  <div class="clip video" style="left: 68%; width: 21%;">
-                    <span class="clip-title">Outro Push</span>
-                    <span class="clip-length">00:06</span>
-                  </div>
-                </div>
-              </div>
-              <div class="track-row">
-                <div class="track-head">
-                  <strong>V2</strong>
-                  <span>Titles</span>
-                </div>
-                <div class="track-lane">
-                  <div class="playhead"></div>
-                  <div class="clip video-alt" style="left: 12%; width: 22%;">
-                    <span class="clip-title">Intro Title</span>
-                    <span class="clip-length">00:06</span>
-                  </div>
-                  <div class="clip video" style="left: 46%; width: 18%;">
-                    <span class="clip-title">CTA Lower Third</span>
-                    <span class="clip-length">00:05</span>
-                  </div>
-                </div>
-              </div>
-              <div class="track-row">
-                <div class="track-head">
-                  <strong>A1</strong>
-                  <span>Audio 1</span>
-                </div>
-                <div class="track-lane">
-                  <div class="playhead"></div>
-                  <div class="clip audio" style="left: 2%; width: 33%;">
-                    <span class="clip-title">Ambient Bed</span>
-                    <span class="clip-length">00:09</span>
-                  </div>
-                  <div class="clip audio" style="left: 37%; width: 26%;">
-                    <span class="clip-title">Voiceover</span>
-                    <span class="clip-length">00:08</span>
-                  </div>
-                  <div class="clip audio" style="left: 66%; width: 22%;">
-                    <span class="clip-title">SFX Lift</span>
-                    <span class="clip-length">00:06</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <section id="bottom-timeline" class="panel"></section>
       </main>
     </div>
 
-    <script>
+    <script type="module">
+      import { mountTimeline } from "./src/timeline/index.js";
+
+      const demoTimeline = {
+        duration: 30,
+        tracks: [
+          {
+            id: "track-v1",
+            label: "V1",
+            name: "Scene Plates",
+            muted: false,
+            locked: false,
+            clips: [
+              { id: "clip-v1-1", name: "City Opener", category: "Backgrounds", start: 0, duration: 6.5 },
+              { id: "clip-v1-2", name: "Shape Sweep", category: "Shapes", start: 7.2, duration: 5.1 },
+              { id: "clip-v1-3", name: "Metrics Wall", category: "DataViz", start: 15.1, duration: 6.4 },
+            ],
+          },
+          {
+            id: "track-v2",
+            label: "V2",
+            name: "Type + Overlays",
+            muted: false,
+            locked: true,
+            clips: [
+              { id: "clip-v2-1", name: "Intro Title", category: "Typography", start: 0.8, duration: 4.6 },
+              { id: "clip-v2-2", name: "Feature Callout", category: "Overlays", start: 9.4, duration: 4.8 },
+              { id: "clip-v2-3", name: "Accent Wipe", category: "Transitions", start: 20.2, duration: 4.4 },
+            ],
+          },
+          {
+            id: "track-a1",
+            label: "A1",
+            name: "Support Layer",
+            muted: true,
+            locked: false,
+            clips: [
+              { id: "clip-a1-1", name: "Lower Third", category: "Typography", start: 5.2, duration: 5.3 },
+              { id: "clip-a1-2", name: "Comparison Stack", category: "DataViz", start: 13.8, duration: 8.6 },
+            ],
+          },
+        ],
+      };
+
+      const createStore = (initialState) => {
+        let state = initialState;
+        const listeners = new Set();
+
+        return {
+          get state() {
+            return state;
+          },
+          setState(nextState) {
+            const previousState = state;
+            state = typeof nextState === "function"
+              ? nextState(state)
+              : { ...state, ...nextState };
+            listeners.forEach((listener) => listener(state, previousState));
+          },
+          subscribe(listener) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
+        };
+      };
+
+      const store = createStore({
+        timeline: demoTimeline,
+        playhead: 11.75,
+      });
+
+      window.nextFrameStore = store;
+
       (() => {
         const $ = (id) => document.getElementById(id), s = [...document.querySelectorAll(".splitter")];
         const pane = { left: $("left-library"), right: $("right-inspector"), bottom: $("bottom-timeline") };
@@ -1334,6 +1358,8 @@
           document.body.classList.remove("dragging");
           drag = "";
         });
+
+        mountTimeline($("bottom-timeline"), store);
       })();
     </script>
   </body>
