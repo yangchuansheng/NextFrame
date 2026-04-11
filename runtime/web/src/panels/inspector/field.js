@@ -29,6 +29,8 @@ export function renderField({
   options = [],
   description,
   readOnly = false,
+  inlineAction = null,
+  details = null,
   onChange,
 } = {}) {
   const field = document.createElement("label");
@@ -106,6 +108,39 @@ export function renderField({
     control.addEventListener(eventName, handler);
   }
 
-  field.append(copy, control);
+  const controlRow = document.createElement("div");
+  controlRow.className = "inspector-input-row";
+  controlRow.appendChild(control);
+
+  if (inlineAction && typeof inlineAction === "object") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "inspector-field-inline-action";
+    button.textContent = inlineAction.label || "Action";
+    button.disabled = Boolean(readOnly || inlineAction.disabled);
+    button.title = inlineAction.title || inlineAction.label || "Action";
+    button.setAttribute("aria-pressed", String(Boolean(inlineAction.pressed)));
+
+    if (inlineAction.pressed) {
+      button.classList.add("is-active");
+    }
+
+    if (!button.disabled && typeof inlineAction.onClick === "function") {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        inlineAction.onClick(event);
+      });
+    }
+
+    controlRow.appendChild(button);
+  }
+
+  field.append(copy, controlRow);
+
+  if (details instanceof Node) {
+    field.appendChild(details);
+  }
+
   return field;
 }
