@@ -320,12 +320,64 @@ export function splitClipCommand({ clipId, splitTime, trackId = null, newClipId 
   };
 }
 
+export function batchCommand(commands) {
+  return {
+    type: "batch",
+    commands: Array.isArray(commands) ? commands : [],
+  };
+}
+
 function createBuiltInCommand(command) {
   if (typeof command.exec === "function") {
     return command;
   }
 
   switch (command.type) {
+    case "batch": {
+      let inverseCommands = [];
+
+      return {
+        ...command,
+        exec(state) {
+          const commands = Array.isArray(command.commands) ? command.commands : [];
+          let nextState = state;
+          let didApply = false;
+
+          inverseCommands = [];
+
+          for (const entry of commands) {
+            const normalized = normalizeCommand(entry);
+            const previousState = cloneValue(nextState);
+            const draftState = cloneValue(nextState);
+            const result = normalized.exec(draftState);
+
+            if (result === ABORT_COMMAND) {
+              continue;
+            }
+
+            const resolvedState = result ?? draftState;
+            if (!resolvedState || typeof resolvedState !== "object") {
+              throw new TypeError(`Command "${normalized.type}" must return a state object`);
+            }
+
+            nextState = resolvedState;
+            didApply = true;
+
+            if (typeof normalized.invert === "function") {
+              const inverse = normalized.invert(nextState, previousState);
+              if (inverse) {
+                inverseCommands.unshift(inverse);
+              }
+            }
+          }
+
+          return didApply ? nextState : ABORT_COMMAND;
+        },
+        invert() {
+          return inverseCommands.length > 0 ? batchCommand(inverseCommands) : null;
+        },
+      };
+    }
     case "addClip":
       return {
         ...command,

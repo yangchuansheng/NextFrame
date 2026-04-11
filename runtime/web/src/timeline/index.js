@@ -1,4 +1,4 @@
-import { splitClipCommand } from "../commands.js";
+import { batchCommand, splitClipCommand } from "../commands.js";
 import { createPlayhead } from "./playhead.js";
 import { formatTime, renderRuler } from "./ruler.js";
 import { TRACK_HEADER_WIDTH, createTrackRow } from "./track.js";
@@ -430,9 +430,9 @@ export function mountTimeline(container, store) {
     }
 
     const playheadTime = Number(store.state.playhead) || 0;
-    clipIds.forEach((clipId) => {
-      store.dispatch(splitClipCommand({ clipId, splitTime: playheadTime }));
-    });
+    store.dispatch(batchCommand(
+      clipIds.map((clipId) => splitClipCommand({ clipId, splitTime: playheadTime })),
+    ));
   }
 
   function selectAllOnActiveTrack() {
