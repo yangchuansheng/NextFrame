@@ -387,6 +387,7 @@ fn handle_export_mux_audio(params: &Value) -> Result<Value, String> {
 
     if audio_sources.is_empty() {
         copy_video_output(&video_path, &output_path)?;
+        cleanup_intermediate_video(&video_path, &output_path);
         return Ok(json!({
             "ok": true,
             "outputPath": output_path.display().to_string(),
@@ -419,6 +420,8 @@ fn handle_export_mux_audio(params: &Value) -> Result<Value, String> {
             "error": error,
         }));
     }
+
+    cleanup_intermediate_video(&video_path, &output_path);
 
     Ok(json!({
         "ok": true,
@@ -1036,6 +1039,21 @@ fn copy_video_output(video_path: &Path, output_path: &Path) -> Result<(), String
     })?;
 
     Ok(())
+}
+
+fn cleanup_intermediate_video(video_path: &Path, output_path: &Path) {
+    if video_path == output_path {
+        return;
+    }
+
+    if let Err(error) = fs::remove_file(video_path) {
+        if error.kind() != ErrorKind::NotFound {
+            eprintln!(
+                "warning: failed to remove intermediate export '{}': {error}",
+                video_path.display()
+            );
+        }
+    }
 }
 
 fn ffmpeg_command_path() -> Result<Option<PathBuf>, String> {
