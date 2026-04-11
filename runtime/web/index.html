@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>NextFrame Editor</title>
+    <title>Untitled — NextFrame</title>
     <style>
       :root {
         color-scheme: dark;
@@ -132,6 +132,44 @@
         text-transform: uppercase;
       }
 
+      #project-title {
+        flex: 0 1 280px;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+      }
+
+      .project-title-label {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+        max-width: 100%;
+        height: 24px;
+        padding: 0 10px;
+        border: 1px solid rgba(160, 163, 184, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-faint);
+        font-size: 11px;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+      }
+
+      .project-title-label:hover {
+        border-color: rgba(99, 102, 241, 0.28);
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--text-dim);
+      }
+
+      .project-title-label[data-dirty="true"] {
+        color: rgba(245, 158, 11, 0.92);
+      }
+
       .menu-button,
       .menu-chip {
         display: inline-flex;
@@ -210,6 +248,12 @@
 
       .menu-item:hover {
         background: rgba(255, 255, 255, 0.05);
+      }
+
+      .menu-item:disabled {
+        opacity: 0.45;
+        cursor: default;
+        pointer-events: none;
       }
 
       .menu-check {
@@ -1383,6 +1427,7 @@
             <div class="brand-badge" aria-hidden="true"></div>
             <div class="brand-name">NextFrame</div>
           </div>
+          <div id="project-title" aria-live="polite"></div>
           <nav class="menu-bar" aria-label="Application menu">
             <div class="menu-root" data-menu-root="file" data-open="false">
               <button
@@ -1497,6 +1542,18 @@
                 <button
                   class="menu-item"
                   type="button"
+                  role="menuitem"
+                  data-menu-action="revealProject"
+                  disabled
+                >
+                  <span class="menu-check"></span>
+                  <span>Reveal Project in Finder</span>
+                  <span class="menu-shortcut"></span>
+                </button>
+                <div class="menu-divider" role="separator"></div>
+                <button
+                  class="menu-item"
+                  type="button"
                   role="menuitemcheckbox"
                   data-menu-action="toggleSnap"
                   data-menu-check="snapEnabled"
@@ -1539,7 +1596,6 @@
             <span class="status-dot"></span>
             <span id="project-status-label">Ready</span>
           </div>
-          <div class="menu-button" id="project-path-label" title="Untitled.nfproj">Untitled.nfproj</div>
           <button class="menu-button primary" type="button" data-menu-action="export">Export…</button>
         </div>
       </header>
@@ -1770,6 +1826,7 @@
       import { copy as copyToClipboard, read as readClipboard } from "./src/clipboard.js";
       import { duplicateClipsCommand, pasteClipsCommand, removeClipsCommand } from "./src/commands.js";
       import { store } from "./src/store.js";
+      import { mountTitleBar } from "./src/title-bar.js";
       import { mountTimeline } from "./src/timeline/index.js";
       import { startTutorial } from "./src/tutorial/index.js";
       import { showWelcome } from "./src/welcome.js";
@@ -2182,6 +2239,8 @@
         if (inspectorEl) mountInspector(inspectorEl, { store, scenes: SCENE_MANIFEST });
 
         initDragDrop({ store, scenes: SCENE_MANIFEST });
+        const projectTitleEl = document.getElementById("project-title");
+        if (projectTitleEl) mountTitleBar(projectTitleEl, store);
         initMenu({ bridge, store });
         mountHelpHint(document.getElementById("top-menu"));
         createAudioAssetBufferSync(store);
