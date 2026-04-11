@@ -1703,12 +1703,7 @@
                   </div>
                 </div>
               </div>
-              <div class="transport">
-                <button class="transport-button" type="button" aria-label="Play or pause"></button>
-                <div class="time-display">00:00 / 00:30</div>
-                <div class="transport-pill">Space</div>
-                <div class="transport-pill">1080p</div>
-              </div>
+              <div id="preview-transport"></div>
             </div>
           </section>
 
@@ -1768,6 +1763,7 @@
       import { mountHelpHint } from "./src/help-hint.js";
       import { initMenu } from "./src/menu.js";
       import { mountPreview } from "./src/preview/index.js";
+      import { mountTransport } from "./src/preview/transport.js";
       import { mountLibrary } from "./src/panels/library/index.js";
       import { mountInspector } from "./src/panels/inspector/index.js";
       import { registerAllScenes, SCENE_MANIFEST } from "./src/scenes/index.js";
@@ -2170,6 +2166,10 @@
         const previewEl = document.getElementById("center-preview");
         if (previewEl) {
           const preview = mountPreview(previewEl, { engine, store });
+          const transportEl = document.getElementById("preview-transport");
+          if (transportEl) {
+            mountTransport(transportEl, { store, audioMixer: preview.audioMixer });
+          }
           installOnFrame({ engine, store, preview });
           showWelcome(previewEl);
         }

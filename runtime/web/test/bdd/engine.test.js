@@ -13,6 +13,7 @@ function createBaseState(timeline = createDefaultTimeline()) {
   return {
     playhead: 0,
     playing: false,
+    loop: true,
     scrubbing: false,
     snapEnabled: true,
     showSafeArea: false,
@@ -48,6 +49,7 @@ function resetGlobalStore(timeline = createDefaultTimeline()) {
   store.mutate((state) => {
     state.playhead = nextState.playhead;
     state.playing = nextState.playing;
+    state.loop = nextState.loop;
     state.scrubbing = nextState.scrubbing;
     state.snapEnabled = nextState.snapEnabled;
     state.showSafeArea = nextState.showSafeArea;

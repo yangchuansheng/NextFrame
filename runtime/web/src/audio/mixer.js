@@ -69,8 +69,13 @@ function collectScheduleEntries(state, playhead, horizon) {
 
   const assetIndex = createProjectAssetIndex(state);
   const tracks = Array.isArray(state?.timeline?.tracks) ? state.timeline.tracks : [];
-  const windowStart = wrapTime(playhead, duration);
-  const windowEnd = windowStart + horizon;
+  const loopEnabled = state?.loop !== false;
+  const windowStart = loopEnabled
+    ? wrapTime(playhead, duration)
+    : clamp(readFiniteNumber(playhead, 0), 0, duration);
+  const windowEnd = loopEnabled
+    ? windowStart + horizon
+    : Math.min(duration, windowStart + horizon);
   const entries = [];
 
   tracks.forEach((track) => {
@@ -135,6 +140,10 @@ function collectScheduleEntries(state, playhead, horizon) {
           volume,
           gainAutomation,
         });
+
+        if (!loopEnabled) {
+          break;
+        }
       }
     });
   });
@@ -145,9 +154,36 @@ function collectScheduleEntries(state, playhead, horizon) {
 export function createMixer({ audioContext, getAudioContext, getState = () => null } = {}) {
   const scheduledNodes = new Set();
   let session = null;
+  let masterVolume = 1;
+  let masterGain = null;
+  let masterGainContext = null;
 
   function resolveAudioContext() {
     return typeof getAudioContext === "function" ? getAudioContext() : audioContext;
+  }
+
+  function getMasterGain(activeAudioContext) {
+    if (!activeAudioContext) {
+      return null;
+    }
+
+    if (masterGain && masterGainContext === activeAudioContext) {
+      return masterGain;
+    }
+
+    if (masterGain) {
+      try {
+        masterGain.disconnect();
+      } catch {
+        // Best effort cleanup.
+      }
+    }
+
+    masterGainContext = activeAudioContext;
+    masterGain = activeAudioContext.createGain();
+    masterGain.gain.setValueAtTime(masterVolume, activeAudioContext.currentTime);
+    masterGain.connect(activeAudioContext.destination);
+    return masterGain;
   }
 
   function removeScheduled(entry) {
@@ -205,7 +241,7 @@ export function createMixer({ audioContext, getAudioContext, getState = () => nu
 
     source.buffer = audioBuffer;
     source.connect(gain);
-    gain.connect(activeAudioContext.destination);
+    gain.connect(getMasterGain(activeAudioContext) ?? activeAudioContext.destination);
     gain.gain.setValueAtTime(safeVolume, when);
 
     if (Array.isArray(gainAutomation)) {
@@ -240,7 +276,10 @@ export function createMixer({ audioContext, getAudioContext, getState = () => nu
 
     const state = getState();
     const duration = readFiniteNumber(state?.timeline?.duration, 0);
-    const normalizedPlayhead = wrapTime(playhead, duration);
+    const loopEnabled = state?.loop !== false;
+    const normalizedPlayhead = loopEnabled
+      ? wrapTime(playhead, duration)
+      : clamp(readFiniteNumber(playhead, 0), 0, duration);
 
     if (activeAudioContext.state === "suspended" && typeof activeAudioContext.resume === "function") {
       const result = activeAudioContext.resume();
@@ -253,13 +292,18 @@ export function createMixer({ audioContext, getAudioContext, getState = () => nu
       || session.timeline !== state?.timeline
       || session.assets !== state?.assets
       || session.assetBuffers !== state?.assetBuffers
-      || session.duration !== duration;
+      || session.duration !== duration
+      || session.loopEnabled !== loopEnabled;
 
     if (!sessionChanged && session) {
       const elapsed = Math.max(0, activeAudioContext.currentTime - session.audioTime);
-      const expectedPlayhead = wrapTime(session.playhead + elapsed, duration);
-      const drift = Math.abs(wrapDelta(normalizedPlayhead, expectedPlayhead, duration));
-      const didWrap = normalizedPlayhead + 0.25 < session.lastObservedPlayhead;
+      const expectedPlayhead = loopEnabled
+        ? wrapTime(session.playhead + elapsed, duration)
+        : Math.min(session.playhead + elapsed, duration);
+      const drift = loopEnabled
+        ? Math.abs(wrapDelta(normalizedPlayhead, expectedPlayhead, duration))
+        : Math.abs(normalizedPlayhead - expectedPlayhead);
+      const didWrap = loopEnabled && normalizedPlayhead + 0.25 < session.lastObservedPlayhead;
 
       session.lastObservedPlayhead = normalizedPlayhead;
       if (!didWrap && drift <= 0.12) {
@@ -286,12 +330,25 @@ export function createMixer({ audioContext, getAudioContext, getState = () => nu
       timeline: state?.timeline,
       assets: state?.assets,
       assetBuffers: state?.assetBuffers,
+      loopEnabled,
       lastObservedPlayhead: normalizedPlayhead,
     };
   }
 
+  function setMasterVolume(volume) {
+    masterVolume = clamp(readFiniteNumber(volume, 1), 0, 1);
+    const activeAudioContext = resolveAudioContext();
+    const activeMasterGain = getMasterGain(activeAudioContext);
+    if (activeMasterGain) {
+      activeMasterGain.gain.setValueAtTime(masterVolume, activeAudioContext.currentTime);
+    }
+    return masterVolume;
+  }
+
   return {
+    getMasterVolume: () => masterVolume,
     playAt,
+    setMasterVolume,
     stop,
     syncToPlayhead,
   };
