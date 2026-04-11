@@ -1,12 +1,12 @@
 # NextFrame v0.1 — Overnight Build Verification Report
 
-Generated: 2026-04-12 00:33:06 CST
+Generated: 2026-04-12 00:37:47 CST
 
 ## Summary
-- Rounds completed: 21
+- Rounds completed: 22
 - Cargo clippy: PASS
 - Cargo tests: 31 passed / 31 total
-- BDD tests: 4 passed / 10 total
+- BDD tests: 10 passed / 10 total
 - Release build: PASS
 
 ## What works (manual walkthrough)
@@ -25,11 +25,7 @@ Generated: 2026-04-12 00:33:06 CST
 11. File → Export opens the export dialog and can hand off MP4 generation to the recorder subprocess when that binary is available.
 
 ## Known issues / gaps
-- `node runtime/web/test/bdd/run.mjs` failed. stdout/stderr summary: ✗ 5 failed, 4 passed, 1 skipped
-- BDD failing scenarios: CLIP-01 addClip on an empty track creates a clip at the requested start; CLIP-02 moveClip updates the clip start time; CLIP-05 splitClip produces two clips; SCRUB-03 renderAt at t=5 matches rendering t=2 then t=5; UNDO-01 dispatch then undo restores the previous timeline state
-- BDD suite skipped 1 scenario(s); this run is not a clean all-green behavioral sweep.
-- A fresh `createDefaultTimeline()` still starts with zero tracks; the 5-scene editor state comes from `bootstrapDemoTimeline()` during app init.
-- MP4 export depends on an external recorder/ffmpeg toolchain. The bridge handles a missing recorder gracefully, but end-to-end export still depends on local setup.
+- No command failures in this run. Remaining risk: desktop shell and export flows were intentionally not exercised by automation.
 
 ## What's NOT implemented (out of scope)
 - Transitions library
@@ -41,5 +37,5 @@ Generated: 2026-04-12 00:33:06 CST
 - `cargo fmt --check`: PASS. stdout/stderr summary: No output captured.
 - `cargo clippy --workspace --all-targets -- -D warnings`: PASS. stdout/stderr summary:    Finished `dev` profile [unoptimized  debuginfo] target(s) in 0.08s
 - `cargo test -p bridge`: PASS. stdout/stderr summary:    Finished `test` profile [unoptimized  debuginfo] target(s) in 0.06s     Running unittests src/lib.rs (target/debug/deps/bridge-2a4fbf10d9d5756b)|test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-- `cargo build --workspace --release`: PASS. stdout/stderr summary:    Finished `release` profile [optimized] target(s) in 0.04s
-- `node runtime/web/test/bdd/run.mjs`: FAIL. stdout/stderr summary: ✗ 5 failed, 4 passed, 1 skipped
+- `cargo build --workspace --release`: PASS. stdout/stderr summary:   Compiling url v2.5.8   Compiling tao v0.30.8|  Compiling shell v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/shell)    Finished `release` profile [optimized] target(s) in 16.13s
+- `node runtime/web/test/bdd/run.mjs`: PASS. stdout/stderr summary: ✓ 10 passed, 0 failed
