@@ -772,6 +772,10 @@
         gap: 12px;
       }
 
+      .inspector-action-row {
+        display: flex;
+      }
+
       .inspector-field,
       .inspector-static-row {
         display: grid;
@@ -794,7 +798,8 @@
       }
 
       .inspector-input,
-      .color-label-button {
+      .color-label-button,
+      .inspector-action-button {
         border-radius: 10px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         background: rgba(15, 23, 42, 0.72);
@@ -837,6 +842,18 @@
         transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
       }
 
+      .inspector-action-button {
+        width: 100%;
+        min-height: 38px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+      }
+
       .color-label-button::before {
         content: "";
         width: 10px;
@@ -857,10 +874,25 @@
         background: rgba(30, 41, 59, 0.92);
       }
 
+      .inspector-action-button:hover:not(:disabled) {
+        border-color: rgba(148, 163, 184, 0.4);
+        background: rgba(30, 41, 59, 0.92);
+      }
+
       .color-label-button.is-active {
         border-color: rgba(191, 219, 254, 0.92);
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
         background: rgba(30, 41, 59, 0.96);
+      }
+
+      .inspector-action-button:focus-visible {
+        border-color: rgba(96, 165, 250, 0.88);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+      }
+
+      .inspector-action-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
       }
 
       .empty-state {

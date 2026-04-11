@@ -1,5 +1,10 @@
 import * as commandsModule from "../../src/commands.js";
-import { createDispatcher, moveClipCommand, setClipFieldCommand } from "../../src/commands.js";
+import {
+  createDispatcher,
+  moveClipCommand,
+  randomizeParamsCommand,
+  setClipFieldCommand,
+} from "../../src/commands.js";
 import { registerScene, renderAt, SCENES, validateTimeline } from "../../src/engine/index.js";
 import { SCENE_MANIFEST } from "../../src/scenes/index.js";
 import { createDefaultTimeline, store } from "../../src/store.js";
@@ -336,6 +341,48 @@ describe("BDD critical scenarios", () => {
     clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-meta");
     expect(clip.label).toBe("blue");
     expect(clip.note).toBe("Needs cleanup");
+  });
+
+  it("CLIP-04 randomizeParams updates scene params with undo", () => {
+    const timeline = createDefaultTimeline();
+    findTrack(timeline, "v1").clips.push(
+      createClip({
+        id: "clip-randomize",
+        params: {
+          color: "#ff3300",
+          hue: 120,
+          title: "Original",
+        },
+      }),
+    );
+
+    const localStore = createLocalStore(timeline);
+    const dispatcher = createDispatcher(localStore);
+    const randomizedParams = {
+      color: "#00ffaa",
+      hue: 288.42,
+      title: "Original",
+    };
+
+    dispatcher.dispatch(randomizeParamsCommand({
+      clipId: "clip-randomize",
+      newParams: randomizedParams,
+    }));
+
+    let clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-randomize");
+    expect(clip.params).toEqual(randomizedParams);
+
+    dispatcher.undo();
+    clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-randomize");
+    expect(clip.params).toEqual({
+      color: "#ff3300",
+      hue: 120,
+      title: "Original",
+    });
+
+    dispatcher.redo();
+    clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-randomize");
+    expect(clip.params).toEqual(randomizedParams);
   });
 
   it("CLIP-05 splitClip produces two clips", () => {
