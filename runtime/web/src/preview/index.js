@@ -352,12 +352,17 @@ function readFiniteNumber(value) {
 function advancePlayhead(store, currentTime, dt, timeline) {
   const duration = readFiniteNumber(timeline?.duration);
   const loopEnabled = store?.state?.loop !== false;
+  const canUpdatePlaybackState = typeof store?.updatePlaybackState === "function";
 
   if (!loopEnabled) {
     const nextTime = Math.min(Math.max(currentTime + dt, 0), duration);
     const reachedEnd = duration > 0 && nextTime >= duration;
 
-    if (store && typeof store.mutate === "function" && (nextTime !== currentTime || (reachedEnd && store.state.playing))) {
+    if (canUpdatePlaybackState && (nextTime !== currentTime || (reachedEnd && store.state.playing))) {
+      store.updatePlaybackState(nextTime, {
+        playing: reachedEnd ? false : store.state.playing,
+      });
+    } else if (store && typeof store.mutate === "function" && (nextTime !== currentTime || (reachedEnd && store.state.playing))) {
       store.mutate((state) => {
         state.playhead = nextTime;
         if (reachedEnd) {
@@ -371,7 +376,9 @@ function advancePlayhead(store, currentTime, dt, timeline) {
 
   const nextTime = wrapTime(currentTime + dt, duration);
 
-  if (store && typeof store.mutate === "function" && nextTime !== currentTime) {
+  if (canUpdatePlaybackState && nextTime !== currentTime) {
+    store.updatePlaybackState(nextTime);
+  } else if (store && typeof store.mutate === "function" && nextTime !== currentTime) {
     store.mutate((state) => {
       state.playhead = nextTime;
     });

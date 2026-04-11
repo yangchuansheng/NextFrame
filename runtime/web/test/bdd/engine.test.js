@@ -205,6 +205,31 @@ describe("BDD critical scenarios", () => {
     expect(store.state.showPerf).toBe(false);
   });
 
+  it("STORE-02 playback updates avoid cloning timeline and asset state", () => {
+    resetGlobalStore();
+
+    const timelineRef = store.state.timeline;
+    const assetsRef = store.state.assets;
+    const assetBuffersRef = store.state.assetBuffers;
+    let previousState = null;
+    const unsubscribe = store.subscribe((nextState, prevState) => {
+      previousState = prevState;
+      expect(nextState.playhead).toBe(1.5);
+      expect(nextState.playing).toBe(true);
+      expect(prevState.playhead).toBe(0);
+      expect(prevState.playing).toBe(false);
+      expect(prevState.timeline).toBe(timelineRef);
+      expect(prevState.assets).toBe(assetsRef);
+      expect(prevState.assetBuffers).toBe(assetBuffersRef);
+    });
+
+    store.updatePlaybackState(1.5, { playing: true });
+    unsubscribe();
+
+    expect(Boolean(previousState)).toBe(true);
+    expect(previousState === store.state).toBe(false);
+  });
+
   it("TL-01 fresh timeline has 3 default tracks", () => {
     const timeline = createDefaultTimeline();
 
