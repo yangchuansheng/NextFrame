@@ -175,12 +175,13 @@ export function attachClipInteractions(clipEl, clipId, store, zoom) {
     }
 
     if (store.state.ui?.timelineTool === "blade") {
-      const rect = clipEl.getBoundingClientRect();
-      const ratio = rect.width > 0
-        ? Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1)
-        : 0;
-      const clipStart = Number(context.clip.start) || 0;
-      const splitTime = snapClipTime(clipStart + getClipDuration(context.clip) * ratio);
+      const lane = clipEl.parentElement;
+      if (!(lane instanceof HTMLElement)) {
+        return;
+      }
+
+      const laneRect = lane.getBoundingClientRect();
+      const splitTime = snapClipTime(zoom.pxToTime(event.clientX - laneRect.left));
 
       store.dispatch?.(splitClipCommand({ clipId, splitTime }));
       event.preventDefault();
