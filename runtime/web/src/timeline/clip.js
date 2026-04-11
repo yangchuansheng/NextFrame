@@ -1,12 +1,14 @@
 import { SCENE_MANIFEST } from "../scenes/index.js";
 
 const CATEGORY_COLORS = {
+  Audio: "#14b8a6",
   Backgrounds: "#3b82f6",
   Typography: "#a855f7",
   Shapes: "#06b6d4",
   "Shapes & Layout": "#06b6d4",
   DataViz: "#22c55e",
   "Data Viz": "#22c55e",
+  Media: "#2563eb",
   Transitions: "#f59e0b",
   Overlays: "#ec4899",
 };
@@ -28,7 +30,7 @@ function hexToRgba(hex, alpha) {
 export function createClip(clip, zoom) {
   const scene = typeof clip.scene === "string" ? SCENE_META.get(clip.scene) : null;
   const category = clip.category || scene?.category || "";
-  const labelText = clip.name || scene?.name || clip.scene || "Untitled scene";
+  const labelText = clip.name || scene?.name || clip.scene || clip.assetId || "Untitled clip";
   const duration = Number(clip.duration ?? clip.dur) || 0;
   const element = document.createElement("div");
   const accent = CATEGORY_COLORS[category] || CATEGORY_COLORS.Backgrounds;

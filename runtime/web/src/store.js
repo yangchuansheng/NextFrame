@@ -47,6 +47,34 @@ function cloneState(state) {
   return JSON.parse(JSON.stringify(state));
 }
 
+function cloneValue(value) {
+  return cloneState(value);
+}
+
+function sortClips(clips) {
+  return [...clips].sort((left, right) => {
+    const startDelta = (Number(left?.start) || 0) - (Number(right?.start) || 0);
+    if (startDelta !== 0) {
+      return startDelta;
+    }
+
+    return String(left?.id ?? "").localeCompare(String(right?.id ?? ""));
+  });
+}
+
+function findTrackIdByClipId(timeline, clipId) {
+  const tracks = Array.isArray(timeline?.tracks) ? timeline.tracks : [];
+
+  for (const track of tracks) {
+    const clips = Array.isArray(track?.clips) ? track.clips : [];
+    if (clips.some((clip) => clip?.id === clipId)) {
+      return track.id ?? null;
+    }
+  }
+
+  return null;
+}
+
 export const store = {
   state: createInitialState(),
   listeners: new Set(),
@@ -118,6 +146,54 @@ export const store = {
     }
 
     return this.state;
+  },
+  addClip(trackId, clip) {
+    if (typeof trackId !== "string" || trackId.length === 0) {
+      throw new TypeError("store.addClip(trackId, clip) requires a non-empty track id");
+    }
+
+    if (!clip || typeof clip !== "object") {
+      throw new TypeError("store.addClip(trackId, clip) requires a clip object");
+    }
+
+    const timeline = this.state.timeline || createDefaultTimeline();
+    const tracks = Array.isArray(timeline.tracks) ? timeline.tracks : [];
+    const trackIndex = tracks.findIndex((track) => track?.id === trackId);
+    if (trackIndex < 0) {
+      throw new Error(`store.addClip(trackId, clip) could not find track "${trackId}"`);
+    }
+
+    const nextTracks = tracks.map((track, index) => {
+      if (index !== trackIndex) {
+        return track;
+      }
+
+      return {
+        ...track,
+        clips: sortClips([...(Array.isArray(track?.clips) ? track.clips : []), cloneValue(clip)]),
+      };
+    });
+
+    return this.replace({
+      ...this.state,
+      timeline: {
+        ...timeline,
+        tracks: nextTracks,
+      },
+    });
+  },
+  selectClip(clipId) {
+    const nextClipId = clipId == null ? null : String(clipId);
+    const trackId = nextClipId ? findTrackIdByClipId(this.state.timeline, nextClipId) : null;
+
+    return this.replace({
+      ...this.state,
+      selectedClipId: trackId ? nextClipId : null,
+      selection: {
+        trackId,
+        clipId: trackId ? nextClipId : null,
+      },
+    });
   },
 };
 

@@ -19,6 +19,15 @@ function findSelectedClip(state) {
   return null;
 }
 
+function findAssetById(state, assetId) {
+  if (typeof assetId !== "string" || assetId.length === 0) {
+    return null;
+  }
+
+  const assets = Array.isArray(state?.assets) ? state.assets : [];
+  return assets.find((asset) => asset?.id === assetId) ?? null;
+}
+
 function getFieldType(param) {
   if (param?.type === "color") {
     return "color";
@@ -148,7 +157,8 @@ export function mountInspector(container, { store } = {}) {
 
     const { clip, track } = selection;
     const scene = SCENE_MANIFEST_BY_ID.get(clip.scene);
-    status.textContent = scene?.name || clip.scene || clip.id;
+    const asset = findAssetById(store?.state, clip.assetId);
+    status.textContent = clip.name || scene?.name || asset?.name || clip.scene || clip.assetId || clip.id;
     body.replaceChildren();
 
     const transform = createInspectorSection("Transform", "Timing and track placement");
@@ -184,40 +194,50 @@ export function mountInspector(container, { store } = {}) {
       createReadonlyRow("Track", track?.label || track?.name || String(track?.kind || "track").toUpperCase()),
     );
 
-    const sceneSection = createInspectorSection("Scene", "Schema-driven scene controls");
-    sceneSection.body.appendChild(createReadonlyRow("Scene Name", scene?.name || clip.scene || "Unknown scene"));
+    if (scene) {
+      const sceneSection = createInspectorSection("Scene", "Schema-driven scene controls");
+      sceneSection.body.appendChild(createReadonlyRow("Scene Name", scene.name || clip.scene || "Unknown scene"));
 
-    (scene?.params || []).forEach((param) => {
-      const currentValue = clip?.params?.[param.name] ?? param.default;
-      const [min, max] = Array.isArray(param.range) ? param.range : [param.min, param.max];
-      const fieldType = getFieldType(param);
+      Object.entries(scene.params || {}).forEach(([paramName, param]) => {
+        const currentValue = clip?.params?.[paramName] ?? param.default;
+        const [min, max] = Array.isArray(param.range) ? param.range : [param.min, param.max];
+        const fieldType = getFieldType(param);
 
-      sceneSection.body.appendChild(renderField({
-        label: param.name,
-        name: param.name,
-        type: fieldType,
-        value: currentValue,
-        min,
-        max,
-        step: typeof param.step === "number" ? param.step : param.type === "integer" ? 1 : 0.01,
-        options: param.options || [],
-        description: param.description,
-        onChange: (nextValue, rawValue) => {
-          updateSelectedClip(store, (draftClip) => {
-            if (!draftClip.params || typeof draftClip.params !== "object") {
-              draftClip.params = {};
-            }
+        sceneSection.body.appendChild(renderField({
+          label: paramName,
+          name: paramName,
+          type: fieldType,
+          value: currentValue,
+          min,
+          max,
+          step: typeof param.step === "number" ? param.step : param.type === "integer" ? 1 : 0.01,
+          options: param.options || [],
+          description: param.description,
+          onChange: (nextValue, rawValue) => {
+            updateSelectedClip(store, (draftClip) => {
+              if (!draftClip.params || typeof draftClip.params !== "object") {
+                draftClip.params = {};
+              }
 
-            const coerced = coerceParamValue(fieldType === "text" ? rawValue : nextValue, param, draftClip.params[param.name]);
-            draftClip.params[param.name] = typeof coerced === "number"
-              ? clampToRange(coerced, param)
-              : coerced;
-          });
-        },
-      }));
-    });
+              const coerced = coerceParamValue(fieldType === "text" ? rawValue : nextValue, param, draftClip.params[paramName]);
+              draftClip.params[paramName] = typeof coerced === "number"
+                ? clampToRange(coerced, param)
+                : coerced;
+            });
+          },
+        }));
+      });
 
-    body.append(transform.section, sceneSection.section);
+      body.append(transform.section, sceneSection.section);
+      return;
+    }
+
+    const sourceSection = createInspectorSection("Source", "Imported asset reference");
+    sourceSection.body.append(
+      createReadonlyRow("Asset", asset?.name || asset?.label || clip.assetId || "Unknown asset"),
+      createReadonlyRow("Kind", clip.assetKind || asset?.kind || "asset"),
+    );
+    body.append(transform.section, sourceSection.section);
   }
 
   const unsubscribe = typeof store?.subscribe === "function"

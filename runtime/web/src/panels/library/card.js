@@ -1,3 +1,5 @@
+import { makeDraggable } from "../../dnd/source.js";
+
 const CATEGORY_COLORS = {
   Backgrounds: "#3b82f6",
   Typography: "#a855f7",
@@ -72,7 +74,6 @@ export function createSceneCard(scene) {
   );
 
   card.classList.add("scene-card");
-  card.draggable = true;
 
   const thumb = document.createElement("div");
   thumb.className = "asset-thumb library-scene-thumb";
@@ -86,13 +87,7 @@ export function createSceneCard(scene) {
   thumb.appendChild(badge);
 
   card.prepend(thumb);
-  card.addEventListener("dragstart", (event) => {
-    event.dataTransfer?.setData("application/json", JSON.stringify({ type: "scene", id: scene.id }));
-    event.dataTransfer?.setData("text/plain", scene.id);
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = "copy";
-    }
-  });
+  makeDraggable(card, { type: "scene", id: scene.id });
 
   return card;
 }
@@ -110,5 +105,9 @@ export function createAssetCard(asset) {
   thumb.style.setProperty("--thumb-b", secondary);
 
   card.prepend(thumb);
+  makeDraggable(card, {
+    type: asset.kind === "audio" ? "audio" : "media",
+    assetId: asset.id,
+  });
   return card;
 }
