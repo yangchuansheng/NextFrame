@@ -41,6 +41,9 @@ export function startAutosave({ store, bridge } = {}) {
         projectId,
         timeline: createProjectDocument(store.state),
       });
+      store.mutate((state) => {
+        state.lastSavedAt = Date.now();
+      });
       toast("Autosaved", { type: "info", duration: 2000 });
     } catch (error) {
       console.warn("[NextFrame] Autosave failed:", error);
@@ -178,6 +181,7 @@ async function promptForRecovery({ store, bridge }) {
 
       const timeline = normalizeTimeline(projectDocument.timeline);
       const filePath = getProjectFilePathFromAutosaveId(entry.projectId);
+      const restoredAt = Date.now();
 
       store.mutate((state) => {
         state.timeline = timeline;
@@ -188,6 +192,8 @@ async function promptForRecovery({ store, bridge }) {
         state.playhead = 0;
         state.autosaveId = entry.projectId;
         state.dirty = true;
+        state.lastSavedAt = restoredAt;
+        state.lastChangeAt = restoredAt;
       });
 
       if (filePath) {
