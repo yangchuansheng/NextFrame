@@ -50,9 +50,23 @@ export const store = {
 
     const prevDirty = this.state.dirty;
     const prevTimeline = this.state.timeline;
-    recipe(this.state);
+    let dirtyAssigned = false;
+    const proxy = new Proxy(this.state, {
+      get(target, prop, receiver) {
+        return Reflect.get(target, prop, receiver);
+      },
+      set(target, prop, value, receiver) {
+        if (prop === "dirty") {
+          dirtyAssigned = true;
+        }
 
-    if (this.state.timeline !== prevTimeline && this.state.dirty === prevDirty) {
+        return Reflect.set(target, prop, value, receiver);
+      },
+    });
+
+    recipe(proxy);
+
+    if (!dirtyAssigned && this.state.timeline !== prevTimeline && this.state.dirty === prevDirty) {
       this.state.dirty = true;
     }
 

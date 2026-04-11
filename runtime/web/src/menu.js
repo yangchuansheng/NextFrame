@@ -294,7 +294,7 @@ export function initMenu({ bridge, store }) {
 
   async function saveProjectAs() {
     const dialog = await bridge.call("fs.dialogSave", {
-      defaultName: suggestFileName(store.state.filePath),
+      defaultName: DEFAULT_SAVE_NAME,
     });
     const path = readDialogPath(dialog);
     if (!path) {
@@ -349,11 +349,6 @@ function readDialogPath(result) {
   }
 
   return null;
-}
-
-function suggestFileName(filePath) {
-  const fileName = basename(filePath);
-  return fileName && fileName.endsWith(".nfproj") ? fileName : DEFAULT_SAVE_NAME;
 }
 
 function shortcutToAction(event) {
