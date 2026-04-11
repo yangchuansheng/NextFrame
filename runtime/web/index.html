@@ -1070,6 +1070,17 @@
         pointer-events: none;
       }
 
+      .timeline-snap-guide {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: rgba(125, 211, 252, 0.58);
+        box-shadow: 0 0 10px rgba(125, 211, 252, 0.24);
+        pointer-events: none;
+        z-index: 3;
+      }
+
       .timeline-playhead-marker::before {
         content: "";
         position: absolute;
@@ -1385,6 +1396,18 @@
                   <span class="menu-shortcut">Shift+F</span>
                 </button>
                 <div class="menu-divider" role="separator"></div>
+                <button
+                  class="menu-item"
+                  type="button"
+                  role="menuitemcheckbox"
+                  data-menu-action="toggleSnap"
+                  data-menu-check="snapEnabled"
+                  data-checked="true"
+                >
+                  <span class="menu-check">✓</span>
+                  <span>Toggle Snap</span>
+                  <span class="menu-shortcut">S</span>
+                </button>
                 <button
                   class="menu-item"
                   type="button"

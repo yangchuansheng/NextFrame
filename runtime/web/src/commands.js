@@ -1,4 +1,4 @@
-import { clampClipDuration, getClipDuration, hasTrackOverlap, snapClipTime } from "./timeline/clip-range.js";
+import { clampClipDuration, getClipDuration, hasTrackOverlap, roundClipTime } from "./timeline/clip-range.js";
 
 function cloneValue(value) {
   if (value instanceof Map) {
@@ -115,10 +115,10 @@ function findClipLocation(tracks, clipId, preferredTrackId = null) {
 function normalizeClipStart(value, fallback = 0) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    return snapClipTime(fallback);
+    return roundClipTime(fallback);
   }
 
-  return snapClipTime(numeric);
+  return roundClipTime(numeric);
 }
 
 function normalizeClipDuration(value, fallback = 0.1) {

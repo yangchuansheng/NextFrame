@@ -20,6 +20,7 @@ function createInitialState() {
   return {
     playhead: 0,
     playing: true,
+    snapEnabled: true,
     showSafeArea: false,
     project: { ...DEFAULT_PROJECT },
     timeline: createDefaultTimeline(),
@@ -70,10 +71,6 @@ function cloneValue(value) {
 
 function cloneState(state) {
   return cloneValue(state);
-}
-
-function cloneValue(value) {
-  return cloneState(value);
 }
 
 function sortClips(clips) {

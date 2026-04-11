@@ -38,6 +38,7 @@ export function initMenu({ bridge, store }) {
   const render = (state) => {
     const fileName = basename(state.filePath) ?? DEFAULT_SAVE_NAME;
     const isDirty = Boolean(state.dirty);
+    const isSnapEnabled = state.snapEnabled !== false;
     const zoom = normalizeZoom(state.ui?.zoom);
     const isTimelineVisible = state.ui?.timelineVisible !== false;
     const isInspectorVisible = state.ui?.inspectorVisible !== false;
@@ -84,6 +85,7 @@ export function initMenu({ bridge, store }) {
       inspectorSplitter.hidden = !isInspectorVisible;
     }
 
+    syncCheckmark("snapEnabled", isSnapEnabled);
     syncCheckmark("timelineVisible", isTimelineVisible);
     syncCheckmark("inspectorVisible", isInspectorVisible);
     document.title = `${isDirty ? "* " : ""}${fileName} - NextFrame`;
@@ -161,6 +163,21 @@ export function initMenu({ bridge, store }) {
   };
 
   const onKeyDown = (event) => {
+    if (
+      !event.defaultPrevented
+      && !event.metaKey
+      && !event.ctrlKey
+      && !event.altKey
+      && !event.shiftKey
+      && event.key.toLowerCase() === "s"
+      && !isEditableTarget(event.target)
+    ) {
+      event.preventDefault();
+      closeMenus();
+      void runAction("toggleSnap");
+      return;
+    }
+
     if (event.key === "Escape") {
       if (openMenu) {
         event.preventDefault();
@@ -251,6 +268,11 @@ export function initMenu({ bridge, store }) {
         case "zoomFit":
           store.mutate((state) => {
             state.ui.zoom = 1;
+          });
+          return;
+        case "toggleSnap":
+          store.mutate((state) => {
+            state.snapEnabled = state.snapEnabled === false;
           });
           return;
         case "toggleTimeline":
@@ -394,6 +416,16 @@ function shortcutToAction(event) {
   }
 
   return null;
+}
+
+function isEditableTarget(target) {
+  return target instanceof HTMLElement
+    && (
+      target.isContentEditable
+      || target instanceof HTMLInputElement
+      || target instanceof HTMLTextAreaElement
+      || target instanceof HTMLSelectElement
+    );
 }
 
 function syncCheckmark(name, checked) {
