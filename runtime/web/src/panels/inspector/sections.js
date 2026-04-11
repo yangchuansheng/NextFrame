@@ -40,6 +40,26 @@ export function createReadonlyRow(label, value) {
   return row;
 }
 
+export function createSceneRandomizeButton({ onRandomize, disabled = false } = {}) {
+  const row = document.createElement("div");
+  row.className = "inspector-action-row";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "inspector-action-button";
+  button.textContent = "🎲 Randomize";
+  button.disabled = disabled;
+
+  if (!disabled && typeof onRandomize === "function") {
+    button.addEventListener("click", () => {
+      onRandomize();
+    });
+  }
+
+  row.appendChild(button);
+  return row;
+}
+
 export function createClipOrganizeSection({
   clip,
   onLabelChange,

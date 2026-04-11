@@ -629,6 +629,15 @@ export function setClipFieldCommand({ clipId, trackId = null, field, value }) {
   };
 }
 
+export function randomizeParamsCommand({ clipId, trackId = null, newParams }) {
+  return {
+    type: "randomizeParams",
+    clipId,
+    trackId,
+    newParams,
+  };
+}
+
 function createBuiltInCommand(command) {
   if (typeof command.exec === "function") {
     return command;
@@ -961,6 +970,48 @@ function createBuiltInCommand(command) {
             trackId: previous.trackId,
             param: command.param,
             value: previous.clip?.params?.[command.param],
+          };
+        },
+      };
+    case "randomizeParams":
+      return {
+        ...command,
+        exec(state) {
+          const tracks = cloneTracks(getTimelineState(state));
+          const location = findClipLocation(tracks, command.clipId, command.trackId);
+          if (!location) {
+            throw new Error(`randomizeParams: clip "${command.clipId}" not found`);
+          }
+
+          const track = tracks[location.trackIndex];
+          const clip = track.clips[location.clipIndex];
+          const nextClip = {
+            ...clip,
+            params: command.newParams && typeof command.newParams === "object"
+              ? cloneValue(command.newParams)
+              : {},
+          };
+
+          const nextClips = [...track.clips];
+          nextClips[location.clipIndex] = nextClip;
+          tracks[location.trackIndex] = {
+            ...track,
+            clips: nextClips,
+          };
+
+          return withUpdatedTimeline(state, tracks);
+        },
+        invert(nextState, prevState) {
+          const previous = getPreviousClip(prevState, command.clipId, command.trackId);
+          if (!previous) {
+            return null;
+          }
+
+          return {
+            type: "randomizeParams",
+            clipId: command.clipId,
+            trackId: previous.trackId,
+            newParams: previous.clip?.params,
           };
         },
       };

@@ -1,7 +1,12 @@
-import { setClipFieldCommand } from "../../commands.js";
+import { randomizeParamsCommand, setClipFieldCommand } from "../../commands.js";
 import { SCENE_MANIFEST_BY_ID } from "../../scenes/index.js";
 import { renderField } from "./field.js";
-import { createClipOrganizeSection, createInspectorSection, createReadonlyRow } from "./sections.js";
+import {
+  createClipOrganizeSection,
+  createInspectorSection,
+  createReadonlyRow,
+  createSceneRandomizeButton,
+} from "./sections.js";
 
 const INSPECTOR_STATE = Symbol("nextframe.inspector.mount");
 
@@ -134,6 +139,115 @@ function clampToRange(value, param) {
   return nextValue;
 }
 
+function getParamStep(param) {
+  if (typeof param?.step === "number") {
+    return param.step;
+  }
+
+  return param?.type === "integer" ? 1 : 0.01;
+}
+
+function createSeededRandom(seed = Date.now()) {
+  let state = (Number(seed) >>> 0) || 0x9e3779b9;
+
+  return () => {
+    state ^= state << 13;
+    state >>>= 0;
+    state ^= state >>> 17;
+    state >>>= 0;
+    state ^= state << 5;
+    state >>>= 0;
+    return state / 0x100000000;
+  };
+}
+
+function randomHexColor(nextRandom) {
+  const value = Math.floor(nextRandom() * 0x1000000);
+  return `#${value.toString(16).padStart(6, "0")}`;
+}
+
+function pickRandomOption(options, nextRandom) {
+  const choices = Array.isArray(options) ? options : [];
+  if (choices.length === 0) {
+    return undefined;
+  }
+
+  const index = Math.min(choices.length - 1, Math.floor(nextRandom() * choices.length));
+  const option = choices[index];
+  return option && typeof option === "object" ? option.value : option;
+}
+
+function randomizeNumericParam(param, currentValue, nextRandom) {
+  const [rawMin, rawMax] = Array.isArray(param?.range) ? param.range : [param?.min, param?.max];
+  const fallback = Number(currentValue);
+  const min = Number.isFinite(rawMin) ? rawMin : Number.isFinite(fallback) ? fallback : 0;
+  const max = Number.isFinite(rawMax) ? rawMax : Number.isFinite(fallback) ? fallback : min + 1;
+  const lower = Math.min(min, max);
+  const upper = Math.max(min, max);
+  const step = getParamStep(param);
+
+  if (param?.type === "integer") {
+    const minInt = Math.ceil(lower);
+    const maxInt = Math.floor(upper);
+    if (maxInt <= minInt) {
+      return minInt;
+    }
+
+    return minInt + Math.floor(nextRandom() * ((maxInt - minInt) + 1));
+  }
+
+  if (lower === upper) {
+    return lower;
+  }
+
+  const rawValue = lower + ((upper - lower) * nextRandom());
+  const snapped = step > 0
+    ? lower + (Math.round((rawValue - lower) / step) * step)
+    : rawValue;
+
+  return Number(clampToRange(snapped, param).toFixed(4));
+}
+
+function buildRandomizedSceneParams(clip, sceneManifest, seed = Date.now()) {
+  const nextRandom = createSeededRandom(seed);
+  const nextParams = clip?.params && typeof clip.params === "object"
+    ? { ...clip.params }
+    : {};
+
+  Object.entries(sceneManifest?.params || {}).forEach(([paramName, param]) => {
+    const currentValue = clip?.params?.[paramName] ?? param?.default;
+
+    if (Array.isArray(param?.options) && param.options.length > 0) {
+      nextParams[paramName] = pickRandomOption(param.options, nextRandom);
+      return;
+    }
+
+    if (param?.type === "color") {
+      nextParams[paramName] = randomHexColor(nextRandom);
+      return;
+    }
+
+    if (param?.type === "text" || param?.type === "string") {
+      nextParams[paramName] = currentValue;
+      return;
+    }
+
+    if (
+      param?.type === "range"
+      || param?.type === "number"
+      || param?.type === "integer"
+      || Array.isArray(param?.range)
+    ) {
+      nextParams[paramName] = randomizeNumericParam(param, currentValue, nextRandom);
+      return;
+    }
+
+    nextParams[paramName] = currentValue;
+  });
+
+  return nextParams;
+}
+
 export function mountInspector(container, { store } = {}) {
   if (!(container instanceof HTMLElement)) {
     throw new TypeError("mountInspector(container, options) requires a container element");
@@ -247,7 +361,7 @@ export function mountInspector(container, { store } = {}) {
           value: currentValue,
           min,
           max,
-          step: typeof param.step === "number" ? param.step : param.type === "integer" ? 1 : 0.01,
+          step: getParamStep(param),
           options: param.options || [],
           description: param.description,
           onChange: (nextValue, rawValue) => {
@@ -264,6 +378,20 @@ export function mountInspector(container, { store } = {}) {
           },
         }));
       });
+
+      sceneSection.body.insertBefore(createSceneRandomizeButton({
+        disabled: typeof store?.dispatch !== "function",
+        onRandomize: () => {
+          if (typeof store?.dispatch !== "function") {
+            return;
+          }
+
+          store.dispatch(randomizeParamsCommand({
+            clipId: clip.id,
+            newParams: buildRandomizedSceneParams(clip, scene, Date.now()),
+          }));
+        },
+      }), sceneSection.body.children[1] ?? null);
 
       body.append(transform.section, organize.section, sceneSection.section);
       return;
