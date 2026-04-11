@@ -4,11 +4,13 @@ import {
   clampClipDuration,
   getClipDuration,
   hasTrackOverlap,
-  snapClipTime,
+  roundClipTime,
 } from "./clip-range.js";
+import { computeSnap } from "./snap.js";
 
 const EDGE_HIT_WIDTH = 8;
 const MIN_CLIP_WIDTH = 44;
+const SNAP_GUIDE_FLASH_MS = 60;
 const TOOLTIP_OFFSET_X = 14;
 const TOOLTIP_OFFSET_Y = 16;
 
@@ -94,36 +96,122 @@ function clearPreviewState(clipEl, originalStyles) {
   clipEl.style.width = originalStyles.width;
 }
 
-function computePreview(mode, interaction, clientX) {
+function buildSnapTimeline(track, ignoreClipId) {
+  const clips = Array.isArray(track?.clips) ? track.clips : [];
+
+  return {
+    tracks: [{
+      ...track,
+      clips: clips.filter((clip) => clip?.id !== ignoreClipId),
+    }],
+  };
+}
+
+function ensureSnapGuide(interaction) {
+  if (interaction.snapGuideEl instanceof HTMLElement && interaction.snapGuideEl.isConnected) {
+    return interaction.snapGuideEl;
+  }
+
+  const lane = interaction.clipEl.parentElement;
+  if (!(lane instanceof HTMLElement)) {
+    return null;
+  }
+
+  const guide = document.createElement("div");
+  guide.className = "timeline-snap-guide";
+  guide.hidden = true;
+  lane.appendChild(guide);
+  interaction.snapGuideEl = guide;
+  return guide;
+}
+
+function hideSnapGuide(interaction) {
+  window.clearTimeout(interaction.snapGuideTimer);
+
+  if (interaction.snapGuideEl instanceof HTMLElement) {
+    interaction.snapGuideEl.hidden = true;
+  }
+}
+
+function flashSnapGuide(interaction, time) {
+  const guide = ensureSnapGuide(interaction);
+  if (!(guide instanceof HTMLElement)) {
+    return;
+  }
+
+  guide.hidden = false;
+  guide.style.left = `${interaction.zoom.timeToPx(time)}px`;
+  window.clearTimeout(interaction.snapGuideTimer);
+  interaction.snapGuideTimer = window.setTimeout(() => {
+    guide.hidden = true;
+  }, SNAP_GUIDE_FLASH_MS);
+}
+
+function maybeSnapTime(interaction, candidateTime, pointerState) {
+  const nextTime = roundClipTime(candidateTime);
+  const snapEnabled = interaction.store?.state?.snapEnabled !== false;
+
+  if (!snapEnabled || pointerState?.altKey) {
+    return { time: nextTime, snapTime: null };
+  }
+
+  const snappedTime = computeSnap({
+    candidateTime: nextTime,
+    timeline: interaction.snapTimeline,
+    playhead: interaction.store?.state?.playhead,
+    zoom: interaction.zoom,
+  });
+
+  if (Math.abs(snappedTime - nextTime) < 0.000001) {
+    return { time: nextTime, snapTime: null };
+  }
+
+  return {
+    time: snappedTime,
+    snapTime: snappedTime,
+  };
+}
+
+function computePreview(mode, interaction, clientX, pointerState) {
   const deltaSeconds = (clientX - interaction.originClientX) / interaction.zoom.pxPerSecond;
   const originalEnd = interaction.originalStart + interaction.originalDur;
 
   if (mode === "resize-left") {
     const maxStart = Math.max(0, originalEnd - MIN_CLIP_DURATION);
-    const nextStart = Math.min(snapClipTime(interaction.originalStart + deltaSeconds), maxStart);
+    const candidateStart = Math.min(roundClipTime(interaction.originalStart + deltaSeconds), maxStart);
+    const snapped = maybeSnapTime(interaction, candidateStart, pointerState);
+    const nextStart = Math.min(snapped.time, maxStart);
     return {
       start: nextStart,
       dur: clampClipDuration(originalEnd - nextStart),
+      snapTime: Math.abs(nextStart - snapped.time) < 0.000001 ? snapped.snapTime : null,
     };
   }
 
   if (mode === "resize-right") {
     const minEnd = interaction.originalStart + MIN_CLIP_DURATION;
-    const nextEnd = Math.max(snapClipTime(originalEnd + deltaSeconds), minEnd);
+    const candidateEnd = Math.max(roundClipTime(originalEnd + deltaSeconds), minEnd);
+    const snapped = maybeSnapTime(interaction, candidateEnd, pointerState);
+    const nextEnd = Math.max(snapped.time, minEnd);
     return {
       start: interaction.originalStart,
       dur: clampClipDuration(nextEnd - interaction.originalStart),
+      snapTime: Math.abs(nextEnd - snapped.time) < 0.000001 ? snapped.snapTime : null,
     };
   }
 
+  const candidateStart = roundClipTime(interaction.originalStart + deltaSeconds);
+  const snapped = maybeSnapTime(interaction, candidateStart, pointerState);
+
   return {
-    start: snapClipTime(interaction.originalStart + deltaSeconds),
+    start: snapped.time,
     dur: interaction.originalDur,
+    snapTime: snapped.snapTime,
   };
 }
 
-function resolvePreview(interaction, clientX) {
-  const nextPreview = computePreview(interaction.mode, interaction, clientX);
+function resolvePreview(interaction, clientX, pointerState) {
+  const nextPreview = computePreview(interaction.mode, interaction, clientX, pointerState);
 
   return {
     ...nextPreview,
@@ -143,6 +231,7 @@ function teardownActiveInteraction() {
   document.body.style.userSelect = activeInteraction.previousUserSelect;
   document.body.style.cursor = activeInteraction.previousCursor;
   hideTooltip();
+  hideSnapGuide(activeInteraction);
   clearPreviewState(activeInteraction.clipEl, activeInteraction.originalStyles);
   activeInteraction = null;
 }
@@ -186,6 +275,10 @@ export function attachClipInteractions(clipEl, clipId, store, zoom) {
       clipEl,
       clipId,
       mode,
+      store,
+      snapGuideEl: null,
+      snapGuideTimer: 0,
+      snapTimeline: buildSnapTimeline(context.track, clipId),
       zoom,
       track: context.track,
       originalStart: Number(context.clip.start) || 0,
@@ -198,15 +291,23 @@ export function attachClipInteractions(clipEl, clipId, store, zoom) {
         start: Number(context.clip.start) || 0,
         dur: originalDur,
         invalid: false,
+        snapTime: null,
       },
       handleMouseMove: null,
       handleMouseUp: null,
     };
 
     const applyPreview = (moveEvent) => {
-      interaction.preview = resolvePreview(interaction, moveEvent.clientX);
+      interaction.preview = resolvePreview(interaction, moveEvent.clientX, moveEvent);
       setPreviewState(clipEl, zoom, interaction.preview);
       updateTooltip(moveEvent, interaction.preview);
+
+      if (interaction.preview.snapTime == null) {
+        hideSnapGuide(interaction);
+        return;
+      }
+
+      flashSnapGuide(interaction, interaction.preview.snapTime);
     };
 
     interaction.handleMouseMove = (moveEvent) => {

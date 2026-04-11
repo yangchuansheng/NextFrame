@@ -5,19 +5,23 @@ function roundToPrecision(value, precision = 4) {
   return Number((Number(value) || 0).toFixed(precision));
 }
 
+export function roundClipTime(value, precision = 4) {
+  return roundToPrecision(Math.max(0, Number(value) || 0), precision);
+}
+
 export function getClipDuration(clip) {
   const duration = Number(clip?.dur ?? clip?.duration);
   return Number.isFinite(duration) ? duration : 0;
 }
 
 export function snapClipTime(value) {
-  const safeValue = Math.max(0, Number(value) || 0);
+  const safeValue = roundClipTime(value);
   const snapped = Math.round(safeValue / CLIP_SNAP_STEP) * CLIP_SNAP_STEP;
   return roundToPrecision(snapped, 1);
 }
 
 export function clampClipDuration(value) {
-  return Math.max(MIN_CLIP_DURATION, snapClipTime(value));
+  return Math.max(MIN_CLIP_DURATION, roundClipTime(value));
 }
 
 export function hasTrackOverlap(track, start, dur, { ignoreClipId = null } = {}) {
