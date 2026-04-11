@@ -1120,6 +1120,59 @@
         color: rgba(245, 158, 11, 0.82);
       }
 
+      .status-bar {
+        flex: 0 0 22px;
+        min-height: 22px;
+        display: grid;
+        grid-template-columns: minmax(88px, max-content) minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        background: linear-gradient(180deg, rgba(12, 12, 20, 0.86), rgba(9, 9, 16, 0.94));
+        color: var(--text-faint);
+        font: 11px/1 "SFMono-Regular", Menlo, Consolas, monospace;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      .status-bar-segment {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .status-bar-selection {
+        justify-self: start;
+      }
+
+      .status-bar-tool {
+        justify-self: center;
+      }
+
+      .status-bar-autosave {
+        justify-self: end;
+        color: var(--text-dim);
+      }
+
+      .status-bar-autosave[data-state="dirty"] {
+        color: rgba(245, 158, 11, 0.82);
+      }
+
+      .status-bar-link {
+        color: var(--text-faint);
+        text-decoration: none;
+      }
+
+      .status-bar-link:hover {
+        color: var(--text);
+        text-decoration: underline;
+      }
+
+      .status-bar-version {
+        justify-self: end;
+      }
+
       .timeline-toolbar {
         display: flex;
         align-items: center;
@@ -2337,6 +2390,7 @@
       import { mountLibrary } from "./src/panels/library/index.js";
       import { mountInspector } from "./src/panels/inspector/index.js";
       import { registerAllScenes, SCENE_MANIFEST } from "./src/scenes/index.js";
+      import { mountStatusBar } from "./src/status-bar.js";
       import { store } from "./src/store.js";
       import { initTheme } from "./src/theme.js";
       import { mountTitleBar } from "./src/title-bar.js";
@@ -2429,6 +2483,7 @@
 
         mountTimeline($("bottom-timeline"), store);
         mountStatsBar($("timeline-stats"), store);
+        mountStatusBar($("app"), store);
       }
 
       function isEditableTarget(target) {
@@ -2585,6 +2640,7 @@
         }
 
         const timeline = normalizeLoadedTimeline(loadedTimeline);
+        const savedAt = Date.now();
         store.mutate((state) => {
           state.timeline = timeline;
           state.assets = timeline.assets;
@@ -2592,6 +2648,8 @@
           state.filePath = recentEntry.path;
           state.playhead = 0;
           state.dirty = false;
+          state.lastSavedAt = savedAt;
+          state.lastChangeAt = savedAt;
         });
 
         void bridge.call("recent.add", { path: recentEntry.path }).catch(() => {});
@@ -2765,6 +2823,7 @@
           throw new Error(validation.errors.join("\n"));
         }
 
+        const savedAt = Date.now();
         store.mutate((state) => {
           state.timeline = timeline;
           state.assets = Array.isArray(timeline.assets) ? timeline.assets : [];
@@ -2772,6 +2831,8 @@
           state.playhead = 0;
           state.playing = true;
           state.dirty = false;
+          state.lastSavedAt = savedAt;
+          state.lastChangeAt = savedAt;
         });
       }
 

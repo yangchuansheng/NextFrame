@@ -68,6 +68,16 @@ function writeTheme(value) {
   } catch {}
 }
 
+function currentTimestamp() {
+  const value = Date.now();
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function readTimestamp(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 export function createDefaultTimeline() {
   return {
     version: "1",
@@ -87,6 +97,7 @@ export function createDefaultProjectState() {
 }
 
 function createInitialState() {
+  const timestamp = currentTimestamp();
   return {
     playhead: 0,
     playing: true,
@@ -102,6 +113,8 @@ function createInitialState() {
     timeline: createDefaultTimeline(),
     filePath: null,
     dirty: false,
+    lastSavedAt: timestamp,
+    lastChangeAt: timestamp,
     autosaveTimer: null,
     autosaveId: null,
     selectedClipId: null,
@@ -287,6 +300,8 @@ export const store = {
     const previousState = cloneState(this.state);
     const previousDirty = this.state.dirty;
     const previousTimeline = this.state.timeline;
+    const previousSavedAt = readTimestamp(this.state.lastSavedAt) ?? currentTimestamp();
+    const previousChangeAt = readTimestamp(this.state.lastChangeAt) ?? previousSavedAt;
     let resolvedState = nextState;
 
     if (resolvedState.timeline !== previousTimeline && resolvedState.dirty === previousDirty) {
@@ -313,6 +328,24 @@ export const store = {
       };
     }
 
+    const nextDirty = Boolean(resolvedState.dirty);
+    const nextSavedAt = readTimestamp(resolvedState.lastSavedAt) ?? previousSavedAt;
+    const shouldMarkChange = nextDirty && (
+      resolvedState.timeline !== previousTimeline
+      || (!previousDirty && nextDirty)
+    );
+    const nextChangeAt = shouldMarkChange
+      ? (readTimestamp(resolvedState.lastChangeAt) ?? currentTimestamp())
+      : (readTimestamp(resolvedState.lastChangeAt) ?? previousChangeAt);
+
+    if (resolvedState.lastSavedAt !== nextSavedAt || resolvedState.lastChangeAt !== nextChangeAt) {
+      resolvedState = {
+        ...resolvedState,
+        lastSavedAt: nextSavedAt,
+        lastChangeAt: nextChangeAt,
+      };
+    }
+
     this.state = resolvedState;
 
     for (const listener of this.listeners) {
@@ -329,7 +362,11 @@ export const store = {
     const previousState = cloneState(this.state);
     const prevDirty = this.state.dirty;
     const prevTimeline = this.state.timeline;
+    const prevSavedAt = readTimestamp(this.state.lastSavedAt) ?? currentTimestamp();
+    const prevChangeAt = readTimestamp(this.state.lastChangeAt) ?? prevSavedAt;
     let dirtyAssigned = false;
+    let lastSavedAtAssigned = false;
+    let lastChangeAtAssigned = false;
     const proxy = new Proxy(this.state, {
       get(target, prop, receiver) {
         return Reflect.get(target, prop, receiver);
@@ -337,6 +374,12 @@ export const store = {
       set(target, prop, value, receiver) {
         if (prop === "dirty") {
           dirtyAssigned = true;
+        }
+        if (prop === "lastSavedAt") {
+          lastSavedAtAssigned = true;
+        }
+        if (prop === "lastChangeAt") {
+          lastChangeAtAssigned = true;
         }
 
         return Reflect.set(target, prop, value, receiver);
@@ -347,6 +390,24 @@ export const store = {
 
     if (!dirtyAssigned && this.state.timeline !== prevTimeline && this.state.dirty === prevDirty) {
       this.state.dirty = true;
+    }
+
+    if (!lastSavedAtAssigned || readTimestamp(this.state.lastSavedAt) == null) {
+      this.state.lastSavedAt = prevSavedAt;
+    }
+
+    const shouldMarkChange = Boolean(this.state.dirty) && (
+      this.state.timeline !== prevTimeline
+      || (!prevDirty && this.state.dirty)
+      || (dirtyAssigned && this.state.dirty)
+    );
+
+    if (shouldMarkChange) {
+      if (!lastChangeAtAssigned || readTimestamp(this.state.lastChangeAt) == null) {
+        this.state.lastChangeAt = currentTimestamp();
+      }
+    } else if (!lastChangeAtAssigned || readTimestamp(this.state.lastChangeAt) == null) {
+      this.state.lastChangeAt = prevChangeAt;
     }
 
     for (const listener of this.listeners) {

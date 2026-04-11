@@ -304,15 +304,20 @@ export function initMenu({ bridge, store }) {
     try {
       switch (action) {
         case "new":
-          store.mutate((state) => {
-            state.timeline = createDefaultTimeline();
-            state.project = createDefaultProjectState();
-            state.assets = [];
-            state.assetBuffers = new Map();
-            state.filePath = null;
-            state.playhead = 0;
-            state.dirty = false;
-          });
+          {
+            const savedAt = Date.now();
+            store.mutate((state) => {
+              state.timeline = createDefaultTimeline();
+              state.project = createDefaultProjectState();
+              state.assets = [];
+              state.assetBuffers = new Map();
+              state.filePath = null;
+              state.playhead = 0;
+              state.dirty = false;
+              state.lastSavedAt = savedAt;
+              state.lastChangeAt = savedAt;
+            });
+          }
           showNotice("New project");
           toast("New project");
           return;
@@ -332,15 +337,20 @@ export function initMenu({ bridge, store }) {
           await clearRecentMenu();
           return;
         case "close":
-          store.mutate((state) => {
-            state.timeline = createDefaultTimeline();
-            state.project = createDefaultProjectState();
-            state.assets = [];
-            state.assetBuffers = new Map();
-            state.filePath = null;
-            state.playhead = 0;
-            state.dirty = false;
-          });
+          {
+            const savedAt = Date.now();
+            store.mutate((state) => {
+              state.timeline = createDefaultTimeline();
+              state.project = createDefaultProjectState();
+              state.assets = [];
+              state.assetBuffers = new Map();
+              state.filePath = null;
+              state.playhead = 0;
+              state.dirty = false;
+              state.lastSavedAt = savedAt;
+              state.lastChangeAt = savedAt;
+            });
+          }
           showNotice("Project closed");
           return;
         case "export":
@@ -453,6 +463,7 @@ export function initMenu({ bridge, store }) {
       throw new Error(validation.errors.join("\n"));
     }
 
+    const savedAt = Date.now();
     store.mutate((state) => {
       const timeline = normalizeTimeline(projectDocument.timeline);
       state.timeline = timeline;
@@ -462,6 +473,8 @@ export function initMenu({ bridge, store }) {
       state.filePath = path;
       state.playhead = 0;
       state.dirty = false;
+      state.lastSavedAt = savedAt;
+      state.lastChangeAt = savedAt;
     });
     await rememberRecentProject(path);
     showNotice(`Opened ${basename(path) ?? DEFAULT_SAVE_NAME}`);
@@ -497,10 +510,13 @@ export function initMenu({ bridge, store }) {
   async function writeProject(path) {
     const autosaveId = store.state.autosaveId;
     const contents = JSON.stringify(createProjectDocument(store.state), null, 2);
+    const savedAt = Date.now();
     await bridge.call("fs.write", { path, contents });
     store.mutate((state) => {
       state.filePath = path;
       state.dirty = false;
+      state.lastSavedAt = savedAt;
+      state.lastChangeAt = savedAt;
     });
     if (typeof autosaveId === "string" && autosaveId.length > 0) {
       void clearAutosave({ bridge, projectId: autosaveId }).catch((error) =>
