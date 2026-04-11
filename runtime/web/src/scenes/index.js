@@ -2,6 +2,7 @@ import { auroraGradient } from "./auroraGradient.js";
 import { circleRipple } from "./circleRipple.js";
 import { cornerBadge } from "./cornerBadge.js";
 import { countdown } from "./countdown.js";
+import { imageHero } from "./imageHero.js";
 import { kineticHeadline } from "./kineticHeadline.js";
 import { lineChart } from "./lineChart.js";
 import { neonGrid } from "./neonGrid.js";
@@ -45,6 +46,29 @@ const SCENE_REGISTRY = [
       hueC: { type: "number", default: 320, min: 0, max: 360, ui: "hue" },
       intensity: { type: "number", default: 1, min: 0, max: 1.5 },
       grain: { type: "number", default: 0.04, min: 0, max: 0.15 },
+    },
+  },
+  {
+    id: "imageHero",
+    fn: imageHero,
+    name: "Image Hero",
+    category: "Media",
+    duration_hint: "5-15s",
+    params: {
+      src: { type: "text", default: null },
+      fit: { type: "select", default: "cover", options: ["cover", "contain"] },
+      zoomStart: { type: "number", default: 1, min: 0.5, max: 2.5 },
+      zoomEnd: { type: "number", default: 1.15, min: 0.5, max: 3 },
+      panX: { type: "number", default: 0.05, min: -0.5, max: 0.5 },
+      panY: { type: "number", default: -0.03, min: -0.5, max: 0.5 },
+      holdEdges: {
+        type: "select",
+        default: true,
+        options: [
+          { value: "true", label: "true" },
+          { value: "false", label: "false" },
+        ],
+      },
     },
   },
   {
