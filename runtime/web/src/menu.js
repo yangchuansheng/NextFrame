@@ -1,6 +1,7 @@
 import { validateTimeline } from "./engine/index.js";
 import { showExportDialog } from "./export/dialog.js";
 import { createDefaultTimeline } from "./store.js";
+import { THEMES } from "./theme.js";
 import { toast } from "./toast.js";
 
 const DEFAULT_SAVE_NAME = "Untitled.nfproj";
@@ -47,6 +48,9 @@ export function initMenu({ bridge, store }) {
     const zoom = normalizeZoom(state.ui?.zoom);
     const isTimelineVisible = state.ui?.timelineVisible !== false;
     const isInspectorVisible = state.ui?.inspectorVisible !== false;
+    const themeName = typeof state.theme === "string" && Object.prototype.hasOwnProperty.call(THEMES, state.theme)
+      ? state.theme
+      : "default";
 
     if (statusChip) {
       statusChip.classList.toggle("is-dirty", isDirty);
@@ -96,6 +100,7 @@ export function initMenu({ bridge, store }) {
     syncCheckmark("snapEnabled", isSnapEnabled);
     syncCheckmark("timelineVisible", isTimelineVisible);
     syncCheckmark("inspectorVisible", isInspectorVisible);
+    syncRadioSelection("theme", themeName);
   };
 
   const unsubscribe = store.subscribe(render);
@@ -388,6 +393,15 @@ export function initMenu({ bridge, store }) {
             state.ui.inspectorVisible = state.ui?.inspectorVisible === false;
           });
           return;
+        case "setTheme":
+          if (!Object.prototype.hasOwnProperty.call(THEMES, detail.menuTheme)) {
+            throw new Error(`Unknown theme: ${detail.menuTheme ?? ""}`);
+          }
+
+          store.mutate((state) => {
+            state.theme = detail.menuTheme;
+          });
+          return;
         default:
           throw new Error(`Unknown menu action: ${action}`);
       }
@@ -606,6 +620,22 @@ function syncCheckmark(name, checked) {
 
   if (check) {
     check.textContent = checked ? "✓" : "";
+  }
+}
+
+function syncRadioSelection(name, value) {
+  const items = [...document.querySelectorAll(`[data-menu-radio="${name}"]`)];
+  for (const item of items) {
+    const checked = item instanceof HTMLElement && item.dataset.menuValue === value;
+    if (item instanceof HTMLElement) {
+      item.dataset.checked = checked ? "true" : "false";
+      item.setAttribute("aria-checked", checked ? "true" : "false");
+    }
+
+    const check = item?.querySelector(".menu-check");
+    if (check) {
+      check.textContent = checked ? "•" : "";
+    }
   }
 }
 

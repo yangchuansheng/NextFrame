@@ -7,18 +7,23 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0b0b14;
-        --bg-alt: #10101a;
-        --surface: #14141e;
-        --surface-2: #181824;
-        --surface-3: #1d1d2b;
-        --border: #22222e;
-        --border-strong: #2d2d3b;
-        --text: #e6e6f0;
-        --text-dim: #a0a3b8;
-        --text-faint: #737892;
-        --accent: #6366f1;
-        --accent-soft: rgba(99, 102, 241, 0.18);
+        --nf-bg: #0b0b14;
+        --nf-surface: #14141e;
+        --nf-border: #22222e;
+        --nf-text: #e6e6f0;
+        --nf-accent: #6366f1;
+        --bg: var(--nf-bg);
+        --bg-alt: color-mix(in srgb, var(--nf-bg) 82%, white 18%);
+        --surface: var(--nf-surface);
+        --surface-2: color-mix(in srgb, var(--nf-surface) 90%, white 10%);
+        --surface-3: color-mix(in srgb, var(--nf-surface) 82%, white 18%);
+        --border: var(--nf-border);
+        --border-strong: color-mix(in srgb, var(--nf-border) 76%, white 24%);
+        --text: var(--nf-text);
+        --text-dim: color-mix(in srgb, var(--nf-text) 68%, var(--nf-bg) 32%);
+        --text-faint: color-mix(in srgb, var(--nf-text) 46%, var(--nf-bg) 54%);
+        --accent: var(--nf-accent);
+        --accent-soft: color-mix(in srgb, var(--nf-accent) 18%, transparent);
         --success: #38bdf8;
         --warning: #f59e0b;
         --track-video: linear-gradient(135deg, #4f46e5, #7c3aed);
@@ -57,9 +62,13 @@
         min-width: 1200px;
         overflow: hidden;
         background:
-          radial-gradient(circle at top left, rgba(99, 102, 241, 0.1), transparent 30%),
-          radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 26%),
-          linear-gradient(180deg, #0d0d18 0%, #090910 100%);
+          radial-gradient(circle at top left, color-mix(in srgb, var(--nf-accent) 14%, transparent), transparent 30%),
+          radial-gradient(circle at top right, color-mix(in srgb, var(--nf-surface) 44%, transparent), transparent 26%),
+          linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--nf-bg) 88%, white 12%) 0%,
+            color-mix(in srgb, var(--nf-bg) 92%, black 8%) 100%
+          );
         color: var(--text);
         font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         letter-spacing: 0.01em;
@@ -79,6 +88,8 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--nf-bg) 84%, white 16%), var(--nf-bg));
       }
 
       #top-menu {
@@ -91,7 +102,11 @@
         padding: 0 12px;
         border-bottom: 1px solid var(--border);
         background:
-          linear-gradient(180deg, rgba(22, 22, 34, 0.96), rgba(16, 16, 26, 0.94));
+          linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--nf-surface) 94%, white 6%),
+            color-mix(in srgb, var(--nf-bg) 92%, var(--nf-surface) 8%)
+          );
       }
 
       .menu-group {
@@ -121,8 +136,10 @@
         height: 18px;
         border-radius: 6px;
         background:
-          linear-gradient(135deg, rgba(99, 102, 241, 1), rgba(59, 130, 246, 0.85));
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 6px 14px rgba(99, 102, 241, 0.34);
+          linear-gradient(135deg, var(--nf-accent), color-mix(in srgb, var(--nf-accent) 66%, white 34%));
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 6px 14px color-mix(in srgb, var(--nf-accent) 34%, transparent);
       }
 
       .brand-name {
@@ -161,8 +178,8 @@
       }
 
       .project-title-label:hover {
-        border-color: rgba(99, 102, 241, 0.28);
-        background: rgba(99, 102, 241, 0.1);
+        border-color: color-mix(in srgb, var(--nf-accent) 28%, transparent);
+        background: color-mix(in srgb, var(--nf-accent) 10%, transparent);
         color: var(--text-dim);
       }
 
@@ -205,7 +222,7 @@
 
       .menu-root[data-open="true"] .menu-trigger,
       .menu-trigger:hover {
-        border-color: rgba(99, 102, 241, 0.38);
+        border-color: color-mix(in srgb, var(--nf-accent) 38%, transparent);
         background: var(--accent-soft);
         color: var(--text);
       }
@@ -221,7 +238,11 @@
         border: 1px solid var(--border-strong);
         border-radius: 14px;
         background:
-          linear-gradient(180deg, rgba(25, 25, 37, 0.98), rgba(16, 16, 24, 0.98));
+          linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--nf-surface) 96%, white 4%),
+            color-mix(in srgb, var(--nf-bg) 90%, var(--nf-surface) 10%)
+          );
         box-shadow: var(--shadow-lg);
         z-index: 50;
       }
@@ -245,7 +266,11 @@
         border: 1px solid var(--border-strong);
         border-radius: 14px;
         background:
-          linear-gradient(180deg, rgba(25, 25, 37, 0.98), rgba(16, 16, 24, 0.98));
+          linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--nf-surface) 96%, white 4%),
+            color-mix(in srgb, var(--nf-bg) 90%, var(--nf-surface) 10%)
+          );
         box-shadow: var(--shadow-lg);
         z-index: 60;
       }
@@ -308,9 +333,14 @@
       }
 
       .menu-button.primary {
-        border-color: rgba(99, 102, 241, 0.55);
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.88));
-        box-shadow: 0 10px 18px rgba(79, 70, 229, 0.24);
+        border-color: color-mix(in srgb, var(--nf-accent) 55%, transparent);
+        background:
+          linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--nf-accent) 90%, white 10%),
+            color-mix(in srgb, var(--nf-accent) 78%, var(--nf-bg) 22%)
+          );
+        box-shadow: 0 10px 18px color-mix(in srgb, var(--nf-accent) 24%, transparent);
       }
 
       .menu-chip {
@@ -468,8 +498,8 @@
       }
 
       .filter-chip.active {
-        border-color: rgba(99, 102, 241, 0.42);
-        background: rgba(99, 102, 241, 0.16);
+        border-color: color-mix(in srgb, var(--nf-accent) 42%, transparent);
+        background: color-mix(in srgb, var(--nf-accent) 16%, transparent);
         color: var(--text);
       }
 
@@ -712,11 +742,15 @@
       .transport-button {
         width: 38px;
         height: 38px;
-        border: 1px solid rgba(99, 102, 241, 0.45);
+        border: 1px solid color-mix(in srgb, var(--nf-accent) 45%, transparent);
         border-radius: 50%;
         background:
-          linear-gradient(135deg, rgba(99, 102, 241, 0.94), rgba(59, 130, 246, 0.9));
-        box-shadow: 0 12px 24px rgba(79, 70, 229, 0.25);
+          linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--nf-accent) 94%, white 6%),
+            color-mix(in srgb, var(--nf-accent) 78%, var(--nf-bg) 22%)
+          );
+        box-shadow: 0 12px 24px color-mix(in srgb, var(--nf-accent) 25%, transparent);
         position: relative;
       }
 
@@ -1843,6 +1877,61 @@
                   <span class="menu-shortcut">Shift+F</span>
                 </button>
                 <div class="menu-divider" role="separator"></div>
+                <div class="menu-submenu">
+                  <button class="menu-item" type="button" role="menuitem" aria-haspopup="true">
+                    <span class="menu-check"></span>
+                    <span>Theme</span>
+                    <span class="menu-shortcut">›</span>
+                  </button>
+                  <div class="menu-submenu-dropdown" role="menu" aria-label="Theme">
+                    <button
+                      class="menu-item"
+                      type="button"
+                      role="menuitemradio"
+                      data-menu-action="setTheme"
+                      data-menu-radio="theme"
+                      data-menu-value="default"
+                      data-menu-theme="default"
+                      data-checked="true"
+                      aria-checked="true"
+                    >
+                      <span class="menu-check">•</span>
+                      <span>Default</span>
+                      <span class="menu-shortcut"></span>
+                    </button>
+                    <button
+                      class="menu-item"
+                      type="button"
+                      role="menuitemradio"
+                      data-menu-action="setTheme"
+                      data-menu-radio="theme"
+                      data-menu-value="velvet"
+                      data-menu-theme="velvet"
+                      data-checked="false"
+                      aria-checked="false"
+                    >
+                      <span class="menu-check"></span>
+                      <span>Velvet</span>
+                      <span class="menu-shortcut"></span>
+                    </button>
+                    <button
+                      class="menu-item"
+                      type="button"
+                      role="menuitemradio"
+                      data-menu-action="setTheme"
+                      data-menu-radio="theme"
+                      data-menu-value="ice"
+                      data-menu-theme="ice"
+                      data-checked="false"
+                      aria-checked="false"
+                    >
+                      <span class="menu-check"></span>
+                      <span>Ice</span>
+                      <span class="menu-shortcut"></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-divider" role="separator"></div>
                 <button
                   class="menu-item"
                   type="button"
@@ -2132,6 +2221,7 @@
       import { copy as copyToClipboard, read as readClipboard } from "./src/clipboard.js";
       import { duplicateClipsCommand, pasteClipsCommand, removeClipsCommand } from "./src/commands.js";
       import { store } from "./src/store.js";
+      import { initTheme } from "./src/theme.js";
       import { mountTitleBar } from "./src/title-bar.js";
       import { mountTimeline } from "./src/timeline/index.js";
       import { mountStatsBar } from "./src/timeline/stats-bar.js";
@@ -2698,6 +2788,7 @@
       })();
 
       async function initApp() {
+        initTheme(store);
         initWorkspaceChrome();
 
         try {
