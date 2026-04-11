@@ -2,6 +2,7 @@ import { getDragDropContext } from "../dnd/index.js";
 import { readDragPayload } from "../dnd/source.js";
 import { registerDropTarget } from "../dnd/target.js";
 import { createClip } from "./clip.js";
+import { hasTrackOverlap } from "./clip-range.js";
 import { getTickStep } from "./ruler.js";
 
 const TRACK_HEADER_WIDTH = 120;
@@ -54,23 +55,6 @@ function resolveAssetDuration(asset) {
 
 function snapTime(time) {
   return Math.floor(Math.max(0, Number(time) || 0) * 10) / 10;
-}
-
-function getClipDuration(clip) {
-  const duration = Number(clip?.dur ?? clip?.duration);
-  return Number.isFinite(duration) ? duration : 0;
-}
-
-function hasClipOverlap(track, start, dur) {
-  const nextEnd = start + dur;
-  const clips = Array.isArray(track?.clips) ? track.clips : [];
-
-  return clips.some((clip) => {
-    const clipStart = Number(clip?.start) || 0;
-    const clipDur = getClipDuration(clip);
-    const clipEnd = clipStart + clipDur;
-    return start < clipEnd && clipStart < nextEnd;
-  });
 }
 
 function flashRejectedDrop(el) {
@@ -218,7 +202,7 @@ function createHeaderIcon(kind, active) {
   return badge;
 }
 
-export function createTrackRow(track, { duration, zoom }) {
+export function createTrackRow(track, { duration, zoom, store }) {
   bindGlobalDropGhostCleanup();
 
   const safeDuration = Math.max(0, Number(duration) || 0);
@@ -257,7 +241,7 @@ export function createTrackRow(track, { duration, zoom }) {
   lane.style.setProperty("--timeline-minor-step", `${Math.max(zoom.timeToPx(minorStep), 1)}px`);
 
   (track.clips || []).forEach((clip) => {
-    const clipElement = createClip(clip, zoom);
+    const clipElement = createClip(clip, zoom, store);
     if (clip.id === pendingFlashClipId) {
       clipElement.classList.add("timeline-clip-flash");
       window.setTimeout(() => {
@@ -303,7 +287,7 @@ export function createTrackRow(track, { duration, zoom }) {
     ghost.textContent = preview.label;
     ghost.style.left = `${zoom.timeToPx(start)}px`;
     ghost.style.width = `${width}px`;
-    ghost.classList.toggle("is-invalid", hasClipOverlap(track, start, preview.dur));
+    ghost.classList.toggle("is-invalid", hasTrackOverlap(track, start, preview.dur));
   }
 
   registerDropTarget(lane, {
@@ -318,7 +302,7 @@ export function createTrackRow(track, { duration, zoom }) {
 
       const rect = lane.getBoundingClientRect();
       const start = snapTime(zoom.pxToTime(event.clientX - rect.left));
-      if (hasClipOverlap(track, start, preview.dur)) {
+      if (hasTrackOverlap(track, start, preview.dur)) {
         flashRejectedDrop(lane);
         return;
       }
