@@ -1,0 +1,103 @@
+{
+  "version": "1",
+  "duration": 30,
+  "background": "#0b0b14",
+  "tracks": [
+    {
+      "id": "v1",
+      "kind": "video",
+      "clips": [
+        {
+          "id": "clip-aurora",
+          "start": 0,
+          "dur": 6,
+          "scene": "auroraGradient",
+          "params": {
+            "hueA": 270,
+            "hueB": 200,
+            "hueC": 320,
+            "intensity": 1,
+            "grain": 0.05
+          }
+        },
+        {
+          "id": "clip-headline",
+          "start": 2,
+          "dur": 6,
+          "scene": "kineticHeadline",
+          "params": {
+            "text": "NextFrame",
+            "subtitle": "Port 5 scene registry demo",
+            "hueStart": 32,
+            "hueEnd": 320,
+            "stagger": 0.14,
+            "size": 0.13
+          }
+        },
+        {
+          "id": "clip-grid",
+          "start": 8,
+          "dur": 8,
+          "scene": "neonGrid",
+          "params": {
+            "hueHorizon": 320,
+            "hueGrid": 280,
+            "scrollSpeed": 0.45,
+            "lineCount": 16,
+            "colCount": 22
+          }
+        },
+        {
+          "id": "clip-chart",
+          "start": 16,
+          "dur": 6,
+          "scene": "barChartReveal",
+          "params": {
+            "title": "SCENE COVERAGE",
+            "unit": "%",
+            "hueStart": 198,
+            "hueEnd": 318,
+            "stagger": 0.11,
+            "barDur": 0.9,
+            "data": [
+              {
+                "label": "AUR",
+                "value": 64
+              },
+              {
+                "label": "KIN",
+                "value": 82
+              },
+              {
+                "label": "NEO",
+                "value": 91
+              },
+              {
+                "label": "BAR",
+                "value": 76
+              },
+              {
+                "label": "LOW",
+                "value": 88
+              }
+            ]
+          }
+        },
+        {
+          "id": "clip-lower-third",
+          "start": 22,
+          "dur": 8,
+          "scene": "lowerThirdVelvet",
+          "params": {
+            "title": "NEXTFRAME",
+            "subtitle": "Five scene loop · renderAt demo",
+            "hueA": 24,
+            "hueB": 320,
+            "holdEnd": 7,
+            "fadeOut": 0.8
+          }
+        }
+      ]
+    }
+  ]
+}

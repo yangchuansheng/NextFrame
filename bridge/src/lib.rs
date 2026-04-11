@@ -157,29 +157,29 @@ fn handle_scene_list(params: &Value) -> Result<Value, String> {
 
     Ok(json!([
         {
-            "id": "gradientBg",
-            "name": "Gradient Background",
-            "category": "background"
+            "id": "auroraGradient",
+            "name": "Aurora Gradient",
+            "category": "Backgrounds"
         },
         {
-            "id": "text",
-            "name": "Text",
-            "category": "typography"
+            "id": "kineticHeadline",
+            "name": "Kinetic Headline",
+            "category": "Typography"
         },
         {
-            "id": "shape",
-            "name": "Shape",
-            "category": "geometry"
+            "id": "neonGrid",
+            "name": "Neon Grid",
+            "category": "Shapes & Layout"
         },
         {
-            "id": "image",
-            "name": "Image",
-            "category": "media"
+            "id": "barChartReveal",
+            "name": "Bar Chart Reveal",
+            "category": "Data Viz"
         },
         {
-            "id": "counter",
-            "name": "Counter",
-            "category": "data"
+            "id": "lowerThirdVelvet",
+            "name": "Lower Third Velvet",
+            "category": "Overlays"
         }
     ]))
 }
@@ -572,7 +572,7 @@ mod tests {
 
         let scenes = response.result.as_array().expect("scene array");
         assert_eq!(scenes.len(), 5);
-        assert_eq!(scenes[0].get("id"), Some(&json!("gradientBg")));
+        assert_eq!(scenes[0].get("id"), Some(&json!("auroraGradient")));
 
         let error_response = dispatch(request("scene.list", json!("bad params")));
         assert!(!error_response.ok);
