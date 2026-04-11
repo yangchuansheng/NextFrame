@@ -87,6 +87,8 @@ export function mountLibrary(container, { store, scenes = [] } = {}) {
   container.replaceChildren(header, controls, grid);
 
   const count = header.querySelector('[data-role="count"]');
+  let lastAssetsRef = store?.state?.assets;
+  let lastSearchQuery = store?.state?.searchQuery;
 
   function render() {
     const query = normalizeQuery(store?.state?.searchQuery);
@@ -144,12 +146,14 @@ export function mountLibrary(container, { store, scenes = [] } = {}) {
   input.addEventListener("input", onSearchInput);
 
   const unsubscribe = typeof store?.subscribe === "function"
-    ? store.subscribe((nextState, previousState) => {
-      if (nextState.assets !== previousState.assets || nextState.searchQuery !== previousState.searchQuery) {
+    ? store.subscribe((nextState) => {
+      if (nextState.assets !== lastAssetsRef || nextState.searchQuery !== lastSearchQuery) {
         if (input.value !== nextState.searchQuery) {
           input.value = nextState.searchQuery;
         }
         render();
+        lastAssetsRef = nextState.assets;
+        lastSearchQuery = nextState.searchQuery;
       }
     })
     : () => {};

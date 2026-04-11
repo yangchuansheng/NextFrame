@@ -1,9 +1,28 @@
 function cloneValue(value) {
-  if (typeof globalThis.structuredClone === "function") {
-    return globalThis.structuredClone(value);
+  if (value instanceof Map) {
+    return new Map([...value.entries()].map(([key, entryValue]) => [cloneValue(key), cloneValue(entryValue)]));
   }
 
-  return JSON.parse(JSON.stringify(value));
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneValue(entry));
+  }
+
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [key, cloneValue(entryValue)]),
+    );
+  }
+
+  return value;
+}
+
+function isPlainObject(value) {
+  if (!value || Object.prototype.toString.call(value) !== "[object Object]") {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function assertCommand(command) {

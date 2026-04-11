@@ -2,6 +2,15 @@
   "version": "1",
   "duration": 30,
   "background": "#0b0b14",
+  "assets": [
+    {
+      "id": "demo-tone",
+      "name": "Demo Tone",
+      "path": "assets/demo-audio.wav",
+      "kind": "audio",
+      "duration": 2
+    }
+  ],
   "tracks": [
     {
       "id": "v1",
@@ -95,6 +104,108 @@
             "hueB": 320,
             "holdEnd": 7,
             "fadeOut": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "a1",
+      "name": "Pulse A",
+      "kind": "audio",
+      "clips": [
+        {
+          "id": "clip-tone-a-1",
+          "start": 1,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.18
+          }
+        },
+        {
+          "id": "clip-tone-a-2",
+          "start": 9,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.18
+          }
+        },
+        {
+          "id": "clip-tone-a-3",
+          "start": 17,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.18
+          }
+        },
+        {
+          "id": "clip-tone-a-4",
+          "start": 25,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.18
+          }
+        }
+      ]
+    },
+    {
+      "id": "a2",
+      "name": "Pulse B",
+      "kind": "audio",
+      "clips": [
+        {
+          "id": "clip-tone-b-1",
+          "start": 2,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.1
+          }
+        },
+        {
+          "id": "clip-tone-b-2",
+          "start": 10,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.1
+          }
+        },
+        {
+          "id": "clip-tone-b-3",
+          "start": 18,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.1
+          }
+        },
+        {
+          "id": "clip-tone-b-4",
+          "start": 26,
+          "dur": 2,
+          "scene": "audio",
+          "params": {
+            "assetId": "demo-tone",
+            "src": "assets/demo-audio.wav",
+            "volume": 0.1
           }
         }
       ]

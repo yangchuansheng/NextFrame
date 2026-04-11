@@ -1,0 +1,340 @@
+import { normalizeAudioUrl } from "./buffer.js";
+
+function readFiniteNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function wrapTime(time, duration) {
+  if (!(duration > 0)) {
+    return 0;
+  }
+
+  const normalized = time % duration;
+  return normalized >= 0 ? normalized : normalized + duration;
+}
+
+function wrapDelta(actual, expected, duration) {
+  if (!(duration > 0)) {
+    return actual - expected;
+  }
+
+  const delta = wrapTime(actual - expected + duration / 2, duration) - duration / 2;
+  return delta;
+}
+
+function isAudioBufferLike(value) {
+  return Boolean(value)
+    && typeof value.duration === "number"
+    && typeof value.numberOfChannels === "number"
+    && typeof value.getChannelData === "function";
+}
+
+function mergeAssets(state) {
+  const merged = [];
+  const seen = new Set();
+  const candidates = [
+    ...(Array.isArray(state?.timeline?.assets) ? state.timeline.assets : []),
+    ...(Array.isArray(state?.assets) ? state.assets : []),
+  ];
+
+  candidates.forEach((asset) => {
+    if (!asset || typeof asset !== "object") {
+      return;
+    }
+
+    const key = typeof asset.id === "string" && asset.id.length > 0
+      ? `id:${asset.id}`
+      : `path:${asset.path || asset.url || ""}`;
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    merged.push(asset);
+  });
+
+  return merged;
+}
+
+function buildAssetIndex(state) {
+  const assets = mergeAssets(state);
+  const byId = new Map();
+  const byPath = new Map();
+
+  assets.forEach((asset) => {
+    if (typeof asset.id === "string" && asset.id.length > 0) {
+      byId.set(asset.id, asset);
+    }
+
+    const candidatePath = asset.path || asset.url;
+    const normalizedPath = normalizeAudioUrl(candidatePath);
+    if (normalizedPath) {
+      byPath.set(normalizedPath, asset);
+    }
+  });
+
+  return { byId, byPath };
+}
+
+function resolveClipSourceUrl(clip, assetIndex) {
+  const params = clip?.params && typeof clip.params === "object" ? clip.params : {};
+  const assetId = typeof params.assetId === "string" && params.assetId.length > 0
+    ? params.assetId
+    : typeof clip?.assetId === "string" && clip.assetId.length > 0
+      ? clip.assetId
+      : null;
+
+  if (assetId && assetIndex.byId.has(assetId)) {
+    const asset = assetIndex.byId.get(assetId);
+    return normalizeAudioUrl(asset?.path || asset?.url);
+  }
+
+  const directUrl = params.src ?? clip?.src ?? null;
+  const normalizedDirectUrl = normalizeAudioUrl(directUrl);
+  if (normalizedDirectUrl) {
+    return normalizedDirectUrl;
+  }
+
+  return null;
+}
+
+function collectScheduleEntries(state, playhead, horizon) {
+  const duration = readFiniteNumber(state?.timeline?.duration, 0);
+  if (!(duration > 0)) {
+    return [];
+  }
+
+  const assetBuffers = state?.assetBuffers instanceof Map ? state.assetBuffers : null;
+  if (!assetBuffers) {
+    return [];
+  }
+
+  const assetIndex = buildAssetIndex(state);
+  const tracks = Array.isArray(state?.timeline?.tracks) ? state.timeline.tracks : [];
+  const windowStart = wrapTime(playhead, duration);
+  const windowEnd = windowStart + horizon;
+  const entries = [];
+
+  tracks.forEach((track) => {
+    if (track?.kind !== "audio" || track?.muted) {
+      return;
+    }
+
+    const clips = Array.isArray(track?.clips) ? track.clips : [];
+    clips.forEach((clip) => {
+      if (clip?.muted) {
+        return;
+      }
+
+      const sourceUrl = resolveClipSourceUrl(clip, assetIndex);
+      const audioBuffer = sourceUrl ? assetBuffers.get(sourceUrl) : null;
+      if (!isAudioBufferLike(audioBuffer)) {
+        return;
+      }
+
+      const clipStartTime = readFiniteNumber(clip?.start, 0);
+      const clipDuration = readFiniteNumber(clip?.duration ?? clip?.dur, 0);
+      if (!(clipDuration > 0)) {
+        return;
+      }
+
+      const params = clip?.params && typeof clip.params === "object" ? clip.params : {};
+      const sourceOffset = clamp(
+        readFiniteNumber(params.clipStart ?? params.startOffset ?? params.offset, 0),
+        0,
+        Math.max(audioBuffer.duration, 0),
+      );
+      const maxPlayableDuration = Math.max(0, audioBuffer.duration - sourceOffset);
+      const clipPlayableDuration = Math.min(
+        clipDuration,
+        readFiniteNumber(params.clipDur, clipDuration),
+        maxPlayableDuration,
+      );
+
+      if (!(clipPlayableDuration > 0)) {
+        return;
+      }
+
+      const volume = clamp(readFiniteNumber(params.volume, clip?.volume ?? 1), 0, 4);
+      const gainAutomation = params.gainAutomation;
+
+      for (let cycleOffset = 0; clipStartTime + cycleOffset < windowEnd; cycleOffset += duration) {
+        const occurrenceStart = clipStartTime + cycleOffset;
+        const occurrenceEnd = occurrenceStart + clipPlayableDuration;
+        const intersectStart = Math.max(windowStart, occurrenceStart);
+        const intersectEnd = Math.min(windowEnd, occurrenceEnd);
+
+        if (!(intersectEnd > intersectStart)) {
+          continue;
+        }
+
+        const clipOffset = intersectStart - occurrenceStart;
+        entries.push({
+          audioBuffer,
+          startTime: intersectStart - windowStart,
+          clipStart: sourceOffset + clipOffset,
+          clipDur: intersectEnd - intersectStart,
+          volume,
+          gainAutomation,
+        });
+      }
+    });
+  });
+
+  return entries;
+}
+
+export function createMixer({ audioContext, getState = () => null } = {}) {
+  const scheduledNodes = new Set();
+  let session = null;
+
+  function removeScheduled(entry) {
+    scheduledNodes.delete(entry);
+    try {
+      entry.source.disconnect();
+    } catch {
+      // Best effort cleanup.
+    }
+    try {
+      entry.gain.disconnect();
+    } catch {
+      // Best effort cleanup.
+    }
+  }
+
+  function stop() {
+    for (const entry of [...scheduledNodes]) {
+      try {
+        entry.source.stop();
+      } catch {
+        // Source may already be finished.
+      }
+      removeScheduled(entry);
+    }
+    session = null;
+  }
+
+  function playAt(audioBuffer, {
+    startTime = 0,
+    clipStart = 0,
+    clipDur = 0,
+    volume = 1,
+    gainAutomation = null,
+  } = {}) {
+    if (!audioContext || !isAudioBufferLike(audioBuffer)) {
+      return null;
+    }
+
+    const safeClipStart = clamp(readFiniteNumber(clipStart, 0), 0, Math.max(audioBuffer.duration, 0));
+    const safeClipDur = Math.min(
+      Math.max(0, readFiniteNumber(clipDur, 0)),
+      Math.max(0, audioBuffer.duration - safeClipStart),
+    );
+
+    if (!(safeClipDur > 0)) {
+      return null;
+    }
+
+    const when = audioContext.currentTime + Math.max(0, readFiniteNumber(startTime, 0));
+    const gain = audioContext.createGain();
+    const source = audioContext.createBufferSource();
+    const safeVolume = clamp(readFiniteNumber(volume, 1), 0, 4);
+
+    source.buffer = audioBuffer;
+    source.connect(gain);
+    gain.connect(audioContext.destination);
+    gain.gain.setValueAtTime(safeVolume, when);
+
+    if (Array.isArray(gainAutomation)) {
+      gainAutomation.forEach((point, index) => {
+        const pointTime = when + clamp(readFiniteNumber(point?.time, 0), 0, safeClipDur);
+        const pointValue = clamp(readFiniteNumber(point?.value, safeVolume), 0, 4);
+        if (index === 0) {
+          gain.gain.setValueAtTime(pointValue, pointTime);
+        } else {
+          gain.gain.linearRampToValueAtTime(pointValue, pointTime);
+        }
+      });
+    }
+
+    const entry = { source, gain };
+    source.addEventListener("ended", () => removeScheduled(entry), { once: true });
+    scheduledNodes.add(entry);
+    source.start(when, safeClipStart, safeClipDur);
+    return entry;
+  }
+
+  function syncToPlayhead(playhead, isPlaying) {
+    if (!audioContext) {
+      return;
+    }
+
+    if (!isPlaying) {
+      stop();
+      return;
+    }
+
+    const state = getState();
+    const duration = readFiniteNumber(state?.timeline?.duration, 0);
+    const normalizedPlayhead = wrapTime(playhead, duration);
+
+    if (audioContext.state === "suspended" && typeof audioContext.resume === "function") {
+      const result = audioContext.resume();
+      if (result && typeof result.catch === "function") {
+        result.catch(() => {});
+      }
+    }
+
+    const sessionChanged = !session
+      || session.timeline !== state?.timeline
+      || session.assets !== state?.assets
+      || session.assetBuffers !== state?.assetBuffers
+      || session.duration !== duration;
+
+    if (!sessionChanged && session) {
+      const elapsed = Math.max(0, audioContext.currentTime - session.audioTime);
+      const expectedPlayhead = wrapTime(session.playhead + elapsed, duration);
+      const drift = Math.abs(wrapDelta(normalizedPlayhead, expectedPlayhead, duration));
+      const didWrap = normalizedPlayhead + 0.25 < session.lastObservedPlayhead;
+
+      session.lastObservedPlayhead = normalizedPlayhead;
+      if (!didWrap && drift <= 0.12) {
+        return;
+      }
+    }
+
+    stop();
+
+    const scheduleEntries = collectScheduleEntries(
+      state,
+      normalizedPlayhead,
+      Math.max(duration * 2, 2),
+    );
+
+    scheduleEntries.forEach((entry) => {
+      playAt(entry.audioBuffer, entry);
+    });
+
+    session = {
+      playhead: normalizedPlayhead,
+      audioTime: audioContext.currentTime,
+      duration,
+      timeline: state?.timeline,
+      assets: state?.assets,
+      assetBuffers: state?.assetBuffers,
+      lastObservedPlayhead: normalizedPlayhead,
+    };
+  }
+
+  return {
+    playAt,
+    stop,
+    syncToPlayhead,
+  };
+}

@@ -184,6 +184,8 @@ export function initMenu({ bridge, store }) {
         case "new":
           store.mutate((state) => {
             state.timeline = createDefaultTimeline();
+            state.assets = [];
+            state.assetBuffers = new Map();
             state.filePath = null;
             state.playhead = 0;
             state.dirty = false;
@@ -202,6 +204,8 @@ export function initMenu({ bridge, store }) {
         case "close":
           store.mutate((state) => {
             state.timeline = createDefaultTimeline();
+            state.assets = [];
+            state.assetBuffers = new Map();
             state.filePath = null;
             state.playhead = 0;
             state.dirty = false;
@@ -285,7 +289,10 @@ export function initMenu({ bridge, store }) {
     }
 
     store.mutate((state) => {
-      state.timeline = normalizeTimeline(parsed);
+      const timeline = normalizeTimeline(parsed);
+      state.timeline = timeline;
+      state.assets = timeline.assets;
+      state.assetBuffers = new Map();
       state.filePath = path;
       state.playhead = 0;
       state.dirty = false;
@@ -347,6 +354,7 @@ function normalizeTimeline(timeline) {
   return {
     ...timeline,
     background: typeof timeline.background === "string" ? timeline.background : DEFAULT_BACKGROUND,
+    assets: Array.isArray(timeline.assets) ? timeline.assets : [],
     tracks: Array.isArray(timeline.tracks) ? timeline.tracks : [],
   };
 }

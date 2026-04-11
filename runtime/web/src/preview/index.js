@@ -1,3 +1,5 @@
+import { getAudioContext } from "../audio/context.js";
+import { createMixer } from "../audio/mixer.js";
 import { renderAt as defaultRenderAt, setupDPR as defaultSetupDPR } from "../engine/index.js";
 import { computeLetterboxRect } from "./letterbox.js";
 import { createLoop } from "./loop.js";
@@ -34,6 +36,10 @@ export function mountPreview(container, { engine, store } = {}) {
     renderAt: typeof engine?.renderAt === "function" ? engine.renderAt : defaultRenderAt,
     setupDPR: typeof engine?.setupDPR === "function" ? engine.setupDPR : defaultSetupDPR,
   };
+  const audioMixer = createMixer({
+    audioContext: getAudioContext(),
+    getState: () => store?.state ?? null,
+  });
 
   let ctx = null;
   let lastRect = { x: 0, y: 0, width: 0, height: 0 };
@@ -88,6 +94,7 @@ export function mountPreview(container, { engine, store } = {}) {
         ? advancePlayhead(store, time, dt, timeline)
         : time;
 
+      audioMixer.syncToPlayhead(nextTime, Boolean(store?.state?.playing));
       renderFrame(nextTime, timeline);
     },
     getTime: readTime,
@@ -106,8 +113,10 @@ export function mountPreview(container, { engine, store } = {}) {
 
       if (nextSnapshot.playing !== lastSnapshot.playing) {
         if (nextSnapshot.playing) {
+          audioMixer.syncToPlayhead(readTime(), true);
           loop.play();
         } else {
+          audioMixer.stop();
           loop.pause();
         }
       }
@@ -120,6 +129,12 @@ export function mountPreview(container, { engine, store } = {}) {
         renderFrame(readTime());
       }
 
+      if (nextSnapshot.timeline !== lastSnapshot.timeline
+        || nextSnapshot.assets !== lastSnapshot.assets
+        || nextSnapshot.assetBuffers !== lastSnapshot.assetBuffers) {
+        audioMixer.syncToPlayhead(readTime(), Boolean(state?.playing));
+      }
+
       lastSnapshot = nextSnapshot;
     })
     : () => {};
@@ -128,17 +143,28 @@ export function mountPreview(container, { engine, store } = {}) {
   renderFrame(readTime());
 
   if (lastSnapshot.playing) {
+    audioMixer.syncToPlayhead(readTime(), true);
     loop.play();
   }
 
   const api = {
     canvas,
-    play: () => loop.play(),
-    pause: () => loop.pause(),
-    stop: () => loop.stop(),
+    play: () => {
+      audioMixer.syncToPlayhead(readTime(), true);
+      loop.play();
+    },
+    pause: () => {
+      audioMixer.stop();
+      loop.pause();
+    },
+    stop: () => {
+      audioMixer.stop();
+      loop.stop();
+    },
     destroy() {
       unsubscribe();
       resizeObserver.disconnect();
+      audioMixer.stop();
       loop.stop();
       delete container[MOUNT_STATE];
     },
@@ -157,6 +183,8 @@ function createSnapshot(state) {
     projectHeight: readFiniteNumber(state?.project?.height),
     aspectRatio: getAspectRatio(state?.project),
     timeline: state?.timeline,
+    assets: state?.assets,
+    assetBuffers: state?.assetBuffers,
   };
 }
 

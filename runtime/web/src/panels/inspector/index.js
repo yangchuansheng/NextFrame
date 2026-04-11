@@ -125,6 +125,8 @@ export function mountInspector(container, { store } = {}) {
   container.replaceChildren(header, body);
 
   const status = header.querySelector('[data-role="status"]');
+  let lastSelectedClipId = store?.state?.selectedClipId ?? null;
+  let lastTimelineRef = store?.state?.timeline;
 
   function renderEmptyState() {
     status.textContent = "No Selection";
@@ -221,9 +223,11 @@ export function mountInspector(container, { store } = {}) {
   }
 
   const unsubscribe = typeof store?.subscribe === "function"
-    ? store.subscribe((nextState, previousState) => {
-      if (nextState.selectedClipId !== previousState.selectedClipId || nextState.timeline !== previousState.timeline) {
+    ? store.subscribe((nextState) => {
+      if (nextState.selectedClipId !== lastSelectedClipId || nextState.timeline !== lastTimelineRef) {
         renderSelection();
+        lastSelectedClipId = nextState.selectedClipId ?? null;
+        lastTimelineRef = nextState.timeline;
       }
     })
     : () => {};
