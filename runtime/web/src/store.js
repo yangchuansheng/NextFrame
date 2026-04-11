@@ -4,21 +4,34 @@ const DEFAULT_PROJECT = {
   aspectRatio: 16 / 9,
 };
 
-const DEFAULT_TIMELINE = {
-  version: 1,
-  duration: 0,
-  background: "#000",
-  tracks: [],
-};
+export function createDefaultTimeline() {
+  return {
+    version: "1",
+    duration: 30,
+    background: "#0b0b14",
+    tracks: [],
+  };
+}
 
-export const store = {
-  state: {
+function createInitialState() {
+  return {
     playhead: 0,
     playing: false,
     showSafeArea: false,
     project: { ...DEFAULT_PROJECT },
-    timeline: { ...DEFAULT_TIMELINE },
-  },
+    timeline: createDefaultTimeline(),
+    filePath: null,
+    dirty: false,
+    ui: {
+      zoom: 1,
+      timelineVisible: true,
+      inspectorVisible: true,
+    },
+  };
+}
+
+export const store = {
+  state: createInitialState(),
   listeners: new Set(),
   subscribe(listener) {
     if (typeof listener !== "function") {
@@ -35,7 +48,27 @@ export const store = {
       throw new TypeError("store.mutate(recipe) requires a function");
     }
 
-    recipe(this.state);
+    const prevDirty = this.state.dirty;
+    const prevTimeline = this.state.timeline;
+    let dirtyAssigned = false;
+    const proxy = new Proxy(this.state, {
+      get(target, prop, receiver) {
+        return Reflect.get(target, prop, receiver);
+      },
+      set(target, prop, value, receiver) {
+        if (prop === "dirty") {
+          dirtyAssigned = true;
+        }
+
+        return Reflect.set(target, prop, value, receiver);
+      },
+    });
+
+    recipe(proxy);
+
+    if (!dirtyAssigned && this.state.timeline !== prevTimeline && this.state.dirty === prevDirty) {
+      this.state.dirty = true;
+    }
 
     for (const listener of this.listeners) {
       listener(this.state);
