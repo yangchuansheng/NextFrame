@@ -37,7 +37,7 @@ export function mountPreview(container, { engine, store } = {}) {
     setupDPR: typeof engine?.setupDPR === "function" ? engine.setupDPR : defaultSetupDPR,
   };
   const audioMixer = createMixer({
-    audioContext: getAudioContext(),
+    getAudioContext,
     getState: () => store?.state ?? null,
   });
 

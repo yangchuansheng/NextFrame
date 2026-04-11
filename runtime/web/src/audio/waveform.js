@@ -15,30 +15,35 @@ function computePeaks(audioBuffer, samples) {
     return cache.get(samples);
   }
 
-  const channel = audioBuffer.numberOfChannels > 0 ? audioBuffer.getChannelData(0) : null;
+  const channels = Array.from(
+    { length: Math.max(0, audioBuffer.numberOfChannels) },
+    (_, index) => audioBuffer.getChannelData(index),
+  );
   const peaks = new Float32Array(samples * 2);
 
-  if (!channel || channel.length === 0) {
+  if (channels.length === 0 || channels[0].length === 0) {
     cache.set(samples, peaks);
     return peaks;
   }
 
-  const blockSize = Math.max(1, Math.floor(channel.length / samples));
+  const blockSize = Math.max(1, Math.floor(channels[0].length / samples));
   const stride = Math.max(1, Math.floor(blockSize / 48));
 
   for (let sampleIndex = 0; sampleIndex < samples; sampleIndex += 1) {
     const blockStart = sampleIndex * blockSize;
-    const blockEnd = Math.min(channel.length, blockStart + blockSize);
+    const blockEnd = Math.min(channels[0].length, blockStart + blockSize);
     let min = 1;
     let max = -1;
 
-    for (let index = blockStart; index < blockEnd; index += stride) {
-      const value = channel[index] || 0;
-      if (value < min) {
-        min = value;
-      }
-      if (value > max) {
-        max = value;
+    for (const channel of channels) {
+      for (let index = blockStart; index < blockEnd; index += stride) {
+        const value = channel[index] || 0;
+        if (value < min) {
+          min = value;
+        }
+        if (value > max) {
+          max = value;
+        }
       }
     }
 

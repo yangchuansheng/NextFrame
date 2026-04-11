@@ -190,9 +190,13 @@ function collectScheduleEntries(state, playhead, horizon) {
   return entries;
 }
 
-export function createMixer({ audioContext, getState = () => null } = {}) {
+export function createMixer({ audioContext, getAudioContext, getState = () => null } = {}) {
   const scheduledNodes = new Set();
   let session = null;
+
+  function resolveAudioContext() {
+    return typeof getAudioContext === "function" ? getAudioContext() : audioContext;
+  }
 
   function removeScheduled(entry) {
     scheduledNodes.delete(entry);
@@ -227,7 +231,8 @@ export function createMixer({ audioContext, getState = () => null } = {}) {
     volume = 1,
     gainAutomation = null,
   } = {}) {
-    if (!audioContext || !isAudioBufferLike(audioBuffer)) {
+    const activeAudioContext = resolveAudioContext();
+    if (!activeAudioContext || !isAudioBufferLike(audioBuffer)) {
       return null;
     }
 
@@ -241,14 +246,14 @@ export function createMixer({ audioContext, getState = () => null } = {}) {
       return null;
     }
 
-    const when = audioContext.currentTime + Math.max(0, readFiniteNumber(startTime, 0));
-    const gain = audioContext.createGain();
-    const source = audioContext.createBufferSource();
+    const when = activeAudioContext.currentTime + Math.max(0, readFiniteNumber(startTime, 0));
+    const gain = activeAudioContext.createGain();
+    const source = activeAudioContext.createBufferSource();
     const safeVolume = clamp(readFiniteNumber(volume, 1), 0, 4);
 
     source.buffer = audioBuffer;
     source.connect(gain);
-    gain.connect(audioContext.destination);
+    gain.connect(activeAudioContext.destination);
     gain.gain.setValueAtTime(safeVolume, when);
 
     if (Array.isArray(gainAutomation)) {
@@ -271,7 +276,8 @@ export function createMixer({ audioContext, getState = () => null } = {}) {
   }
 
   function syncToPlayhead(playhead, isPlaying) {
-    if (!audioContext) {
+    const activeAudioContext = resolveAudioContext();
+    if (!activeAudioContext) {
       return;
     }
 
@@ -284,8 +290,8 @@ export function createMixer({ audioContext, getState = () => null } = {}) {
     const duration = readFiniteNumber(state?.timeline?.duration, 0);
     const normalizedPlayhead = wrapTime(playhead, duration);
 
-    if (audioContext.state === "suspended" && typeof audioContext.resume === "function") {
-      const result = audioContext.resume();
+    if (activeAudioContext.state === "suspended" && typeof activeAudioContext.resume === "function") {
+      const result = activeAudioContext.resume();
       if (result && typeof result.catch === "function") {
         result.catch(() => {});
       }
@@ -298,7 +304,7 @@ export function createMixer({ audioContext, getState = () => null } = {}) {
       || session.duration !== duration;
 
     if (!sessionChanged && session) {
-      const elapsed = Math.max(0, audioContext.currentTime - session.audioTime);
+      const elapsed = Math.max(0, activeAudioContext.currentTime - session.audioTime);
       const expectedPlayhead = wrapTime(session.playhead + elapsed, duration);
       const drift = Math.abs(wrapDelta(normalizedPlayhead, expectedPlayhead, duration));
       const didWrap = normalizedPlayhead + 0.25 < session.lastObservedPlayhead;
@@ -323,7 +329,7 @@ export function createMixer({ audioContext, getState = () => null } = {}) {
 
     session = {
       playhead: normalizedPlayhead,
-      audioTime: audioContext.currentTime,
+      audioTime: activeAudioContext.currentTime,
       duration,
       timeline: state?.timeline,
       assets: state?.assets,

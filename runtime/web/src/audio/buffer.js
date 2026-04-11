@@ -1,4 +1,4 @@
-import { getAudioContext } from "./context.js";
+import { getAudioContext, waitForAudioContext } from "./context.js";
 
 const audioBufferCache = new Map();
 
@@ -44,7 +44,7 @@ export async function loadAudioBuffer(url) {
   }
 
   const pending = (async () => {
-    const audioContext = getAudioContext();
+    const audioContext = getAudioContext() || await waitForAudioContext();
     if (!audioContext) {
       return null;
     }
