@@ -95,8 +95,10 @@ export function validateTimeline(timeline) {
           errors.push(`${clipPath}.dur must be a finite number > 0`);
         }
 
-        if (typeof clip.scene !== "string" || clip.scene.length === 0) {
-          errors.push(`${clipPath}.scene must be a non-empty string`);
+        const hasScene = typeof clip.scene === "string" && clip.scene.length > 0;
+        const hasAssetId = typeof clip.assetId === "string" && clip.assetId.length > 0;
+        if (!hasScene && !hasAssetId) {
+          errors.push(`${clipPath} must include a non-empty scene or assetId`);
         }
 
         if ("params" in clip && !isPlainObject(clip.params)) {
@@ -171,6 +173,10 @@ export function renderAt(ctx, timeline, t) {
 
     for (const clip of clips) {
       if (!isActiveClip(clip, t)) {
+        continue;
+      }
+
+      if (typeof clip.assetId === "string" && clip.assetId.length > 0 && !clip.scene) {
         continue;
       }
 

@@ -153,10 +153,12 @@ function createBuiltInCommand(command) {
           const selection = state.selection?.clipId === command.clipId
             ? { trackId: null, clipId: null }
             : state.selection;
+          const selectedClipId = state.selectedClipId === command.clipId ? null : state.selectedClipId;
 
           return {
             ...withUpdatedTimeline(state, tracks),
             selection,
+            selectedClipId,
           };
         },
         invert(nextState, prevState) {
@@ -211,6 +213,7 @@ function createBuiltInCommand(command) {
           return {
             ...withUpdatedTimeline(state, tracks),
             selection,
+            selectedClipId: state.selectedClipId,
           };
         },
         invert(nextState, prevState) {
@@ -283,6 +286,7 @@ function createBuiltInCommand(command) {
         exec(state) {
           return {
             ...state,
+            selectedClipId: command.clipId ?? null,
             selection: {
               trackId: command.trackId ?? null,
               clipId: command.clipId ?? null,

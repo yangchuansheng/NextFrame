@@ -1,7 +1,166 @@
+import { getDragDropContext } from "../dnd/index.js";
+import { readDragPayload } from "../dnd/source.js";
+import { registerDropTarget } from "../dnd/target.js";
 import { createClip } from "./clip.js";
 import { getTickStep } from "./ruler.js";
 
 const TRACK_HEADER_WIDTH = 120;
+const DROP_REJECT_FLASH_MS = 140;
+const CLIP_FLASH_MS = 140;
+
+let pendingFlashClipId = null;
+let clipIdSeed = 0;
+let isGlobalDropGhostCleanupBound = false;
+
+function newId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  clipIdSeed += 1;
+  return `clip-${Date.now()}-${clipIdSeed}`;
+}
+
+function cloneValue(value) {
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
+
+function parseSceneDuration(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const match = value.match(/(\d+(?:\.\d+)?)/);
+    if (match) {
+      const parsed = Number(match[1]);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+
+  return 5;
+}
+
+function resolveAssetDuration(asset) {
+  const parsed = Number(asset?.duration);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+}
+
+function snapTime(time) {
+  return Math.floor(Math.max(0, Number(time) || 0) * 10) / 10;
+}
+
+function getClipDuration(clip) {
+  const duration = Number(clip?.dur ?? clip?.duration);
+  return Number.isFinite(duration) ? duration : 0;
+}
+
+function hasClipOverlap(track, start, dur) {
+  const nextEnd = start + dur;
+  const clips = Array.isArray(track?.clips) ? track.clips : [];
+
+  return clips.some((clip) => {
+    const clipStart = Number(clip?.start) || 0;
+    const clipDur = getClipDuration(clip);
+    const clipEnd = clipStart + clipDur;
+    return start < clipEnd && clipStart < nextEnd;
+  });
+}
+
+function flashRejectedDrop(el) {
+  el.classList.remove("drop-reject");
+  void el.offsetWidth;
+  el.classList.add("drop-reject");
+  window.setTimeout(() => {
+    el.classList.remove("drop-reject");
+  }, DROP_REJECT_FLASH_MS);
+}
+
+function resolveTrackAccepts(kind) {
+  return kind === "audio" ? ["audio"] : ["scene", "media"];
+}
+
+function hideGhostElement(ghost) {
+  ghost.hidden = true;
+  ghost.classList.remove("is-invalid");
+  ghost.textContent = "";
+}
+
+function bindGlobalDropGhostCleanup() {
+  if (isGlobalDropGhostCleanupBound) {
+    return;
+  }
+
+  document.addEventListener("nextframe:dndend", () => {
+    document.querySelectorAll(".timeline-drop-ghost").forEach((ghost) => {
+      if (ghost instanceof HTMLElement) {
+        hideGhostElement(ghost);
+      }
+    });
+  });
+  isGlobalDropGhostCleanupBound = true;
+}
+
+function resolveDropPreview(payload, context) {
+  if (payload?.type === "scene") {
+    const scene = context.scenesById.get(payload.id);
+    if (!scene) {
+      return null;
+    }
+
+    return {
+      dur: parseSceneDuration(scene.duration_hint),
+      label: scene.name || scene.id,
+      buildClip(start) {
+        return {
+          id: newId(),
+          start,
+          dur: parseSceneDuration(scene.duration_hint),
+          scene: scene.id,
+          params: cloneValue(scene.default_params || {}),
+        };
+      },
+    };
+  }
+
+  if (payload?.type === "media" || payload?.type === "audio") {
+    const asset = Array.isArray(context.store?.state?.assets)
+      ? context.store.state.assets.find((candidate) => candidate?.id === payload.assetId)
+      : null;
+    if (!asset) {
+      return null;
+    }
+
+    const label = asset.name || asset.label || asset.id || "Imported asset";
+    const category = payload.type === "audio" ? "Audio" : "Media";
+    const kind = payload.type === "audio" ? "audio" : asset.kind;
+
+    return {
+      dur: resolveAssetDuration(asset),
+      label,
+      buildClip(start) {
+        return {
+          id: newId(),
+          start,
+          dur: resolveAssetDuration(asset),
+          assetId: asset.id,
+          assetKind: kind,
+          category,
+          name: label,
+          params: {},
+        };
+      },
+    };
+  }
+
+  return null;
+}
 
 function createSvgIcon(paths) {
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -60,6 +219,8 @@ function createHeaderIcon(kind, active) {
 }
 
 export function createTrackRow(track, { duration, zoom }) {
+  bindGlobalDropGhostCleanup();
+
   const safeDuration = Math.max(0, Number(duration) || 0);
   const laneWidth = Math.max(zoom.timeToPx(safeDuration), 1);
   const majorStep = getTickStep(zoom.pxPerSecond);
@@ -96,8 +257,87 @@ export function createTrackRow(track, { duration, zoom }) {
   lane.style.setProperty("--timeline-minor-step", `${Math.max(zoom.timeToPx(minorStep), 1)}px`);
 
   (track.clips || []).forEach((clip) => {
-    lane.appendChild(createClip(clip, zoom));
+    const clipElement = createClip(clip, zoom);
+    if (clip.id === pendingFlashClipId) {
+      clipElement.classList.add("timeline-clip-flash");
+      window.setTimeout(() => {
+        clipElement.classList.remove("timeline-clip-flash");
+        if (pendingFlashClipId === clip.id) {
+          pendingFlashClipId = null;
+        }
+      }, CLIP_FLASH_MS);
+    }
+    lane.appendChild(clipElement);
   });
+
+  const ghost = document.createElement("div");
+  ghost.className = "timeline-drop-ghost";
+  ghost.hidden = true;
+  lane.appendChild(ghost);
+
+  const accepts = resolveTrackAccepts(track.kind);
+
+  function hideGhost() {
+    hideGhostElement(ghost);
+  }
+
+  function updateGhost(event) {
+    const payload = readDragPayload(event.dataTransfer);
+    if (!payload || !accepts.includes(payload.type)) {
+      hideGhost();
+      return;
+    }
+
+    const context = getDragDropContext();
+    const preview = resolveDropPreview(payload, context);
+    if (!preview) {
+      hideGhost();
+      return;
+    }
+
+    const rect = lane.getBoundingClientRect();
+    const start = snapTime(zoom.pxToTime(event.clientX - rect.left));
+    const width = Math.max(zoom.timeToPx(preview.dur), 44);
+
+    ghost.hidden = false;
+    ghost.textContent = preview.label;
+    ghost.style.left = `${zoom.timeToPx(start)}px`;
+    ghost.style.width = `${width}px`;
+    ghost.classList.toggle("is-invalid", hasClipOverlap(track, start, preview.dur));
+  }
+
+  registerDropTarget(lane, {
+    accepts,
+    onDrop(payload, event) {
+      const context = getDragDropContext();
+      const preview = resolveDropPreview(payload, context);
+      hideGhost();
+      if (!preview || !context.store) {
+        return;
+      }
+
+      const rect = lane.getBoundingClientRect();
+      const start = snapTime(zoom.pxToTime(event.clientX - rect.left));
+      if (hasClipOverlap(track, start, preview.dur)) {
+        flashRejectedDrop(lane);
+        return;
+      }
+
+      const clip = preview.buildClip(start);
+      pendingFlashClipId = clip.id;
+      context.store.addClip(track.id, clip);
+      context.store.selectClip(clip.id);
+    },
+  });
+
+  lane.addEventListener("dragover", updateGhost);
+  lane.addEventListener("dragleave", (event) => {
+    if (lane.contains(event.relatedTarget)) {
+      return;
+    }
+    hideGhost();
+  });
+  lane.addEventListener("drop", hideGhost);
 
   row.append(header, lane);
   return row;

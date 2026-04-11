@@ -4,6 +4,28 @@ import { neonGrid } from "./neonGrid.js";
 import { barChartReveal } from "./barChartReveal.js";
 import { lowerThirdVelvet } from "./lowerThirdVelvet.js";
 
+function cloneDefaultValue(value) {
+  if (value == null || typeof value !== "object") {
+    return value;
+  }
+
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createDefaultParams(params) {
+  if (!params || typeof params !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(params).map(([name, config]) => [name, cloneDefaultValue(config?.default)]),
+  );
+}
+
 const SCENE_REGISTRY = [
   {
     id: "auroraGradient",
@@ -97,8 +119,11 @@ export const SCENE_MANIFEST = SCENE_REGISTRY.map(({ id, name, category, params, 
   name,
   category,
   params,
+  default_params: createDefaultParams(params),
   duration_hint,
 }));
+
+export const SCENE_MANIFEST_BY_ID = new Map(SCENE_MANIFEST.map((scene) => [scene.id, scene]));
 
 /**
  * Register every built-in scene on the provided engine.

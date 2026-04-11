@@ -423,6 +423,11 @@
         background:
           linear-gradient(180deg, rgba(30, 30, 42, 0.84), rgba(21, 21, 30, 0.92));
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        cursor: grab;
+      }
+
+      .asset-card:active {
+        cursor: grabbing;
       }
 
       .asset-thumb {
@@ -1037,10 +1042,20 @@
         position: relative;
         min-height: 64px;
         overflow: hidden;
+        transition: box-shadow 120ms ease, background-color 120ms ease;
         background:
           repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent var(--timeline-minor-step)),
           repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent var(--timeline-major-step)),
           linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
+      }
+
+      .timeline-track-lane.drop-accept {
+        background-color: rgba(56, 189, 248, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.42);
+      }
+
+      .timeline-track-lane.drop-reject {
+        animation: timeline-drop-reject 100ms ease;
       }
 
       .timeline-playhead-line,
@@ -1125,6 +1140,57 @@
 
       .timeline-clip-handle-right {
         right: 5px;
+      }
+
+      .timeline-clip-flash {
+        animation: timeline-clip-flash 100ms ease-out;
+      }
+
+      .timeline-drop-ghost {
+        position: absolute;
+        top: 10px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        border: 1px dashed rgba(125, 211, 252, 0.72);
+        border-radius: 3px;
+        background: rgba(56, 189, 248, 0.16);
+        color: rgba(230, 230, 240, 0.86);
+        font-weight: 600;
+        opacity: 0.92;
+        overflow: hidden;
+        pointer-events: none;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .timeline-drop-ghost.is-invalid {
+        border-color: rgba(248, 113, 113, 0.78);
+        background: rgba(239, 68, 68, 0.16);
+        color: rgba(254, 226, 226, 0.9);
+      }
+
+      @keyframes timeline-drop-reject {
+        0% {
+          box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.78);
+        }
+
+        100% {
+          box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0);
+        }
+      }
+
+      @keyframes timeline-clip-flash {
+        0% {
+          transform: scaleY(0.96);
+          filter: brightness(1.3);
+        }
+
+        100% {
+          transform: scaleY(1);
+          filter: brightness(1);
+        }
       }
     </style>
   </head>
@@ -1502,6 +1568,7 @@
 
     <script type="module">
       import * as bridge from "./src/bridge.js";
+      import { initDragDrop } from "./src/dnd/index.js";
       import * as engine from "./src/engine/index.js";
       import { installOnFrame } from "./src/export/onframe.js";
       import { initMenu } from "./src/menu.js";
@@ -1706,6 +1773,7 @@
         const inspectorEl = document.getElementById("right-inspector");
         if (inspectorEl) mountInspector(inspectorEl, { store, scenes: SCENE_MANIFEST });
 
+        initDragDrop({ store, scenes: SCENE_MANIFEST });
         initMenu({ bridge, store });
         window.addEventListener("keydown", onKeyDown);
       }
