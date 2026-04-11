@@ -1,4 +1,5 @@
 import bridge from "../bridge.js";
+import { toast } from "../toast.js";
 
 const RESOLUTION_PRESETS = [
   { id: "1080p", label: "1080p", width: 1920, height: 1080 },
@@ -313,6 +314,10 @@ export function showExportDialog({ store } = {}) {
           detail: state.outputPath,
         });
         outputInput.value = state.outputPath;
+        toast("Export complete", {
+          type: "success",
+          duration: 5000,
+        });
 
         if (!state.autoRevealed) {
           state.autoRevealed = true;
