@@ -1,6 +1,8 @@
 import { createDispatcher } from "./commands.js";
+import { THEMES } from "./theme.js";
 
 const TUTORIAL_COMPLETE_STORAGE_KEY = "nextframe.tutorial.complete";
+const THEME_STORAGE_KEY = "nextframe.theme";
 
 const DEFAULT_PROJECT = {
   width: 1920,
@@ -31,6 +33,22 @@ function readTutorialComplete() {
   }
 }
 
+function readTheme() {
+  const storage = getLocalStorage();
+  if (!storage) {
+    return "default";
+  }
+
+  try {
+    const themeName = storage.getItem(THEME_STORAGE_KEY);
+    return typeof themeName === "string" && Object.prototype.hasOwnProperty.call(THEMES, themeName)
+      ? themeName
+      : "default";
+  } catch {
+    return "default";
+  }
+}
+
 function writeTutorialComplete(value) {
   const storage = getLocalStorage();
   if (!storage) {
@@ -39,6 +57,17 @@ function writeTutorialComplete(value) {
 
   try {
     storage.setItem(TUTORIAL_COMPLETE_STORAGE_KEY, value ? "true" : "false");
+  } catch {}
+}
+
+function writeTheme(value) {
+  const storage = getLocalStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(THEME_STORAGE_KEY, Object.prototype.hasOwnProperty.call(THEMES, value) ? value : "default");
   } catch {}
 }
 
@@ -72,6 +101,7 @@ function createInitialState() {
     selectedClipId: null,
     searchQuery: "",
     favorites: [],
+    theme: readTheme(),
     assets: [],
     assetBuffers: new Map(),
     selection: {
@@ -477,13 +507,29 @@ Object.defineProperties(store, {
 });
 
 let lastTutorialComplete = Boolean(store.state.tutorialComplete);
+let lastTheme = typeof store.state.theme === "string" ? store.state.theme : "default";
 
 store.subscribe((state) => {
   const nextTutorialComplete = Boolean(state?.tutorialComplete);
   if (nextTutorialComplete === lastTutorialComplete) {
+    const nextTheme = typeof state?.theme === "string" ? state.theme : "default";
+    if (nextTheme === lastTheme) {
+      return;
+    }
+
+    lastTheme = nextTheme;
+    writeTheme(nextTheme);
     return;
   }
 
   lastTutorialComplete = nextTutorialComplete;
   writeTutorialComplete(nextTutorialComplete);
+
+  const nextTheme = typeof state?.theme === "string" ? state.theme : "default";
+  if (nextTheme === lastTheme) {
+    return;
+  }
+
+  lastTheme = nextTheme;
+  writeTheme(nextTheme);
 });
