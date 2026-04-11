@@ -1749,6 +1749,7 @@
       import { initDragDrop } from "./src/dnd/index.js";
       import * as engine from "./src/engine/index.js";
       import { installOnFrame } from "./src/export/onframe.js";
+      import { mountHelpHint } from "./src/help-hint.js";
       import { initMenu } from "./src/menu.js";
       import { mountPreview } from "./src/preview/index.js";
       import { mountLibrary } from "./src/panels/library/index.js";
@@ -1758,6 +1759,7 @@
       import { duplicateClipsCommand, pasteClipsCommand, removeClipsCommand } from "./src/commands.js";
       import { store } from "./src/store.js";
       import { mountTimeline } from "./src/timeline/index.js";
+      import { showWelcome } from "./src/welcome.js";
 
       registerAllScenes(engine);
       window.nextFrameStore = store;
@@ -2153,6 +2155,7 @@
         if (previewEl) {
           const preview = mountPreview(previewEl, { engine, store });
           installOnFrame({ engine, store, preview });
+          showWelcome(previewEl);
         }
 
         const libraryEl = document.getElementById("left-library");
@@ -2163,6 +2166,7 @@
 
         initDragDrop({ store, scenes: SCENE_MANIFEST });
         initMenu({ bridge, store });
+        mountHelpHint(document.getElementById("top-menu"));
         createAudioAssetBufferSync(store);
         window.addEventListener("keydown", onKeyDown);
       }
