@@ -11,6 +11,7 @@ import { meshGrid } from "./meshGrid.js";
 import { neonGrid } from "./neonGrid.js";
 import { barChartReveal } from "./barChartReveal.js";
 import { lowerThirdVelvet } from "./lowerThirdVelvet.js";
+import { orbitRings } from "./orbitRings.js";
 import { pixelRain } from "./pixelRain.js";
 import { shapeBurst } from "./shapeBurst.js";
 import { starfield } from "./starfield.js";
@@ -181,6 +182,29 @@ const SCENE_REGISTRY = [
       interval: { type: "number", default: 0.26, min: 0.08, max: 1, unit: "s" },
       lifespan: { type: "number", default: 2.1, min: 0.5, max: 6, unit: "s" },
       thickness: { type: "number", default: 0.012, min: 0.004, max: 0.03 },
+    },
+  },
+  {
+    id: "orbitRings",
+    fn: orbitRings,
+    name: "Orbit Rings",
+    category: "Backgrounds",
+    duration_hint: "5-30s loop",
+    params: {
+      ringCount: { type: "integer", default: 6, min: 1, max: 10 },
+      hueA: { type: "number", default: 180, min: 0, max: 360, ui: "hue" },
+      hueB: { type: "number", default: 320, min: 0, max: 360, ui: "hue" },
+      baseSpeed: { type: "number", default: 0.4, min: 0.05, max: 2 },
+      dotSize: { type: "number", default: 10, min: 2, max: 48, unit: "px" },
+      ringWidth: { type: "number", default: 1.5, min: 0.5, max: 6, unit: "px" },
+      glow: {
+        type: "select",
+        default: true,
+        options: [
+          { value: "true", label: "true" },
+          { value: "false", label: "false" },
+        ],
+      },
     },
   },
   {
