@@ -445,6 +445,29 @@
         container-type: size;
       }
 
+      .preview-canvas-frame {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 20px;
+        background: #0b0b14;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+          0 30px 70px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+      }
+
+      .preview-canvas {
+        position: absolute;
+        display: block;
+        border: 0;
+        border-radius: 20px;
+        background: #000;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 18px 40px rgba(0, 0, 0, 0.45);
+      }
+
       #preview-stage {
         position: relative;
         width: min(100cqw, calc(100cqh * 16 / 9));
@@ -1335,6 +1358,18 @@
           drag = "";
         });
       })();
+    </script>
+    <script type="module">
+      import * as engine from "./src/engine/index.js";
+      import { mountPreview } from "./src/preview/index.js";
+      import { store } from "./src/store.js";
+
+      window.addEventListener("DOMContentLoaded", () => {
+        const container = document.getElementById("center-preview");
+        if (container) {
+          mountPreview(container, { engine, store });
+        }
+      });
     </script>
   </body>
 </html>
