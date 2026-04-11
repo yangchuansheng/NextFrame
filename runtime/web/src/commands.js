@@ -132,6 +132,15 @@ function normalizeClipDuration(value, fallback = 0.1) {
   return clampClipDuration(numeric);
 }
 
+function normalizeSplitDuration(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return 0;
+  }
+
+  return Number(numeric.toFixed(4));
+}
+
 function getPreviousClip(prevState, clipId, trackId) {
   const tracks = Array.isArray(prevState?.timeline?.tracks) ? prevState.timeline.tracks : [];
   const location = findClipLocation(tracks, clipId, trackId);
@@ -465,13 +474,13 @@ function createBuiltInCommand(command) {
           const leftClip = {
             ...clip,
             start: clipStart,
-            dur: clampClipDuration(splitTime - clipStart),
+            dur: normalizeSplitDuration(splitTime - clipStart),
           };
           const rightClip = {
             ...cloneValue(clip),
             id: command.newClipId || createClipId(),
             start: splitTime,
-            dur: clampClipDuration(clipEnd - splitTime),
+            dur: normalizeSplitDuration(clipEnd - splitTime),
           };
 
           if (Object.prototype.hasOwnProperty.call(leftClip, "duration")) {
