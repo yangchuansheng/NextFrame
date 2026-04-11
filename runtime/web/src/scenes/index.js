@@ -8,6 +8,7 @@ import { neonGrid } from "./neonGrid.js";
 import { barChartReveal } from "./barChartReveal.js";
 import { lowerThirdVelvet } from "./lowerThirdVelvet.js";
 import { starfield } from "./starfield.js";
+import { textOverlay } from "./textOverlay.js";
 
 function cloneDefaultValue(value) {
   if (value == null || typeof value !== "object") {
@@ -188,6 +189,40 @@ const SCENE_REGISTRY = [
       hue: { type: "number", default: 346, min: 0, max: 360, ui: "hue" },
       accentHue: { type: "number", default: 32, min: 0, max: 360, ui: "hue" },
       inset: { type: "number", default: 0.045, min: 0.01, max: 0.12 },
+    },
+  },
+  {
+    id: "textOverlay",
+    fn: textOverlay,
+    name: "Text Overlay",
+    category: "Overlays",
+    duration_hint: "3-8s",
+    params: {
+      text: { type: "text", default: "Your text here" },
+      fontSize: { type: "number", default: 96, min: 16, max: 240 },
+      color: { type: "color", default: "#ffffff" },
+      align: { type: "select", default: "center", options: ["left", "center", "right"] },
+      anchor: {
+        type: "select",
+        default: "center",
+        options: [
+          "top-left",
+          "top-center",
+          "top-right",
+          "center",
+          "bottom-left",
+          "bottom-center",
+          "bottom-right",
+        ],
+      },
+      weight: {
+        type: "select",
+        default: "800",
+        options: ["300", "400", "500", "600", "700", "800", "900"],
+      },
+      letterSpacing: { type: "number", default: -0.02, min: -0.2, max: 0.3 },
+      enterDur: { type: "number", default: 0.6, min: 0.1, max: 3, unit: "s" },
+      holdDur: { type: "number", default: 2.5, min: 0, max: 12, unit: "s" },
     },
   },
 ];

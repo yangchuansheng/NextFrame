@@ -65,6 +65,10 @@ export function renderField({
       control.appendChild(element);
     });
     control.value = stringifyValue(value);
+  } else if (type === "text" && name === "text") {
+    control = document.createElement("textarea");
+    control.value = stringifyValue(value);
+    control.rows = 4;
   } else {
     control = document.createElement("input");
     control.type = type;
@@ -98,7 +102,8 @@ export function renderField({
       onChange(nextValue, rawValue);
     };
 
-    control.addEventListener("change", handler);
+    const eventName = type === "text" ? "input" : "change";
+    control.addEventListener(eventName, handler);
   }
 
   field.append(copy, control);
