@@ -1771,6 +1771,7 @@
       import { duplicateClipsCommand, pasteClipsCommand, removeClipsCommand } from "./src/commands.js";
       import { store } from "./src/store.js";
       import { mountTimeline } from "./src/timeline/index.js";
+      import { startTutorial } from "./src/tutorial/index.js";
       import { showWelcome } from "./src/welcome.js";
 
       registerAllScenes(engine);
@@ -2185,6 +2186,19 @@
         mountHelpHint(document.getElementById("top-menu"));
         createAudioAssetBufferSync(store);
         window.addEventListener("keydown", onKeyDown);
+
+        if (!store.state.tutorialComplete) {
+          startTutorial({
+            store,
+            anchors: {
+              welcome: previewEl,
+              library: libraryEl,
+              timeline: document.getElementById("bottom-timeline"),
+              inspector: inspectorEl,
+              export: document.querySelector('[data-menu-trigger="file"]'),
+            },
+          });
+        }
       }
 
       void initApp();

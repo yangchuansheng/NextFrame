@@ -1,10 +1,46 @@
 import { createDispatcher } from "./commands.js";
 
+const TUTORIAL_COMPLETE_STORAGE_KEY = "nextframe.tutorial.complete";
+
 const DEFAULT_PROJECT = {
   width: 1920,
   height: 1080,
   aspectRatio: 16 / 9,
 };
+
+function getLocalStorage() {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return window.localStorage;
+    }
+  } catch {}
+
+  return null;
+}
+
+function readTutorialComplete() {
+  const storage = getLocalStorage();
+  if (!storage) {
+    return false;
+  }
+
+  try {
+    return storage.getItem(TUTORIAL_COMPLETE_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeTutorialComplete(value) {
+  const storage = getLocalStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(TUTORIAL_COMPLETE_STORAGE_KEY, value ? "true" : "false");
+  } catch {}
+}
 
 export function createDefaultTimeline() {
   return {
@@ -41,6 +77,7 @@ function createInitialState() {
       clipId: null,
       clipIds: [],
     },
+    tutorialComplete: readTutorialComplete(),
     ui: {
       zoom: 1,
       timelineVisible: true,
@@ -358,4 +395,16 @@ Object.defineProperties(store, {
       return dispatcher.canRedo;
     },
   },
+});
+
+let lastTutorialComplete = Boolean(store.state.tutorialComplete);
+
+store.subscribe((state) => {
+  const nextTutorialComplete = Boolean(state?.tutorialComplete);
+  if (nextTutorialComplete === lastTutorialComplete) {
+    return;
+  }
+
+  lastTutorialComplete = nextTutorialComplete;
+  writeTutorialComplete(nextTutorialComplete);
 });
