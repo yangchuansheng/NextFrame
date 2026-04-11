@@ -22,11 +22,11 @@
           "dur": 6,
           "scene": "auroraGradient",
           "params": {
-            "hueA": 270,
-            "hueB": 200,
-            "hueC": 320,
-            "intensity": 1,
-            "grain": 0.05
+            "hueA": 238,
+            "hueB": 118,
+            "hueC": 342,
+            "intensity": 1.22,
+            "grain": 0.07
           }
         },
         {
@@ -35,12 +35,12 @@
           "dur": 6,
           "scene": "kineticHeadline",
           "params": {
-            "text": "NextFrame",
-            "subtitle": "Port 5 scene registry demo",
-            "hueStart": 32,
-            "hueEnd": 320,
-            "stagger": 0.14,
-            "size": 0.13
+            "text": "NEXTFRAME",
+            "subtitle": "Frame-pure · AI-native · Desktop",
+            "hueStart": 24,
+            "hueEnd": 338,
+            "stagger": 0.11,
+            "size": 0.14
           }
         },
         {
@@ -51,7 +51,7 @@
           "params": {
             "hueHorizon": 320,
             "hueGrid": 280,
-            "scrollSpeed": 0.45,
+            "scrollSpeed": 0.72,
             "lineCount": 16,
             "colCount": 22
           }
@@ -62,32 +62,32 @@
           "dur": 6,
           "scene": "barChartReveal",
           "params": {
-            "title": "SCENE COVERAGE",
+            "title": "FEATURES",
             "unit": "%",
-            "hueStart": 198,
-            "hueEnd": 318,
-            "stagger": 0.11,
-            "barDur": 0.9,
+            "hueStart": 188,
+            "hueEnd": 334,
+            "stagger": 0.09,
+            "barDur": 0.82,
             "data": [
               {
-                "label": "AUR",
-                "value": 64
+                "label": "Scenes",
+                "value": 96
               },
               {
-                "label": "KIN",
-                "value": 82
+                "label": "Timeline",
+                "value": 92
               },
               {
-                "label": "NEO",
-                "value": 91
+                "label": "Export",
+                "value": 84
               },
               {
-                "label": "BAR",
-                "value": 76
-              },
-              {
-                "label": "LOW",
+                "label": "Audio",
                 "value": 88
+              },
+              {
+                "label": "Undo",
+                "value": 78
               }
             ]
           }
@@ -98,12 +98,12 @@
           "dur": 8,
           "scene": "lowerThirdVelvet",
           "params": {
-            "title": "NEXTFRAME",
-            "subtitle": "Five scene loop · renderAt demo",
-            "hueA": 24,
-            "hueB": 320,
+            "title": "READY TO EDIT",
+            "subtitle": "Drop assets → timeline",
+            "hueA": 10,
+            "hueB": 334,
             "holdEnd": 7,
-            "fadeOut": 0.8
+            "fadeOut": 1
           }
         }
       ]
