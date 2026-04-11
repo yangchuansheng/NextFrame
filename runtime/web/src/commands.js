@@ -1,4 +1,5 @@
 import {
+  CLIP_SNAP_STEP,
   MIN_CLIP_DURATION,
   clampClipDuration,
   getClipDuration,
@@ -195,6 +196,47 @@ function uniqueClipIds(clipIds) {
   return ids;
 }
 
+function getTimelineTracks(state) {
+  return Array.isArray(state?.timeline?.tracks) ? state.timeline.tracks : [];
+}
+
+function getClipsByIds(state, clipIds) {
+  const tracks = getTimelineTracks(state);
+
+  return uniqueClipIds(clipIds)
+    .map((clipId) => {
+      const location = findClipLocation(tracks, clipId);
+      if (!location) {
+        return null;
+      }
+
+      const track = tracks[location.trackIndex];
+      const clip = track?.clips?.[location.clipIndex];
+      if (!clip) {
+        return null;
+      }
+
+      return {
+        trackId: track?.id ?? null,
+        clip: cloneValue(clip),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => {
+      const startDelta = (Number(left?.clip?.start) || 0) - (Number(right?.clip?.start) || 0);
+      if (startDelta !== 0) {
+        return startDelta;
+      }
+
+      const trackDelta = String(left?.trackId ?? "").localeCompare(String(right?.trackId ?? ""));
+      if (trackDelta !== 0) {
+        return trackDelta;
+      }
+
+      return String(left?.clip?.id ?? "").localeCompare(String(right?.clip?.id ?? ""));
+    });
+}
+
 function getSelectionClipIds(selection, selectedClipId = null) {
   const clipIds = uniqueClipIds(selection?.clipIds);
   const primaryClipId = selectedClipId == null ? null : String(selectedClipId);
@@ -330,6 +372,54 @@ export function moveClipCommand({ clipId, newStart, newDur }) {
   };
 }
 
+export function removeClipCommand({ clipId, trackId = null }) {
+  let previous = null;
+  let didApply = false;
+
+  return {
+    type: "removeClip",
+    clipId,
+    trackId,
+    exec(state) {
+      const tracks = cloneTracks(getTimelineState(state));
+      const location = findClipLocation(tracks, clipId, trackId);
+      if (!location) {
+        return ABORT_COMMAND;
+      }
+
+      const track = tracks[location.trackIndex];
+      const clip = track?.clips?.[location.clipIndex];
+      if (!clip) {
+        return ABORT_COMMAND;
+      }
+
+      previous = {
+        trackId: track?.id ?? trackId ?? null,
+        clip: cloneValue(clip),
+      };
+      didApply = true;
+
+      tracks[location.trackIndex] = {
+        ...track,
+        clips: track.clips.filter((candidate) => candidate?.id !== clipId),
+      };
+
+      return removeClipFromSelection(withUpdatedTimeline(state, tracks), clipId);
+    },
+    invert() {
+      if (!didApply || !previous?.trackId || !previous?.clip) {
+        return null;
+      }
+
+      return {
+        type: "addClip",
+        trackId: previous.trackId,
+        clip: cloneValue(previous.clip),
+      };
+    },
+  };
+}
+
 export function splitClipCommand({ clipId, splitTime, trackId = null, newClipId = null }) {
   return {
     type: "splitClip",
@@ -344,6 +434,188 @@ export function batchCommand(commands) {
   return {
     type: "batch",
     commands: Array.isArray(commands) ? commands : [],
+  };
+}
+
+export function removeClipsCommand({ clipIds }) {
+  return batchCommand(
+    uniqueClipIds(clipIds).map((clipId) => removeClipCommand({ clipId })),
+  );
+}
+
+function normalizePasteClips(clips) {
+  return (Array.isArray(clips) ? clips : [])
+    .filter((clip) => clip && typeof clip === "object")
+    .map((clip) => {
+      const nextClip = cloneValue(clip);
+      const duration = normalizeClipDuration(getClipDuration(nextClip), MIN_CLIP_DURATION);
+      nextClip.start = normalizeClipStart(nextClip.start, 0);
+      nextClip.dur = duration;
+      if (Object.prototype.hasOwnProperty.call(nextClip, "duration")) {
+        nextClip.duration = duration;
+      }
+
+      return nextClip;
+    });
+}
+
+function clipsOverlapEachOther(clips) {
+  const sorted = sortClips(clips);
+  for (let index = 0; index < sorted.length; index += 1) {
+    const clip = sorted[index];
+    const clipStart = Number(clip?.start) || 0;
+    const clipEnd = clipStart + getClipDuration(clip);
+
+    for (let candidateIndex = index + 1; candidateIndex < sorted.length; candidateIndex += 1) {
+      const candidate = sorted[candidateIndex];
+      const candidateStart = Number(candidate?.start) || 0;
+      if (candidateStart >= clipEnd) {
+        break;
+      }
+
+      const candidateEnd = candidateStart + getClipDuration(candidate);
+      if (clipStart < candidateEnd && candidateStart < clipEnd) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function resolvePasteInsertion(track, clips, targetStart) {
+  const normalizedClips = normalizePasteClips(clips);
+  if (normalizedClips.length === 0) {
+    return null;
+  }
+
+  if (clipsOverlapEachOther(normalizedClips)) {
+    return null;
+  }
+
+  const baseline = normalizedClips.reduce(
+    (minimum, clip) => Math.min(minimum, Number(clip?.start) || 0),
+    Number.POSITIVE_INFINITY,
+  );
+  let candidateStart = snapClipTime(targetStart);
+
+  while (candidateStart < Number.MAX_SAFE_INTEGER) {
+    const placedClips = normalizedClips.map((clip) => {
+      const relativeStart = (Number(clip?.start) || 0) - baseline;
+      const duration = normalizeClipDuration(getClipDuration(clip), MIN_CLIP_DURATION);
+      const placedClip = {
+        ...cloneValue(clip),
+        id: createClipId(),
+        start: roundClipTime(candidateStart + relativeStart),
+        dur: duration,
+      };
+
+      if (Object.prototype.hasOwnProperty.call(placedClip, "duration")) {
+        placedClip.duration = duration;
+      }
+
+      return placedClip;
+    });
+
+    if (!clipsOverlapEachOther(placedClips) && placedClips.every((clip) => {
+      return !hasTrackOverlap(track, clip.start, getClipDuration(clip));
+    })) {
+      return placedClips;
+    }
+
+    candidateStart = roundClipTime(candidateStart + CLIP_SNAP_STEP);
+  }
+
+  return null;
+}
+
+export function pasteClipsCommand({ clips, targetStart, trackId }) {
+  let insertedClips = [];
+  let didApply = false;
+
+  return {
+    type: "pasteClips",
+    clips,
+    targetStart,
+    trackId,
+    exec(state) {
+      const tracks = cloneTracks(getTimelineState(state));
+      const trackIndex = findTrackIndex(tracks, trackId);
+      if (trackIndex < 0) {
+        return ABORT_COMMAND;
+      }
+
+      const track = tracks[trackIndex];
+      const placedClips = resolvePasteInsertion(track, clips, targetStart);
+      if (!placedClips || placedClips.length === 0) {
+        return ABORT_COMMAND;
+      }
+
+      insertedClips = placedClips.map((clip) => cloneValue(clip));
+      didApply = true;
+
+      tracks[trackIndex] = {
+        ...track,
+        clips: sortClips([...track.clips, ...placedClips]),
+      };
+
+      return applySelectionToState(withUpdatedTimeline(state, tracks), {
+        trackId,
+        clipId: insertedClips.at(-1)?.id ?? null,
+        clipIds: insertedClips.map((clip) => clip.id).filter(Boolean),
+      });
+    },
+    invert() {
+      if (!didApply || insertedClips.length === 0) {
+        return null;
+      }
+
+      return removeClipsCommand({
+        clipIds: insertedClips.map((clip) => clip.id),
+      });
+    },
+  };
+}
+
+export function duplicateClipsCommand({ clipIds }) {
+  let inverseCommand = null;
+
+  return {
+    type: "duplicateClips",
+    clipIds,
+    exec(state) {
+      const clips = getClipsByIds(state, clipIds);
+      if (clips.length === 0) {
+        return ABORT_COMMAND;
+      }
+
+      const firstTrackId = clips[0]?.trackId ?? null;
+      if (!firstTrackId || clips.some((entry) => entry.trackId !== firstTrackId)) {
+        return ABORT_COMMAND;
+      }
+
+      const maxEnd = clips.reduce((maximum, entry) => {
+        const start = Number(entry?.clip?.start) || 0;
+        return Math.max(maximum, start + getClipDuration(entry?.clip));
+      }, 0);
+
+      const pasteCommand = pasteClipsCommand({
+        clips: clips.map((entry) => entry.clip),
+        targetStart: roundClipTime(maxEnd),
+        trackId: firstTrackId,
+      });
+      const draftState = cloneValue(state);
+      const result = pasteCommand.exec(draftState);
+      if (result === ABORT_COMMAND) {
+        return ABORT_COMMAND;
+      }
+
+      inverseCommand = pasteCommand.invert();
+      return result ?? draftState;
+    },
+    invert() {
+      return inverseCommand;
+    },
   };
 }
 

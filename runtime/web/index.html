@@ -1754,6 +1754,8 @@
       import { mountLibrary } from "./src/panels/library/index.js";
       import { mountInspector } from "./src/panels/inspector/index.js";
       import { registerAllScenes, SCENE_MANIFEST } from "./src/scenes/index.js";
+      import { copy as copyToClipboard, read as readClipboard } from "./src/clipboard.js";
+      import { duplicateClipsCommand, pasteClipsCommand, removeClipsCommand } from "./src/commands.js";
       import { store } from "./src/store.js";
       import { mountTimeline } from "./src/timeline/index.js";
 
@@ -1956,14 +1958,137 @@
         });
       }
 
+      function getSelectedClipIds() {
+        const clipIds = Array.isArray(store.state.selection?.clipIds)
+          ? store.state.selection.clipIds.filter((clipId) => typeof clipId === "string" && clipId.length > 0)
+          : [];
+        const uniqueClipIds = [...new Set(clipIds)];
+        const primaryClipId = typeof store.state.selectedClipId === "string" && store.state.selectedClipId.length > 0
+          ? store.state.selectedClipId
+          : null;
+
+        if (primaryClipId && !uniqueClipIds.includes(primaryClipId)) {
+          uniqueClipIds.push(primaryClipId);
+        }
+
+        return uniqueClipIds;
+      }
+
+      function getSelectedClips() {
+        const selectedIds = new Set(getSelectedClipIds());
+        if (selectedIds.size === 0) {
+          return [];
+        }
+
+        return (store.state.timeline?.tracks || [])
+          .flatMap((track) => (track?.clips || []).map((clip) => ({
+            trackId: track?.id ?? null,
+            clip,
+          })))
+          .filter((entry) => entry.trackId && selectedIds.has(entry.clip?.id))
+          .sort((left, right) => {
+            const startDelta = (Number(left?.clip?.start) || 0) - (Number(right?.clip?.start) || 0);
+            if (startDelta !== 0) {
+              return startDelta;
+            }
+
+            const trackDelta = String(left?.trackId ?? "").localeCompare(String(right?.trackId ?? ""));
+            if (trackDelta !== 0) {
+              return trackDelta;
+            }
+
+            return String(left?.clip?.id ?? "").localeCompare(String(right?.clip?.id ?? ""));
+          });
+      }
+
+      function getFirstVideoTrackId() {
+        const videoTrack = (store.state.timeline?.tracks || []).find((track) => track?.kind === "video");
+        return videoTrack?.id ?? null;
+      }
+
+      function removeSelectedClips() {
+        const clipIds = getSelectedClipIds();
+        if (clipIds.length === 0) {
+          return;
+        }
+
+        store.dispatch(removeClipsCommand({ clipIds }));
+      }
+
+      function copySelectedClips() {
+        const clips = getSelectedClips().map((entry) => entry.clip);
+        if (clips.length === 0) {
+          return;
+        }
+
+        copyToClipboard(clips);
+      }
+
+      function pasteClipboardClips() {
+        const clips = readClipboard();
+        const trackId = getFirstVideoTrackId();
+        if (clips.length === 0 || !trackId) {
+          return;
+        }
+
+        store.dispatch(pasteClipsCommand({
+          clips,
+          targetStart: Number(store.state.playhead) || 0,
+          trackId,
+        }));
+      }
+
+      function duplicateSelectedClips() {
+        const clipIds = getSelectedClipIds();
+        if (clipIds.length === 0) {
+          return;
+        }
+
+        store.dispatch(duplicateClipsCommand({ clipIds }));
+      }
+
       function onKeyDown(event) {
         if (event.defaultPrevented || isEditableTarget(event.target)) {
           return;
         }
 
+        const key = event.key.toLowerCase();
+        const hasShortcutModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
+
         if (event.code === "Space" || event.key === " ") {
           event.preventDefault();
           togglePlaying();
+          return;
+        }
+
+        if (!hasShortcutModifier && (event.key === "Delete" || event.key === "Backspace")) {
+          event.preventDefault();
+          removeSelectedClips();
+          return;
+        }
+
+        if (hasShortcutModifier && key === "c") {
+          event.preventDefault();
+          copySelectedClips();
+          return;
+        }
+
+        if (hasShortcutModifier && key === "x") {
+          event.preventDefault();
+          copySelectedClips();
+          removeSelectedClips();
+          return;
+        }
+
+        if (hasShortcutModifier && key === "v") {
+          event.preventDefault();
+          pasteClipboardClips();
+          return;
+        }
+
+        if (hasShortcutModifier && key === "d") {
+          event.preventDefault();
+          duplicateSelectedClips();
           return;
         }
 
