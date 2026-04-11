@@ -36,6 +36,8 @@ export function showExportDialog({ store } = {}) {
     closed: false,
     autoRevealed: false,
     outputPath: "",
+    recorderOutputPath: "",
+    muxing: false,
   };
 
   const overlay = document.createElement("div");
@@ -236,6 +238,37 @@ export function showExportDialog({ store } = {}) {
     }
   };
 
+  const runMuxAudio = async () => {
+    const finalOutputPath = state.outputPath || outputInput.value.trim();
+    const recorderOutputPath = state.recorderOutputPath;
+    if (!recorderOutputPath) {
+      throw new Error("Recorder output path unavailable.");
+    }
+
+    setProgress({
+      percent: 99,
+      label: "Muxing audio...",
+      detail: finalOutputPath,
+    });
+
+    const audioSources = collectAudioSources(store.state);
+    const result = await bridge.call("export.muxAudio", {
+      videoPath: recorderOutputPath,
+      audioSources,
+      outputPath: finalOutputPath,
+    });
+
+    if (!result?.ok) {
+      throw new Error(typeof result?.error === "string" && result.error.length > 0
+        ? result.error
+        : "Audio mux failed.");
+    }
+
+    state.outputPath = typeof result?.outputPath === "string" && result.outputPath.length > 0
+      ? result.outputPath
+      : finalOutputPath;
+  };
+
   const syncStatus = async () => {
     if (!state.pid) {
       return;
@@ -244,45 +277,71 @@ export function showExportDialog({ store } = {}) {
     const status = await bridge.call("export.status", { pid: state.pid });
     const percent = Number(status?.percent) || 0;
     const eta = Number(status?.eta) || 0;
-    const outputPath = typeof status?.outputPath === "string" ? status.outputPath : outputInput.value;
-    state.outputPath = outputPath;
+    const recorderOutputPath = typeof status?.outputPath === "string"
+      ? status.outputPath
+      : state.recorderOutputPath;
+    const finalOutputPath = state.outputPath || outputInput.value.trim();
+    state.recorderOutputPath = recorderOutputPath;
 
     if (status?.state === "running") {
       setProgress({
         percent,
         label: `Rendering ${formatPercent(percent)}`,
-        detail: `ETA ${formatEta(eta)}  |  ${outputPath}`,
+        detail: `ETA ${formatEta(eta)}  |  ${finalOutputPath}`,
       });
       return;
     }
 
     window.clearInterval(state.pollingTimer);
     state.pollingTimer = 0;
-    setRunning(false);
-    revealButton.hidden = status?.state !== "done";
+    state.pid = null;
 
     if (status?.state === "done") {
-      setError("");
-      setProgress({
-        percent: 100,
-        label: "Export complete",
-        detail: outputPath,
-      });
-      outputInput.value = outputPath;
+      if (state.muxing) {
+        return;
+      }
 
-      if (!state.autoRevealed) {
-        state.autoRevealed = true;
-        try {
-          await bridge.call("fs.reveal", { path: outputPath });
-        } catch (revealError) {
-          const revealMessage =
-            revealError instanceof Error ? revealError.message : String(revealError);
-          setError(revealMessage);
+      state.muxing = true;
+      try {
+        await runMuxAudio();
+        setRunning(false);
+        revealButton.hidden = false;
+        setError("");
+        setProgress({
+          percent: 100,
+          label: "Export complete",
+          detail: state.outputPath,
+        });
+        outputInput.value = state.outputPath;
+
+        if (!state.autoRevealed) {
+          state.autoRevealed = true;
+          try {
+            await bridge.call("fs.reveal", { path: state.outputPath });
+          } catch (revealError) {
+            const revealMessage =
+              revealError instanceof Error ? revealError.message : String(revealError);
+            setError(revealMessage);
+          }
         }
+      } catch (muxError) {
+        setRunning(false);
+        revealButton.hidden = true;
+        const message = muxError instanceof Error ? muxError.message : String(muxError);
+        setError(message);
+        setProgress({
+          percent,
+          label: "Export failed",
+          detail: finalOutputPath,
+        });
+      } finally {
+        state.muxing = false;
       }
       return;
     }
 
+    setRunning(false);
+    revealButton.hidden = true;
     const reason = typeof status?.error === "string" && status.error.length > 0
       ? status.error
       : "Export failed";
@@ -290,7 +349,7 @@ export function showExportDialog({ store } = {}) {
     setProgress({
       percent,
       label: "Export failed",
-      detail: outputPath,
+      detail: finalOutputPath,
     });
   };
 
@@ -328,7 +387,11 @@ export function showExportDialog({ store } = {}) {
     const fps = selectedFps(fpsInputs);
     const duration = Number(durationInput.value);
     const outputPath = outputInput.value.trim();
+    const recorderOutputPath = buildRecorderOutputPath(outputPath);
     state.outputPath = outputPath;
+    state.recorderOutputPath = recorderOutputPath;
+    state.pid = null;
+    state.muxing = false;
 
     if (!outputPath) {
       setError("Output path is required.");
@@ -353,7 +416,7 @@ export function showExportDialog({ store } = {}) {
 
     try {
       const result = await bridge.call("export.start", {
-        outputPath,
+        outputPath: recorderOutputPath,
         width: resolution.width,
         height: resolution.height,
         fps,
@@ -375,7 +438,7 @@ export function showExportDialog({ store } = {}) {
       setProgress({
         percent: 0,
         label: `Recorder pid ${state.pid}`,
-        detail: typeof result?.logPath === "string" ? result.logPath : outputPath,
+        detail: outputPath,
       });
       startPolling();
       await syncStatus();
@@ -537,8 +600,67 @@ function timestampForFileName() {
   return `${parts.join("")}-${time.join("")}`;
 }
 
+function buildRecorderOutputPath(finalPath) {
+  const directory = dirname(finalPath) || "~";
+  const extension = extensionName(finalPath) || ".mp4";
+  const stem = basename(finalPath).replace(/\.[^.]+$/, "") || "NextFrame-export";
+  return `${directory}/${stem}.silent-${Date.now()}${extension}`;
+}
+
+function collectAudioSources(state) {
+  const tracks = Array.isArray(state?.timeline?.tracks) ? state.timeline.tracks : [];
+  const audioTracks = tracks.filter((track) => track?.kind === "audio");
+
+  return audioTracks.flatMap((track) => {
+    const clips = Array.isArray(track?.clips) ? track.clips : [];
+    return clips.map((clip) => {
+      const asset = findAssetById(state, clip?.assetId) ?? clip?.asset ?? null;
+      const path = typeof asset?.path === "string" ? asset.path.trim() : "";
+      if (!path) {
+        throw new Error(`Audio clip "${clip?.id || "unknown"}" is missing an asset path.`);
+      }
+
+      return {
+        path,
+        startTime: normalizeNonNegativeNumber(clip?.start, 0),
+        volume: normalizeNonNegativeNumber(clip?.volume, 1),
+      };
+    });
+  });
+}
+
+function findAssetById(state, assetId) {
+  if (typeof assetId !== "string" || assetId.length === 0) {
+    return null;
+  }
+
+  const assets = Array.isArray(state?.assets) ? state.assets : [];
+  return assets.find((asset) => asset?.id === assetId) ?? null;
+}
+
+function normalizeNonNegativeNumber(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return fallback;
+  }
+
+  return numeric;
+}
+
 function basename(filePath) {
   return String(filePath || "").split(/[\\/]/).pop() || "";
+}
+
+function dirname(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/");
+  const index = normalized.lastIndexOf("/");
+  return index >= 0 ? normalized.slice(0, index) : "";
+}
+
+function extensionName(filePath) {
+  const base = basename(filePath);
+  const index = base.lastIndexOf(".");
+  return index > 0 ? base.slice(index) : "";
 }
 
 function clampPercent(value) {

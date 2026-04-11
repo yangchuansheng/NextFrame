@@ -3,6 +3,8 @@ use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+#[cfg(test)]
+use std::collections::VecDeque;
 use std::env;
 use std::fs;
 use std::io::ErrorKind;
@@ -50,6 +52,26 @@ struct RecorderLaunchPlan {
 }
 
 static PROCESS_REGISTRY: OnceLock<Mutex<ProcessRegistry>> = OnceLock::new();
+static FFMPEG_PATH_CACHE: OnceLock<Mutex<Option<Option<PathBuf>>>> = OnceLock::new();
+
+#[derive(Clone, Debug, PartialEq)]
+struct AudioSource {
+    path: PathBuf,
+    start_time: f64,
+    volume: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct FfmpegCommand {
+    program: PathBuf,
+    args: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CommandOutput {
+    success: bool,
+    stderr: String,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Request {
@@ -96,6 +118,7 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "export.start" => handle_export_start(&params),
         "export.status" => handle_export_status(&params),
         "export.cancel" => handle_export_cancel(&params),
+        "export.muxAudio" => handle_export_mux_audio(&params),
         "log" => handle_log(&params),
         "scene.list" => handle_scene_list(&params),
         "timeline.load" => handle_timeline_load(&params),
@@ -346,6 +369,63 @@ fn handle_export_cancel(params: &Value) -> Result<Value, String> {
     }))
 }
 
+fn handle_export_mux_audio(params: &Value) -> Result<Value, String> {
+    let video_path_raw = require_string_alias(params, &["videoPath", "video_path"])?;
+    let output_path_raw = require_string_alias(params, &["outputPath", "output_path"])?;
+    let video_path = resolve_existing_path(video_path_raw)?;
+    let output_path = resolve_write_path(output_path_raw)?;
+    let audio_sources = parse_audio_sources(params)?;
+
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "failed to create export directory '{}': {error}",
+                parent.display()
+            )
+        })?;
+    }
+
+    if audio_sources.is_empty() {
+        copy_video_output(&video_path, &output_path)?;
+        return Ok(json!({
+            "ok": true,
+            "outputPath": output_path.display().to_string(),
+        }));
+    }
+
+    let Some(ffmpeg_path) = ffmpeg_command_path()? else {
+        return Ok(json!({
+            "ok": false,
+            "error": "Install ffmpeg to export with audio. `brew install ffmpeg`",
+        }));
+    };
+
+    let command = build_ffmpeg_command(ffmpeg_path, &video_path, &audio_sources, &output_path);
+    let output = run_ffmpeg_command(&command).map_err(|error| {
+        format!(
+            "failed to run ffmpeg for '{}': {error}",
+            output_path.display()
+        )
+    })?;
+
+    if !output.success {
+        let error = if output.stderr.is_empty() {
+            "ffmpeg exited with an unknown error".to_string()
+        } else {
+            output.stderr
+        };
+        return Ok(json!({
+            "ok": false,
+            "error": error,
+        }));
+    }
+
+    Ok(json!({
+        "ok": true,
+        "outputPath": output_path.display().to_string(),
+    }))
+}
+
 fn handle_log(params: &Value) -> Result<Value, String> {
     let level = require_string(params, "level")?;
     let message = require_string(params, "msg")?;
@@ -489,6 +569,63 @@ fn require_positive_f64(params: &Value, key: &str) -> Result<f64, String> {
     } else {
         Err(format!("params.{key} must be greater than 0"))
     }
+}
+
+fn parse_audio_sources(params: &Value) -> Result<Vec<AudioSource>, String> {
+    let sources = require_array(params, "audioSources")?;
+    let mut parsed = Vec::with_capacity(sources.len());
+
+    for (index, source) in sources.iter().enumerate() {
+        let object = source
+            .as_object()
+            .ok_or_else(|| format!("params.audioSources[{index}] must be an object"))?;
+        let path = object
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("params.audioSources[{index}].path must be a string"))?;
+        let start_time = read_audio_source_number(object, index, &["startTime", "start_time"])?;
+        if !start_time.is_finite() || start_time < 0.0 {
+            return Err(format!(
+                "params.audioSources[{index}].startTime must be a finite number >= 0"
+            ));
+        }
+
+        let volume = match object.get("volume") {
+            Some(value) => value
+                .as_f64()
+                .ok_or_else(|| format!("params.audioSources[{index}].volume must be a number"))?,
+            None => 1.0,
+        };
+        if !volume.is_finite() || volume < 0.0 {
+            return Err(format!(
+                "params.audioSources[{index}].volume must be a finite number >= 0"
+            ));
+        }
+
+        parsed.push(AudioSource {
+            path: resolve_existing_path(path)?,
+            start_time,
+            volume,
+        });
+    }
+
+    Ok(parsed)
+}
+
+fn read_audio_source_number(
+    object: &serde_json::Map<String, Value>,
+    index: usize,
+    keys: &[&str],
+) -> Result<f64, String> {
+    for key in keys {
+        if let Some(value) = object.get(*key) {
+            return value
+                .as_f64()
+                .ok_or_else(|| format!("params.audioSources[{index}].{key} must be a number"));
+        }
+    }
+
+    Err(format!("missing params.audioSources[{index}].{}", keys[0]))
 }
 
 fn parse_dialog_filters(params: &Value) -> Result<Vec<String>, String> {
@@ -885,6 +1022,140 @@ fn spawn_recorder(plan: &RecorderLaunchPlan, log_path: &Path) -> Result<Child, S
         .map_err(|error| error.to_string())
 }
 
+fn copy_video_output(video_path: &Path, output_path: &Path) -> Result<(), String> {
+    if video_path == output_path {
+        return Ok(());
+    }
+
+    fs::copy(video_path, output_path).map_err(|error| {
+        format!(
+            "failed to copy '{}' to '{}': {error}",
+            video_path.display(),
+            output_path.display()
+        )
+    })?;
+
+    Ok(())
+}
+
+fn ffmpeg_command_path() -> Result<Option<PathBuf>, String> {
+    let mut cache = lock_ffmpeg_path_cache()?;
+    if let Some(path) = cache.as_ref() {
+        return Ok(path.clone());
+    }
+
+    let detected = detect_ffmpeg_command_path()?;
+    *cache = Some(detected.clone());
+    Ok(detected)
+}
+
+fn lock_ffmpeg_path_cache(
+) -> Result<std::sync::MutexGuard<'static, Option<Option<PathBuf>>>, String> {
+    ffmpeg_path_cache()
+        .lock()
+        .map_err(|_| "ffmpeg path cache is unavailable".to_string())
+}
+
+fn ffmpeg_path_cache() -> &'static Mutex<Option<Option<PathBuf>>> {
+    FFMPEG_PATH_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(not(test))]
+fn detect_ffmpeg_command_path() -> Result<Option<PathBuf>, String> {
+    let program = if cfg!(windows) { "where" } else { "which" };
+    let output = Command::new(program)
+        .arg("ffmpeg")
+        .output()
+        .map_err(|error| format!("failed to detect ffmpeg: {error}"))?;
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let first_line = stdout.lines().next().map(str::trim).unwrap_or_default();
+    if first_line.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(PathBuf::from(first_line)))
+    }
+}
+
+fn build_ffmpeg_command(
+    program: PathBuf,
+    video_path: &Path,
+    audio_sources: &[AudioSource],
+    output_path: &Path,
+) -> FfmpegCommand {
+    let mut args = vec![
+        "-y".to_string(),
+        "-i".to_string(),
+        video_path.display().to_string(),
+    ];
+
+    for source in audio_sources {
+        args.push("-i".to_string());
+        args.push(source.path.display().to_string());
+    }
+
+    args.push("-filter_complex".to_string());
+    args.push(build_ffmpeg_filter_complex(audio_sources));
+    args.push("-map".to_string());
+    args.push("0:v".to_string());
+    args.push("-map".to_string());
+    args.push("[aout]".to_string());
+    args.push("-c:v".to_string());
+    args.push("copy".to_string());
+    args.push("-c:a".to_string());
+    args.push("aac".to_string());
+    args.push(output_path.display().to_string());
+
+    FfmpegCommand { program, args }
+}
+
+fn build_ffmpeg_filter_complex(audio_sources: &[AudioSource]) -> String {
+    let mut filter_parts = Vec::with_capacity(audio_sources.len() + 1);
+    let mut mix_inputs = String::new();
+
+    for (index, source) in audio_sources.iter().enumerate() {
+        let input_index = index + 1;
+        let label = format!("a{index}");
+        let delay_ms = secs_to_millis(source.start_time);
+        filter_parts.push(format!(
+            "[{input_index}:a]adelay={delay_ms}:all=1,volume={}[{label}]",
+            trim_float(source.volume)
+        ));
+        mix_inputs.push_str(&format!("[{label}]"));
+    }
+
+    filter_parts.push(format!(
+        "{mix_inputs}amix=inputs={}:normalize=0[aout]",
+        audio_sources.len()
+    ));
+    filter_parts.join(";")
+}
+
+fn secs_to_millis(value: f64) -> u64 {
+    if !value.is_finite() || value <= 0.0 {
+        return 0;
+    }
+
+    (value * 1000.0).round() as u64
+}
+
+#[cfg(not(test))]
+fn run_ffmpeg_command(command: &FfmpegCommand) -> Result<CommandOutput, String> {
+    let output = Command::new(&command.program)
+        .args(&command.args)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    Ok(CommandOutput {
+        success: output.status.success(),
+        stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+    })
+}
+
 fn create_export_log_path() -> Result<PathBuf, String> {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1089,10 +1360,67 @@ fn home_dir() -> Option<PathBuf> {
 }
 
 #[cfg(test)]
+struct MockFfmpegState {
+    lookup_result: Result<Option<PathBuf>, String>,
+    runs: VecDeque<Result<CommandOutput, String>>,
+    invocations: Vec<FfmpegCommand>,
+}
+
+#[cfg(test)]
+impl Default for MockFfmpegState {
+    fn default() -> Self {
+        Self {
+            lookup_result: Ok(None),
+            runs: VecDeque::new(),
+            invocations: Vec::new(),
+        }
+    }
+}
+
+#[cfg(test)]
+static MOCK_FFMPEG_STATE: OnceLock<Mutex<MockFfmpegState>> = OnceLock::new();
+#[cfg(test)]
+static MOCK_FFMPEG_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+#[cfg(test)]
+fn detect_ffmpeg_command_path() -> Result<Option<PathBuf>, String> {
+    let state = mock_ffmpeg_state()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    state.lookup_result.clone()
+}
+
+#[cfg(test)]
+fn run_ffmpeg_command(command: &FfmpegCommand) -> Result<CommandOutput, String> {
+    let mut state = mock_ffmpeg_state()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    state.invocations.push(command.clone());
+    state
+        .runs
+        .pop_front()
+        .unwrap_or_else(|| Err("missing mock ffmpeg execution".to_string()))
+}
+
+#[cfg(test)]
+fn mock_ffmpeg_state() -> &'static Mutex<MockFfmpegState> {
+    MOCK_FFMPEG_STATE.get_or_init(|| Mutex::new(MockFfmpegState::default()))
+}
+
+#[cfg(test)]
+fn reset_ffmpeg_path_cache_for_tests() {
+    if let Ok(mut cache) = lock_ffmpeg_path_cache() {
+        *cache = None;
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::{
-        build_recorder_args, dispatch, home_dir, recorder_binary_name,
-        resolve_recorder_launch_plan_with, resolve_write_path, RecorderLauncher, Request,
+        build_ffmpeg_filter_complex, build_recorder_args, dispatch, home_dir, mock_ffmpeg_state,
+        recorder_binary_name, reset_ffmpeg_path_cache_for_tests, resolve_recorder_launch_plan_with,
+        resolve_write_path, CommandOutput, FfmpegCommand, MockFfmpegState, RecorderLauncher,
+        Request, MOCK_FFMPEG_TEST_LOCK,
     };
     use serde_json::{json, Value};
     use std::env;
@@ -1100,6 +1428,7 @@ mod tests {
     use std::io;
     use std::path::{Path, PathBuf};
     use std::process;
+    use std::sync::MutexGuard;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -1604,6 +1933,268 @@ mod tests {
             .map(String::from)
             .collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn export_mux_audio_copies_video_when_no_audio_sources() {
+        let temp = TestDir::new("mux-copy");
+        let video_path = temp.join("video-only.mp4");
+        let output_path = temp.join("final.mp4");
+        fs::write(&video_path, "silent-video").expect("write source video");
+
+        let response = dispatch(request(
+            "export.muxAudio",
+            json!({
+                "videoPath": video_path.display().to_string(),
+                "audioSources": [],
+                "outputPath": output_path.display().to_string(),
+            }),
+        ));
+
+        assert!(response.ok);
+        assert_eq!(response.result.get("ok"), Some(&json!(true)));
+        assert_eq!(
+            fs::read_to_string(&output_path).expect("read copied output"),
+            "silent-video"
+        );
+    }
+
+    #[test]
+    fn export_mux_audio_reports_missing_ffmpeg() {
+        let _mock = MockFfmpegHarness::new();
+        let temp = TestDir::new("mux-no-ffmpeg");
+        let video_path = temp.join("video-only.mp4");
+        let audio_path = temp.join("voiceover.mp3");
+        let output_path = temp.join("final.mp4");
+        fs::write(&video_path, "silent-video").expect("write source video");
+        fs::write(&audio_path, "audio").expect("write source audio");
+
+        let response = dispatch(request(
+            "export.muxAudio",
+            json!({
+                "videoPath": video_path.display().to_string(),
+                "audioSources": [
+                    {
+                        "path": audio_path.display().to_string(),
+                        "startTime": 1.25,
+                        "volume": 0.8
+                    }
+                ],
+                "outputPath": output_path.display().to_string(),
+            }),
+        ));
+
+        assert!(response.ok);
+        assert_eq!(response.result.get("ok"), Some(&json!(false)));
+        assert_eq!(
+            response.result.get("error"),
+            Some(&json!(
+                "Install ffmpeg to export with audio. `brew install ffmpeg`"
+            ))
+        );
+    }
+
+    #[test]
+    fn export_mux_audio_builds_expected_ffmpeg_command() {
+        let mock = MockFfmpegHarness::new();
+        mock.set_lookup_result(Ok(Some(PathBuf::from("/mock/bin/ffmpeg"))));
+        mock.push_run_result(Ok(CommandOutput {
+            success: true,
+            stderr: String::new(),
+        }));
+
+        let temp = TestDir::new("mux-command");
+        let video_path = temp.join("video-only.mp4");
+        let audio_a = temp.join("dialog.mp3");
+        let audio_b = temp.join("music.wav");
+        let output_path = temp.join("final.mp4");
+        fs::write(&video_path, "silent-video").expect("write source video");
+        fs::write(&audio_a, "audio-a").expect("write source audio a");
+        fs::write(&audio_b, "audio-b").expect("write source audio b");
+        let video_path_string = fs::canonicalize(&video_path)
+            .expect("canonicalize source video")
+            .display()
+            .to_string();
+        let audio_a_string = fs::canonicalize(&audio_a)
+            .expect("canonicalize source audio a")
+            .display()
+            .to_string();
+        let audio_b_string = fs::canonicalize(&audio_b)
+            .expect("canonicalize source audio b")
+            .display()
+            .to_string();
+        let output_path_string = output_path.display().to_string();
+
+        let response = dispatch(request(
+            "export.muxAudio",
+            json!({
+                "videoPath": video_path_string.clone(),
+                "audioSources": [
+                    {
+                        "path": audio_a_string.clone(),
+                        "startTime": 0.5,
+                        "volume": 1.0
+                    },
+                    {
+                        "path": audio_b_string.clone(),
+                        "startTime": 2.25,
+                        "volume": 0.35
+                    }
+                ],
+                "outputPath": output_path_string.clone(),
+            }),
+        ));
+
+        assert!(response.ok);
+        assert_eq!(response.result.get("ok"), Some(&json!(true)));
+
+        let invocations = mock.take_invocations();
+        assert_eq!(invocations.len(), 1);
+        assert_eq!(
+            invocations[0],
+            FfmpegCommand {
+                program: PathBuf::from("/mock/bin/ffmpeg"),
+                args: vec![
+                    "-y",
+                    "-i",
+                    &video_path_string,
+                    "-i",
+                    &audio_a_string,
+                    "-i",
+                    &audio_b_string,
+                    "-filter_complex",
+                    "[1:a]adelay=500:all=1,volume=1[a0];[2:a]adelay=2250:all=1,volume=0.35[a1];[a0][a1]amix=inputs=2:normalize=0[aout]",
+                    "-map",
+                    "0:v",
+                    "-map",
+                    "[aout]",
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    &output_path_string,
+                ]
+                .into_iter()
+                .map(|value| value.to_string())
+                .collect(),
+            }
+        );
+    }
+
+    #[test]
+    fn export_mux_audio_surfaces_ffmpeg_stderr() {
+        let mock = MockFfmpegHarness::new();
+        mock.set_lookup_result(Ok(Some(PathBuf::from("/mock/bin/ffmpeg"))));
+        mock.push_run_result(Ok(CommandOutput {
+            success: false,
+            stderr: "ffmpeg stderr output".to_string(),
+        }));
+
+        let temp = TestDir::new("mux-stderr");
+        let video_path = temp.join("video-only.mp4");
+        let audio_path = temp.join("voiceover.mp3");
+        let output_path = temp.join("final.mp4");
+        fs::write(&video_path, "silent-video").expect("write source video");
+        fs::write(&audio_path, "audio").expect("write source audio");
+
+        let response = dispatch(request(
+            "export.muxAudio",
+            json!({
+                "videoPath": video_path.display().to_string(),
+                "audioSources": [
+                    {
+                        "path": audio_path.display().to_string(),
+                        "startTime": 0,
+                        "volume": 1
+                    }
+                ],
+                "outputPath": output_path.display().to_string(),
+            }),
+        ));
+
+        assert!(response.ok);
+        assert_eq!(response.result.get("ok"), Some(&json!(false)));
+        assert_eq!(
+            response.result.get("error"),
+            Some(&json!("ffmpeg stderr output"))
+        );
+    }
+
+    #[test]
+    fn build_ffmpeg_filter_complex_formats_delays_and_mix() {
+        let filter = build_ffmpeg_filter_complex(&[
+            super::AudioSource {
+                path: PathBuf::from("/tmp/a.mp3"),
+                start_time: 0.25,
+                volume: 1.0,
+            },
+            super::AudioSource {
+                path: PathBuf::from("/tmp/b.wav"),
+                start_time: 1.5,
+                volume: 0.4,
+            },
+        ]);
+
+        assert_eq!(
+            filter,
+            "[1:a]adelay=250:all=1,volume=1[a0];[2:a]adelay=1500:all=1,volume=0.4[a1];[a0][a1]amix=inputs=2:normalize=0[aout]"
+        );
+    }
+
+    struct MockFfmpegHarness {
+        _guard: MutexGuard<'static, ()>,
+    }
+
+    impl MockFfmpegHarness {
+        fn new() -> Self {
+            let guard = MOCK_FFMPEG_TEST_LOCK
+                .get_or_init(|| std::sync::Mutex::new(()))
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+            {
+                let mut state = mock_ffmpeg_state()
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                *state = MockFfmpegState::default();
+            }
+            reset_ffmpeg_path_cache_for_tests();
+
+            Self { _guard: guard }
+        }
+
+        fn set_lookup_result(&self, result: Result<Option<PathBuf>, String>) {
+            let mut state = mock_ffmpeg_state()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state.lookup_result = result;
+            drop(state);
+            reset_ffmpeg_path_cache_for_tests();
+        }
+
+        fn push_run_result(&self, result: Result<CommandOutput, String>) {
+            let mut state = mock_ffmpeg_state()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state.runs.push_back(result);
+        }
+
+        fn take_invocations(&self) -> Vec<FfmpegCommand> {
+            let mut state = mock_ffmpeg_state()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            std::mem::take(&mut state.invocations)
+        }
+    }
+
+    impl Drop for MockFfmpegHarness {
+        fn drop(&mut self) {
+            let mut state = mock_ffmpeg_state()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *state = MockFfmpegState::default();
+            reset_ffmpeg_path_cache_for_tests();
+        }
     }
 
     fn request(method: &str, params: Value) -> Request {
