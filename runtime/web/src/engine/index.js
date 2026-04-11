@@ -7,8 +7,8 @@ export const SCENES = new Map();
 /**
  * Register a scene renderer in the global scene registry.
  * @param {string} id - The scene identifier used by timeline clips.
- * @param {(t: number, params: object, ctx: CanvasRenderingContext2D, globalT: number, W: number, H: number) => void} fn - The scene render function.
- * @returns {(t: number, params: object, ctx: CanvasRenderingContext2D, globalT: number, W: number, H: number) => void} The registered scene function.
+ * @param {(t: number, params: object, ctx: CanvasRenderingContext2D, globalT: number, W: number, H: number, clipDuration: number) => void} fn - The scene render function.
+ * @returns {(t: number, params: object, ctx: CanvasRenderingContext2D, globalT: number, W: number, H: number, clipDuration: number) => void} The registered scene function.
  */
 export function registerScene(id, fn) {
   if (typeof id !== "string" || id.length === 0) {
@@ -191,7 +191,7 @@ export function renderAt(ctx, timeline, t) {
 
       ctx.save();
       try {
-        sceneFn(localT, params, ctx, t, W, H);
+        sceneFn(localT, params, ctx, t, W, H, Number(clip.dur) || 0);
       } finally {
         ctx.restore();
       }
