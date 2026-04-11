@@ -67,6 +67,10 @@ dependencies = [
 [[package]]
 name = "bridge"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "byteorder"
@@ -1880,6 +1884,9 @@ dependencies = [
 name = "shell"
 version = "0.1.0"
 dependencies = [
+ "bridge",
+ "serde",
+ "serde_json",
  "tao",
  "wry",
 ]

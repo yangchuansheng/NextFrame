@@ -1336,5 +1336,17 @@
         });
       })();
     </script>
+    <script type="module">
+      import { call } from "./src/bridge.js";
+      (async () => {
+        try {
+          const scenes = await call("scene.list", {});
+          await call("log", { level: "info", msg: `IPC ready: ${scenes?.length ?? 0} scenes` });
+          console.info("[NextFrame] IPC bridge ready", scenes);
+        } catch (err) {
+          console.warn("[NextFrame] IPC bridge unavailable:", err);
+        }
+      })();
+    </script>
   </body>
 </html>
