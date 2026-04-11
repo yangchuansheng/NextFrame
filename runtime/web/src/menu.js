@@ -23,7 +23,6 @@ export function initMenu({ bridge, store }) {
   const menuRoots = [...topMenu.querySelectorAll("[data-menu-root]")];
   const statusChip = document.getElementById("project-status");
   const statusLabel = document.getElementById("project-status-label");
-  const pathLabel = document.getElementById("project-path-label");
   const zoomLabel = document.getElementById("preview-zoom-label");
   const timeDisplay = document.querySelector(".time-display");
   const previewSlot = document.getElementById("preview-stage-slot");
@@ -31,12 +30,12 @@ export function initMenu({ bridge, store }) {
   const timelineSplitter = document.getElementById("timeline-splitter");
   const inspectorPanel = document.getElementById("right-inspector");
   const inspectorSplitter = document.getElementById("inspector-splitter");
+  const revealProjectItem = topMenu.querySelector('[data-menu-action="revealProject"]');
 
   let openMenu = null;
   let noticeTimer = 0;
 
   const render = (state) => {
-    const fileName = basename(state.filePath) ?? DEFAULT_SAVE_NAME;
     const isDirty = Boolean(state.dirty);
     const isSnapEnabled = state.snapEnabled !== false;
     const zoom = normalizeZoom(state.ui?.zoom);
@@ -51,9 +50,8 @@ export function initMenu({ bridge, store }) {
       statusLabel.textContent = isDirty ? "Modified" : DEFAULT_STATUS;
     }
 
-    if (pathLabel) {
-      pathLabel.textContent = isDirty ? `${fileName}*` : fileName;
-      pathLabel.title = state.filePath ?? DEFAULT_SAVE_NAME;
+    if (revealProjectItem instanceof HTMLButtonElement) {
+      revealProjectItem.disabled = !state.filePath;
     }
 
     if (zoomLabel) {
@@ -88,7 +86,6 @@ export function initMenu({ bridge, store }) {
     syncCheckmark("snapEnabled", isSnapEnabled);
     syncCheckmark("timelineVisible", isTimelineVisible);
     syncCheckmark("inspectorVisible", isInspectorVisible);
-    document.title = `${isDirty ? "* " : ""}${fileName} - NextFrame`;
   };
 
   const unsubscribe = store.subscribe(render);
@@ -270,6 +267,9 @@ export function initMenu({ bridge, store }) {
             state.ui.zoom = 1;
           });
           return;
+        case "revealProject":
+          await revealProject();
+          return;
         case "toggleSnap":
           store.mutate((state) => {
             state.snapEnabled = state.snapEnabled === false;
@@ -353,6 +353,15 @@ export function initMenu({ bridge, store }) {
       state.filePath = path;
       state.dirty = false;
     });
+  }
+
+  async function revealProject() {
+    const path = store.state.filePath;
+    if (!path) {
+      return;
+    }
+
+    await bridge.call("fs.reveal", { path });
   }
 
   topMenu.addEventListener("click", onClick);
