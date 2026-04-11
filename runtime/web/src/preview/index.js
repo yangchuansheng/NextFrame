@@ -14,7 +14,7 @@ const DEFAULT_TIMELINE = {
 
 const MOUNT_STATE = Symbol("nextframe.preview.mountState");
 
-export function mountPreview(container, { engine, store } = {}) {
+export function mountPreview(container, { engine, store, audioMixer: providedAudioMixer } = {}) {
   if (!(container instanceof HTMLElement)) {
     throw new TypeError("mountPreview(container, options) requires a container element");
   }
@@ -36,7 +36,7 @@ export function mountPreview(container, { engine, store } = {}) {
     renderAt: typeof engine?.renderAt === "function" ? engine.renderAt : defaultRenderAt,
     setupDPR: typeof engine?.setupDPR === "function" ? engine.setupDPR : defaultSetupDPR,
   };
-  const audioMixer = createMixer({
+  const audioMixer = providedAudioMixer ?? createMixer({
     getAudioContext,
     getState: () => store?.state ?? null,
   });
@@ -160,6 +160,7 @@ export function mountPreview(container, { engine, store } = {}) {
   syncLoopState(lastSnapshot.playing);
 
   const api = {
+    audioMixer,
     canvas,
     get ctx() {
       return ctx;
@@ -257,6 +258,24 @@ function readFiniteNumber(value) {
 
 function advancePlayhead(store, currentTime, dt, timeline) {
   const duration = readFiniteNumber(timeline?.duration);
+  const loopEnabled = store?.state?.loop !== false;
+
+  if (!loopEnabled) {
+    const nextTime = Math.min(Math.max(currentTime + dt, 0), duration);
+    const reachedEnd = duration > 0 && nextTime >= duration;
+
+    if (store && typeof store.mutate === "function" && (nextTime !== currentTime || (reachedEnd && store.state.playing))) {
+      store.mutate((state) => {
+        state.playhead = nextTime;
+        if (reachedEnd) {
+          state.playing = false;
+        }
+      });
+    }
+
+    return nextTime;
+  }
+
   const nextTime = wrapTime(currentTime + dt, duration);
 
   if (store && typeof store.mutate === "function" && nextTime !== currentTime) {
