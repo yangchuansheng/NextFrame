@@ -64,6 +64,7 @@ function createInitialState() {
     scrubbing: false,
     snapEnabled: true,
     showSafeArea: false,
+    showPerf: false,
     project: { ...DEFAULT_PROJECT },
     timeline: createDefaultTimeline(),
     filePath: null,
@@ -116,6 +117,12 @@ function cloneValue(value) {
 
 function cloneState(state) {
   return cloneValue(state);
+}
+
+function cloneTopLevelState(state) {
+  return {
+    ...state,
+  };
 }
 
 function sortClips(clips) {
@@ -266,6 +273,24 @@ export const store = {
     if (!dirtyAssigned && this.state.timeline !== prevTimeline && this.state.dirty === prevDirty) {
       this.state.dirty = true;
     }
+
+    for (const listener of this.listeners) {
+      listener(this.state, previousState);
+    }
+
+    return this.state;
+  },
+  updatePlaybackState(playhead, { playing = this.state.playing } = {}) {
+    const nextPlayhead = typeof playhead === "number" && Number.isFinite(playhead) ? playhead : 0;
+    const nextPlaying = Boolean(playing);
+
+    if (nextPlayhead === this.state.playhead && nextPlaying === this.state.playing) {
+      return this.state;
+    }
+
+    const previousState = cloneTopLevelState(this.state);
+    this.state.playhead = nextPlayhead;
+    this.state.playing = nextPlaying;
 
     for (const listener of this.listeners) {
       listener(this.state, previousState);
