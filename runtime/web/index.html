@@ -442,13 +442,15 @@
         align-items: center;
         justify-content: center;
         padding: 8px;
+        container-type: size;
       }
 
       #preview-stage {
         position: relative;
-        width: 100%;
+        width: min(100cqw, calc(100cqh * 16 / 9));
+        height: min(100cqh, calc(100cqw * 9 / 16));
         max-width: 100%;
-        aspect-ratio: 16 / 9;
+        max-height: 100%;
         border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.06);
         background:
@@ -1204,7 +1206,39 @@
           <div class="timeline-body">
             <div class="timeline-ruler">
               <div class="timeline-ruler-label">Ruler</div>
-              <div class="ruler-scale" id="ruler-scale" aria-label="Timeline ruler"></div>
+              <div class="ruler-scale" aria-label="Timeline ruler">
+                <div class="tick"><span>0s</span></div>
+                <div class="tick"><span>1s</span></div>
+                <div class="tick"><span>2s</span></div>
+                <div class="tick"><span>3s</span></div>
+                <div class="tick"><span>4s</span></div>
+                <div class="tick"><span>5s</span></div>
+                <div class="tick"><span>6s</span></div>
+                <div class="tick"><span>7s</span></div>
+                <div class="tick"><span>8s</span></div>
+                <div class="tick"><span>9s</span></div>
+                <div class="tick"><span>10s</span></div>
+                <div class="tick"><span>11s</span></div>
+                <div class="tick"><span>12s</span></div>
+                <div class="tick"><span>13s</span></div>
+                <div class="tick"><span>14s</span></div>
+                <div class="tick"><span>15s</span></div>
+                <div class="tick"><span>16s</span></div>
+                <div class="tick"><span>17s</span></div>
+                <div class="tick"><span>18s</span></div>
+                <div class="tick"><span>19s</span></div>
+                <div class="tick"><span>20s</span></div>
+                <div class="tick"><span>21s</span></div>
+                <div class="tick"><span>22s</span></div>
+                <div class="tick"><span>23s</span></div>
+                <div class="tick"><span>24s</span></div>
+                <div class="tick"><span>25s</span></div>
+                <div class="tick"><span>26s</span></div>
+                <div class="tick"><span>27s</span></div>
+                <div class="tick"><span>28s</span></div>
+                <div class="tick"><span>29s</span></div>
+                <div class="tick"><span>30s</span></div>
+              </div>
             </div>
             <div class="timeline-tracks">
               <div class="track-row">
@@ -1253,9 +1287,17 @@
                 </div>
                 <div class="track-lane">
                   <div class="playhead"></div>
-                  <div class="clip audio" style="left: 2%; width: 88%;">
-                    <span class="clip-title">Ambient Bed + Voiceover</span>
-                    <span class="clip-length">00:30</span>
+                  <div class="clip audio" style="left: 2%; width: 33%;">
+                    <span class="clip-title">Ambient Bed</span>
+                    <span class="clip-length">00:09</span>
+                  </div>
+                  <div class="clip audio" style="left: 37%; width: 26%;">
+                    <span class="clip-title">Voiceover</span>
+                    <span class="clip-length">00:08</span>
+                  </div>
+                  <div class="clip audio" style="left: 66%; width: 22%;">
+                    <span class="clip-title">SFX Lift</span>
+                    <span class="clip-length">00:06</span>
                   </div>
                 </div>
               </div>
@@ -1266,148 +1308,32 @@
     </div>
 
     <script>
-      (function () {
-        const state = {
-          left: 240,
-          right: 280,
-          bottom: 240,
-        };
-
-        const limits = {
-          left: { min: 180, max: 400 },
-          right: { min: 220, max: 420 },
-          bottom: { min: 180, max: 480 },
-          centerMin: 480,
-          topMin: 280,
-        };
-
-        const elements = {
-          left: document.getElementById("left-library"),
-          right: document.getElementById("right-inspector"),
-          bottom: document.getElementById("bottom-timeline"),
-          topRow: document.getElementById("top-row"),
-          workspace: document.getElementById("workspace"),
-          previewSlot: document.getElementById("preview-stage-slot"),
-          previewStage: document.getElementById("preview-stage"),
-          splitters: Array.from(document.querySelectorAll(".splitter")),
-          rulerScale: document.getElementById("ruler-scale"),
-        };
-
-        function clamp(value, min, max) {
-          return Math.min(Math.max(value, min), max);
-        }
-
-        function resolveMax(minimum, computed, absolute) {
-          return Math.max(minimum, Math.min(absolute, computed));
-        }
-
-        function buildRuler() {
-          if (!elements.rulerScale) {
-            return;
-          }
-
-          const marks = [];
-          for (let second = 0; second <= 30; second += 1) {
-            marks.push('<div class="tick"><span>' + second + "s</span></div>");
-          }
-          elements.rulerScale.innerHTML = marks.join("");
-        }
-
-        function applySizes() {
-          elements.left.style.flexBasis = state.left + "px";
-          elements.right.style.flexBasis = state.right + "px";
-          elements.bottom.style.flexBasis = state.bottom + "px";
-          layoutPreview();
-        }
-
-        function layoutPreview() {
-          const slot = elements.previewSlot;
-          const stage = elements.previewStage;
-
-          if (!slot || !stage) {
-            return;
-          }
-
-          const availableWidth = Math.max(slot.clientWidth - 16, 0);
-          const availableHeight = Math.max(slot.clientHeight - 16, 0);
-          const ratio = 16 / 9;
-          let width = availableWidth;
-          let height = width / ratio;
-
-          if (height > availableHeight) {
-            height = availableHeight;
-            width = height * ratio;
-          }
-
-          stage.style.width = Math.max(0, Math.floor(width)) + "px";
-          stage.style.height = Math.max(0, Math.floor(height)) + "px";
-        }
-
-        function bindSplitter(splitter) {
-          splitter.addEventListener("pointerdown", function (event) {
-            const mode = splitter.dataset.resize;
-            splitter.classList.add("active");
-            document.body.classList.add("dragging");
-
-            function handleMove(moveEvent) {
-              const topBounds = elements.topRow.getBoundingClientRect();
-              const workspaceBounds = elements.workspace.getBoundingClientRect();
-              const splitterAllowance = elements.splitters.filter(function (item) {
-                return item.classList.contains("splitter-col");
-              }).length * splitter.offsetWidth;
-
-              if (mode === "left") {
-                const maxByCenter = resolveMax(
-                  limits.left.min,
-                  topBounds.width - state.right - limits.centerMin - splitterAllowance,
-                  limits.left.max
-                );
-                const desired = moveEvent.clientX - topBounds.left - splitter.offsetWidth / 2;
-                state.left = clamp(desired, limits.left.min, maxByCenter);
-              } else if (mode === "right") {
-                const maxByCenter = resolveMax(
-                  limits.right.min,
-                  topBounds.width - state.left - limits.centerMin - splitterAllowance,
-                  limits.right.max
-                );
-                const desired = topBounds.right - moveEvent.clientX - splitter.offsetWidth / 2;
-                state.right = clamp(desired, limits.right.min, maxByCenter);
-              } else if (mode === "bottom") {
-                const desired = workspaceBounds.bottom - moveEvent.clientY - splitter.offsetHeight / 2;
-                const maxByTop = resolveMax(
-                  limits.bottom.min,
-                  workspaceBounds.height - limits.topMin - splitter.offsetHeight,
-                  limits.bottom.max
-                );
-                state.bottom = clamp(desired, limits.bottom.min, maxByTop);
-              }
-
-              applySizes();
-            }
-
-            function handleUp() {
-              splitter.classList.remove("active");
-              document.body.classList.remove("dragging");
-              window.removeEventListener("pointermove", handleMove);
-              window.removeEventListener("pointerup", handleUp);
-            }
-
-            window.addEventListener("pointermove", handleMove);
-            window.addEventListener("pointerup", handleUp);
-            event.preventDefault();
-          });
-        }
-
-        buildRuler();
-        elements.splitters.forEach(bindSplitter);
-        applySizes();
-        window.addEventListener("resize", layoutPreview);
-
-        if (window.ResizeObserver) {
-          const observer = new ResizeObserver(layoutPreview);
-          observer.observe(elements.previewSlot);
-          observer.observe(elements.workspace);
-        }
+      (() => {
+        const $ = (id) => document.getElementById(id), s = [...document.querySelectorAll(".splitter")];
+        const pane = { left: $("left-library"), right: $("right-inspector"), bottom: $("bottom-timeline") };
+        const top = $("top-row"), work = $("workspace"), range = { left: [180, 400], right: [220, 420], bottom: [180, 480] };
+        const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+        let drag = "";
+        s.forEach((el) => el.addEventListener("mousedown", (e) => {
+          drag = el.dataset.resize;
+          el.classList.add("active");
+          document.body.classList.add("dragging");
+          e.preventDefault();
+        }));
+        window.addEventListener("mousemove", (e) => {
+          if (!drag) return;
+          const tr = top.getBoundingClientRect(), wr = work.getBoundingClientRect(), gap = 20;
+          const left = parseFloat(getComputedStyle(pane.left).flexBasis), right = parseFloat(getComputedStyle(pane.right).flexBasis);
+          if (drag === "left") pane.left.style.flexBasis = clamp(e.clientX - tr.left - 5, range.left[0], Math.max(range.left[0], Math.min(range.left[1], tr.width - right - 480 - gap))) + "px";
+          if (drag === "right") pane.right.style.flexBasis = clamp(tr.right - e.clientX - 5, range.right[0], Math.max(range.right[0], Math.min(range.right[1], tr.width - left - 480 - gap))) + "px";
+          if (drag === "bottom") pane.bottom.style.flexBasis = clamp(wr.bottom - e.clientY - 5, range.bottom[0], Math.max(range.bottom[0], Math.min(range.bottom[1], wr.height - 280 - 10))) + "px";
+        });
+        window.addEventListener("mouseup", () => {
+          if (!drag) return;
+          s.forEach((el) => el.classList.remove("active"));
+          document.body.classList.remove("dragging");
+          drag = "";
+        });
       })();
     </script>
   </body>
