@@ -6,6 +6,7 @@ import { fluidBackground } from "./fluidBackground.js";
 import { imageHero } from "./imageHero.js";
 import { kineticHeadline } from "./kineticHeadline.js";
 import { lineChart } from "./lineChart.js";
+import { meshGrid } from "./meshGrid.js";
 import { neonGrid } from "./neonGrid.js";
 import { barChartReveal } from "./barChartReveal.js";
 import { lowerThirdVelvet } from "./lowerThirdVelvet.js";
@@ -116,6 +117,23 @@ const SCENE_REGISTRY = [
       scrollSpeed: { type: "number", default: 0.4, min: 0, max: 2 },
       lineCount: { type: "integer", default: 16, min: 8, max: 32 },
       colCount: { type: "integer", default: 22, min: 8, max: 48 },
+    },
+  },
+  {
+    id: "meshGrid",
+    fn: meshGrid,
+    name: "Mesh Grid",
+    category: "Shapes & Layout",
+    duration_hint: "5-30s",
+    params: {
+      cols: { type: "integer", default: 20, min: 6, max: 40 },
+      rows: { type: "integer", default: 14, min: 4, max: 28 },
+      hueA: { type: "number", default: 200, min: 0, max: 360, ui: "hue" },
+      hueB: { type: "number", default: 320, min: 0, max: 360, ui: "hue" },
+      waveSpeed: { type: "number", default: 0.7, min: 0, max: 3 },
+      waveAmp: { type: "number", default: 0.18, min: 0, max: 0.4 },
+      perspective: { type: "number", default: 0.45, min: 0, max: 1 },
+      lineWidth: { type: "number", default: 1.4, min: 0.5, max: 4, unit: "px" },
     },
   },
   {
