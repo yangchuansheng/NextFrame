@@ -631,6 +631,16 @@ export function setClipFieldCommand({ clipId, trackId = null, field, value }) {
   };
 }
 
+export function setClipParamCommand({ clipId, trackId = null, param, value }) {
+  return {
+    type: "setClipParam",
+    clipId,
+    trackId,
+    param,
+    value,
+  };
+}
+
 export function randomizeParamsCommand({ clipId, trackId = null, newParams }) {
   return {
     type: "randomizeParams",

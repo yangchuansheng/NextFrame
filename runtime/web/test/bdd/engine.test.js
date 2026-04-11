@@ -4,11 +4,12 @@ import {
   moveClipCommand,
   randomizeParamsCommand,
   setClipFieldCommand,
+  setClipParamCommand,
   setProjectAspectPresetCommand,
   setTrackFlagCommand,
 } from "../../src/commands.js";
 import { createMixer } from "../../src/audio/mixer.js";
-import { registerScene, renderAt, SCENES, validateTimeline } from "../../src/engine/index.js";
+import { evalParam, registerScene, renderAt, SCENES, validateTimeline } from "../../src/engine/index.js";
 import { DEFAULT_LOOP_REGION } from "../../src/loop-region.js";
 import { SCENE_MANIFEST } from "../../src/scenes/index.js";
 import { createDefaultTimeline, store } from "../../src/store.js";
@@ -475,6 +476,70 @@ describe("BDD critical scenarios", () => {
     dispatcher.redo();
     clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-randomize");
     expect(clip.params).toEqual(randomizedParams);
+  });
+
+  it("CLIP-04A setClipParam updates nested params with undo", () => {
+    const timeline = createDefaultTimeline();
+    findTrack(timeline, "v1").clips.push(
+      createClip({
+        id: "clip-keyframed-param",
+        params: {
+          opacity: 0.3,
+        },
+      }),
+    );
+
+    const localStore = createLocalStore(timeline);
+    const dispatcher = createDispatcher(localStore);
+    const keyframedOpacity = {
+      type: "keyframes",
+      keyframes: [
+        { time: 0, value: 0.3, ease: "linear" },
+        { time: 2, value: 0.8, ease: "linear" },
+      ],
+    };
+
+    dispatcher.dispatch(setClipParamCommand({
+      clipId: "clip-keyframed-param",
+      param: "opacity",
+      value: keyframedOpacity,
+    }));
+
+    let clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-keyframed-param");
+    expect(clip.params.opacity).toEqual(keyframedOpacity);
+
+    dispatcher.undo();
+    clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-keyframed-param");
+    expect(clip.params.opacity).toBe(0.3);
+
+    dispatcher.redo();
+    clip = findTrack(localStore.state.timeline, "v1").clips.find((candidate) => candidate.id === "clip-keyframed-param");
+    expect(clip.params.opacity).toEqual(keyframedOpacity);
+  });
+
+  it("ENGINE-01 evalParam returns literals unchanged and linearly interpolates keyframes", () => {
+    expect(evalParam(0.5, 1.25)).toBe(0.5);
+    expect(evalParam({
+      type: "keyframes",
+      keyframes: [
+        { time: 0, value: 0.3, ease: "linear" },
+        { time: 2, value: 0.7, ease: "linear" },
+      ],
+    }, -1)).toBe(0.3);
+    expect(evalParam({
+      type: "keyframes",
+      keyframes: [
+        { time: 0, value: 0.3, ease: "linear" },
+        { time: 2, value: 0.7, ease: "linear" },
+      ],
+    }, 1)).toBe(0.5);
+    expect(evalParam({
+      type: "keyframes",
+      keyframes: [
+        { time: 0, value: 0.3, ease: "linear" },
+        { time: 2, value: 0.7, ease: "linear" },
+      ],
+    }, 4)).toBe(0.7);
   });
 
   it("TRACK-01 setTrackFlagCommand updates track flags with undo/redo", () => {

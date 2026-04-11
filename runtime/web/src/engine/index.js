@@ -1,4 +1,5 @@
 import { hasSoloTrack, shouldRenderTrack } from "../track-flags.js";
+export { evalParam } from "./keyframes.js";
 
 const DEFAULT_BACKGROUND = "#0b0b14";
 const DPR_STATE = Symbol("nextframe.engine.dprState");

@@ -1,7 +1,14 @@
-import { randomizeParamsCommand, setClipFieldCommand, setProjectAspectPresetCommand } from "../../commands.js";
+import {
+  randomizeParamsCommand,
+  setClipFieldCommand,
+  setClipParamCommand,
+  setProjectAspectPresetCommand,
+} from "../../commands.js";
+import { evalParam } from "../../engine/index.js";
 import { ASPECT_PRESETS, createProjectFromPreset, findAspectPresetForProject } from "../../project/presets.js";
 import { SCENE_MANIFEST_BY_ID } from "../../scenes/index.js";
 import { renderField } from "./field.js";
+import { renderKeyframeEditor } from "./keyframes.js";
 import {
   createClipOrganizeSection,
   createInspectorSection,
@@ -93,6 +100,84 @@ function coerceParamValue(rawValue, param, previousValue) {
   return String(rawValue);
 }
 
+function isKeyframesParam(value) {
+  return Boolean(value && value.type === "keyframes" && Array.isArray(value.keyframes));
+}
+
+function isNumericParam(param, fieldType = getFieldType(param)) {
+  return (
+    fieldType === "range"
+    || fieldType === "number"
+    || Array.isArray(param?.range)
+  );
+}
+
+function getClipDuration(clip) {
+  const duration = Number(clip?.dur ?? clip?.duration);
+  return Number.isFinite(duration) && duration > 0 ? duration : 0;
+}
+
+function roundKeyframeTime(value) {
+  return Number((Math.max(0, value) || 0).toFixed(4));
+}
+
+function getClipLocalPlayhead(state, clip) {
+  const clipDuration = getClipDuration(clip);
+  const localTime = (Number(state?.playhead) || 0) - (Number(clip?.start) || 0);
+  return roundKeyframeTime(Math.min(Math.max(localTime, 0), clipDuration));
+}
+
+function normalizeKeyframesParam(value, clipDuration) {
+  return (Array.isArray(value?.keyframes) ? value.keyframes : [])
+    .filter((keyframe) => Number.isFinite(keyframe?.time))
+    .map((keyframe) => ({
+      time: roundKeyframeTime(Math.min(Math.max(keyframe.time, 0), clipDuration)),
+      value: keyframe?.value,
+      ease: keyframe?.ease || "linear",
+    }))
+    .sort((left, right) => left.time - right.time);
+}
+
+function upsertKeyframedNumber(paramValue, time, value, clipDuration) {
+  const nextTime = roundKeyframeTime(Math.min(Math.max(time, 0), clipDuration));
+  const keyframes = normalizeKeyframesParam(paramValue, clipDuration);
+  const existingIndex = keyframes.findIndex((keyframe) => keyframe.time === nextTime);
+
+  if (existingIndex >= 0) {
+    keyframes[existingIndex] = {
+      ...keyframes[existingIndex],
+      value,
+      ease: keyframes[existingIndex].ease || "linear",
+    };
+  } else {
+    keyframes.push({
+      time: nextTime,
+      value,
+      ease: "linear",
+    });
+  }
+
+  keyframes.sort((left, right) => left.time - right.time);
+  return {
+    type: "keyframes",
+    keyframes,
+  };
+}
+
+function getDisplayedNumericValue(paramValue, defaultValue, localT) {
+  const resolvedValue = isKeyframesParam(paramValue)
+    ? evalParam(paramValue, localT)
+    : (paramValue ?? defaultValue);
+  const numericValue = Number(resolvedValue);
+
+  if (Number.isFinite(numericValue)) {
+    return numericValue;
+  }
+
+  const fallback = Number(defaultValue);
+  return Number.isFinite(fallback) ? fallback : 0;
+}
+
 function updateSelectedClip(store, recipe) {
   store?.mutate((state) => {
     const tracks = Array.isArray(state?.timeline?.tracks) ? state.timeline.tracks : [];
@@ -132,6 +217,35 @@ function updateSelectedClipField(store, field, value) {
     }
 
     draftClip[field] = value;
+  });
+}
+
+function updateSelectedClipParam(store, param, value) {
+  const clipId = store?.state?.selectedClipId;
+  if (typeof clipId !== "string" || clipId.length === 0) {
+    return;
+  }
+
+  if (typeof store?.dispatch === "function") {
+    store.dispatch(setClipParamCommand({
+      clipId,
+      param,
+      value,
+    }));
+    return;
+  }
+
+  updateSelectedClip(store, (draftClip) => {
+    if (!draftClip.params || typeof draftClip.params !== "object") {
+      draftClip.params = {};
+    }
+
+    if (value === undefined) {
+      delete draftClip.params[param];
+      return;
+    }
+
+    draftClip.params[param] = value;
   });
 }
 
@@ -303,6 +417,7 @@ export function mountInspector(container, { store } = {}) {
   let lastSelectedClipId = store?.state?.selectedClipId ?? null;
   let lastTimelineRef = store?.state?.timeline;
   let lastProjectRef = store?.state?.project;
+  let expandedKeyframeParam = null;
 
   function renderEmptyState() {
     status.textContent = "Project";
@@ -341,6 +456,7 @@ export function mountInspector(container, { store } = {}) {
     const { clip, track } = selection;
     const scene = SCENE_MANIFEST_BY_ID.get(clip.scene);
     const asset = findAssetById(store?.state, clip.assetId);
+    const localPlayhead = getClipLocalPlayhead(store?.state, clip);
     status.textContent = clip.name || scene?.name || asset?.name || clip.scene || clip.assetId || clip.id;
     body.replaceChildren();
 
@@ -387,13 +503,29 @@ export function mountInspector(container, { store } = {}) {
     );
 
     if (scene) {
+      if (expandedKeyframeParam && !Object.prototype.hasOwnProperty.call(scene.params || {}, expandedKeyframeParam)) {
+        expandedKeyframeParam = null;
+      }
+
       const sceneSection = createInspectorSection("Scene", "Schema-driven scene controls");
       sceneSection.body.appendChild(createReadonlyRow("Scene Name", scene.name || clip.scene || "Unknown scene"));
 
       Object.entries(scene.params || {}).forEach(([paramName, param]) => {
-        const currentValue = clip?.params?.[paramName] ?? param.default;
+        const paramValue = clip?.params?.[paramName];
         const [min, max] = Array.isArray(param.range) ? param.range : [param.min, param.max];
         const fieldType = getFieldType(param);
+        const numericParam = isNumericParam(param, fieldType);
+        const currentValue = numericParam
+          ? getDisplayedNumericValue(paramValue, param.default, localPlayhead)
+          : (paramValue ?? param.default);
+        const details = numericParam && expandedKeyframeParam === paramName
+          ? renderKeyframeEditor({
+              paramName,
+              currentValue,
+              store,
+              dispatch: typeof store?.dispatch === "function" ? store.dispatch.bind(store) : null,
+            })
+          : null;
 
         sceneSection.body.appendChild(renderField({
           label: paramName,
@@ -405,17 +537,38 @@ export function mountInspector(container, { store } = {}) {
           step: getParamStep(param),
           options: param.options || [],
           description: param.description,
+          inlineAction: numericParam ? {
+            label: "♦",
+            title: isKeyframesParam(paramValue)
+              ? `Edit ${paramName} keyframes`
+              : `Open ${paramName} keyframe editor`,
+            pressed: isKeyframesParam(paramValue) || expandedKeyframeParam === paramName,
+            onClick: () => {
+              expandedKeyframeParam = expandedKeyframeParam === paramName ? null : paramName;
+              renderSelection();
+            },
+          } : null,
+          details,
           onChange: (nextValue, rawValue) => {
-            updateSelectedClip(store, (draftClip) => {
-              if (!draftClip.params || typeof draftClip.params !== "object") {
-                draftClip.params = {};
-              }
+            if (numericParam && isKeyframesParam(paramValue)) {
+              const coerced = coerceParamValue(nextValue, param, currentValue);
+              const nextNumber = clampToRange(Number(coerced), param);
+              updateSelectedClipParam(
+                store,
+                paramName,
+                upsertKeyframedNumber(paramValue, localPlayhead, nextNumber, getClipDuration(clip)),
+              );
+              return;
+            }
 
-              const coerced = coerceParamValue(fieldType === "text" ? rawValue : nextValue, param, draftClip.params[paramName]);
-              draftClip.params[paramName] = typeof coerced === "number"
+            const coerced = coerceParamValue(fieldType === "text" ? rawValue : nextValue, param, paramValue);
+            updateSelectedClipParam(
+              store,
+              paramName,
+              typeof coerced === "number"
                 ? clampToRange(coerced, param)
-                : coerced;
-            });
+                : coerced,
+            );
           },
         }));
       });
