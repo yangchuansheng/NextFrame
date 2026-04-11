@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NEXUS TRADING · 2026 Q2 LIVE</title>
+<style>
+:root {
+  --bg-0: #05070a;
+  --bg-1: #0a0e14;
+  --bg-2: #0f141c;
+  --panel: #0c1119;
+  --panel-2: #0a0f17;
+  --border: #1a2230;
+  --border-hi: #253243;
+  --grid: #121926;
+  --text: #d6e2f2;
+  --text-dim: #6b7a91;
+  --text-mid: #8a9bb5;
+  --label: #4e5e78;
+  --cyan: #00e5ff;
+  --cyan-dim: #0097a7;
+  --mint: #5eead4;
+  --green: #10f59a;
+  --green-dim: #0a8f5c;
+  --red: #ff3b5c;
+  --red-dim: #8a1a2a;
+  --amber: #ffb347;
+  --gold: #ffd166;
+  --violet: #8b7dff;
+  --blue: #4ba3ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  width: 100%;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
+  font-size: 12px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 1200px 600px at 20% -10%, rgba(0, 229, 255, 0.045), transparent 60%),
+    radial-gradient(ellipse 900px 500px at 85% 110%, rgba(139, 125, 255, 0.035), transparent 60%),
+    linear-gradient(180deg, #05070a 0%, #04060a 100%);
+  padding: 14px;
+}
+
+/* scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+}
+/* vignette */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+  pointer-events: none;
+  z-index: 9998;
+}
+
+.screen {
+  width: 100%;
+  height: calc(100vh - 28px);
+  display: grid;
+  grid-template-rows: 44px 1fr 28px;
+  gap: 10px;
+}
+
+/* ================= HEADER ================= */
+.header {
+  display: grid;
+  grid-template-columns: 280px 1fr 420px;
+  align-items: center;
+  padding: 0 16px;
+  background: linear-gradient(180deg, rgba(10,15,23,0.95), rgba(6,9,13,0.95));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.03), transparent);
+  pointer-events: none;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 26px;
+  height: 26px;
+  position: relative;
+}
+.logo-mark svg { display: block; }
+.logo-text {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: var(--text);
+}
+.logo-text span { color: var(--cyan); }
+.logo-sub {
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--label);
+  margin-top: 1px;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.hc-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+.hc-item .v { color: var(--text); font-weight: 600; }
+.hc-item .tag-up { color: var(--green); }
+.hc-item .tag-down { color: var(--red); }
+.sep { width: 1px; height: 14px; background: var(--border-hi); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green), 0 0 2px var(--green);
+  animation: pulse 1.8s infinite;
+}
+.status-dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.clock {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+}
+
+/* ================= MAIN GRID ================= */
+.main {
+  display: grid;
+  grid-template-columns: 1.25fr 2.2fr 1.1fr;
+  grid-template-rows: 1.35fr 1fr;
+  gap: 10px;
+  min-height: 0;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(12,17,25,0.92), rgba(8,12,18,0.92));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.4), transparent);
+  pointer-events: none;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--text);
+}
+.panel-title .ic {
+  width: 12px;
+  height: 12px;
+  color: var(--cyan);
+}
+.panel-title .idx {
+  color: var(--label);
+  font-weight: 500;
+}
+.panel-meta {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-meta .live {
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.panel-meta .live::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 1.4s infinite;
+}
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 12px;
+  position: relative;
+}
+
+/* ---------- Panel: KPI stats ---------- */
+.panel-kpi { grid-row: 1; grid-column: 1; }
+.kpi-body {
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+}
+.kpi-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(255,255,255,0.015);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--cyan);
+  opacity: 0.6;
+}
+.kpi-row.up::before { background: var(--green); }
+.kpi-row.down::before { background: var(--red); }
+.kpi-row.warn::before { background: var(--amber); }
+.kpi-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.14em;
+  margin-bottom: 3px;
+}
+.kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.kpi-value .unit { font-size: 11px; color: var(--text-dim); font-weight: 500; margin-left: 3px; }
+.kpi-delta {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.kpi-delta.up { color: var(--green); background: rgba(16, 245, 154, 0.08); }
+.kpi-delta.down { color: var(--red); background: rgba(255, 59, 92, 0.08); }
+.kpi-delta .tri { font-size: 8px; }
+.kpi-spark {
+  position: absolute;
+  bottom: 0;
+  right: 60px;
+  width: 90px;
+  height: 22px;
+  opacity: 0.55;
+}
+
+/* ---------- Panel: Chart ---------- */
+.panel-chart { grid-row: 1; grid-column: 2; }
+.chart-head-stats {
+  display: flex;
+  gap: 18px;
+  padding: 10px 14px 4px;
+  flex-shrink: 0;
+}
+.chart-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chart-stat .l {
+  font-size: 9px;
+  color: var(--label);
+  letter-spacing: 0.14em;
+}
+.chart-stat .v {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.chart-stat.big .v { font-size: 22px; color: var(--cyan); text-shadow: 0 0 12px rgba(0, 229, 255, 0.35); }
+.chart-stat.up .v { color: var(--green); }
+.chart-stat.down .v { color: var(--red); }
+.chart-svg {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+/* ---------- Panel: Orderbook / side right top ---------- */
+.panel-book { grid-row: 1; grid-column: 3; }
+.book-body {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  height: 100%;
+}
+.book-col-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 6px 12px;
+  font-size: 8px;
+  color: var(--label);
+  letter-spacing: 0.14em;
+  border-bottom: 1px solid var(--border);
+}
+.book-col-head div:nth-child(2) { text-align: right; }
+.book-col-head div:nth-child(3) { text-align: right; }
+.book-rows {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.book-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 2.5px 12px;
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+.book-row::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  background: currentColor;
+  opacity: 0.08;
+  width: var(--w, 0%);
+  pointer-events: none;
+}
+.book-row.ask { color: var(--red); }
+.book-row.bid { color: var(--green); }
+.book-row div:nth-child(2) { text-align: right; color: var(--text-mid); }
+.book-row div:nth-child(3) { text-align: right; color: var(--text-dim); }
+.book-spread {
+  padding: 4px 12px;
+  text-align: center;
+  font-size: 9px;
+  color: var(--text-dim);
+  background: rgba(0, 229, 255, 0.04);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.1em;
+}
+.book-spread span { color: var(--cyan); font-weight: 600; }
+
+/* ---------- Panel: Bars ---------- */
+.panel-bars { grid-row: 2; grid-column: 1; }
+.bars-body {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 6px;
+  gap: 8px;
+  height: 100%;
+}
+.bars-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+}
+.bars-stats span:last-child { color: var(--cyan); }
+.bars-svg { flex: 1; width: 100%; }
+
+/* ---------- Panel: Heatmap + sparklines ---------- */
+.panel-heat { grid-row: 2; grid-column: 2; }
+.heat-wrap {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  min-height: 0;
+}
+.heat-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.heat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+}
+.heat-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 2px;
+  min-height: 0;
+}
+.heat-cell {
+  background: rgba(0, 229, 255, 0.06);
+  border-radius: 1px;
+  position: relative;
+  transition: background 0.5s ease, box-shadow 0.5s ease;
+}
+.spark-body {
+  padding: 8px 12px 8px 4px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+.spark-item {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 70px 1fr 60px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  border-bottom: 1px dashed var(--border);
+  min-height: 0;
+}
+.spark-item:last-child { border-bottom: none; }
+.spark-item .sym {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.06em;
+}
+.spark-item .sym small {
+  display: block;
+  font-size: 8px;
+  color: var(--label);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+.spark-item svg { width: 100%; height: 100%; min-height: 0; }
+.spark-item .val {
+  font-size: 10px;
+  text-align: right;
+  font-weight: 600;
+}
+.spark-item .val.up { color: var(--green); }
+.spark-item .val.down { color: var(--red); }
+.spark-item .val small {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+/* ---------- Panel: Logs ---------- */
+.panel-log { grid-row: 2; grid-column: 3; }
+.log-body {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 10px;
+  line-height: 1.55;
+  overflow: hidden;
+  position: relative;
+}
+.log-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.log-line {
+  display: grid;
+  grid-template-columns: 52px 44px 1fr;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  animation: logIn 0.35s ease-out;
+  padding: 1px 0;
+}
+@keyframes logIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.log-line .t { color: var(--label); font-size: 9px; }
+.log-line .lv {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 3px;
+  border-radius: 1px;
+  text-align: center;
+  height: fit-content;
+  margin-top: 1px;
+}
+.log-line .lv.ok { color: var(--green); background: rgba(16, 245, 154, 0.08); }
+.log-line .lv.inf { color: var(--cyan); background: rgba(0, 229, 255, 0.08); }
+.log-line .lv.wrn { color: var(--amber); background: rgba(255, 179, 71, 0.1); }
+.log-line .lv.err { color: var(--red); background: rgba(255, 59, 92, 0.12); }
+.log-line .msg { color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; }
+.log-line .msg b { color: var(--text); font-weight: 600; }
+.log-line .msg .num { color: var(--cyan); }
+
+/* ---------- Panel: Status LEDs (overlay inside log head maybe) ---------- */
+.panel-head .leds {
+  display: flex;
+  gap: 5px;
+  margin-left: 10px;
+}
+.led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 5px var(--green);
+  animation: pulse 2.4s infinite;
+}
+.led.red { background: var(--red); box-shadow: 0 0 5px var(--red); animation: pulse 0.8s infinite; }
+.led.amber { background: var(--amber); box-shadow: 0 0 5px var(--amber); }
+.led.blue { background: var(--blue); box-shadow: 0 0 5px var(--blue); animation: pulse 3s infinite; }
+
+/* ================= TICKER ================= */
+.ticker {
+  background: linear-gradient(180deg, rgba(12,17,25,0.95), rgba(8,12,18,0.95));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ticker-label {
+  flex-shrink: 0;
+  padding: 0 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--bg-0);
+  background: var(--cyan);
+  font-weight: 700;
+  box-shadow: 2px 0 12px rgba(0, 229, 255, 0.4);
+}
+.ticker-track-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.ticker-track-wrap::before,
+.ticker-track-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 40px;
+  z-index: 2;
+  pointer-events: none;
+}
+.ticker-track-wrap::before { left: 0; background: linear-gradient(90deg, var(--panel), transparent); }
+.ticker-track-wrap::after { right: 0; background: linear-gradient(-90deg, var(--panel), transparent); }
+.ticker-track {
+  display: flex;
+  gap: 28px;
+  padding: 0 20px;
+  white-space: nowrap;
+  animation: tickerScroll 60s linear infinite;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.tk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+.tk b { color: var(--text); font-weight: 700; letter-spacing: 0.08em; }
+.tk .up { color: var(--green); }
+.tk .down { color: var(--red); }
+
+/* subtle number flash */
+.flash {
+  animation: flash 0.35s ease-out;
+}
+@keyframes flash {
+  0% { background: rgba(0, 229, 255, 0.25); }
+  100% { background: transparent; }
+}
+.flash-up { animation: flashUp 0.5s ease-out; }
+.flash-down { animation: flashDown 0.5s ease-out; }
+@keyframes flashUp {
+  0% { color: var(--green); text-shadow: 0 0 12px var(--green); }
+  100% { }
+}
+@keyframes flashDown {
+  0% { color: var(--red); text-shadow: 0 0 12px var(--red); }
+  100% { }
+}
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <!-- ================= HEADER ================= -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 26 26" width="26" height="26">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#00e5ff"/>
+              <stop offset="1" stop-color="#8b7dff"/>
+            </linearGradient>
+          </defs>
+          <path d="M 13 2 L 23 8 L 23 18 L 13 24 L 3 18 L 3 8 Z" fill="none" stroke="url(#lg)" stroke-width="1.5"/>
+          <path d="M 8 10 L 13 13 L 18 10 M 13 13 L 13 19" stroke="#00e5ff" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+          <circle cx="13" cy="13" r="1.6" fill="#00e5ff"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">NEXUS <span>//</span> TRADING</div>
+        <div class="logo-sub">Q2 2026 · LIVE TERMINAL v4.2.1</div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="hc-item"><span>NET</span><span class="v">MAINNET</span></div>
+      <div class="sep"></div>
+      <div class="hc-item"><span>LATENCY</span><span class="v" id="hLatency">12</span><span>ms</span></div>
+      <div class="sep"></div>
+      <div class="hc-item"><span>PEERS</span><span class="v" id="hPeers">1,247</span></div>
+      <div class="sep"></div>
+      <div class="hc-item"><span>TPS</span><span class="v" id="hTps">8,245</span></div>
+      <div class="sep"></div>
+      <div class="hc-item"><span>NODE</span><span class="v tag-up">SYNCED</span></div>
+    </div>
+
+    <div class="header-right">
+      <span><span class="status-dot"></span> MARKET OPEN</span>
+      <span>SESS #A-2631</span>
+      <span class="clock" id="clock">--:--:--</span>
+      <span id="hDate">UTC</span>
+    </div>
+  </div>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+
+    <!-- KPI stats -->
+    <div class="panel panel-kpi">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg class="ic" viewBox="0 0 12 12"><path d="M1 10 L4 6 L7 8 L11 2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>
+          PORTFOLIO METRICS
+          <span class="idx">/ 01</span>
+        </div>
+        <div class="panel-meta"><span class="live">LIVE</span></div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-row up">
+          <div>
+            <div class="kpi-label">TOTAL P&amp;L (24H)</div>
+            <div class="kpi-value" id="kpiPnl">+$2,847,392<span class="unit">USD</span></div>
+          </div>
+          <div class="kpi-delta up">
+            <span class="tri">▲</span>
+            <span id="kpiPnlPct">+12.48%</span>
+          </div>
+        </div>
+        <div class="kpi-row up">
+          <div>
+            <div class="kpi-label">WIN RATE</div>
+            <div class="kpi-value" id="kpiWin">74.62<span class="unit">%</span></div>
+          </div>
+          <div class="kpi-delta up">
+            <span class="tri">▲</span>
+            <span id="kpiWinPct">+0.34</span>
+          </div>
+        </div>
+        <div class="kpi-row warn">
+          <div>
+            <div class="kpi-label">SHARPE RATIO</div>
+            <div class="kpi-value" id="kpiSharpe">2.847<span class="unit">σ</span></div>
+          </div>
+          <div class="kpi-delta up">
+            <span class="tri">▲</span>
+            <span id="kpiSharpeDelta">+0.012</span>
+          </div>
+        </div>
+        <div class="kpi-row down">
+          <div>
+            <div class="kpi-label">MAX DRAWDOWN</div>
+            <div class="kpi-value" id="kpiDd">-3.12<span class="unit">%</span></div>
+          </div>
+          <div class="kpi-delta down">
+            <span class="tri">▼</span>
+            <span id="kpiDdDelta">-0.08</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main chart -->
+    <div class="panel panel-chart">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg class="ic" viewBox="0 0 12 12"><path d="M1 11 L1 1 M1 11 L11 11 M3 8 L5 5 L7 7 L10 2" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+          NXS-USD · 1M · CANDLE AGGREGATED FLOW
+          <span class="idx">/ 02</span>
+        </div>
+        <div class="panel-meta">
+          <span>INTERVAL 60s</span>
+          <span class="live">STREAMING</span>
+        </div>
+      </div>
+      <div class="chart-head-stats">
+        <div class="chart-stat big">
+          <div class="l">LAST</div>
+          <div class="v" id="chLast">47,826.41</div>
+        </div>
+        <div class="chart-stat up">
+          <div class="l">CHG</div>
+          <div class="v" id="chChg">+582.14</div>
+        </div>
+        <div class="chart-stat up">
+          <div class="l">CHG %</div>
+          <div class="v" id="chChgPct">+1.23%</div>
+        </div>
+        <div class="chart-stat">
+          <div class="l">HIGH</div>
+          <div class="v" id="chHigh">48,120.00</div>
+        </div>
+        <div class="chart-stat">
+          <div class="l">LOW</div>
+          <div class="v" id="chLow">47,091.22</div>
+        </div>
+        <div class="chart-stat">
+          <div class="l">VOL 24H</div>
+          <div class="v" id="chVol">12.3M</div>
+        </div>
+      </div>
+      <svg class="chart-svg" id="chartSvg" preserveAspectRatio="none" viewBox="0 0 800 320"></svg>
+    </div>
+
+    <!-- Orderbook -->
+    <div class="panel panel-book">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg class="ic" viewBox="0 0 12 12"><path d="M1 3 L11 3 M1 6 L11 6 M1 9 L11 9" stroke="currentColor" stroke-width="1.2"/></svg>
+          ORDER BOOK · NXS-USD
+          <span class="idx">/ 03</span>
+        </div>
+        <div class="panel-meta">
+          <div class="leds">
+            <div class="led"></div>
+            <div class="led blue"></div>
+            <div class="led amber"></div>
+          </div>
+        </div>
+      </div>
+      <div class="book-body">
+        <div class="book-col-head">
+          <div>PRICE</div>
+          <div>SIZE</div>
+          <div>TOTAL</div>
+        </div>
+        <div class="book-rows" id="bookAsks"></div>
+        <div class="book-spread">SPREAD <span id="bookSpread">0.42</span> · MID <span id="bookMid">47,826.20</span></div>
+        <div class="book-rows" id="bookBids"></div>
+      </div>
+    </div>
+
+    <!-- Bars (volume / exposure) -->
+    <div class="panel panel-bars">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg class="ic" viewBox="0 0 12 12"><path d="M2 10 L2 5 M5 10 L5 2 M8 10 L8 7 M11 10 L11 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          EXPOSURE BY SECTOR
+          <span class="idx">/ 04</span>
+        </div>
+        <div class="panel-meta"><span>RT</span></div>
+      </div>
+      <div class="bars-body">
+        <div class="bars-stats">
+          <span>NET LONG</span>
+          <span id="barsTotal">$48.2M</span>
+        </div>
+        <svg class="bars-svg" id="barsSvg" preserveAspectRatio="none" viewBox="0 0 360 180"></svg>
+      </div>
+    </div>
+
+    <!-- Heatmap + sparklines -->
+    <div class="panel panel-heat">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg class="ic" viewBox="0 0 12 12"><rect x="1" y="1" width="4" height="4" fill="currentColor" opacity="0.3"/><rect x="7" y="1" width="4" height="4" fill="currentColor" opacity="0.7"/><rect x="1" y="7" width="4" height="4" fill="currentColor" opacity="0.9"/><rect x="7" y="7" width="4" height="4" fill="currentColor" opacity="0.5"/></svg>
+          CORRELATION MATRIX &middot; TOP MOVERS
+          <span class="idx">/ 05</span>
+        </div>
+        <div class="panel-meta"><span>96 CELLS</span><span class="live">TICK</span></div>
+      </div>
+      <div class="heat-wrap">
+        <div class="heat-body">
+          <div class="heat-legend">
+            <span>BTC ETH SOL NXS AVAX DOT ARB OP SUI TIA INJ APT</span>
+            <span>|ρ| 0.0 &mdash; 1.0</span>
+          </div>
+          <div class="heat-grid" id="heatGrid"></div>
+        </div>
+        <div class="spark-body" id="sparkBody"></div>
+      </div>
+    </div>
+
+    <!-- Log stream -->
+    <div class="panel panel-log">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg class="ic" viewBox="0 0 12 12"><path d="M1 2 L5 2 M1 5 L8 5 M1 8 L6 8 M1 11 L9 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          SYSTEM LOG
+          <span class="idx">/ 06</span>
+          <div class="leds">
+            <div class="led"></div>
+            <div class="led"></div>
+            <div class="led red"></div>
+            <div class="led"></div>
+          </div>
+        </div>
+        <div class="panel-meta"><span id="logCount">0</span></div>
+      </div>
+      <div class="log-body">
+        <div class="log-list" id="logList"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= TICKER ================= -->
+  <div class="ticker">
+    <div class="ticker-label">LIVE MARKET</div>
+    <div class="ticker-track-wrap">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ============ Utilities ============
+const $ = sel => document.querySelector(sel);
+const rand = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmtNum = (n, d = 2) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtInt = n => Math.round(n).toLocaleString('en-US');
+const fmtUsd = n => {
+  const sign = n < 0 ? '-' : '+';
+  const abs = Math.abs(n);
+  return sign + '$' + abs.toLocaleString('en-US', { maximumFractionDigits: 0 });
+};
+const fmtPct = (n, d = 2) => (n >= 0 ? '+' : '') + n.toFixed(d) + '%';
+
+// ============ Clock ============
+function updateClock() {
+  const d = new Date();
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  const ss = String(d.getUTCSeconds()).padStart(2, '0');
+  $('#clock').textContent = `${hh}:${mm}:${ss}`;
+  const y = d.getUTCFullYear();
+  const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dy = String(d.getUTCDate()).padStart(2, '0');
+  $('#hDate').textContent = `${y}-${mo}-${dy} UTC`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ============ Header micro metrics ============
+let hLatency = 12, hPeers = 1247, hTps = 8245;
+setInterval(() => {
+  hLatency = clamp(hLatency + rand(-1.5, 1.5), 8, 22);
+  hPeers = clamp(hPeers + randi(-4, 5), 1180, 1320);
+  hTps = clamp(hTps + rand(-160, 180), 7400, 9200);
+  $('#hLatency').textContent = Math.round(hLatency);
+  $('#hPeers').textContent = fmtInt(hPeers);
+  $('#hTps').textContent = fmtInt(hTps);
+}, 400);
+
+// ============ KPI smooth updates ============
+const kpi = {
+  pnl: 2847392, pnlPct: 12.48,
+  win: 74.62, winDelta: 0.34,
+  sharpe: 2.847, sharpeDelta: 0.012,
+  dd: -3.12, ddDelta: -0.08,
+};
+setInterval(() => {
+  // Trend-based drift
+  kpi.pnl += rand(-12000, 14500);
+  kpi.pnlPct += rand(-0.08, 0.09);
+  kpi.pnlPct = clamp(kpi.pnlPct, -5, 18);
+
+  kpi.win += rand(-0.04, 0.05);
+  kpi.win = clamp(kpi.win, 68, 82);
+  kpi.winDelta += rand(-0.02, 0.02);
+
+  kpi.sharpe += rand(-0.008, 0.009);
+  kpi.sharpe = clamp(kpi.sharpe, 2.1, 3.4);
+  kpi.sharpeDelta += rand(-0.003, 0.003);
+
+  kpi.dd += rand(-0.02, 0.02);
+  kpi.dd = clamp(kpi.dd, -6, -1.5);
+  kpi.ddDelta += rand(-0.01, 0.01);
+
+  $('#kpiPnl').innerHTML = fmtUsd(kpi.pnl) + '<span class="unit">USD</span>';
+  $('#kpiPnlPct').textContent = fmtPct(kpi.pnlPct);
+  $('#kpiWin').innerHTML = kpi.win.toFixed(2) + '<span class="unit">%</span>';
+  $('#kpiWinPct').textContent = fmtPct(kpi.winDelta, 2);
+  $('#kpiSharpe').innerHTML = kpi.sharpe.toFixed(3) + '<span class="unit">σ</span>';
+  $('#kpiSharpeDelta').textContent = (kpi.sharpeDelta >= 0 ? '+' : '') + kpi.sharpeDelta.toFixed(3);
+  $('#kpiDd').innerHTML = kpi.dd.toFixed(2) + '<span class="unit">%</span>';
+  $('#kpiDdDelta').textContent = (kpi.ddDelta >= 0 ? '+' : '') + kpi.ddDelta.toFixed(2);
+}, 220);
+
+// ============ Main Chart (SVG line + gradient + axes + draw animation) ============
+const chart = {
+  svg: $('#chartSvg'),
+  W: 800, H: 320,
+  padL: 52, padR: 20, padT: 16, padB: 28,
+  points: [],
+  cap: 180,
+};
+
+// init price walk
+(function initChart() {
+  let p = 47826.41;
+  let trend = 0.0;
+  for (let i = 0; i < chart.cap; i++) {
+    trend += rand(-0.0004, 0.00042);
+    trend = clamp(trend, -0.003, 0.003);
+    p = p * (1 + trend + rand(-0.0015, 0.0015));
+    chart.points.push(p);
+  }
+})();
+
+// Build static axes once
+function buildAxes() {
+  const { svg, W, H, padL, padR, padT, padB } = chart;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  // defs
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="areaG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#00e5ff" stop-opacity="0.35"/>
+        <stop offset="0.6" stop-color="#00e5ff" stop-opacity="0.08"/>
+        <stop offset="1" stop-color="#00e5ff" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#5eead4"/>
+        <stop offset="0.5" stop-color="#00e5ff"/>
+        <stop offset="1" stop-color="#00e5ff"/>
+      </linearGradient>
+      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="2.5" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <g id="gridG"></g>
+    <g id="axisG"></g>
+    <path id="areaPath" fill="url(#areaG)" d=""/>
+    <path id="linePath" fill="none" stroke="url(#lineG)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)" d=""/>
+    <g id="pointsG"></g>
+    <g id="crossG"></g>
+  `;
+
+  const gridG = svg.querySelector('#gridG');
+  const axisG = svg.querySelector('#axisG');
+
+  // horizontal grid + y labels (placeholder values, real set later)
+  const rows = 5;
+  for (let i = 0; i <= rows; i++) {
+    const y = padT + (plotH * i) / rows;
+    gridG.insertAdjacentHTML('beforeend',
+      `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#121926" stroke-width="1" stroke-dasharray="${i === rows ? '' : '2 3'}"/>`);
+    axisG.insertAdjacentHTML('beforeend',
+      `<text class="axL" x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="#4e5e78" font-family="inherit"></text>`);
+  }
+  // vertical grid
+  const cols = 8;
+  for (let i = 0; i <= cols; i++) {
+    const x = padL + (plotW * i) / cols;
+    gridG.insertAdjacentHTML('beforeend',
+      `<line x1="${x}" y1="${padT}" x2="${x}" y2="${H - padB}" stroke="#121926" stroke-width="1" stroke-dasharray="2 3"/>`);
+    const mins = (cols - i) * 8;
+    axisG.insertAdjacentHTML('beforeend',
+      `<text x="${x}" y="${H - padB + 14}" text-anchor="middle" font-size="9" fill="#4e5e78" font-family="inherit">-${mins}m</text>`);
+  }
+}
+buildAxes();
+
+function renderChart() {
+  const { svg, W, H, padL, padR, padT, padB, points } = chart;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const rng = (max - min) || 1;
+  const pad = rng * 0.12;
+  const lo = min - pad;
+  const hi = max + pad;
+  const span = hi - lo;
+
+  const xStep = plotW / (points.length - 1);
+  let lineD = '';
+  let areaD = '';
+  const coords = [];
+  points.forEach((p, i) => {
+    const x = padL + i * xStep;
+    const y = padT + plotH * (1 - (p - lo) / span);
+    coords.push([x, y]);
+    lineD += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
+  });
+  areaD = lineD + ` L ${padL + (points.length - 1) * xStep} ${H - padB} L ${padL} ${H - padB} Z`;
+
+  svg.querySelector('#linePath').setAttribute('d', lineD);
+  svg.querySelector('#areaPath').setAttribute('d', areaD);
+
+  // y axis labels
+  const axLabels = svg.querySelectorAll('.axL');
+  const rows = axLabels.length - 1;
+  axLabels.forEach((el, i) => {
+    const v = hi - (span * i) / rows;
+    el.textContent = fmtNum(v, 0);
+  });
+
+  // last point pulse + tag (flip to left edge if near right border)
+  const pointsG = svg.querySelector('#pointsG');
+  const [lx, ly] = coords[coords.length - 1];
+  const tagW = 72;
+  const tagRight = lx + 6 + tagW > W - padR;
+  const tagX = tagRight ? lx - 6 - tagW : lx + 6;
+  const tagCX = tagX + tagW / 2;
+  pointsG.innerHTML = `
+    <line x1="${lx}" y1="${padT}" x2="${lx}" y2="${H - padB}" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="2 3" opacity="0.35"/>
+    <circle cx="${lx}" cy="${ly}" r="6" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5">
+      <animate attributeName="r" values="4;12;4" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="${lx}" cy="${ly}" r="3.5" fill="#00e5ff"/>
+    <rect x="${tagX}" y="${ly - 9}" width="${tagW}" height="18" rx="2" fill="#0a0f17" stroke="#253243" stroke-width="1"/>
+    <text x="${tagCX}" y="${ly + 4}" text-anchor="middle" font-size="10" fill="#00e5ff" font-family="inherit" font-weight="600">${fmtNum(points[points.length - 1], 2)}</text>
+  `;
+
+  // stats up top
+  const last = points[points.length - 1];
+  const first = points[0];
+  const chg = last - first;
+  const chgPct = (chg / first) * 100;
+  $('#chLast').textContent = fmtNum(last, 2);
+  $('#chChg').textContent = (chg >= 0 ? '+' : '') + fmtNum(chg, 2);
+  $('#chChgPct').textContent = fmtPct(chgPct);
+  $('#chHigh').textContent = fmtNum(max, 2);
+  $('#chLow').textContent = fmtNum(min, 2);
+
+  const chStatChg = $('#chChg').parentElement;
+  const chStatChgPct = $('#chChgPct').parentElement;
+  [chStatChg, chStatChgPct].forEach(e => {
+    e.classList.toggle('up', chg >= 0);
+    e.classList.toggle('down', chg < 0);
+  });
+}
+renderChart();
+
+// Initial draw-in animation (stroke-dashoffset)
+(function drawInChart() {
+  const line = chart.svg.querySelector('#linePath');
+  const area = chart.svg.querySelector('#areaPath');
+  const len = line.getTotalLength();
+  line.style.strokeDasharray = len;
+  line.style.strokeDashoffset = len;
+  area.style.opacity = '0';
+  // force reflow
+  void line.getBoundingClientRect();
+  line.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(0.3, 0.8, 0.2, 1)';
+  area.style.transition = 'opacity 1.2s ease-out 0.4s';
+  requestAnimationFrame(() => {
+    line.style.strokeDashoffset = '0';
+    area.style.opacity = '1';
+  });
+  // clear dasharray after animation so live updates look smooth
+  setTimeout(() => {
+    line.style.transition = '';
+    line.style.strokeDasharray = '';
+    line.style.strokeDashoffset = '';
+  }, 1600);
+})();
+
+// Advance price every 600ms
+let chartTrend = 0;
+setInterval(() => {
+  chartTrend += rand(-0.0003, 0.0003);
+  chartTrend = clamp(chartTrend, -0.0015, 0.0015);
+  const last = chart.points[chart.points.length - 1];
+  const next = last * (1 + chartTrend + rand(-0.0018, 0.0018));
+  chart.points.push(next);
+  if (chart.points.length > chart.cap) chart.points.shift();
+  renderChart();
+}, 600);
+
+// ============ Orderbook ============
+function renderBook() {
+  const mid = chart.points[chart.points.length - 1];
+  const asks = $('#bookAsks');
+  const bids = $('#bookBids');
+  asks.innerHTML = '';
+  bids.innerHTML = '';
+
+  const N = 9;
+  let askCumul = 0;
+  const askRows = [];
+  for (let i = 0; i < N; i++) {
+    const price = mid + (i + 1) * rand(0.3, 0.8);
+    const size = rand(0.2, 4.5);
+    askCumul += size;
+    askRows.push({ price, size, total: askCumul });
+  }
+  const maxAsk = askCumul;
+  // render asks descending (highest price on top)
+  askRows.reverse().forEach(r => {
+    const w = (r.total / maxAsk) * 100;
+    asks.insertAdjacentHTML('beforeend',
+      `<div class="book-row ask" style="--w:${w}%"><div>${fmtNum(r.price, 2)}</div><div>${r.size.toFixed(3)}</div><div>${r.total.toFixed(2)}</div></div>`);
+  });
+
+  let bidCumul = 0;
+  const bidRows = [];
+  for (let i = 0; i < N; i++) {
+    const price = mid - (i + 1) * rand(0.3, 0.8);
+    const size = rand(0.2, 4.5);
+    bidCumul += size;
+    bidRows.push({ price, size, total: bidCumul });
+  }
+  const maxBid = bidCumul;
+  bidRows.forEach(r => {
+    const w = (r.total / maxBid) * 100;
+    bids.insertAdjacentHTML('beforeend',
+      `<div class="book-row bid" style="--w:${w}%"><div>${fmtNum(r.price, 2)}</div><div>${r.size.toFixed(3)}</div><div>${r.total.toFixed(2)}</div></div>`);
+  });
+
+  $('#bookSpread').textContent = rand(0.2, 0.9).toFixed(2);
+  $('#bookMid').textContent = fmtNum(mid, 2);
+}
+renderBook();
+setInterval(renderBook, 700);
+
+// ============ Bars (sector exposure) ============
+const sectors = ['DEFI', 'L1', 'L2', 'AI', 'RWA', 'INFRA', 'MEME', 'GAMING', 'PRIVACY', 'DEPIN'];
+const barData = sectors.map((s, i) => ({
+  name: s,
+  value: rand(20, 95),
+  target: rand(20, 95),
+  up: Math.random() > 0.5,
+}));
+
+function renderBars() {
+  const svg = $('#barsSvg');
+  const W = 360, H = 180;
+  const padL = 42, padR = 8, padT = 8, padB = 22;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const n = barData.length;
+  const bw = plotW / n * 0.62;
+  const gap = plotW / n;
+
+  let html = '<defs>'
+    + '<linearGradient id="barUp" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#10f59a"/><stop offset="1" stop-color="#0a8f5c" stop-opacity="0.5"/>'
+    + '</linearGradient>'
+    + '<linearGradient id="barDn" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#ff3b5c"/><stop offset="1" stop-color="#8a1a2a" stop-opacity="0.5"/>'
+    + '</linearGradient>'
+    + '</defs>';
+
+  // grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (plotH * i) / 4;
+    html += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#121926" stroke-width="1" stroke-dasharray="${i === 4 ? '' : '2 3'}"/>`;
+    const v = Math.round(100 - (100 * i) / 4);
+    html += `<text x="${padL - 5}" y="${y + 3}" text-anchor="end" font-size="8" fill="#4e5e78" font-family="inherit">${v}</text>`;
+  }
+
+  barData.forEach((b, i) => {
+    const x = padL + gap * i + (gap - bw) / 2;
+    const h = (b.value / 100) * plotH;
+    const y = padT + plotH - h;
+    const grad = b.up ? 'url(#barUp)' : 'url(#barDn)';
+    const glow = b.up ? '#10f59a' : '#ff3b5c';
+    html += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${grad}" rx="0.5">
+      <animate attributeName="height" from="${h}" to="${h}" dur="0.5s"/>
+    </rect>`;
+    // top cap
+    html += `<rect x="${x}" y="${y - 1}" width="${bw}" height="1.5" fill="${glow}"/>`;
+    // value label
+    html += `<text x="${x + bw/2}" y="${y - 4}" text-anchor="middle" font-size="7" fill="${glow}" font-family="inherit" font-weight="700">${Math.round(b.value)}</text>`;
+    // sector label
+    html += `<text x="${x + bw/2}" y="${H - 8}" text-anchor="middle" font-size="7" fill="#6b7a91" font-family="inherit" letter-spacing="0.08em">${b.name}</text>`;
+  });
+
+  svg.innerHTML = html;
+}
+renderBars();
+setInterval(() => {
+  barData.forEach(b => {
+    // move toward target
+    const diff = b.target - b.value;
+    b.value += diff * 0.22 + rand(-1.5, 1.5);
+    b.value = clamp(b.value, 10, 98);
+    if (Math.abs(diff) < 2) {
+      b.target = rand(20, 95);
+      b.up = Math.random() > 0.45;
+    }
+  });
+  // update totals
+  const total = barData.reduce((a, b) => a + b.value, 0);
+  $('#barsTotal').textContent = '$' + (total * 0.53).toFixed(1) + 'M';
+  renderBars();
+}, 350);
+
+// ============ Heatmap ============
+const heatGrid = $('#heatGrid');
+const heatCells = [];
+for (let i = 0; i < 96; i++) {
+  const c = document.createElement('div');
+  c.className = 'heat-cell';
+  heatGrid.appendChild(c);
+  heatCells.push({ el: c, v: Math.random(), target: Math.random() });
+}
+function renderHeat() {
+  heatCells.forEach(c => {
+    // drift toward target
+    c.v += (c.target - c.v) * 0.15 + rand(-0.05, 0.05);
+    c.v = clamp(c.v, 0, 1);
+    if (Math.abs(c.target - c.v) < 0.05) c.target = Math.random();
+
+    const hue = c.v;
+    // palette: mostly cyan-ish, rare red spikes
+    let color;
+    if (hue > 0.85) {
+      color = `rgba(255, 59, 92, ${0.25 + hue * 0.6})`;
+      c.el.style.boxShadow = `inset 0 0 6px rgba(255, 59, 92, ${hue * 0.5})`;
+    } else if (hue > 0.55) {
+      color = `rgba(0, 229, 255, ${0.15 + hue * 0.5})`;
+      c.el.style.boxShadow = `inset 0 0 4px rgba(0, 229, 255, ${hue * 0.4})`;
+    } else if (hue > 0.25) {
+      color = `rgba(16, 245, 154, ${0.08 + hue * 0.35})`;
+      c.el.style.boxShadow = 'none';
+    } else {
+      color = `rgba(26, 34, 48, ${0.5 + hue * 0.4})`;
+      c.el.style.boxShadow = 'none';
+    }
+    c.el.style.background = color;
+  });
+}
+renderHeat();
+setInterval(renderHeat, 280);
+
+// ============ Sparklines ============
+const sparkDefs = [
+  { sym: 'BTC',  sub: 'USD', price: 68432.12, color: '#00e5ff', trend: 0.001 },
+  { sym: 'ETH',  sub: 'USD', price: 3842.50,  color: '#8b7dff', trend: 0.0008 },
+  { sym: 'NXS',  sub: 'USD', price: 47826.41, color: '#10f59a', trend: 0.0012 },
+  { sym: 'SOL',  sub: 'USD', price: 172.34,   color: '#ffb347', trend: -0.0006 },
+  { sym: 'ARB',  sub: 'USD', price: 1.842,    color: '#4ba3ff', trend: 0.0004 },
+];
+sparkDefs.forEach(s => {
+  s.points = [];
+  let p = s.price;
+  for (let i = 0; i < 40; i++) {
+    p *= (1 + s.trend + rand(-0.002, 0.002));
+    s.points.push(p);
+  }
+});
+
+function buildSparks() {
+  const body = $('#sparkBody');
+  body.innerHTML = '';
+  sparkDefs.forEach((s, idx) => {
+    const item = document.createElement('div');
+    item.className = 'spark-item';
+    item.innerHTML = `
+      <div class="sym">${s.sym}<small>${s.sub}</small></div>
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none"><path id="sp${idx}" d="" fill="none" stroke="${s.color}" stroke-width="1.3"/><path id="spa${idx}" d="" fill="${s.color}" opacity="0.1"/></svg>
+      <div class="val" id="spv${idx}"><span id="spp${idx}">${fmtNum(s.price, 2)}</span><small id="spc${idx}">+0.00%</small></div>
+    `;
+    body.appendChild(item);
+  });
+}
+buildSparks();
+
+function renderSparks() {
+  sparkDefs.forEach((s, idx) => {
+    const min = Math.min(...s.points);
+    const max = Math.max(...s.points);
+    const rng = (max - min) || 1;
+    let d = '';
+    s.points.forEach((p, i) => {
+      const x = (i / (s.points.length - 1)) * 100;
+      const y = 28 - ((p - min) / rng) * 26;
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
+    });
+    const areaD = d + ' L 100 30 L 0 30 Z';
+    document.getElementById('sp' + idx).setAttribute('d', d);
+    document.getElementById('spa' + idx).setAttribute('d', areaD);
+
+    const last = s.points[s.points.length - 1];
+    const first = s.points[0];
+    const pct = ((last - first) / first) * 100;
+    document.getElementById('spp' + idx).textContent = fmtNum(last, last < 10 ? 3 : 2);
+    document.getElementById('spc' + idx).textContent = fmtPct(pct);
+    const valEl = document.getElementById('spv' + idx);
+    valEl.classList.toggle('up', pct >= 0);
+    valEl.classList.toggle('down', pct < 0);
+  });
+}
+renderSparks();
+setInterval(() => {
+  sparkDefs.forEach(s => {
+    s.trend += rand(-0.0003, 0.0003);
+    s.trend = clamp(s.trend, -0.002, 0.002);
+    const last = s.points[s.points.length - 1];
+    const next = last * (1 + s.trend + rand(-0.0025, 0.0025));
+    s.points.push(next);
+    if (s.points.length > 40) s.points.shift();
+  });
+  renderSparks();
+}, 500);
+
+// ============ Log stream ============
+const logTemplates = [
+  { lv: 'ok',  t: () => `TRADE EXEC <b>BUY</b> ${randi(1,9)}.${randi(10,99)} NXS @ <span class="num">${fmtNum(chart.points.at(-1), 2)}</span> · ${(rand(12, 48)).toFixed(1)}ms` },
+  { lv: 'ok',  t: () => `TRADE EXEC <b>SELL</b> ${randi(1,6)}.${randi(10,99)} NXS @ <span class="num">${fmtNum(chart.points.at(-1), 2)}</span> · ${(rand(14, 52)).toFixed(1)}ms` },
+  { lv: 'inf', t: () => `WS RECONNECT <b>OK</b> peer=<span class="num">${randi(1,9)}.${randi(1,9)}.${randi(1,255)}.${randi(1,255)}</span>` },
+  { lv: 'inf', t: () => `ORDERBOOK SYNC depth=<span class="num">${randi(20,64)}</span> dt=${(rand(2,8)).toFixed(1)}ms` },
+  { lv: 'inf', t: () => `STRATEGY <b>alpha-07</b> signal=<span class="num">+${(rand(0.4,0.9)).toFixed(2)}</span> conf=${(rand(0.6,0.95)).toFixed(2)}` },
+  { lv: 'ok',  t: () => `POSITION SIZE adjust +<span class="num">${(rand(0.1,1.8)).toFixed(2)}%</span> risk=${(rand(0.8,1.4)).toFixed(2)}` },
+  { lv: 'wrn', t: () => `SLIPPAGE threshold <span class="num">${(rand(0.12,0.34)).toFixed(3)}%</span> pair=NXS-USD` },
+  { lv: 'wrn', t: () => `LATENCY spike <span class="num">${randi(28,68)}ms</span> region=eu-west-1` },
+  { lv: 'err', t: () => `REJECT <b>fill-or-kill</b> oid=<span class="num">0x${(Math.random()*16**8|0).toString(16).padStart(8,'0')}</span>` },
+  { lv: 'ok',  t: () => `RISK CHECK <b>PASS</b> var=<span class="num">${(rand(0.8,1.6)).toFixed(2)}</span>M exp=${randi(42,68)}%` },
+  { lv: 'inf', t: () => `GRADIENT STEP epoch=<span class="num">${randi(18000,22000)}</span> loss=${(rand(0.012,0.034)).toFixed(4)}` },
+  { lv: 'ok',  t: () => `FILL <b>COMPLETE</b> amt=${(rand(1.2,8.4)).toFixed(2)} avg=<span class="num">${fmtNum(chart.points.at(-1), 2)}</span>` },
+];
+let logCount = 4721;
+const logList = $('#logList');
+function pushLog() {
+  const tpl = logTemplates[randi(0, logTemplates.length - 1)];
+  const d = new Date();
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  const ss = String(d.getUTCSeconds()).padStart(2, '0');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="t">${hh}:${mm}:${ss}</span><span class="lv ${tpl.lv}">${tpl.lv.toUpperCase()}</span><span class="msg">${tpl.t()}</span>`;
+  logList.insertBefore(line, logList.firstChild);
+  // Cap to rendered area
+  while (logList.children.length > 16) logList.removeChild(logList.lastChild);
+  logCount++;
+  $('#logCount').textContent = fmtInt(logCount);
+}
+// seed
+for (let i = 0; i < 12; i++) pushLog();
+setInterval(pushLog, 450);
+
+// ============ Ticker ============
+const tickerSymbols = [
+  ['BTC',   68432.12, 1.24],
+  ['ETH',    3842.50, 2.18],
+  ['NXS',   47826.41, 1.23],
+  ['SOL',     172.34, -0.84],
+  ['ARB',       1.84, 0.42],
+  ['AVAX',     38.22, -1.10],
+  ['DOT',       7.48, 0.94],
+  ['OP',        2.31, -0.33],
+  ['SUI',       1.67, 3.28],
+  ['TIA',       9.12, 2.04],
+  ['INJ',      28.45, -0.62],
+  ['APT',       9.88, 1.88],
+  ['NEAR',      6.42, 0.78],
+  ['LINK',     18.23, 1.02],
+  ['UNI',       9.34, -0.44],
+  ['AAVE',    178.90, 2.92],
+];
+function buildTicker() {
+  const track = $('#tickerTrack');
+  let html = '';
+  // repeat twice for seamless loop
+  for (let r = 0; r < 2; r++) {
+    tickerSymbols.forEach(([s, p, c]) => {
+      const dir = c >= 0 ? 'up' : 'down';
+      const arrow = c >= 0 ? '▲' : '▼';
+      html += `<span class="tk"><b>${s}/USD</b> ${fmtNum(p, 2)} <span class="${dir}">${arrow} ${(c >= 0 ? '+' : '') + c.toFixed(2)}%</span></span>`;
+    });
+  }
+  track.innerHTML = html;
+}
+buildTicker();
+// Periodically refresh ticker numbers
+setInterval(() => {
+  tickerSymbols.forEach(row => {
+    row[1] *= (1 + rand(-0.004, 0.004));
+    row[2] += rand(-0.12, 0.12);
+    row[2] = clamp(row[2], -5, 5);
+  });
+  buildTicker();
+}, 2500);
+
+</script>
+</body>
+</html>

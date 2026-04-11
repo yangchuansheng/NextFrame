@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>小猫头鹰 · Lottie 风格动画</title>
+<style>
+:root {
+  --owl-green:     #58cc02;
+  --owl-green-dk:  #4caf00;
+  --owl-belly:     #e8ffcf;
+  --owl-belly-dk:  #c7e89a;
+  --beak-orange:   #ffc00a;
+  --beak-dk:       #eaa100;
+  --foot-orange:   #ffc00a;
+  --paper:         #e8f5e9;
+  --paper-dk:      #c8e6c9;
+  --ink:           #2e4a3a;
+  --happy:         #58cc02;
+  --wrong:         #ff4b4b;
+  --cheer:         #ffc00a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at top, var(--paper) 0%, var(--paper-dk) 100%);
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--ink);
+}
+
+.title-bar {
+  position: absolute;
+  top: 40px;
+  text-align: center;
+}
+.title-bar .t {
+  font-size: 14px;
+  color: #6a8a70;
+  letter-spacing: 0.24em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.title-bar .sub {
+  font-size: 12px;
+  color: #8aa58c;
+  margin-top: 6px;
+  letter-spacing: 0.12em;
+}
+
+.stage {
+  position: relative;
+  width: min(480px, 92vw);
+  aspect-ratio: 1 / 1.1;
+}
+
+/* ============ 反应文字气泡 ============ */
+.bubble {
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  transform: translate(-50%, 0) scale(0);
+  padding: 14px 26px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 22px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink);
+  box-shadow: 0 6px 0 rgba(46, 74, 58, 0.2);
+  white-space: nowrap;
+  opacity: 0;
+  transform-origin: bottom center;
+  transform-box: fill-box;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 10;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 14px solid #fff;
+  filter: drop-shadow(0 3px 0 var(--ink));
+}
+.bubble.show {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+.bubble.happy { background: #e7ffd1; color: var(--owl-green-dk); }
+.bubble.happy::after { border-top-color: #e7ffd1; }
+.bubble.wrong { background: #ffe0e0; color: var(--wrong); }
+.bubble.wrong::after { border-top-color: #ffe0e0; }
+.bubble.cheer { background: #fff2c2; color: #c79400; }
+.bubble.cheer::after { border-top-color: #fff2c2; }
+
+/* ============ 猫头鹰整体动画 ============ */
+.owl-group {
+  position: absolute;
+  inset: 0;
+}
+.owl {
+  transform-origin: center 85%;
+  transform-box: fill-box;
+  animation: breathe 2.6s ease-in-out infinite;
+}
+.owl.mood-happy  { animation: bounce 0.45s ease-in-out infinite; }
+.owl.mood-wrong  { animation: shakeDown 1.6s ease-in-out infinite; }
+.owl.mood-cheer  { animation: hopCheer 1.2s ease-in-out infinite; }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50%      { transform: scale(1.015, 0.985); }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  45%      { transform: translateY(-22px) scaleY(1.06); }
+  60%      { transform: translateY(0) scaleY(0.95); }
+  75%      { transform: translateY(-4px) scaleY(1.02); }
+}
+@keyframes shakeDown {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  15%      { transform: rotate(-3deg) translateY(4px); }
+  30%      { transform: rotate(3deg) translateY(4px); }
+  45%      { transform: rotate(-2deg) translateY(4px); }
+  60%      { transform: rotate(2deg) translateY(4px); }
+  75%      { transform: rotate(-1deg) translateY(3px); }
+}
+@keyframes hopCheer {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  40%      { transform: translateY(-14px) rotate(-2deg); }
+  60%      { transform: translateY(-14px) rotate(2deg); }
+}
+
+/* ============ 眼睛动画 ============ */
+/* 默认眨眼 */
+.eye-lid {
+  transform-origin: center center;
+  transform-box: fill-box;
+  animation: blink 4s infinite;
+}
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  94%           { transform: scaleY(0.06); }
+  96%           { transform: scaleY(1); }
+}
+
+/* 瞳孔左右看 */
+.pupil {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: lookAround 6s ease-in-out infinite;
+}
+@keyframes lookAround {
+  0%, 20%  { transform: translate(0, 0); }
+  30%, 40% { transform: translate(4px, 0); }
+  50%, 60% { transform: translate(-4px, 0); }
+  70%, 80% { transform: translate(0, -2px); }
+}
+
+/* mood 切换时眼睛状态 */
+.eye-normal { display: block; }
+.eye-happy  { display: none; }
+.eye-sad    { display: none; }
+.eye-star   { display: none; }
+
+.mood-happy .eye-normal { display: none; }
+.mood-happy .eye-happy  { display: block; }
+.mood-wrong .eye-normal { display: none; }
+.mood-wrong .eye-sad    { display: block; }
+.mood-cheer .eye-normal { display: none; }
+.mood-cheer .eye-star   { display: block; }
+
+/* 嘴巴 */
+.beak-normal { display: block; }
+.beak-happy, .beak-sad, .beak-o { display: none; }
+
+.mood-happy .beak-normal { display: none; }
+.mood-happy .beak-happy  { display: block; }
+.mood-wrong .beak-normal { display: none; }
+.mood-wrong .beak-sad    { display: block; }
+.mood-cheer .beak-normal { display: none; }
+.mood-cheer .beak-o      { display: block; }
+
+/* 翅膀动画 */
+.wing {
+  transform-origin: top center;
+  transform-box: fill-box;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.mood-happy .wing-left  { animation: wingFlap 0.3s ease-in-out infinite alternate; }
+.mood-happy .wing-right { animation: wingFlap 0.3s ease-in-out infinite alternate-reverse; }
+.mood-cheer .wing-left  { transform: rotate(-38deg) translate(-6px, -30px); }
+.mood-cheer .wing-right { transform: rotate(38deg) translate(6px, -30px); }
+.mood-wrong .wing-left  { transform: rotate(18deg) translate(4px, 8px); }
+.mood-wrong .wing-right { transform: rotate(-18deg) translate(-4px, 8px); }
+@keyframes wingFlap {
+  0%   { transform: rotate(-8deg); }
+  100% { transform: rotate(8deg); }
+}
+
+/* ============ 粒子（星星/眼泪）============ */
+.fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.spark {
+  position: absolute;
+  font-size: 36px;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.spark.on {
+  opacity: 1;
+  transform: scale(1) rotate(15deg);
+}
+
+.tear {
+  position: absolute;
+  width: 16px;
+  height: 22px;
+  background: #6ec5ff;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,0.08);
+  opacity: 0;
+  transition: opacity 0.2s;
+  animation: tearDrop 1.8s ease-in infinite;
+}
+.tear.on { opacity: 1; }
+@keyframes tearDrop {
+  0%   { transform: translate(0, 0) scale(0); }
+  20%  { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(0, 160px) scale(0.8); }
+}
+
+/* replay */
+.replay {
+  position: absolute;
+  right: 24px;
+  top: 24px;
+  padding: 10px 20px;
+  background: var(--owl-green);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 0 var(--owl-green-dk);
+  z-index: 100;
+}
+.replay:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--owl-green-dk); }
+
+.info {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  font-size: 12px;
+  color: #6a8a70;
+  font-family: "SF Mono", Menlo, monospace;
+}
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <div class="t">LOTTIE 风格 · 微动画</div>
+  <div class="sub">这就是 Duolingo 猫头鹰那种"小动作"</div>
+</div>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+<div class="info">SVG + CSS keyframes · 零 JS 动画</div>
+
+<div class="stage">
+
+  <!-- 气泡文字 -->
+  <div class="bubble" id="bubble"></div>
+
+  <!-- 特效粒子层 -->
+  <div class="fx">
+    <div class="spark" id="spark1" style="left: 10%; top: 25%;">⭐</div>
+    <div class="spark" id="spark2" style="right: 12%; top: 20%;">⭐</div>
+    <div class="spark" id="spark3" style="left: 20%; top: 55%;">✨</div>
+    <div class="spark" id="spark4" style="right: 18%; top: 50%;">✨</div>
+    <div class="tear" id="tear1" style="left: 38%; top: 48%;"></div>
+    <div class="tear" id="tear2" style="right: 38%; top: 48%;"></div>
+  </div>
+
+  <!-- 猫头鹰 SVG -->
+  <svg class="owl-group" viewBox="0 0 400 440" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="bodyGrad" cx="0.35" cy="0.3" r="0.8">
+        <stop offset="0" stop-color="#7ae02a"/>
+        <stop offset="1" stop-color="#4caf00"/>
+      </radialGradient>
+      <radialGradient id="bellyGrad" cx="0.5" cy="0.35" r="0.7">
+        <stop offset="0" stop-color="#f5ffe3"/>
+        <stop offset="1" stop-color="#c7e89a"/>
+      </radialGradient>
+      <radialGradient id="beakGrad" cx="0.3" cy="0.3" r="0.8">
+        <stop offset="0" stop-color="#ffd750"/>
+        <stop offset="1" stop-color="#eaa100"/>
+      </radialGradient>
+    </defs>
+
+    <g class="owl" id="owl">
+
+      <!-- 脚 -->
+      <g class="feet">
+        <ellipse cx="155" cy="410" rx="22" ry="8" fill="#eaa100"/>
+        <ellipse cx="245" cy="410" rx="22" ry="8" fill="#eaa100"/>
+        <path d="M 135 405 L 140 415 M 145 400 L 150 418 M 155 397 L 160 418 M 165 400 L 170 415 M 175 405 L 180 413"
+              stroke="#c88500" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 225 405 L 230 415 M 235 400 L 240 418 M 245 397 L 250 418 M 255 400 L 260 415 M 265 405 L 270 413"
+              stroke="#c88500" stroke-width="3" stroke-linecap="round"/>
+      </g>
+
+      <!-- 身体（蛋形） -->
+      <ellipse class="body" cx="200" cy="240" rx="130" ry="155" fill="url(#bodyGrad)" stroke="#2e4a3a" stroke-width="4"/>
+
+      <!-- 肚子白斑 -->
+      <ellipse class="belly" cx="200" cy="270" rx="82" ry="100" fill="url(#bellyGrad)"/>
+
+      <!-- 翅膀 -->
+      <path class="wing wing-left"  d="M 80 220 Q 40 260 60 330 Q 85 345 100 310 Q 110 270 100 230 Z"
+            fill="#4caf00" stroke="#2e4a3a" stroke-width="4" stroke-linejoin="round"/>
+      <path class="wing wing-right" d="M 320 220 Q 360 260 340 330 Q 315 345 300 310 Q 290 270 300 230 Z"
+            fill="#4caf00" stroke="#2e4a3a" stroke-width="4" stroke-linejoin="round"/>
+
+      <!-- 头顶羽毛簇 -->
+      <path d="M 165 108 Q 175 80 190 108 Q 205 76 220 108 Q 235 80 245 108"
+            fill="none" stroke="#2e4a3a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- 眼睛组 -->
+      <g class="eyes">
+        <!-- 左眼 normal -->
+        <g class="eye-normal">
+          <circle cx="155" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <circle cx="245" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <!-- 眼皮（闭眼用） -->
+          <g class="eye-lid">
+            <circle class="pupil" cx="155" cy="188" r="18" fill="#2e4a3a"/>
+            <circle class="pupil" cx="245" cy="188" r="18" fill="#2e4a3a"/>
+            <circle cx="162" cy="180" r="5" fill="#fff"/>
+            <circle cx="252" cy="180" r="5" fill="#fff"/>
+          </g>
+        </g>
+        <!-- happy ^^ -->
+        <g class="eye-happy">
+          <circle cx="155" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <circle cx="245" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <path d="M 130 190 Q 155 160 180 190" fill="none" stroke="#2e4a3a" stroke-width="6" stroke-linecap="round"/>
+          <path d="M 220 190 Q 245 160 270 190" fill="none" stroke="#2e4a3a" stroke-width="6" stroke-linecap="round"/>
+          <!-- 腮红 -->
+          <ellipse cx="120" cy="220" rx="14" ry="8" fill="#ff9aaa" opacity="0.7"/>
+          <ellipse cx="280" cy="220" rx="14" ry="8" fill="#ff9aaa" opacity="0.7"/>
+        </g>
+        <!-- sad -->
+        <g class="eye-sad">
+          <circle cx="155" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <circle cx="245" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <circle cx="155" cy="195" r="14" fill="#2e4a3a"/>
+          <circle cx="245" cy="195" r="14" fill="#2e4a3a"/>
+          <circle cx="160" cy="190" r="4" fill="#fff"/>
+          <circle cx="250" cy="190" r="4" fill="#fff"/>
+          <!-- 忧虑眉 -->
+          <path d="M 118 150 Q 140 142 170 158" fill="none" stroke="#2e4a3a" stroke-width="5" stroke-linecap="round"/>
+          <path d="M 230 158 Q 260 142 282 150" fill="none" stroke="#2e4a3a" stroke-width="5" stroke-linecap="round"/>
+        </g>
+        <!-- 星星眼 -->
+        <g class="eye-star">
+          <circle cx="155" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <circle cx="245" cy="185" r="46" fill="#fff" stroke="#2e4a3a" stroke-width="4"/>
+          <path d="M 155 158 L 162 180 L 185 180 L 167 194 L 173 215 L 155 203 L 137 215 L 143 194 L 125 180 L 148 180 Z"
+                fill="#ffc00a" stroke="#2e4a3a" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M 245 158 L 252 180 L 275 180 L 257 194 L 263 215 L 245 203 L 227 215 L 233 194 L 215 180 L 238 180 Z"
+                fill="#ffc00a" stroke="#2e4a3a" stroke-width="3" stroke-linejoin="round"/>
+        </g>
+      </g>
+
+      <!-- 嘴巴 / 喙 -->
+      <g class="beaks">
+        <path class="beak-normal"
+              d="M 185 250 Q 200 278 215 250 L 215 262 Q 200 278 185 262 Z"
+              fill="url(#beakGrad)" stroke="#2e4a3a" stroke-width="3" stroke-linejoin="round"/>
+        <!-- happy open smile -->
+        <path class="beak-happy"
+              d="M 175 250 Q 200 296 225 250 Q 215 272 200 276 Q 185 272 175 250 Z"
+              fill="url(#beakGrad)" stroke="#2e4a3a" stroke-width="3" stroke-linejoin="round"/>
+        <!-- sad frown -->
+        <path class="beak-sad"
+              d="M 180 268 Q 200 248 220 268 L 220 278 Q 200 262 180 278 Z"
+              fill="url(#beakGrad)" stroke="#2e4a3a" stroke-width="3" stroke-linejoin="round"/>
+        <!-- cheer O -->
+        <ellipse class="beak-o" cx="200" cy="268" rx="14" ry="18" fill="url(#beakGrad)" stroke="#2e4a3a" stroke-width="3"/>
+      </g>
+
+    </g>
+  </svg>
+</div>
+
+<script>
+const owl = document.getElementById('owl');
+const bubble = document.getElementById('bubble');
+const sparks = [1,2,3,4].map(i => document.getElementById('spark' + i));
+const tears = [document.getElementById('tear1'), document.getElementById('tear2')];
+
+const moods = [
+  { name: 'idle',  dur: 2500, label: null },
+  { name: 'happy', dur: 2500, label: { text: '太棒啦！', cls: 'happy' }, effect: 'sparks' },
+  { name: 'idle',  dur: 2000, label: null },
+  { name: 'wrong', dur: 2800, label: { text: '再想想…', cls: 'wrong' }, effect: 'tears' },
+  { name: 'idle',  dur: 2000, label: null },
+  { name: 'cheer', dur: 2500, label: { text: '加油！', cls: 'cheer' }, effect: 'sparks' },
+];
+
+let timers = [];
+function sleep(ms) { return new Promise(r => timers.push(setTimeout(r, ms))); }
+
+async function runLoop() {
+  while (true) {
+    for (const m of moods) {
+      // 切换 mood
+      owl.className = 'owl mood-' + m.name;
+      // 气泡
+      if (m.label) {
+        bubble.textContent = m.label.text;
+        bubble.className = 'bubble ' + m.label.cls;
+        setTimeout(() => bubble.classList.add('show'), 50);
+      } else {
+        bubble.classList.remove('show');
+      }
+      // 特效
+      if (m.effect === 'sparks') {
+        sparks.forEach((s, i) => setTimeout(() => s.classList.add('on'), i * 120));
+      } else {
+        sparks.forEach(s => s.classList.remove('on'));
+      }
+      if (m.effect === 'tears') {
+        tears.forEach(t => t.classList.add('on'));
+      } else {
+        tears.forEach(t => t.classList.remove('on'));
+      }
+      await sleep(m.dur);
+      // 清理特效
+      if (m.effect === 'sparks') sparks.forEach(s => s.classList.remove('on'));
+      if (m.effect === 'tears')  tears.forEach(t => t.classList.remove('on'));
+      if (m.label) bubble.classList.remove('show');
+      await sleep(200);
+    }
+  }
+}
+
+function restart() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  owl.className = 'owl';
+  bubble.classList.remove('show');
+  sparks.forEach(s => s.classList.remove('on'));
+  tears.forEach(t => t.classList.remove('on'));
+  setTimeout(runLoop, 200);
+}
+
+document.getElementById('replayBtn').onclick = restart;
+runLoop();
+</script>
+</body>
+</html>

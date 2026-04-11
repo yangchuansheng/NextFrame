@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>10 · Parallax Landscape</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 0%, #14141a, #050608);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #e4e5ea;
+  user-select: none;
+  overflow: hidden;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  background: #0a0a12;
+}
+
+.world {
+  position: absolute;
+  inset: 0;
+  animation: breathe 8s ease-in-out infinite;
+  transform-origin: center center;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1.02); }
+  50%      { transform: scale(1.04); }
+}
+
+.layer {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  /* each layer is 2x wide to allow seamless loop */
+  width: 200%;
+  will-change: transform;
+}
+
+/* ============ Sky (static, with gradient + sun) ============ */
+.sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    #f9c27a 0%,
+    #f5a66b 15%,
+    #ec8267 30%,
+    #c96a7a 48%,
+    #7a4a88 68%,
+    #3a2a68 85%,
+    #1a1a48 100%
+  );
+}
+.sun {
+  position: absolute;
+  left: 72%;
+  top: 35%;
+  width: 110px;
+  height: 110px;
+  margin-left: -55px;
+  margin-top: -55px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8d8 0%, #ffdc8c 35%, #ff9a4e 70%, transparent 100%);
+  box-shadow: 0 0 80px 25px rgba(255, 190, 100, 0.45);
+  animation: sunDrift 24s ease-in-out infinite;
+}
+@keyframes sunDrift {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-18px, -6px); }
+}
+
+/* ============ Layer 1: Far mountains ============ */
+.l1 {
+  animation: scroll1 60s linear infinite;
+}
+.l1 .hill {
+  position: absolute;
+  bottom: 42%;
+  left: 0;
+  width: 100%;
+  height: 28%;
+  background: linear-gradient(180deg, #4a3866 0%, #382858 100%);
+  clip-path: polygon(
+    0% 100%,
+    0% 70%, 4% 55%, 8% 65%, 12% 50%, 16% 60%,
+    20% 40%, 24% 55%, 28% 35%, 32% 48%, 36% 30%,
+    40% 45%, 44% 28%, 48% 40%, 52% 25%, 56% 42%,
+    60% 30%, 64% 50%, 68% 35%, 72% 45%, 76% 28%,
+    80% 40%, 84% 32%, 88% 50%, 92% 38%, 96% 52%,
+    100% 42%, 100% 100%
+  );
+  opacity: 0.7;
+  filter: blur(0.5px);
+}
+
+/* ============ Layer 2: Mid mountains ============ */
+.l2 {
+  animation: scroll2 42s linear infinite;
+}
+.l2 .hill {
+  position: absolute;
+  bottom: 32%;
+  left: 0;
+  width: 100%;
+  height: 26%;
+  background: linear-gradient(180deg, #2a1c48 0%, #1a1230 100%);
+  clip-path: polygon(
+    0% 100%,
+    0% 60%, 5% 40%, 10% 55%, 15% 35%, 20% 50%,
+    25% 25%, 30% 42%, 35% 20%, 40% 38%, 45% 15%,
+    50% 32%, 55% 18%, 60% 40%, 65% 22%, 70% 38%,
+    75% 18%, 80% 35%, 85% 22%, 90% 42%, 95% 28%,
+    100% 45%, 100% 100%
+  );
+}
+
+/* ============ Layer 3: Near hills ============ */
+.l3 {
+  animation: scroll3 28s linear infinite;
+}
+.l3 .hill {
+  position: absolute;
+  bottom: 22%;
+  left: 0;
+  width: 100%;
+  height: 22%;
+  background: linear-gradient(180deg, #140820 0%, #080410 100%);
+  clip-path: polygon(
+    0% 100%,
+    0% 55%, 6% 40%, 12% 60%, 18% 35%, 24% 55%,
+    30% 30%, 36% 58%, 42% 25%, 48% 52%, 54% 22%,
+    60% 48%, 66% 28%, 72% 58%, 78% 32%, 84% 50%,
+    90% 25%, 96% 55%, 100% 38%, 100% 100%
+  );
+}
+
+/* ============ Layer 4: Tree line silhouette ============ */
+.l4 {
+  animation: scroll4 18s linear infinite;
+}
+.l4 .trees {
+  position: absolute;
+  bottom: 12%;
+  left: 0;
+  width: 100%;
+  height: 20%;
+}
+.l4 .trees::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #020108;
+  clip-path: polygon(
+    0% 100%,
+    0% 80%,
+    1% 40%, 2% 80%,
+    3% 50%, 4% 80%,
+    5% 35%, 6% 80%,
+    7% 60%, 8% 80%,
+    9% 30%, 10% 80%,
+    11% 55%, 12% 80%,
+    13% 45%, 14% 80%,
+    15% 25%, 16% 80%,
+    17% 50%, 18% 80%,
+    19% 40%, 20% 80%,
+    21% 30%, 22% 80%,
+    23% 55%, 24% 80%,
+    25% 35%, 26% 80%,
+    27% 50%, 28% 80%,
+    29% 25%, 30% 80%,
+    31% 45%, 32% 80%,
+    33% 55%, 34% 80%,
+    35% 35%, 36% 80%,
+    37% 50%, 38% 80%,
+    39% 30%, 40% 80%,
+    41% 55%, 42% 80%,
+    43% 40%, 44% 80%,
+    45% 25%, 46% 80%,
+    47% 50%, 48% 80%,
+    49% 35%, 50% 80%,
+    51% 55%, 52% 80%,
+    53% 40%, 54% 80%,
+    55% 30%, 56% 80%,
+    57% 50%, 58% 80%,
+    59% 35%, 60% 80%,
+    61% 55%, 62% 80%,
+    63% 25%, 64% 80%,
+    65% 50%, 66% 80%,
+    67% 40%, 68% 80%,
+    69% 55%, 70% 80%,
+    71% 30%, 72% 80%,
+    73% 50%, 74% 80%,
+    75% 45%, 76% 80%,
+    77% 25%, 78% 80%,
+    79% 55%, 80% 80%,
+    81% 35%, 82% 80%,
+    83% 50%, 84% 80%,
+    85% 40%, 86% 80%,
+    87% 55%, 88% 80%,
+    89% 30%, 90% 80%,
+    91% 50%, 92% 80%,
+    93% 45%, 94% 80%,
+    95% 25%, 96% 80%,
+    97% 55%, 98% 80%,
+    99% 40%, 100% 80%,
+    100% 100%
+  );
+}
+
+/* ============ Layer 5: Grass foreground ============ */
+.l5 {
+  animation: scroll5 10s linear infinite;
+}
+.l5 .grass {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 18%;
+  background: linear-gradient(180deg, #000000 0%, #02010a 100%);
+}
+.l5 .grass::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: #000;
+  clip-path: polygon(
+    0% 100%,
+    0.5% 40%, 1% 100%, 1.5% 30%, 2% 100%,
+    2.5% 55%, 3% 100%, 3.5% 25%, 4% 100%,
+    4.5% 45%, 5% 100%, 5.5% 35%, 6% 100%,
+    6.5% 50%, 7% 100%, 7.5% 20%, 8% 100%,
+    8.5% 40%, 9% 100%, 9.5% 55%, 10% 100%,
+    10.5% 30%, 11% 100%, 11.5% 45%, 12% 100%,
+    12.5% 35%, 13% 100%, 13.5% 50%, 14% 100%,
+    14.5% 25%, 15% 100%, 15.5% 45%, 16% 100%,
+    16.5% 55%, 17% 100%, 17.5% 30%, 18% 100%,
+    18.5% 40%, 19% 100%, 19.5% 50%, 20% 100%,
+    20.5% 35%, 21% 100%, 21.5% 25%, 22% 100%,
+    22.5% 45%, 23% 100%, 23.5% 55%, 24% 100%,
+    24.5% 30%, 25% 100%, 25.5% 40%, 26% 100%,
+    26.5% 50%, 27% 100%, 27.5% 20%, 28% 100%,
+    28.5% 45%, 29% 100%, 29.5% 35%, 30% 100%,
+    30.5% 55%, 31% 100%, 31.5% 40%, 32% 100%,
+    32.5% 30%, 33% 100%, 33.5% 50%, 34% 100%,
+    34.5% 25%, 35% 100%, 35.5% 45%, 36% 100%,
+    36.5% 35%, 37% 100%, 37.5% 55%, 38% 100%,
+    38.5% 40%, 39% 100%, 39.5% 25%, 40% 100%,
+    40.5% 50%, 41% 100%, 41.5% 35%, 42% 100%,
+    42.5% 45%, 43% 100%, 43.5% 30%, 44% 100%,
+    44.5% 55%, 45% 100%, 45.5% 40%, 46% 100%,
+    46.5% 25%, 47% 100%, 47.5% 50%, 48% 100%,
+    48.5% 35%, 49% 100%, 49.5% 45%, 50% 100%,
+    50.5% 40%, 51% 100%, 51.5% 30%, 52% 100%,
+    52.5% 55%, 53% 100%, 53.5% 25%, 54% 100%,
+    54.5% 45%, 55% 100%, 55.5% 35%, 56% 100%,
+    56.5% 50%, 57% 100%, 57.5% 40%, 58% 100%,
+    58.5% 20%, 59% 100%, 59.5% 55%, 60% 100%,
+    60.5% 30%, 61% 100%, 61.5% 45%, 62% 100%,
+    62.5% 35%, 63% 100%, 63.5% 50%, 64% 100%,
+    64.5% 25%, 65% 100%, 65.5% 40%, 66% 100%,
+    66.5% 55%, 67% 100%, 67.5% 30%, 68% 100%,
+    68.5% 45%, 69% 100%, 69.5% 35%, 70% 100%,
+    70.5% 50%, 71% 100%, 71.5% 20%, 72% 100%,
+    72.5% 55%, 73% 100%, 73.5% 40%, 74% 100%,
+    74.5% 25%, 75% 100%, 75.5% 45%, 76% 100%,
+    76.5% 35%, 77% 100%, 77.5% 50%, 78% 100%,
+    78.5% 30%, 79% 100%, 79.5% 45%, 80% 100%,
+    80.5% 55%, 81% 100%, 81.5% 25%, 82% 100%,
+    82.5% 40%, 83% 100%, 83.5% 50%, 84% 100%,
+    84.5% 35%, 85% 100%, 85.5% 55%, 86% 100%,
+    86.5% 30%, 87% 100%, 87.5% 45%, 88% 100%,
+    88.5% 40%, 89% 100%, 89.5% 25%, 90% 100%,
+    90.5% 50%, 91% 100%, 91.5% 35%, 92% 100%,
+    92.5% 55%, 93% 100%, 93.5% 30%, 94% 100%,
+    94.5% 45%, 95% 100%, 95.5% 40%, 96% 100%,
+    96.5% 20%, 97% 100%, 97.5% 55%, 98% 100%,
+    98.5% 35%, 99% 100%, 99.5% 50%, 100% 100%
+  );
+}
+
+/* ============ Scrolling keyframes ============ */
+@keyframes scroll1 { 0% { transform: translateX(0); }    100% { transform: translateX(-50%); } }
+@keyframes scroll2 { 0% { transform: translateX(0); }    100% { transform: translateX(-50%); } }
+@keyframes scroll3 { 0% { transform: translateX(0); }    100% { transform: translateX(-50%); } }
+@keyframes scroll4 { 0% { transform: translateX(0); }    100% { transform: translateX(-50%); } }
+@keyframes scroll5 { 0% { transform: translateX(0); }    100% { transform: translateX(-50%); } }
+
+/* ============ Particles (birds + light motes) ============ */
+.particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bird {
+  position: absolute;
+  width: 18px;
+  height: 6px;
+  opacity: 0.55;
+}
+.bird::before, .bird::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 5px;
+  border: 1.5px solid #1a0a20;
+  border-bottom: none;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  animation: flap 0.5s ease-in-out infinite;
+}
+.bird::before { left: 0; }
+.bird::after { right: 0; }
+@keyframes flap {
+  0%, 100% { transform: scaleY(0.6); }
+  50%      { transform: scaleY(1); }
+}
+.bird.b1 { top: 22%; animation: fly1 38s linear infinite; }
+.bird.b2 { top: 28%; animation: fly2 44s linear infinite; animation-delay: -10s; }
+.bird.b3 { top: 18%; animation: fly1 52s linear infinite; animation-delay: -25s; }
+@keyframes fly1 {
+  0%   { left: 105%; }
+  100% { left: -10%; }
+}
+@keyframes fly2 {
+  0%   { left: 105%; transform: translateY(0); }
+  50%  { transform: translateY(-8px); }
+  100% { left: -10%; transform: translateY(0); }
+}
+
+.mote {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 220, 150, 0.8);
+  box-shadow: 0 0 6px rgba(255, 200, 100, 0.8);
+}
+.mote.m1 { top: 55%; animation: drift1 14s linear infinite; }
+.mote.m2 { top: 65%; animation: drift2 18s linear infinite; animation-delay: -6s; }
+.mote.m3 { top: 60%; animation: drift1 22s linear infinite; animation-delay: -12s; }
+.mote.m4 { top: 70%; animation: drift2 16s linear infinite; animation-delay: -3s; }
+.mote.m5 { top: 50%; animation: drift1 20s linear infinite; animation-delay: -8s; }
+@keyframes drift1 {
+  0%   { left: 100%; transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  50%  { transform: translateY(-14px); }
+  90%  { opacity: 1; }
+  100% { left: -5%; transform: translateY(-28px); opacity: 0; }
+}
+@keyframes drift2 {
+  0%   { left: 100%; transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  50%  { transform: translateY(10px); }
+  90%  { opacity: 1; }
+  100% { left: -5%; transform: translateY(20px); opacity: 0; }
+}
+
+/* Atmospheric haze over distant layers */
+.haze {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 30%;
+  background: linear-gradient(180deg,
+    rgba(236,130,103,0.12) 0%,
+    rgba(201,106,122,0.18) 50%,
+    transparent 100%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    transparent 50%,
+    rgba(0,0,0,0.35) 90%,
+    rgba(0,0,0,0.6) 100%);
+  z-index: 20;
+}
+
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #07c160;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(7, 193, 96, 0.35);
+}
+.replay:hover { transform: translateY(-1px); }
+
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  z-index: 100;
+}
+.info .atom-name { color: #e4e5ea; font-weight: 700; }
+.info .tech { color: #7a7d86; }
+
+/* Reset class to restart animation */
+.stage.reset .world,
+.stage.reset .layer,
+.stage.reset .bird,
+.stage.reset .mote,
+.stage.reset .sun {
+  animation: none !important;
+}
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">10 · Parallax Landscape</span>
+  <span class="tech">CSS transform · 6 layers</span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="world">
+    <div class="sky"></div>
+    <div class="sun"></div>
+
+    <div class="layer l1"><div class="hill" style="left:0;width:50%"></div><div class="hill" style="left:50%;width:50%"></div></div>
+    <div class="layer l2"><div class="hill" style="left:0;width:50%"></div><div class="hill" style="left:50%;width:50%"></div></div>
+
+    <div class="haze"></div>
+
+    <div class="layer l3"><div class="hill" style="left:0;width:50%"></div><div class="hill" style="left:50%;width:50%"></div></div>
+    <div class="layer l4"><div class="trees" style="left:0;width:50%"></div><div class="trees" style="left:50%;width:50%"></div></div>
+    <div class="layer l5"><div class="grass" style="left:0;width:50%"></div><div class="grass" style="left:50%;width:50%"></div></div>
+
+    <div class="particles">
+      <div class="bird b1"></div>
+      <div class="bird b2"></div>
+      <div class="bird b3"></div>
+      <div class="mote m1"></div>
+      <div class="mote m2"></div>
+      <div class="mote m3"></div>
+      <div class="mote m4"></div>
+      <div class="mote m5"></div>
+    </div>
+  </div>
+
+  <div class="vignette"></div>
+</div>
+
+<script>
+const stage = document.getElementById('stage');
+function replay() {
+  stage.classList.add('reset');
+  void stage.offsetWidth;
+  stage.classList.remove('reset');
+}
+document.getElementById('replayBtn').onclick = replay;
+</script>
+</body>
+</html>

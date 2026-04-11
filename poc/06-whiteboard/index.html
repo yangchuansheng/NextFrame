@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>白板动画 · 上下文工程是什么</title>
+<style>
+:root {
+  --ink:         #1f2233;
+  --ink-soft:    #525873;
+  --paper:       #f6f5ee;
+  --paper-dot:   #c9ccd3;
+  --hi-green:    rgba(84, 207, 138, 0.55);
+  --hi-yellow:   rgba(255, 214, 94, 0.55);
+  --hi-pink:     rgba(255, 140, 180, 0.5);
+  --accent:      #2ecc71;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--paper);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+               "Microsoft YaHei", sans-serif;
+  overflow: hidden;
+  user-select: none;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage {
+  position: relative;
+  width: min(960px, 100%);
+  height: min(720px, 100vh);
+  background: var(--paper);
+  overflow: hidden;
+}
+
+/* 点阵背景 */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--paper-dot) 1.3px, transparent 1.3px);
+  background-size: 26px 26px;
+  opacity: 0.9;
+  z-index: 0;
+}
+
+/* 顶部标题 */
+.top-title {
+  position: absolute;
+  left: 50%;
+  top: 60px;
+  transform: translate(-50%, 0);
+  z-index: 5;
+  text-align: center;
+}
+.top-title .t {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.55s, transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.top-title.show .t { opacity: 1; transform: translateY(0); }
+
+.top-title .hl {
+  display: block;
+  height: 16px;
+  width: 0;
+  background: var(--hi-green);
+  margin: -8px auto 0;
+  border-radius: 2px;
+  transform: skewX(-3deg) rotate(-0.6deg);
+  transition: width 0.75s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.top-title.hl-on .hl { width: 260px; }
+
+/* 主 SVG 画布 */
+.canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+/* 可绘制 path 公共规则 */
+.drawable {
+  stroke: var(--ink);
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.drawable.drawn { stroke-dashoffset: 0; }
+
+/* 填充方块，绘制进入用 opacity */
+.fill-ink {
+  fill: var(--ink);
+  opacity: 0;
+  transition: opacity 0.4s 0.5s;
+}
+.drawable.drawn + .fill-ink,
+.drawable.drawn .fill-ink,
+g.drawn .fill-ink { opacity: 1; }
+
+/* pop-in label */
+.pop {
+  opacity: 0;
+  transform: scale(0.55);
+  transform-origin: center;
+  transform-box: fill-box;
+  transition:
+    opacity 0.4s,
+    transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pop.shown { opacity: 1; transform: scale(1); }
+
+/* 底部高亮条 */
+.bottom-hi {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  transform: translate(-50%, 0);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.bottom-hi .bar {
+  width: 0;
+  height: 14px;
+  background: var(--hi-green);
+  border-radius: 2px;
+  transform: skewX(-3deg) rotate(-0.5deg);
+  transition: width 0.85s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.bottom-hi.on .bar { width: 480px; }
+
+.bottom-hi .label {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.45s 0.3s, transform 0.45s 0.3s;
+  white-space: nowrap;
+}
+.bottom-hi.on .label { opacity: 1; transform: translateY(0); }
+
+/* 作者水印 */
+.watermark {
+  position: absolute;
+  right: 20px;
+  bottom: 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  opacity: 0.65;
+  z-index: 10;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* 重播按钮 */
+.replay {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  z-index: 20;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+  transition: transform 0.15s;
+}
+.replay:hover { transform: translateY(-1px); }
+
+/* 图标标签位 */
+.label-text {
+  font-size: 26px;
+  font-weight: 700;
+  fill: var(--ink);
+}
+.label-sub {
+  font-size: 17px;
+  font-weight: 600;
+  fill: var(--ink-soft);
+}
+.plus {
+  font-size: 64px;
+  font-weight: 800;
+  fill: var(--ink);
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <button class="replay" id="replayBtn">↻ REPLAY</button>
+
+  <div class="top-title" id="title">
+    <div class="t">上下文工程是什么</div>
+    <div class="hl"></div>
+  </div>
+
+  <svg class="canvas" viewBox="0 0 960 720" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <!-- 手抖 filter：让线条有生命感 -->
+      <filter id="wobble" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="4" />
+        <feDisplacementMap in="SourceGraphic" scale="1.5" />
+      </filter>
+      <filter id="wobble-soft" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="9" />
+        <feDisplacementMap in="SourceGraphic" scale="1" />
+      </filter>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink, #1f2233)"/>
+      </marker>
+    </defs>
+
+    <!-- ============ 提示词图标（左）============ -->
+    <g transform="translate(200, 320)" filter="url(#wobble)">
+      <!-- 文档外框 -->
+      <path class="drawable" id="doc1-body" pathLength="100"
+            d="M -50 -60
+               L 30 -60
+               L 60 -30
+               L 60 60
+               L -50 60
+               Z
+               M 30 -60
+               L 30 -30
+               L 60 -30"/>
+      <!-- 文档横线 -->
+      <path class="drawable" id="doc1-lines" pathLength="100"
+            d="M -30 -10 L 40 -10
+               M -30 10  L 40 10
+               M -30 30  L 20 30"/>
+    </g>
+    <g transform="translate(200, 430)">
+      <text class="label-text pop" id="lbl1" text-anchor="middle">提示词</text>
+    </g>
+
+    <!-- ============ 加号（中左）============ -->
+    <g transform="translate(330, 320)">
+      <text class="plus pop" id="plus1" text-anchor="middle" dominant-baseline="central">+</text>
+    </g>
+
+    <!-- ============ 其他资料图标（中）============ -->
+    <g transform="translate(470, 320)" filter="url(#wobble)">
+      <!-- 三叠文件 -->
+      <path class="drawable" id="doc2-body" pathLength="100"
+            d="M -55 -58 L 25 -58 L 55 -28 L 55 52 L -55 52 Z
+               M 25 -58 L 25 -28 L 55 -28"/>
+      <path class="drawable" id="doc2-lines" pathLength="100"
+            d="M -35 -5 L 35 -5
+               M -35 15 L 35 15
+               M -35 35 L 15 35"/>
+      <!-- 后面两张影子 -->
+      <path class="drawable" id="doc2-stack" pathLength="100"
+            d="M -46 -66 L 35 -66
+               M -38 -74 L 42 -74"/>
+    </g>
+    <g transform="translate(470, 430)">
+      <text class="label-text pop" id="lbl2" text-anchor="middle">其他资料</text>
+    </g>
+
+    <!-- ============ 箭头 ============ -->
+    <g transform="translate(555, 320)" filter="url(#wobble-soft)">
+      <path class="drawable" id="arrow1" pathLength="100"
+            stroke-width="5"
+            marker-end="url(#arrowhead)"
+            d="M 0 0 Q 60 -14 130 0"/>
+    </g>
+
+    <!-- ============ 推理服务（右）============ -->
+    <g transform="translate(770, 320)" filter="url(#wobble)">
+      <!-- 主盒子 -->
+      <path class="drawable" id="brain-box" pathLength="100"
+            d="M -70 -60 L 70 -60 L 70 60 L -70 60 Z"/>
+      <!-- 神经网络点阵（3 列 3 行） -->
+      <g id="brain-dots">
+        <circle class="drawable" pathLength="100" cx="-42" cy="-28" r="8" stroke-width="3.5"/>
+        <circle class="drawable" pathLength="100" cx="-42" cy="0"   r="8" stroke-width="3.5"/>
+        <circle class="drawable" pathLength="100" cx="-42" cy="28"  r="8" stroke-width="3.5"/>
+        <circle class="drawable" pathLength="100" cx="0"   cy="-14" r="8" stroke-width="3.5"/>
+        <circle class="drawable" pathLength="100" cx="0"   cy="14"  r="8" stroke-width="3.5"/>
+        <circle class="drawable" pathLength="100" cx="42"  cy="0"   r="10" stroke-width="3.5"/>
+      </g>
+      <!-- 连线 -->
+      <path class="drawable" id="brain-net" pathLength="100" stroke-width="2.5"
+            d="M -34 -28 L -8 -14
+               M -34 0 L -8 -14
+               M -34 0 L -8 14
+               M -34 28 L -8 14
+               M 8 -14 L 32 0
+               M 8 14 L 32 0"/>
+    </g>
+    <g transform="translate(770, 430)">
+      <text class="label-text pop" id="lbl3" text-anchor="middle">推理服务</text>
+    </g>
+  </svg>
+
+  <div class="bottom-hi" id="bottomHi">
+    <div class="bar"></div>
+    <div class="label">发给大模型的所有信息</div>
+  </div>
+
+  <div class="watermark">@whiteboard-demo</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+
+// 时间线：[delay_ms, action]
+const timeline = [
+  [200,  () => $('title').classList.add('show')],
+  [900,  () => $('title').classList.add('hl-on')],
+
+  [1600, () => $('doc1-body').classList.add('drawn')],
+  [1900, () => $('doc1-lines').classList.add('drawn')],
+  [2400, () => $('lbl1').classList.add('shown')],
+
+  [2900, () => $('plus1').classList.add('shown')],
+
+  [3300, () => $('doc2-stack').classList.add('drawn')],
+  [3500, () => $('doc2-body').classList.add('drawn')],
+  [3800, () => $('doc2-lines').classList.add('drawn')],
+  [4300, () => $('lbl2').classList.add('shown')],
+
+  [4800, () => $('arrow1').classList.add('drawn')],
+
+  [5400, () => $('brain-box').classList.add('drawn')],
+  [5700, () => {
+    const circles = document.querySelectorAll('#brain-dots circle');
+    circles.forEach((c, i) => setTimeout(() => c.classList.add('drawn'), i * 80));
+  }],
+  [6300, () => $('brain-net').classList.add('drawn')],
+  [6900, () => $('lbl3').classList.add('shown')],
+
+  [7600, () => $('bottomHi').classList.add('on')],
+];
+
+let timers = [];
+function play() {
+  reset();
+  timers = timeline.map(([t, fn]) => setTimeout(fn, t));
+}
+function reset() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  $('title').classList.remove('show', 'hl-on');
+  $('bottomHi').classList.remove('on');
+  $$('.drawable').forEach(el => el.classList.remove('drawn'));
+  $$('.pop').forEach(el => el.classList.remove('shown'));
+}
+
+$('replayBtn').onclick = play;
+window.addEventListener('load', () => setTimeout(play, 400));
+</script>
+</body>
+</html>

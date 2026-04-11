@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AURA X — Simple. Alive.</title>
+<style>
+  /* ============================================================
+     AURA X — Product Reveal
+     Single-file, self-contained, 16s loop.
+     Palette: near-black + warm bone white + cool cyan accent.
+     ============================================================ */
+  :root {
+    --bg-0: #030306;
+    --bg-1: #07080c;
+    --bone: #f2ece0;
+    --bone-dim: #b8b2a6;
+    --ink-dim: #5a5d66;
+    --cyan: #8ef0ff;
+    --cyan-soft: rgba(142, 240, 255, 0.55);
+    --gold: #d9b176;
+
+    /* Master clock — every delay is a % of 16s */
+    --cycle: 16s;
+
+    /* Custom eases (NEVER linear, NEVER default ease) */
+    --e-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --e-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+    --e-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --e-spring: cubic-bezier(0.34, 1.26, 0.64, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #000; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                 "Helvetica Neue", Arial, sans-serif;
+    color: var(--bone);
+    overflow: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---------- STAGE ---------- */
+  .stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background:
+      radial-gradient(ellipse at 50% 45%, #0b0d14 0%, #05060a 45%, #000 100%);
+    overflow: hidden;
+    perspective: 1400px;
+  }
+
+  /* Subtle film grain (CSS only, no asset) */
+  .grain {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 2px;
+    animation: grainShift 0.8s steps(4) infinite;
+  }
+  @keyframes grainShift {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-1px, 1px); }
+    50%  { transform: translate(1px, -1px); }
+    75%  { transform: translate(-1px, -1px); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* Soft vignette */
+  .vignette {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      transparent 40%,
+      rgba(0,0,0,0.55) 85%,
+      #000 100%
+    );
+  }
+
+  /* ---------- CINEMATIC LETTERBOX BARS ---------- */
+  .bar {
+    position: absolute;
+    left: 0; right: 0;
+    height: 50%;
+    background: #000;
+    z-index: 40;
+    pointer-events: none;
+  }
+  .bar.top    { top: 0;    transform: translateY(-100%); }
+  .bar.bottom { bottom: 0; transform: translateY(100%); }
+
+  .bar.top    { animation: barTop    var(--cycle) var(--e-out-expo) infinite; }
+  .bar.bottom { animation: barBottom var(--cycle) var(--e-out-expo) infinite; }
+
+  @keyframes barTop {
+    /* 0s black out → 0.1s bars slam in from off-screen to reveal 12% slit
+       then hold → at 14s fade the whole frame */
+    0%    { transform: translateY(-100%); }
+    2%    { transform: translateY(-100%); }
+    10%   { transform: translateY(-88%);  }  /* 12% window opens */
+    88%   { transform: translateY(-88%);  }
+    96%   { transform: translateY(-100%); }  /* bars retreat before loop */
+    100%  { transform: translateY(-100%); }
+  }
+  @keyframes barBottom {
+    0%    { transform: translateY(100%); }
+    2%    { transform: translateY(100%); }
+    10%   { transform: translateY(88%);  }
+    88%   { transform: translateY(88%);  }
+    96%   { transform: translateY(100%); }
+    100%  { transform: translateY(100%); }
+  }
+
+  /* ---------- TOP-LEFT COPYRIGHT (Apple-style header) ---------- */
+  .copyright {
+    position: absolute;
+    top: 34px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: var(--bone-dim);
+    z-index: 30;
+    opacity: 0;
+    animation: copyrightFade var(--cycle) var(--e-out-quint) infinite;
+  }
+  @keyframes copyrightFade {
+    0%, 12%  { opacity: 0; transform: translate(-50%, -6px); }
+    18%      { opacity: 0.55; transform: translate(-50%, 0); }
+    82%      { opacity: 0.55; transform: translate(-50%, 0); }
+    90%, 100%{ opacity: 0;    transform: translate(-50%, 0); }
+  }
+
+  /* ---------- HERO PRODUCT WRAPPER ---------- */
+  .hero {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 340px;
+    height: 340px;
+    z-index: 10;
+  }
+
+  /* ---------- CORE: The Product (SVG scene) ---------- */
+  .product-scene {
+    width: 100%; height: 100%;
+    position: relative;
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+    animation: productEnter var(--cycle) var(--e-out-expo) infinite;
+  }
+  @keyframes productEnter {
+    0%, 10%   { opacity: 0; transform: translateY(24px) scale(0.94); filter: blur(8px); }
+    22%       { opacity: 1; transform: translateY(0)     scale(1);    filter: blur(0); }
+    86%       { opacity: 1; transform: translateY(0)     scale(1);    filter: blur(0); }
+    94%, 100% { opacity: 0; transform: translateY(-8px)  scale(1.02); filter: blur(4px); }
+  }
+
+  /* Slow lazy-susan rotation (CSS transform on SVG group via class) */
+  .spin {
+    transform-origin: 170px 158px;  /* center of product in SVG units */
+    transform-box: view-box;
+    animation: spinSlow var(--cycle) var(--e-in-out) infinite alternate;
+  }
+  @keyframes spinSlow {
+    0%   { transform: rotate(-5deg) skewX(0); }
+    50%  { transform: rotate( 0deg) skewX(0); }
+    100% { transform: rotate( 5deg) skewX(0); }
+  }
+
+  /* ---------- RIM LIGHT HALO behind product ---------- */
+  .halo {
+    position: absolute;
+    left: 50%; top: 54%;
+    width: 520px; height: 520px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    background: radial-gradient(
+      circle at center,
+      rgba(142, 240, 255, 0.18) 0%,
+      rgba(142, 240, 255, 0.08) 18%,
+      rgba(142, 240, 255, 0.00) 42%
+    );
+    filter: blur(8px);
+    opacity: 0;
+    animation: haloBreath var(--cycle) var(--e-out-expo) infinite;
+    z-index: 5;
+  }
+  @keyframes haloBreath {
+    0%, 10%   { opacity: 0;   transform: translate(-50%,-50%) scale(0.8); }
+    25%       { opacity: 0.9; transform: translate(-50%,-50%) scale(1);   }
+    50%       { opacity: 0.7; transform: translate(-50%,-50%) scale(1.04);}
+    75%       { opacity: 0.9; transform: translate(-50%,-50%) scale(1);   }
+    88%       { opacity: 0.7; transform: translate(-50%,-50%) scale(1.06);}
+    95%, 100% { opacity: 0;   transform: translate(-50%,-50%) scale(1.15);}
+  }
+
+  /* Second warm gold halo — single accent */
+  .halo.gold {
+    width: 380px; height: 380px;
+    background: radial-gradient(
+      circle at 50% 40%,
+      rgba(217, 177, 118, 0.10) 0%,
+      rgba(217, 177, 118, 0.00) 55%
+    );
+    filter: blur(2px);
+  }
+
+  /* ---------- FLOOR REFLECTION ---------- */
+  .reflection {
+    position: absolute;
+    left: 50%; top: 76%;
+    width: 420px; height: 110px;
+    transform: translate(-50%, 0);
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0;
+    animation: reflFade var(--cycle) var(--e-out-quint) infinite;
+  }
+  .reflection::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 0%,
+      rgba(142, 240, 255, 0.16) 0%,
+      rgba(142, 240, 255, 0.05) 30%,
+      rgba(0,0,0,0) 70%
+    );
+    filter: blur(6px);
+  }
+  @keyframes reflFade {
+    0%, 12%   { opacity: 0; }
+    25%       { opacity: 0.9; }
+    88%       { opacity: 0.7; }
+    96%, 100% { opacity: 0; }
+  }
+
+  /* ---------- SPEC CALLOUT LINES + LABELS ---------- */
+  .callouts {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 820px;  height: 520px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 20;
+  }
+  .callout {
+    position: absolute;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--bone);
+    white-space: nowrap;
+    opacity: 0;
+  }
+  .callout .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px 2px var(--cyan-soft);
+    vertical-align: middle;
+    margin-right: 10px;
+  }
+  .callout .line {
+    display: inline-block;
+    width: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--cyan-soft), transparent);
+    vertical-align: middle;
+    margin-right: 10px;
+  }
+  /* c3/c4 point inward from the right: flip gradient direction */
+  .c3 .line, .c4 .line {
+    background: linear-gradient(270deg, var(--cyan-soft), transparent);
+    margin-right: 0;
+    margin-left: 10px;
+  }
+  .c3 .dot, .c4 .dot { margin-right: 0; margin-left: 10px; }
+  .callout .num {
+    color: var(--cyan);
+    font-weight: 500;
+    font-size: 10px;
+    margin-right: 8px;
+    opacity: 0.8;
+  }
+  .callout .label {
+    color: var(--bone);
+    font-weight: 400;
+  }
+
+  /* Each callout: line grows, then label fades. Staggered per index. */
+  .c1 { top:  24%; left: 60%;
+        animation: co1 var(--cycle) var(--e-out-expo) infinite; }
+  .c2 { top:  44%; left: 64%;
+        animation: co2 var(--cycle) var(--e-out-expo) infinite; }
+  .c3 { top:  60%; right: 60%;
+        animation: co3 var(--cycle) var(--e-out-expo) infinite; }
+  .c4 { top:  30%; right: 64%;
+        animation: co4 var(--cycle) var(--e-out-expo) infinite; }
+
+  @keyframes co1 {
+    0%, 32%  { opacity: 0; transform: translateX(-6px); }
+    38%      { opacity: 1; transform: translateX(0); }
+    82%      { opacity: 1; transform: translateX(0); }
+    90%, 100%{ opacity: 0; transform: translateX(-4px); }
+  }
+  @keyframes co2 {
+    0%, 38%  { opacity: 0; transform: translateX(-6px); }
+    44%      { opacity: 1; transform: translateX(0); }
+    82%      { opacity: 1; transform: translateX(0); }
+    90%, 100%{ opacity: 0; transform: translateX(-4px); }
+  }
+  @keyframes co3 {
+    0%, 44%  { opacity: 0; transform: translateX(6px); }
+    50%      { opacity: 1; transform: translateX(0); }
+    82%      { opacity: 1; transform: translateX(0); }
+    90%, 100%{ opacity: 0; transform: translateX(4px); }
+  }
+  @keyframes co4 {
+    0%, 50%  { opacity: 0; transform: translateX(6px); }
+    56%      { opacity: 1; transform: translateX(0); }
+    82%      { opacity: 1; transform: translateX(0); }
+    90%, 100%{ opacity: 0; transform: translateX(4px); }
+  }
+
+  /* Animated lines (draw-in) — full 16s keyframe so they loop cleanly */
+  .c1 .line { animation: lineGrow1 var(--cycle) var(--e-out-expo) infinite; }
+  .c2 .line { animation: lineGrow2 var(--cycle) var(--e-out-expo) infinite; }
+  .c3 .line { animation: lineGrow3 var(--cycle) var(--e-out-expo) infinite; }
+  .c4 .line { animation: lineGrow4 var(--cycle) var(--e-out-expo) infinite; }
+  @keyframes lineGrow1 {
+    0%, 34%  { width: 0;   opacity: 0; }
+    42%      { width: 72px; opacity: 1; }
+    86%      { width: 72px; opacity: 1; }
+    92%, 100%{ width: 0;   opacity: 0; }
+  }
+  @keyframes lineGrow2 {
+    0%, 40%  { width: 0;   opacity: 0; }
+    48%      { width: 72px; opacity: 1; }
+    86%      { width: 72px; opacity: 1; }
+    92%, 100%{ width: 0;   opacity: 0; }
+  }
+  @keyframes lineGrow3 {
+    0%, 46%  { width: 0;   opacity: 0; }
+    54%      { width: 72px; opacity: 1; }
+    86%      { width: 72px; opacity: 1; }
+    92%, 100%{ width: 0;   opacity: 0; }
+  }
+  @keyframes lineGrow4 {
+    0%, 52%  { width: 0;   opacity: 0; }
+    60%      { width: 72px; opacity: 1; }
+    86%      { width: 72px; opacity: 1; }
+    92%, 100%{ width: 0;   opacity: 0; }
+  }
+
+  /* ---------- TAGLINE ---------- */
+  .tagline {
+    position: absolute;
+    left: 50%;
+    bottom: 18%;
+    transform: translate(-50%, 0);
+    z-index: 25;
+    text-align: center;
+    opacity: 0;
+    animation: taglineIn var(--cycle) var(--e-out-expo) infinite;
+  }
+  .tagline .word {
+    display: inline-block;
+    font-family: "SF Pro Display", -apple-system, "Times New Roman", serif;
+    font-weight: 200;
+    font-size: 78px;
+    letter-spacing: 0.16em;
+    color: var(--bone);
+    line-height: 1;
+    text-shadow: 0 0 30px rgba(242, 236, 224, 0.12);
+  }
+  .tagline .word.alive {
+    background: linear-gradient(180deg, #ffffff 0%, #c8d8e4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tagline .sep {
+    display: inline-block;
+    width: 18px;
+  }
+  @keyframes taglineIn {
+    0%, 62%   { opacity: 0; letter-spacing: 0.38em; transform: translate(-50%, 8px); filter: blur(10px); }
+    70%       { opacity: 1; letter-spacing: 0.16em; transform: translate(-50%, 0);   filter: blur(0);    }
+    85%       { opacity: 1; letter-spacing: 0.16em; transform: translate(-50%, 0);   filter: blur(0);    }
+    94%, 100% { opacity: 0; letter-spacing: 0.10em; transform: translate(-50%,-4px); filter: blur(6px);  }
+  }
+
+  /* ---------- BOTTOM-LEFT BRAND LOCKUP ---------- */
+  .lockup {
+    position: absolute;
+    bottom: 15%;
+    left: 7%;
+    z-index: 28;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    animation: lockupIn var(--cycle) var(--e-out-quint) infinite;
+  }
+  .lockup .brand {
+    font-size: 13px;
+    letter-spacing: 0.42em;
+    font-weight: 600;
+    color: var(--bone);
+  }
+  .lockup .sub {
+    font-size: 9px;
+    letter-spacing: 0.38em;
+    color: var(--bone-dim);
+  }
+  @keyframes lockupIn {
+    0%, 76%   { opacity: 0; transform: translateY(6px); }
+    84%       { opacity: 1; transform: translateY(0); }
+    94%       { opacity: 1; transform: translateY(0); }
+    100%      { opacity: 0; transform: translateY(0); }
+  }
+
+  /* ---------- BOTTOM-RIGHT META ---------- */
+  .meta {
+    position: absolute;
+    bottom: 15%;
+    right: 7%;
+    z-index: 28;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--bone-dim);
+    text-align: right;
+    line-height: 1.7;
+    opacity: 0;
+    animation: metaIn var(--cycle) var(--e-out-quint) infinite;
+  }
+  @keyframes metaIn {
+    0%, 78%   { opacity: 0; transform: translateY(6px); }
+    86%       { opacity: 0.8; transform: translateY(0); }
+    94%       { opacity: 0.8; transform: translateY(0); }
+    100%      { opacity: 0; transform: translateY(0); }
+  }
+
+  /* ---------- PARTICLES (floating dust) ---------- */
+  .particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 6;
+  }
+  .particle {
+    position: absolute;
+    width: 2px; height: 2px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 4px 1px rgba(142, 240, 255, 0.4);
+    opacity: 0;
+    animation: particleFloat 7s var(--e-in-out) infinite;
+  }
+
+  @keyframes particleFloat {
+    0%   { transform: translate(0, 20px); opacity: 0; }
+    10%  { opacity: 0.8; }
+    90%  { opacity: 0.6; }
+    100% { transform: translate(var(--dx, 0), -140px); opacity: 0; }
+  }
+
+  /* ---------- BOOT FLASH: the "wow" in first 2s ---------- */
+  .flash {
+    position: absolute; inset: 0;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(142, 240, 255, 0.9) 0%,
+      rgba(142, 240, 255, 0.25) 12%,
+      rgba(255,255,255,0) 30%
+    );
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    animation: flashIn var(--cycle) var(--e-out-expo) infinite;
+    mix-blend-mode: screen;
+  }
+  @keyframes flashIn {
+    0%, 11%  { opacity: 0; transform: scale(0.3); }
+    13%      { opacity: 1; transform: scale(1); }
+    18%      { opacity: 0.15; transform: scale(1.4); }
+    22%, 100%{ opacity: 0; transform: scale(1.6); }
+  }
+
+  /* ---------- SCAN LINE across product on intro ---------- */
+  .scan {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 440px; height: 2px;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--cyan-soft) 40%,
+      #ffffff 50%,
+      var(--cyan-soft) 60%,
+      transparent 100%
+    );
+    filter: blur(0.6px);
+    opacity: 0;
+    z-index: 14;
+    mix-blend-mode: screen;
+    animation: scanSweep var(--cycle) var(--e-in-out) infinite;
+  }
+  @keyframes scanSweep {
+    0%, 12%  { opacity: 0; transform: translate(-50%, -140px); }
+    14%      { opacity: 1; transform: translate(-50%, -140px); }
+    24%      { opacity: 1; transform: translate(-50%,  140px); }
+    26%, 100%{ opacity: 0; transform: translate(-50%,  140px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <!-- Letterbox cinematic bars -->
+  <div class="bar top"></div>
+  <div class="bar bottom"></div>
+
+  <!-- Header copyright -->
+  <div class="copyright">© AURA INC. &nbsp;·&nbsp; PRESS KIT 01</div>
+
+  <!-- Vignette + grain -->
+  <div class="vignette"></div>
+  <div class="grain"></div>
+
+  <!-- Halos behind product -->
+  <div class="halo"></div>
+  <div class="halo gold"></div>
+
+  <!-- Floating dust particles -->
+  <div class="particles" id="particles"></div>
+
+  <!-- Floor reflection -->
+  <div class="reflection"></div>
+
+  <!-- Hero product -->
+  <div class="hero">
+    <div class="product-scene">
+      <svg viewBox="0 0 340 340" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Vertical body gradient: deep charcoal → near-black with blue highlight -->
+          <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#0a0d12"/>
+            <stop offset="18%"  stop-color="#14181f"/>
+            <stop offset="40%"  stop-color="#242a34"/>
+            <stop offset="50%"  stop-color="#2f3742"/>
+            <stop offset="60%"  stop-color="#242a34"/>
+            <stop offset="82%"  stop-color="#0f1218"/>
+            <stop offset="100%" stop-color="#05070a"/>
+          </linearGradient>
+
+          <!-- Top glass dome gradient -->
+          <radialGradient id="dome" cx="0.45" cy="0.35" r="0.8">
+            <stop offset="0%"   stop-color="#e8fbff" stop-opacity="0.95"/>
+            <stop offset="20%"  stop-color="#8ef0ff" stop-opacity="0.45"/>
+            <stop offset="55%"  stop-color="#1a2230" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#05070a" stop-opacity="1"/>
+          </radialGradient>
+
+          <!-- Inner core glow -->
+          <radialGradient id="core" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"   stop-color="#ffffff"/>
+            <stop offset="30%"  stop-color="#8ef0ff"/>
+            <stop offset="70%"  stop-color="#1a4a60" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+          </radialGradient>
+
+          <!-- Base / foot gradient -->
+          <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#1a1f28"/>
+            <stop offset="100%" stop-color="#05060a"/>
+          </linearGradient>
+
+          <!-- Rim light left + right -->
+          <linearGradient id="rimL" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"  stop-color="#8ef0ff" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="#8ef0ff" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="rimR" x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.85"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+          </linearGradient>
+
+          <!-- Subtle groove stroke -->
+          <linearGradient id="groove" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"  stop-color="#000" stop-opacity="0"/>
+            <stop offset="50%" stop-color="#000" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+          </linearGradient>
+
+          <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="1.2"/>
+          </filter>
+          <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="4"/>
+          </filter>
+        </defs>
+
+        <!-- Everything that rotates (subtle lazy-susan) -->
+        <g class="spin">
+          <!-- ==== CYLINDER BODY ==== -->
+          <!-- main ellipse top (back) -->
+          <ellipse cx="170" cy="92"  rx="78" ry="18" fill="#0a0d12"/>
+          <!-- body rect -->
+          <path d="M 92 92
+                   L 92 224
+                   Q 92 242 170 242
+                   Q 248 242 248 224
+                   L 248 92
+                   Q 248 74 170 74
+                   Q 92 74 92 92 Z"
+                fill="url(#body)"/>
+
+          <!-- Rim light strokes (left & right) -->
+          <path d="M 92 100 L 92 224" stroke="url(#rimL)" stroke-width="3" fill="none" opacity="0.7"/>
+          <path d="M 248 100 L 248 224" stroke="url(#rimR)" stroke-width="2.5" fill="none" opacity="0.7"/>
+
+          <!-- Horizontal groove lines — machined detail -->
+          <line x1="96" y1="150" x2="244" y2="150" stroke="url(#groove)" stroke-width="1"/>
+          <line x1="96" y1="178" x2="244" y2="178" stroke="url(#groove)" stroke-width="1"/>
+          <line x1="96" y1="206" x2="244" y2="206" stroke="url(#groove)" stroke-width="1"/>
+
+          <!-- Speaker perforation grid (tiny dots) — subtle texture -->
+          <g fill="#000" opacity="0.55">
+            <!-- rows of dots -->
+            <g>
+              <circle cx="120" cy="160" r="1"/><circle cx="130" cy="160" r="1"/>
+              <circle cx="140" cy="160" r="1"/><circle cx="150" cy="160" r="1"/>
+              <circle cx="160" cy="160" r="1"/><circle cx="170" cy="160" r="1"/>
+              <circle cx="180" cy="160" r="1"/><circle cx="190" cy="160" r="1"/>
+              <circle cx="200" cy="160" r="1"/><circle cx="210" cy="160" r="1"/>
+              <circle cx="220" cy="160" r="1"/>
+            </g>
+            <g transform="translate(0, 10)">
+              <circle cx="120" cy="160" r="1"/><circle cx="130" cy="160" r="1"/>
+              <circle cx="140" cy="160" r="1"/><circle cx="150" cy="160" r="1"/>
+              <circle cx="160" cy="160" r="1"/><circle cx="170" cy="160" r="1"/>
+              <circle cx="180" cy="160" r="1"/><circle cx="190" cy="160" r="1"/>
+              <circle cx="200" cy="160" r="1"/><circle cx="210" cy="160" r="1"/>
+              <circle cx="220" cy="160" r="1"/>
+            </g>
+            <g transform="translate(0, 20)">
+              <circle cx="120" cy="160" r="1"/><circle cx="130" cy="160" r="1"/>
+              <circle cx="140" cy="160" r="1"/><circle cx="150" cy="160" r="1"/>
+              <circle cx="160" cy="160" r="1"/><circle cx="170" cy="160" r="1"/>
+              <circle cx="180" cy="160" r="1"/><circle cx="190" cy="160" r="1"/>
+              <circle cx="200" cy="160" r="1"/><circle cx="210" cy="160" r="1"/>
+              <circle cx="220" cy="160" r="1"/>
+            </g>
+          </g>
+
+          <!-- ==== TOP GLASS DOME ==== -->
+          <ellipse cx="170" cy="74" rx="78" ry="22" fill="url(#dome)"/>
+          <!-- Dome inner core (the "eye") -->
+          <ellipse cx="170" cy="72" rx="40" ry="12" fill="url(#core)" filter="url(#soft)"/>
+          <!-- Bright center pupil -->
+          <circle cx="168" cy="70" r="3.5" fill="#ffffff"/>
+          <!-- Glare highlight -->
+          <ellipse cx="150" cy="66" rx="18" ry="3.5" fill="#ffffff" opacity="0.55" filter="url(#soft)"/>
+
+          <!-- Dome outline highlight -->
+          <ellipse cx="170" cy="74" rx="78" ry="22" fill="none"
+                   stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+          <ellipse cx="170" cy="74" rx="78" ry="22" fill="none"
+                   stroke="rgba(142,240,255,0.35)" stroke-width="0.6"/>
+
+          <!-- ==== BOTTOM CAP / BASE ==== -->
+          <ellipse cx="170" cy="242" rx="78" ry="16" fill="url(#base)"/>
+          <ellipse cx="170" cy="242" rx="78" ry="16" fill="none"
+                   stroke="rgba(255,255,255,0.06)"/>
+          <!-- Foot shadow -->
+          <ellipse cx="170" cy="256" rx="70" ry="4" fill="#000" opacity="0.7" filter="url(#soft)"/>
+
+          <!-- Tiny LED indicator on the belt -->
+          <circle cx="170" cy="196" r="1.8" fill="#8ef0ff">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="2.4s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Scan line (intro reveal) -->
+  <div class="scan"></div>
+
+  <!-- Flash (boot) -->
+  <div class="flash"></div>
+
+  <!-- Spec callouts -->
+  <div class="callouts">
+    <div class="callout c1">
+      <span class="dot"></span><span class="line"></span>
+      <span class="num">01</span><span class="label">12 &nbsp;SENSORS</span>
+    </div>
+    <div class="callout c2">
+      <span class="dot"></span><span class="line"></span>
+      <span class="num">02</span><span class="label">48H &nbsp;BATTERY</span>
+    </div>
+    <div class="callout c3">
+      <span class="label">ON-DEVICE &nbsp;AI &nbsp;CORE</span><span class="num">&nbsp;03</span>
+      <span class="line"></span><span class="dot"></span>
+    </div>
+    <div class="callout c4">
+      <span class="label">5G &nbsp;· &nbsp;WIFI 7</span><span class="num">&nbsp;04</span>
+      <span class="line"></span><span class="dot"></span>
+    </div>
+  </div>
+
+  <!-- Tagline -->
+  <div class="tagline">
+    <span class="word">Simple.</span>
+    <span class="sep"></span>
+    <span class="word alive">Alive.</span>
+  </div>
+
+  <!-- Brand lockup -->
+  <div class="lockup">
+    <div class="brand">AURA&nbsp;&nbsp;X</div>
+    <div class="sub">SMART HOME HUB</div>
+  </div>
+
+  <!-- Meta -->
+  <div class="meta">
+    COMING<br/>2026
+  </div>
+</div>
+
+<script>
+  /* ------------------------------------------------------------------
+     Particle dust — injected, each with custom drift and stagger.
+     20 particles, varying drift on --dx, delays across the 16s cycle.
+     ------------------------------------------------------------------ */
+  (function () {
+    const root = document.getElementById('particles');
+    const N = 22;
+    for (let i = 0; i < N; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const x = 15 + Math.random() * 70;           // % from left
+      const y = 55 + Math.random() * 35;           // % from top (start below mid)
+      const dx = (Math.random() - 0.5) * 80;       // lateral drift px
+      const delay = (Math.random() * 12).toFixed(2); // spread over cycle
+      const dur = (5 + Math.random() * 4).toFixed(2);
+      const size = (1 + Math.random() * 2).toFixed(1);
+      p.style.left = x + '%';
+      p.style.top = y + '%';
+      p.style.setProperty('--dx', dx + 'px');
+      p.style.animationDelay = delay + 's';
+      p.style.animationDuration = dur + 's';
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      root.appendChild(p);
+    }
+  })();
+</script>
+
+</body>
+</html>

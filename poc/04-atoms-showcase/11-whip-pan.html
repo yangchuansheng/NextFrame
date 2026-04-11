@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>11 · Whip Pan</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 0%, #14141a, #050608);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #e4e5ea;
+  user-select: none;
+  overflow: hidden;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  background: #000;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  will-change: transform, filter;
+}
+
+/* ========== Scene A: Warm, geometric ========== */
+.scene-a {
+  background:
+    radial-gradient(ellipse at 30% 40%, #ffcc54 0%, #ff7a3a 35%, #d8344e 75%, #6c1630 100%);
+}
+.scene-a::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(45deg,
+      transparent 0px, transparent 60px,
+      rgba(255,255,255,0.04) 60px, rgba(255,255,255,0.04) 61px);
+}
+
+.shape {
+  position: absolute;
+  will-change: transform;
+}
+
+/* Big circle - sun-like */
+.scene-a .circle {
+  left: 18%; top: 22%;
+  width: 170px; height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #fff3a0 0%, #ffc04e 40%, #ff7030 85%);
+  box-shadow: 0 0 60px 15px rgba(255, 160, 80, 0.6);
+  animation: pulseA 3s ease-in-out infinite;
+}
+@keyframes pulseA {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+/* Triangle */
+.scene-a .triangle {
+  right: 20%; top: 15%;
+  width: 0; height: 0;
+  border-left: 70px solid transparent;
+  border-right: 70px solid transparent;
+  border-bottom: 120px solid #ffec8e;
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,0.3));
+  animation: spin 12s linear infinite;
+  transform-origin: 50% 60%;
+}
+@keyframes spin {
+  0%   { transform: rotate(0); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Square */
+.scene-a .square {
+  left: 55%; top: 55%;
+  width: 120px; height: 120px;
+  background: linear-gradient(135deg, #fff 0%, #ffd082 100%);
+  transform: rotate(20deg);
+  filter: drop-shadow(0 10px 25px rgba(0,0,0,0.35));
+  animation: wobble 4s ease-in-out infinite;
+}
+@keyframes wobble {
+  0%, 100% { transform: rotate(20deg) translateY(0); }
+  50%      { transform: rotate(15deg) translateY(-10px); }
+}
+
+/* Small dots */
+.scene-a .dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff3c4;
+  box-shadow: 0 0 12px #fff8d8;
+}
+.scene-a .dot.d1 { left: 8%;  top: 75%; animation: bob 2.2s ease-in-out infinite; }
+.scene-a .dot.d2 { left: 40%; top: 85%; animation: bob 2.6s ease-in-out infinite 0.3s; }
+.scene-a .dot.d3 { left: 78%; top: 72%; animation: bob 2.4s ease-in-out infinite 0.6s; }
+.scene-a .dot.d4 { left: 88%; top: 88%; animation: bob 2.8s ease-in-out infinite 0.1s; }
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+/* Big label */
+.scene-a .label {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 14%;
+  text-align: center;
+  font-size: 58px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow: 0 6px 24px rgba(120, 30, 10, 0.6);
+  -webkit-text-stroke: 2px rgba(140,30,10,0.4);
+}
+.scene-a .label .sub {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  margin-top: 4px;
+  opacity: 0.85;
+  -webkit-text-stroke: 0;
+}
+
+/* ========== Scene B: Cool, geometric ========== */
+.scene-b {
+  background:
+    radial-gradient(ellipse at 70% 60%, #4c80c8 0%, #2a4a82 35%, #1a2e58 70%, #0a1428 100%);
+}
+.scene-b::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(-45deg,
+      transparent 0px, transparent 60px,
+      rgba(255,255,255,0.05) 60px, rgba(255,255,255,0.05) 61px);
+}
+
+.scene-b .moon {
+  position: absolute;
+  right: 20%; top: 25%;
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e8f0ff 0%, #a8c0e8 45%, #5080b8 85%);
+  box-shadow: 0 0 60px 12px rgba(150, 180, 230, 0.5);
+  animation: pulseB 3.5s ease-in-out infinite;
+}
+@keyframes pulseB {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* Hexagon */
+.scene-b .hex {
+  position: absolute;
+  left: 16%; top: 28%;
+  width: 140px; height: 80px;
+  background: #a8d0ff;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,0.45));
+  animation: spin 14s linear infinite reverse;
+}
+
+/* Diamond */
+.scene-b .diamond {
+  position: absolute;
+  left: 48%; top: 58%;
+  width: 100px; height: 100px;
+  background: linear-gradient(135deg, #fff 0%, #80b8e8 100%);
+  transform: rotate(45deg);
+  filter: drop-shadow(0 10px 25px rgba(0,0,0,0.4));
+  animation: wobble2 4.2s ease-in-out infinite;
+}
+@keyframes wobble2 {
+  0%, 100% { transform: rotate(45deg) translateY(0); }
+  50%      { transform: rotate(42deg) translateY(-10px); }
+}
+
+/* Stars */
+.scene-b .star {
+  position: absolute;
+  width: 4px; height: 4px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #fff;
+}
+.scene-b .star.s1 { left: 12%; top: 15%; animation: twinkle 2s ease-in-out infinite; }
+.scene-b .star.s2 { left: 32%; top: 10%; animation: twinkle 2.4s ease-in-out infinite 0.3s; }
+.scene-b .star.s3 { left: 52%; top: 18%; animation: twinkle 1.8s ease-in-out infinite 0.7s; }
+.scene-b .star.s4 { left: 88%; top: 12%; animation: twinkle 2.2s ease-in-out infinite 0.2s; }
+.scene-b .star.s5 { left: 8%;  top: 80%; animation: twinkle 2.6s ease-in-out infinite 0.5s; }
+.scene-b .star.s6 { left: 72%; top: 82%; animation: twinkle 2s ease-in-out infinite 0.9s; }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1.3); }
+}
+
+.scene-b .label {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 14%;
+  text-align: center;
+  font-size: 58px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow: 0 6px 24px rgba(10, 30, 80, 0.7);
+  -webkit-text-stroke: 2px rgba(20,40,90,0.4);
+}
+.scene-b .label .sub {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  margin-top: 4px;
+  opacity: 0.85;
+  -webkit-text-stroke: 0;
+}
+
+/* ========== Whip-pan animation ========== */
+/*
+  Timeline (0.4s transition, 2s hold each side):
+  - A holds for 2s at tx=0
+  - A flies out left: 0 → 0.2s, tx = 0 → -120%, blur 0 → 14px, scaleX 1 → 1.4
+  - B flies in from right: 0.2s → 0.4s, tx = 120% → 0, blur 14 → 0, scaleX 1.4 → 1
+  - B holds for 2s
+  - reverse
+  Total cycle: 4.8s
+*/
+
+.scene-a {
+  animation: panA 4.8s infinite;
+}
+.scene-b {
+  animation: panB 4.8s infinite;
+}
+
+@keyframes panA {
+  /* 0 – 2s : hold */
+  0%, 41.67% {
+    transform: translateX(0) scaleX(1);
+    filter: blur(0);
+    opacity: 1;
+  }
+  /* whip out left, peaks at ~45.8% (mid transition) */
+  45.83% {
+    transform: translateX(-60%) scaleX(1.5);
+    filter: blur(16px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-130%) scaleX(1.35);
+    filter: blur(10px);
+    opacity: 0;
+  }
+  /* off-screen */
+  50.01%, 91.66% {
+    transform: translateX(130%) scaleX(1);
+    filter: blur(0);
+    opacity: 0;
+  }
+  /* whip in from right */
+  95.83% {
+    transform: translateX(60%) scaleX(1.5);
+    filter: blur(16px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scaleX(1);
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+@keyframes panB {
+  /* 0 – 2s : off-screen right */
+  0%, 41.66% {
+    transform: translateX(130%) scaleX(1);
+    filter: blur(0);
+    opacity: 0;
+  }
+  /* whip in from right, peak ~45.8% */
+  45.83% {
+    transform: translateX(60%) scaleX(1.5);
+    filter: blur(16px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(0) scaleX(1);
+    filter: blur(0);
+    opacity: 1;
+  }
+  /* hold 2s */
+  50.01%, 91.67% {
+    transform: translateX(0) scaleX(1);
+    filter: blur(0);
+    opacity: 1;
+  }
+  /* whip out left */
+  95.83% {
+    transform: translateX(-60%) scaleX(1.5);
+    filter: blur(16px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-130%) scaleX(1.35);
+    filter: blur(10px);
+    opacity: 0;
+  }
+}
+
+/* Motion streaks overlay during whip */
+.streaks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 6px,
+      rgba(255,255,255,0.12) 6px, rgba(255,255,255,0.12) 7px,
+      transparent 7px, transparent 14px,
+      rgba(255,255,255,0.07) 14px, rgba(255,255,255,0.07) 16px);
+  mix-blend-mode: screen;
+  animation: streaks 4.8s infinite;
+  z-index: 5;
+}
+@keyframes streaks {
+  0%, 43% { opacity: 0; transform: scaleX(1); }
+  47%     { opacity: 0.9; transform: scaleX(3); }
+  50%     { opacity: 0.4; transform: scaleX(2); }
+  53%     { opacity: 0; transform: scaleX(1); }
+  93%     { opacity: 0; transform: scaleX(1); }
+  97%     { opacity: 0.9; transform: scaleX(3); }
+  100%    { opacity: 0; transform: scaleX(1); }
+}
+
+/* Flash at the peak of the whip */
+.flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(255,255,255,0.3);
+  opacity: 0;
+  mix-blend-mode: overlay;
+  animation: flash 4.8s infinite;
+  z-index: 6;
+}
+@keyframes flash {
+  0%, 44%    { opacity: 0; }
+  46%        { opacity: 0.55; }
+  48%        { opacity: 0; }
+  94%        { opacity: 0; }
+  96%        { opacity: 0.55; }
+  98%, 100%  { opacity: 0; }
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    transparent 55%,
+    rgba(0,0,0,0.4) 95%,
+    rgba(0,0,0,0.7) 100%);
+  z-index: 10;
+}
+
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #07c160;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(7, 193, 96, 0.35);
+}
+.replay:hover { transform: translateY(-1px); }
+
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  z-index: 100;
+}
+.info .atom-name { color: #e4e5ea; font-weight: 700; }
+.info .tech { color: #7a7d86; }
+
+.stage.reset .scene-a,
+.stage.reset .scene-b,
+.stage.reset .streaks,
+.stage.reset .flash {
+  animation: none !important;
+}
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">11 · Whip Pan</span>
+  <span class="tech">CSS transform · blur · scaleX</span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="scene scene-a">
+    <div class="shape circle"></div>
+    <div class="shape triangle"></div>
+    <div class="shape square"></div>
+    <div class="shape dot d1"></div>
+    <div class="shape dot d2"></div>
+    <div class="shape dot d3"></div>
+    <div class="shape dot d4"></div>
+    <div class="label">WARM<span class="sub">SIDE A</span></div>
+  </div>
+
+  <div class="scene scene-b">
+    <div class="moon"></div>
+    <div class="hex"></div>
+    <div class="diamond"></div>
+    <div class="star s1"></div>
+    <div class="star s2"></div>
+    <div class="star s3"></div>
+    <div class="star s4"></div>
+    <div class="star s5"></div>
+    <div class="star s6"></div>
+    <div class="label">COOL<span class="sub">SIDE B</span></div>
+  </div>
+
+  <div class="streaks"></div>
+  <div class="flash"></div>
+  <div class="vignette"></div>
+</div>
+
+<script>
+const stage = document.getElementById('stage');
+function replay() {
+  stage.classList.add('reset');
+  void stage.offsetWidth;
+  stage.classList.remove('reset');
+}
+document.getElementById('replayBtn').onclick = replay;
+</script>
+</body>
+</html>

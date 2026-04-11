@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Karaoke · Word Sweep Highlight</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 30%, #0f1218, #05060a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+  overflow: hidden;
+  color: #e4e5ea;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(255, 140, 40, 0.12), transparent 60%),
+    radial-gradient(ellipse at 50% 90%, rgba(120, 200, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, #0d1017 0%, #0a0c12 100%);
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  border: 1px solid #1e2230;
+}
+
+/* Moving specks / stars for depth */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 12% 20%, rgba(255,255,255,0.5) 1px, transparent 1.5px),
+    radial-gradient(circle at 80% 35%, rgba(255,255,255,0.35) 1px, transparent 1.5px),
+    radial-gradient(circle at 65% 70%, rgba(255,255,255,0.4) 1px, transparent 1.5px),
+    radial-gradient(circle at 25% 85%, rgba(255,255,255,0.3) 1px, transparent 1.5px),
+    radial-gradient(circle at 45% 15%, rgba(255,255,255,0.25) 1px, transparent 1.5px);
+  pointer-events: none;
+}
+
+/* ===== Top progress bar (KTV style) ===== */
+.progress-wrap {
+  position: absolute;
+  top: 36px;
+  left: 8%;
+  right: 8%;
+  z-index: 3;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #5a6170;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.progress-label .t1 { color: #7a8090; }
+.progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.progress-fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: linear-gradient(90deg, #ff8c28 0%, #ffca5a 60%, #ffe08a 100%);
+  box-shadow: 0 0 10px rgba(255, 140, 40, 0.6);
+  transition: width 0.12s linear;
+}
+
+/* ===== Song meta ===== */
+.song-meta {
+  position: absolute;
+  bottom: 32px;
+  left: 0; right: 0;
+  text-align: center;
+  z-index: 3;
+}
+.song-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e4e5ea;
+  letter-spacing: 0.15em;
+}
+.song-artist {
+  font-size: 12px;
+  color: #6a7080;
+  letter-spacing: 0.2em;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+/* ===== Lyric stack ===== */
+.lyric-stack {
+  position: absolute;
+  top: 50%;
+  left: 0; right: 0;
+  transform: translateY(-50%);
+  text-align: center;
+}
+
+.lyric-main {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  font-family: "PingFang SC", "Helvetica Neue", sans-serif;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 12px;
+}
+
+/* Each word — default white outlined */
+.word {
+  display: inline-block;
+  color: #f5f6fa;
+  position: relative;
+  transition: color 0.05s linear;
+  text-shadow:
+    0 0 1px rgba(255,255,255,0.4),
+    0 2px 12px rgba(0,0,0,0.6);
+}
+.word.done {
+  color: #ffb040;
+  text-shadow:
+    0 0 4px rgba(255, 176, 64, 0.9),
+    0 0 18px rgba(255, 140, 40, 0.55),
+    0 2px 14px rgba(0,0,0,0.6);
+}
+/* Active word: partial via gradient mask-image applied inline */
+.word.active {
+  background: linear-gradient(90deg, #ffb040 var(--p, 0%), #f5f6fa var(--p, 0%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 6px rgba(255, 176, 64, 0.5));
+}
+
+/* Underline sweep */
+.lyric-underline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.lyric-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--uf, 0%);
+  background: linear-gradient(90deg, #ff8c28, #ffd070);
+  box-shadow: 0 0 8px rgba(255, 176, 64, 0.9);
+  transition: width 0.08s linear;
+}
+
+/* Next line preview */
+.lyric-next {
+  margin-top: 36px;
+  font-size: 20px;
+  font-weight: 400;
+  color: rgba(200, 210, 230, 0.35);
+  letter-spacing: 0.1em;
+  font-family: "PingFang SC", sans-serif;
+}
+
+/* ===== Info + replay ===== */
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 99;
+  font-family: "SF Mono", Menlo, monospace;
+}
+.atom-name {
+  color: #ffb040;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 8px rgba(255, 176, 64, 0.4);
+}
+.tech {
+  color: #5a5d65;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 9px 16px;
+  background: rgba(255, 140, 40, 0.12);
+  color: #ffb040;
+  border: 1px solid rgba(255, 176, 64, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  z-index: 100;
+}
+.replay:hover { background: rgba(255, 140, 40, 0.2); }
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">&#x21bb; REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">KARAOKE LYRICS</span>
+  <span class="tech">CSS gradient mask · rAF sweep</span>
+</div>
+
+<div class="stage">
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span class="t1" id="timeCur">00:00</span>
+      <span>NOW PLAYING</span>
+      <span id="timeTot">00:24</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <div class="lyric-stack">
+    <div class="lyric-main" id="lyricMain">
+      <div class="lyric-underline"><div id="ul"></div></div>
+    </div>
+    <div class="lyric-next" id="lyricNext"></div>
+  </div>
+
+  <div class="song-meta">
+    <div class="song-title">夜空中最亮的星</div>
+    <div class="song-artist">逃跑计划 · ESCAPE PLAN</div>
+  </div>
+</div>
+
+<script>
+// Each line: array of {word, dur(ms)}. Gap between words implicit in rhythm.
+const LINES = [
+  [
+    { w: '夜空中', d: 900 },
+    { w: '最亮的', d: 750 },
+    { w: '星', d: 1100 },
+    { w: '请照亮我', d: 1200 },
+    { w: '前行', d: 1200 },
+  ],
+  [
+    { w: '我', d: 500 },
+    { w: '宁愿', d: 700 },
+    { w: '所有', d: 700 },
+    { w: '痛苦', d: 900 },
+    { w: '都留', d: 700 },
+    { w: '在心里', d: 1400 },
+  ],
+  [
+    { w: '也', d: 500 },
+    { w: '不愿', d: 800 },
+    { w: '忘记', d: 900 },
+    { w: '你的', d: 700 },
+    { w: '眼睛', d: 1500 },
+  ],
+];
+
+const mainEl = document.getElementById('lyricMain');
+const nextEl = document.getElementById('lyricNext');
+const ulEl = document.querySelector('.lyric-underline');
+const fillEl = document.getElementById('progressFill');
+const timeCurEl = document.getElementById('timeCur');
+const timeTotEl = document.getElementById('timeTot');
+
+// total duration = sum of all word durs + gap between lines
+const GAP_LINE = 800;
+let totalMs = 0;
+for (let li = 0; li < LINES.length; li++) {
+  for (const w of LINES[li]) totalMs += w.d;
+  if (li < LINES.length - 1) totalMs += GAP_LINE;
+}
+
+function fmtTime(ms) {
+  const s = Math.floor(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+}
+timeTotEl.textContent = fmtTime(totalMs);
+
+function renderLine(lineIdx) {
+  mainEl.innerHTML = '';
+  const line = LINES[lineIdx];
+  const spans = [];
+  for (let i = 0; i < line.length; i++) {
+    const sp = document.createElement('span');
+    sp.className = 'word';
+    sp.textContent = line[i].w;
+    mainEl.appendChild(sp);
+    spans.push(sp);
+  }
+  // re-add underline (was wiped)
+  const ul = document.createElement('div');
+  ul.className = 'lyric-underline';
+  const inner = document.createElement('div');
+  inner.id = 'ulInner';
+  ul.appendChild(inner);
+  mainEl.appendChild(ul);
+
+  // next preview
+  const next = LINES[lineIdx + 1];
+  nextEl.textContent = next ? next.map(w => w.w).join('') : '　';
+  return { spans, ulInner: inner };
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let cancelled = false;
+let startTime = 0;
+
+function updateProgress(elapsed) {
+  const pct = Math.min(100, (elapsed / totalMs) * 100);
+  fillEl.style.width = pct + '%';
+  timeCurEl.textContent = fmtTime(elapsed);
+}
+
+async function animateLine(lineIdx, elapsedStart) {
+  const { spans, ulInner } = renderLine(lineIdx);
+  const line = LINES[lineIdx];
+
+  // total line duration (for underline)
+  let lineTotal = 0;
+  for (const w of line) lineTotal += w.d;
+
+  let lineElapsed = 0;
+  for (let wi = 0; wi < line.length; wi++) {
+    if (cancelled) return;
+    const word = line[wi];
+    const sp = spans[wi];
+    sp.classList.add('active');
+
+    const t0 = performance.now();
+    await new Promise(resolve => {
+      function frame() {
+        if (cancelled) { resolve(); return; }
+        const dt = performance.now() - t0;
+        const p = Math.min(1, dt / word.d);
+        sp.style.setProperty('--p', (p * 100) + '%');
+
+        // underline: portion of total line
+        const lineFrac = (lineElapsed + dt * p * 0 + dt) / lineTotal;
+        const ulPct = Math.min(100, ((lineElapsed + dt) / lineTotal) * 100);
+        ulInner.style.width = ulPct + '%';
+
+        // global progress
+        updateProgress(elapsedStart + lineElapsed + dt);
+
+        if (p >= 1) resolve();
+        else requestAnimationFrame(frame);
+      }
+      frame();
+    });
+    sp.classList.remove('active');
+    sp.classList.add('done');
+    sp.style.removeProperty('--p');
+    lineElapsed += word.d;
+  }
+  // ensure underline at 100
+  ulInner.style.width = '100%';
+}
+
+async function runTimeline() {
+  cancelled = false;
+  fillEl.style.width = '0%';
+  timeCurEl.textContent = '00:00';
+  nextEl.textContent = '';
+  mainEl.innerHTML = '<div class="lyric-underline"><div></div></div>';
+
+  await sleep(400);
+
+  let elapsed = 0;
+  for (let li = 0; li < LINES.length; li++) {
+    if (cancelled) return;
+    await animateLine(li, elapsed);
+    // accumulate
+    let ld = 0;
+    for (const w of LINES[li]) ld += w.d;
+    elapsed += ld;
+
+    if (li < LINES.length - 1) {
+      // gap (line fades/hold)
+      const gapStart = performance.now();
+      await new Promise(r => {
+        function f() {
+          if (cancelled) { r(); return; }
+          const dt = performance.now() - gapStart;
+          updateProgress(elapsed + dt);
+          if (dt >= GAP_LINE) r();
+          else requestAnimationFrame(f);
+        }
+        f();
+      });
+      elapsed += GAP_LINE;
+    }
+  }
+
+  // hold then reset
+  await sleep(1500);
+  if (cancelled) return;
+  runTimeline();
+}
+
+document.getElementById('replayBtn').onclick = () => {
+  cancelled = true;
+  setTimeout(runTimeline, 80);
+};
+
+window.addEventListener('load', () => setTimeout(runTimeline, 300));
+</script>
+</body>
+</html>

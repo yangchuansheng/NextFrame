@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lens Flare · Starfall</title>
+<style>
+:root {
+  --bg: #030408;
+  --ink: #e4e5ea;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 50%, #0a0c18, #020306 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+  overflow: hidden;
+  color: var(--ink);
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  background: radial-gradient(ellipse at 50% 40%, #0a0e1c 0%, #04060c 60%, #010204 100%);
+}
+
+/* ============ Starfield ============ */
+.stars {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.stars .s {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1; }
+}
+
+/* Nebula wash */
+.nebula {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 40% 30% at 20% 35%, rgba(80, 40, 120, 0.25), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 60%, rgba(40, 60, 140, 0.22), transparent 70%),
+    radial-gradient(ellipse 30% 20% at 50% 20%, rgba(100, 30, 90, 0.15), transparent 70%);
+  z-index: 0;
+}
+
+/* ============ Horizon glow ============ */
+.horizon {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 36%;
+  background: linear-gradient(to top,
+    rgba(10, 20, 45, 0.9),
+    rgba(20, 40, 80, 0.3) 50%,
+    transparent 100%);
+  z-index: 2;
+}
+.horizon::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 46%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(140, 180, 255, 0.4), transparent);
+}
+
+/* ============ Lens flare — moves across ============ */
+.flare {
+  position: absolute;
+  left: 0;
+  top: 40%;
+  width: 100%;
+  height: 0;
+  z-index: 5;
+  transform: translateX(-40%);
+  animation: flareMove 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  pointer-events: none;
+}
+@keyframes flareMove {
+  0%   { transform: translateX(-40%); }
+  50%  { transform: translateX(40%); }
+  100% { transform: translateX(-40%); }
+}
+
+/* Main sun core */
+.flare .core {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 140px;
+  height: 140px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 240, 210, 0.9) 12%,
+    rgba(255, 200, 140, 0.5) 28%,
+    rgba(255, 180, 100, 0.2) 50%,
+    transparent 75%);
+  border-radius: 50%;
+  filter: blur(1px);
+  animation: corePulse 2.8s ease-in-out infinite;
+}
+@keyframes corePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.08); }
+}
+
+/* Big halo */
+.flare .halo {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 440px;
+  height: 440px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255, 220, 160, 0.35) 0%,
+    rgba(255, 180, 100, 0.15) 20%,
+    rgba(180, 140, 255, 0.08) 45%,
+    transparent 70%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  filter: blur(4px);
+}
+
+/* Horizontal streak (anamorphic) */
+.flare .streak {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2200px;
+  height: 3px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(to right,
+    transparent 0%,
+    rgba(255, 200, 140, 0) 20%,
+    rgba(255, 220, 170, 0.4) 38%,
+    rgba(255, 240, 200, 0.9) 50%,
+    rgba(255, 220, 170, 0.4) 62%,
+    rgba(255, 200, 140, 0) 80%,
+    transparent 100%);
+  filter: blur(1.5px);
+  mix-blend-mode: screen;
+}
+.flare .streak.blue {
+  background: linear-gradient(to right,
+    transparent 0%,
+    rgba(120, 160, 255, 0) 25%,
+    rgba(140, 190, 255, 0.3) 42%,
+    rgba(180, 220, 255, 0.7) 50%,
+    rgba(140, 190, 255, 0.3) 58%,
+    rgba(120, 160, 255, 0) 75%,
+    transparent 100%);
+  height: 2px;
+  filter: blur(2px);
+}
+.flare .streak.red {
+  background: linear-gradient(to right,
+    transparent 0%,
+    rgba(255, 100, 120, 0) 25%,
+    rgba(255, 130, 150, 0.3) 42%,
+    rgba(255, 160, 180, 0.7) 50%,
+    rgba(255, 130, 150, 0.3) 58%,
+    rgba(255, 100, 120, 0) 75%,
+    transparent 100%);
+  height: 2px;
+  filter: blur(2px);
+}
+
+/* Vertical glow column */
+.flare .vcol {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 6px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(to bottom,
+    transparent, rgba(255, 220, 160, 0.5), transparent);
+  filter: blur(2px);
+  mix-blend-mode: screen;
+}
+
+/* Secondary circles scattered along the streak line */
+.flare .circle {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  filter: blur(2px);
+}
+.flare .c1 { left: 30%; width: 22px; height: 22px;
+  background: radial-gradient(circle, rgba(255, 100, 140, 0.55), transparent 70%); }
+.flare .c2 { left: 38%; width: 14px; height: 14px;
+  background: radial-gradient(circle, rgba(255, 220, 140, 0.6), transparent 70%); }
+.flare .c3 { left: 44%; width: 40px; height: 40px;
+  background: radial-gradient(circle, rgba(140, 220, 180, 0.4), transparent 70%); }
+.flare .c4 { left: 58%; width: 30px; height: 30px;
+  background: radial-gradient(circle, rgba(180, 140, 255, 0.45), transparent 70%); }
+.flare .c5 { left: 66%; width: 18px; height: 18px;
+  background: radial-gradient(circle, rgba(140, 180, 255, 0.55), transparent 70%); }
+.flare .c6 { left: 74%; width: 26px; height: 26px;
+  background: radial-gradient(circle, rgba(255, 180, 120, 0.5), transparent 70%); }
+.flare .c7 { left: 82%; width: 12px; height: 12px;
+  background: radial-gradient(circle, rgba(255, 240, 180, 0.7), transparent 70%); }
+
+/* Hexagonal aperture ghosts (using clip-path) */
+.flare .hex {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%);
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  mix-blend-mode: screen;
+  filter: blur(0.6px);
+  opacity: 0.75;
+}
+.flare .h1 {
+  left: 35%;
+  width: 46px; height: 46px;
+  background: radial-gradient(circle, rgba(255, 200, 140, 0.4), rgba(255, 160, 100, 0.15) 60%, transparent 85%);
+}
+.flare .h2 {
+  left: 62%;
+  width: 60px; height: 60px;
+  background: radial-gradient(circle, rgba(140, 200, 255, 0.35), rgba(100, 160, 220, 0.12) 60%, transparent 85%);
+}
+
+/* ============ Title ============ */
+.title-wrap {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  z-index: 6;
+}
+.title {
+  font-family: "Helvetica Neue", -apple-system, sans-serif;
+  font-size: 72px;
+  font-weight: 200;
+  letter-spacing: 0.45em;
+  color: #f0f4ff;
+  line-height: 1;
+  padding-left: 0.45em; /* compensate letter-spacing tail */
+  opacity: 0;
+  animation: titleReveal 7s ease-out infinite;
+  text-shadow:
+    0 0 16px rgba(200, 220, 255, 0.35),
+    0 0 32px rgba(140, 180, 255, 0.18);
+  /* chromatic aberration via drop-shadow */
+  filter:
+    drop-shadow(-1.2px 0 0 rgba(255, 100, 130, 0.55))
+    drop-shadow(1.2px 0 0 rgba(100, 180, 255, 0.55));
+}
+@keyframes titleReveal {
+  0%   { opacity: 0; letter-spacing: 0.6em; }
+  20%  { opacity: 0; letter-spacing: 0.55em; }
+  45%  { opacity: 1; letter-spacing: 0.45em; }
+  75%  { opacity: 1; letter-spacing: 0.45em; }
+  92%  { opacity: 0.15; }
+  100% { opacity: 0; letter-spacing: 0.6em; }
+}
+
+.divider {
+  width: 160px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(200, 220, 255, 0.7), transparent);
+  margin: 22px auto 14px;
+  opacity: 0;
+  animation: divIn 7s ease-out infinite;
+}
+@keyframes divIn {
+  0%, 30%   { opacity: 0; transform: scaleX(0.2); }
+  48%, 75%  { opacity: 1; transform: scaleX(1); }
+  92%, 100% { opacity: 0; transform: scaleX(0.2); }
+}
+.subtitle {
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.42em;
+  color: #a0b4d8;
+  opacity: 0;
+  animation: subShow 7s ease-out infinite;
+}
+@keyframes subShow {
+  0%, 35%   { opacity: 0; }
+  55%, 78%  { opacity: 1; }
+  92%, 100% { opacity: 0; }
+}
+
+/* Global dimmer following flare progression */
+.dimmer {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  z-index: 8;
+  pointer-events: none;
+  animation: dim 7s ease-in-out infinite;
+}
+@keyframes dim {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 0; }
+}
+
+/* Screen overlay brightness burst when core passes center */
+.bloom {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 240, 200, 0.15), transparent 50%);
+  opacity: 0;
+  z-index: 7;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: bloomA 7s ease-in-out infinite;
+}
+@keyframes bloomA {
+  0%, 30%   { opacity: 0; }
+  50%       { opacity: 1; }
+  70%, 100% { opacity: 0; }
+}
+
+/* Vignette */
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.5) 95%);
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* Replay + info */
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #1a1a24;
+  color: #a0b4d8;
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+.replay:hover { background: #22222e; }
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 22px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: -apple-system, sans-serif;
+}
+.info .atom-name { font-size: 13px; font-weight: 700; color: #e4e5ea; letter-spacing: 0.04em; }
+.info .tech { font-size: 10px; color: #7a7d86; letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="stage" id="stage">
+  <div class="nebula"></div>
+  <div class="stars" id="stars"></div>
+  <div class="horizon"></div>
+
+  <div class="title-wrap">
+    <div class="title">STARFALL</div>
+    <div class="divider"></div>
+    <div class="subtitle">CHAPTER I · THE FIRST LIGHT</div>
+  </div>
+
+  <div class="flare">
+    <div class="streak red"></div>
+    <div class="streak blue"></div>
+    <div class="streak"></div>
+    <div class="vcol"></div>
+    <div class="halo"></div>
+    <div class="circle c1"></div>
+    <div class="hex h1"></div>
+    <div class="circle c2"></div>
+    <div class="circle c3"></div>
+    <div class="circle c4"></div>
+    <div class="hex h2"></div>
+    <div class="circle c5"></div>
+    <div class="circle c6"></div>
+    <div class="circle c7"></div>
+    <div class="core"></div>
+  </div>
+
+  <div class="bloom"></div>
+  <div class="dimmer"></div>
+  <div class="vignette"></div>
+</div>
+
+<div class="info">
+  <span class="atom-name">Lens Flare · Anamorphic Sweep</span>
+  <span class="tech">radial-gradient · clip-path hex · chromatic aberration</span>
+</div>
+
+<script>
+// Generate starfield
+const starsEl = document.getElementById('stars');
+const seeded = [
+  [6, 12, 1.2, 0], [14, 28, 0.8, 0.4], [22, 8, 1, 1.1], [31, 22, 1.3, 0.2],
+  [38, 40, 0.8, 1.6], [45, 14, 1, 0.8], [53, 32, 1.2, 0.3], [60, 6, 0.9, 1.4],
+  [68, 26, 1.1, 0.9], [74, 42, 0.8, 0.1], [82, 18, 1.3, 1.3], [89, 30, 1, 0.5],
+  [95, 8, 0.9, 1.8], [4, 46, 1, 0.7], [12, 56, 0.8, 1.2], [20, 60, 1.1, 0.3],
+  [28, 52, 0.9, 1.5], [36, 64, 1.2, 0.6], [44, 58, 0.8, 1.0], [52, 66, 1, 0.2],
+  [60, 54, 1.1, 1.7], [68, 62, 0.9, 0.4], [76, 50, 1, 1.3], [84, 58, 1.2, 0.8],
+  [92, 62, 0.8, 0.5], [8, 38, 0.8, 1.1], [18, 14, 1, 0.3], [26, 32, 0.9, 1.6],
+  [34, 6, 1.2, 0.4], [42, 24, 0.8, 1.0], [50, 10, 1.1, 0.6], [58, 22, 0.9, 1.2],
+  [66, 36, 1, 0.1], [72, 12, 1.3, 1.5], [78, 24, 0.8, 0.7], [86, 40, 1, 1.1],
+  [94, 22, 0.9, 0.2],
+];
+seeded.forEach(([x, y, r, d]) => {
+  const s = document.createElement('span');
+  s.className = 's';
+  s.style.left = x + '%';
+  s.style.top = y + '%';
+  s.style.width = r + 'px';
+  s.style.height = r + 'px';
+  s.style.animationDelay = d + 's';
+  if (r > 1.1) s.style.boxShadow = '0 0 3px #fff';
+  starsEl.appendChild(s);
+});
+
+const stage = document.getElementById('stage');
+document.getElementById('replayBtn').onclick = () => {
+  stage.querySelectorAll('.flare, .title, .divider, .subtitle, .bloom, .dimmer').forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetHeight;
+    el.style.animation = '';
+  });
+};
+</script>
+</body>
+</html>

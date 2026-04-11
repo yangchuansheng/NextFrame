@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>12 · Zoom Punch</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 0%, #14141a, #050608);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #e4e5ea;
+  user-select: none;
+  overflow: hidden;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  background: #0a0612;
+}
+
+/* ========== Background ========== */
+.bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, #28143a 0%, #1a0828 40%, #0a0412 100%);
+}
+
+/* Radial rays from center (shockwave color field) */
+.rays {
+  position: absolute;
+  inset: -20%;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%,
+      rgba(255,200,80,0.0) 0deg 8deg,
+      rgba(255,200,80,0.08) 8deg 10deg);
+  mix-blend-mode: screen;
+  animation: raysSpin 14s linear infinite, raysPulse 2.2s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+@keyframes raysSpin {
+  0%   { transform: rotate(0); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes raysPulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.8; }
+}
+
+/* Shockwave ring */
+.shock {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 80px; height: 80px;
+  margin-left: -40px;
+  margin-top: -40px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 200, 100, 0.8);
+  opacity: 0;
+  animation: shock 2.2s ease-out infinite;
+  will-change: transform, opacity;
+}
+.shock.s2 { animation-delay: 0.7s; }
+.shock.s3 { animation-delay: 1.4s; }
+@keyframes shock {
+  0%   { transform: scale(0.3); opacity: 0; border-width: 8px; }
+  15%  { opacity: 1; }
+  100% { transform: scale(6); opacity: 0; border-width: 1px; }
+}
+
+/* Radial gradient burst sync with punch */
+.burst {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center,
+    rgba(255, 220, 120, 0.55) 0%,
+    rgba(255, 120, 60, 0.28) 20%,
+    transparent 55%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: burst 2.2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes burst {
+  0%   { opacity: 0; transform: scale(0.5); }
+  25%  { opacity: 0.95; transform: scale(1.2); }
+  35%  { opacity: 0.6; transform: scale(1); }
+  55%  { opacity: 0.3; transform: scale(0.95); }
+  70%  { opacity: 0.1; transform: scale(1); }
+  85%  { opacity: 0; transform: scale(1.4); }
+  100% { opacity: 0; transform: scale(0.5); }
+}
+
+/* Screen shake wrapper */
+.shake {
+  position: absolute;
+  inset: 0;
+  animation: shake 2.2s ease-out infinite;
+  will-change: transform;
+}
+@keyframes shake {
+  0%   { transform: translate(0, 0); }
+  22%  { transform: translate(0, 0); }
+  24%  { transform: translate(-6px, 4px); }
+  26%  { transform: translate(5px, -3px); }
+  28%  { transform: translate(-4px, -5px); }
+  30%  { transform: translate(4px, 4px); }
+  32%  { transform: translate(-3px, 2px); }
+  34%  { transform: translate(2px, -2px); }
+  36%  { transform: translate(0, 0); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ========== The IMPACT text ========== */
+.punch {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.3);
+  font-size: 130px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: #fff;
+  -webkit-text-stroke: 3px #1a0612;
+  text-shadow:
+    0 0 40px rgba(255, 220, 120, 0.9),
+    0 0 80px rgba(255, 140, 60, 0.6),
+    0 8px 0 #d84028,
+    0 10px 0 #a02818,
+    0 12px 0 #701810,
+    0 20px 40px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  animation: punch 2.2s cubic-bezier(0.2, 0.9, 0.3, 1) infinite;
+  will-change: transform, filter, opacity;
+  z-index: 5;
+}
+/*
+  Timeline (2.2s loop):
+  0%    — tiny (scale 0.3), no blur
+  18%   — slam to scale 1.5, heavy radial blur
+  24%   — bounce back to 0.95
+  30%   — settle to 1.0
+  30-65% hold at 1.0 (~ 0.77s hold)
+  65-78% explode to scale 5 + fade out
+  78-100% — off-screen
+*/
+@keyframes punch {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3) rotate(-2deg);
+    filter: blur(0px);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  18% {
+    transform: translate(-50%, -50%) scale(1.55) rotate(1deg);
+    filter: blur(6px);
+    opacity: 1;
+  }
+  24% {
+    transform: translate(-50%, -50%) scale(0.92) rotate(-0.5deg);
+    filter: blur(1px);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1) rotate(0);
+    filter: blur(0px);
+    opacity: 1;
+  }
+  65% {
+    transform: translate(-50%, -50%) scale(1.02) rotate(0);
+    filter: blur(0px);
+    opacity: 1;
+  }
+  78% {
+    transform: translate(-50%, -50%) scale(5) rotate(0);
+    filter: blur(14px);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.3) rotate(-2deg);
+    filter: blur(0px);
+    opacity: 0;
+  }
+}
+
+/* Star-shape badge behind the text */
+.badge {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 460px; height: 460px;
+  margin-left: -230px;
+  margin-top: -230px;
+  background: #ffcc3a;
+  clip-path: polygon(
+    50% 0%, 58% 18%, 78% 10%, 72% 30%, 92% 32%,
+    76% 46%, 92% 62%, 72% 62%, 78% 82%, 58% 72%,
+    50% 92%, 42% 72%, 22% 82%, 28% 62%, 8% 62%,
+    24% 46%, 8% 32%, 28% 30%, 22% 10%, 42% 18%
+  );
+  transform: scale(0.3) rotate(-8deg);
+  opacity: 0;
+  filter: drop-shadow(0 20px 40px rgba(0,0,0,0.6));
+  animation: badge 2.2s cubic-bezier(0.2, 0.9, 0.3, 1) infinite;
+  will-change: transform, opacity;
+  z-index: 4;
+}
+@keyframes badge {
+  0% {
+    transform: translate(0,0) scale(0.3) rotate(-8deg);
+    opacity: 0;
+  }
+  18% {
+    transform: translate(0,0) scale(1.4) rotate(4deg);
+    opacity: 0.75;
+  }
+  24% {
+    transform: translate(0,0) scale(0.92) rotate(-2deg);
+    opacity: 0.75;
+  }
+  30% {
+    transform: translate(0,0) scale(1) rotate(0);
+    opacity: 0.75;
+  }
+  65% {
+    transform: translate(0,0) scale(1.03) rotate(0);
+    opacity: 0.7;
+  }
+  78% {
+    transform: translate(0,0) scale(5) rotate(0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0,0) scale(0.3) rotate(-8deg);
+    opacity: 0;
+  }
+}
+
+/* Secondary caption */
+.caption {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 13%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.45em;
+  color: #ffd96a;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+  opacity: 0;
+  animation: cap 2.2s ease-out infinite;
+  z-index: 6;
+}
+@keyframes cap {
+  0%, 20% { opacity: 0; transform: translateY(12px); }
+  32%     { opacity: 1; transform: translateY(0); }
+  65%     { opacity: 1; transform: translateY(0); }
+  75%     { opacity: 0; transform: translateY(-8px); }
+  100%    { opacity: 0; }
+}
+
+/* Chromatic aberration layers (red/blue split on impact) */
+.punch.chrom-r,
+.punch.chrom-b {
+  mix-blend-mode: screen;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  animation: punch 2.2s cubic-bezier(0.2, 0.9, 0.3, 1) infinite;
+  z-index: 3;
+}
+.punch.chrom-r {
+  color: rgba(255, 40, 40, 0.85);
+  margin-left: -4px;
+}
+.punch.chrom-b {
+  color: rgba(40, 120, 255, 0.85);
+  margin-left: 4px;
+}
+
+/* Flash overlay at impact */
+.flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: flash 2.2s ease-out infinite;
+  pointer-events: none;
+  z-index: 8;
+}
+@keyframes flash {
+  0%, 14% { opacity: 0; }
+  18%     { opacity: 0.55; }
+  22%     { opacity: 0.2; }
+  26%     { opacity: 0; }
+  75%     { opacity: 0; }
+  78%     { opacity: 0.7; }
+  82%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Debris particles flung out on punch */
+.debris {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px; height: 10px;
+  background: #ffcc54;
+  border-radius: 2px;
+  opacity: 0;
+  animation: debris 2.2s ease-out infinite;
+  will-change: transform, opacity;
+  z-index: 7;
+}
+@keyframes debris {
+  0%, 15% {
+    transform: translate(-50%, -50%) rotate(0) translateX(0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate(-50%, -50%) rotate(var(--ra, 45deg)) translateX(var(--rd, 300px)) rotate(var(--rs, 360deg));
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    transparent 40%,
+    rgba(0,0,0,0.45) 85%,
+    rgba(0,0,0,0.8) 100%);
+  z-index: 20;
+}
+
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #07c160;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(7, 193, 96, 0.35);
+}
+.replay:hover { transform: translateY(-1px); }
+
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  z-index: 100;
+}
+.info .atom-name { color: #e4e5ea; font-weight: 700; }
+.info .tech { color: #7a7d86; }
+
+.stage.reset *,
+.stage.reset {
+  animation: none !important;
+}
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">12 · Zoom Punch</span>
+  <span class="tech">CSS scale · blur · chromatic</span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="bg"></div>
+
+  <div class="shake">
+    <div class="rays"></div>
+
+    <div class="burst"></div>
+
+    <div class="shock"></div>
+    <div class="shock s2"></div>
+    <div class="shock s3"></div>
+
+    <div class="badge"></div>
+
+    <div class="punch chrom-b">IMPACT</div>
+    <div class="punch chrom-r">IMPACT</div>
+    <div class="punch">IMPACT</div>
+
+    <div class="debris" style="--ra: 15deg;  --rd: 380px; --rs: 540deg;"></div>
+    <div class="debris" style="--ra: 55deg;  --rd: 340px; --rs: -420deg;"></div>
+    <div class="debris" style="--ra: 110deg; --rd: 400px; --rs: 360deg;"></div>
+    <div class="debris" style="--ra: 160deg; --rd: 360px; --rs: -500deg;"></div>
+    <div class="debris" style="--ra: 210deg; --rd: 380px; --rs: 480deg;"></div>
+    <div class="debris" style="--ra: 250deg; --rd: 320px; --rs: -360deg;"></div>
+    <div class="debris" style="--ra: 300deg; --rd: 400px; --rs: 540deg;"></div>
+    <div class="debris" style="--ra: 340deg; --rd: 350px; --rs: -420deg;"></div>
+
+    <div class="caption">NO PRISONERS · NO MERCY · NO LIMIT</div>
+
+    <div class="flash"></div>
+  </div>
+
+  <div class="vignette"></div>
+</div>
+
+<script>
+const stage = document.getElementById('stage');
+function replay() {
+  stage.classList.add('reset');
+  void stage.offsetWidth;
+  stage.classList.remove('reset');
+}
+document.getElementById('replayBtn').onclick = replay;
+</script>
+</body>
+</html>

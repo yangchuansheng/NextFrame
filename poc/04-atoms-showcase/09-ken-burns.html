@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>09 · Ken Burns</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 0%, #14141a, #050608);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #e4e5ea;
+  user-select: none;
+  overflow: hidden;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  background: #000;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1);
+  will-change: transform, opacity;
+}
+
+.slide .scene {
+  position: absolute;
+  inset: -5%;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* ========= Slide 1: Barcelona Sunset ========= */
+.s1 .scene {
+  background:
+    radial-gradient(ellipse 60% 45% at 65% 58%, rgba(255,180,80,0.55), transparent 70%),
+    linear-gradient(180deg,
+      #2a1640 0%,
+      #6b2550 25%,
+      #c8524a 45%,
+      #ee8a3a 60%,
+      #f4b254 72%,
+      #d67a3c 88%,
+      #3a1a28 100%
+    );
+}
+.s1 .sun {
+  position: absolute;
+  left: 62%;
+  top: 52%;
+  width: 140px;
+  height: 140px;
+  margin-left: -70px;
+  margin-top: -70px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff3c4 0%, #ffcd5c 35%, #f4823a 70%, transparent 100%);
+  filter: blur(1px);
+  box-shadow: 0 0 80px 30px rgba(255, 180, 80, 0.5);
+}
+.s1 .city {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 18%;
+  height: 30%;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(20,10,20,0.9) 20%, #0a0612 100%);
+}
+.s1 .sky-strip {
+  position: absolute;
+  left: 0; right: 0;
+  top: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(20,5,40,0.3), transparent);
+}
+.s1 .silhouette {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 16%;
+  height: 120px;
+  background:
+    linear-gradient(90deg,
+      transparent 0%, #0a0612 2%, #0a0612 6%, transparent 6.5%,
+      transparent 10%, #0a0612 11%, #0a0612 14%, transparent 14.5%,
+      transparent 18%, #0a0612 19%, #0a0612 28%, transparent 28.5%,
+      transparent 33%, #0a0612 34%, #0a0612 40%, transparent 40.5%,
+      transparent 44%, #0a0612 45%, #0a0612 48%, transparent 48.5%,
+      transparent 52%, #0a0612 53%, #0a0612 62%, transparent 62.5%,
+      transparent 66%, #0a0612 67%, #0a0612 72%, transparent 72.5%,
+      transparent 76%, #0a0612 77%, #0a0612 86%, transparent 86.5%,
+      transparent 90%, #0a0612 91%, #0a0612 98%, transparent 100%
+    );
+  mask: linear-gradient(180deg,
+    transparent 0%,
+    #000 14%,
+    #000 30%, transparent 33%,
+    #000 40%, #000 55%, transparent 58%,
+    #000 65%, #000 100%);
+  -webkit-mask: linear-gradient(180deg,
+    transparent 0%,
+    #000 14%,
+    #000 30%, transparent 33%,
+    #000 40%, #000 55%, transparent 58%,
+    #000 65%, #000 100%);
+}
+.s1 .city-lights {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 20%;
+  height: 40px;
+  background-image:
+    radial-gradient(circle at 5% 50%, #ffcf5e 0.8px, transparent 1.5px),
+    radial-gradient(circle at 12% 30%, #ffe08a 0.6px, transparent 1.3px),
+    radial-gradient(circle at 19% 60%, #ffcf5e 0.8px, transparent 1.5px),
+    radial-gradient(circle at 25% 40%, #ffe08a 0.6px, transparent 1.3px),
+    radial-gradient(circle at 34% 55%, #ffcf5e 0.8px, transparent 1.5px),
+    radial-gradient(circle at 41% 35%, #ffe08a 0.6px, transparent 1.3px),
+    radial-gradient(circle at 49% 50%, #ffcf5e 0.8px, transparent 1.5px),
+    radial-gradient(circle at 58% 30%, #ffe08a 0.6px, transparent 1.3px),
+    radial-gradient(circle at 68% 45%, #ffcf5e 0.8px, transparent 1.5px),
+    radial-gradient(circle at 77% 55%, #ffe08a 0.6px, transparent 1.3px),
+    radial-gradient(circle at 84% 30%, #ffcf5e 0.8px, transparent 1.5px),
+    radial-gradient(circle at 92% 50%, #ffe08a 0.6px, transparent 1.3px);
+  background-size: 100% 100%;
+}
+.s1 .water {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 18%;
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,180,80,0.25) 0px, rgba(255,180,80,0.25) 2px,
+      transparent 2px, transparent 6px),
+    linear-gradient(180deg, #2a1020 0%, #180612 100%);
+}
+
+/* ========= Slide 2: Snow Mountain ========= */
+.s2 .scene {
+  background: linear-gradient(180deg,
+    #0a1828 0%,
+    #1a3456 25%,
+    #3c6ea0 45%,
+    #82b4d8 65%,
+    #c8dde8 80%,
+    #e8eef4 100%
+  );
+}
+.s2 .sky-glow {
+  position: absolute;
+  left: 30%;
+  top: 10%;
+  width: 50%;
+  height: 30%;
+  background: radial-gradient(ellipse, rgba(255,220,180,0.25), transparent 70%);
+}
+.s2 .peak-back {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 25%;
+  height: 40%;
+  background:
+    linear-gradient(135deg, transparent 40%, rgba(200,220,240,0.9) 42%, rgba(120,160,200,0.8) 55%, transparent 55.5%),
+    linear-gradient(-135deg, transparent 40%, rgba(180,200,230,0.8) 42%, rgba(100,140,180,0.7) 55%, transparent 55.5%);
+  -webkit-mask: linear-gradient(180deg, #000 50%, transparent 100%);
+  mask: linear-gradient(180deg, #000 50%, transparent 100%);
+  opacity: 0.5;
+  filter: blur(1px);
+}
+.s2 .peak-main {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 20%;
+  height: 55%;
+  clip-path: polygon(
+    0% 100%,
+    8% 82%, 14% 92%, 22% 70%, 28% 85%,
+    36% 55%, 42% 70%, 48% 40%,
+    54% 15%, 60% 35%, 66% 20%, 72% 45%,
+    80% 30%, 86% 55%, 92% 45%, 100% 70%,
+    100% 100%
+  );
+  background: linear-gradient(180deg,
+    #f8fbfc 0%,
+    #d8e4ec 30%,
+    #8aa6c0 55%,
+    #4a6888 80%,
+    #2a3c58 100%
+  );
+  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+}
+.s2 .peak-main::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, transparent 40%, rgba(0,0,0,0.35) 42%, rgba(0,0,0,0.5) 55%, transparent 60%),
+    linear-gradient(260deg, transparent 50%, rgba(255,255,255,0.2) 52%, transparent 65%);
+  mix-blend-mode: multiply;
+}
+.s2 .snow-field {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 25%;
+  background: linear-gradient(180deg,
+    rgba(220,232,240,0.9) 0%,
+    #e8eff4 50%,
+    #c0cfd8 100%
+  );
+}
+.s2 .snow-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 20% at 30% 40%, rgba(150,170,190,0.3), transparent),
+    radial-gradient(ellipse 50% 15% at 70% 60%, rgba(120,140,170,0.3), transparent);
+}
+
+/* ========= Slide 3: Ocean ========= */
+.s3 .scene {
+  background: linear-gradient(180deg,
+    #05162a 0%,
+    #0a2848 20%,
+    #0e4068 40%,
+    #0a5084 58%,
+    #0a3a68 72%,
+    #061e3a 100%
+  );
+}
+.s3 .horizon-glow {
+  position: absolute;
+  left: 0; right: 0;
+  top: 42%;
+  height: 8%;
+  background: linear-gradient(180deg, transparent, rgba(180,220,255,0.35), transparent);
+  filter: blur(2px);
+}
+.s3 .moon {
+  position: absolute;
+  left: 70%;
+  top: 18%;
+  width: 90px;
+  height: 90px;
+  margin-left: -45px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fff 0%, #e8ecf0 50%, #9ca8b8 100%);
+  box-shadow: 0 0 60px 20px rgba(180, 200, 230, 0.4);
+}
+.s3 .clouds {
+  position: absolute;
+  left: 0; right: 0;
+  top: 20%;
+  height: 20%;
+  background:
+    radial-gradient(ellipse 25% 50% at 15% 50%, rgba(100,130,170,0.4), transparent 70%),
+    radial-gradient(ellipse 30% 40% at 45% 30%, rgba(80,110,150,0.35), transparent 70%),
+    radial-gradient(ellipse 20% 50% at 85% 60%, rgba(90,120,160,0.4), transparent 70%);
+  filter: blur(3px);
+}
+.s3 .waves {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  bottom: 0;
+  background:
+    repeating-linear-gradient(95deg,
+      transparent 0px, transparent 28px,
+      rgba(160,200,240,0.18) 28px, rgba(160,200,240,0.18) 29px
+    ),
+    repeating-linear-gradient(85deg,
+      transparent 0px, transparent 40px,
+      rgba(100,150,200,0.15) 40px, rgba(100,150,200,0.15) 42px
+    );
+}
+.s3 .moon-path {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  bottom: 0;
+  width: 40%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(220,235,255,0.45) 0%, transparent 70%);
+  filter: blur(2px);
+}
+.s3 .ripple {
+  position: absolute;
+  left: 45%;
+  top: 58%;
+  width: 200px;
+  height: 200px;
+  border: 1px solid rgba(200,220,240,0.3);
+  border-radius: 50%;
+  animation: ripple 3s ease-out infinite;
+  opacity: 0;
+}
+.s3 .ripple.r2 { animation-delay: 1s; }
+.s3 .ripple.r3 { animation-delay: 2s; }
+@keyframes ripple {
+  0%   { transform: scale(0.1); opacity: 0; }
+  20%  { opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ========= Caption ========= */
+.caption {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 8%;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.6);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.caption .line {
+  display: inline-block;
+  padding: 10px 22px;
+  border-top: 1px solid rgba(255,255,255,0.5);
+  border-bottom: 1px solid rgba(255,255,255,0.5);
+}
+.caption .sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.35em;
+  color: rgba(255,255,255,0.65);
+}
+.slide.active .caption {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ========= Vignette ========= */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    transparent 40%,
+    rgba(0,0,0,0.25) 80%,
+    rgba(0,0,0,0.55) 100%);
+  z-index: 10;
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image:
+    radial-gradient(circle at 23% 41%, #fff 0.3px, transparent 0.6px),
+    radial-gradient(circle at 67% 82%, #fff 0.3px, transparent 0.6px),
+    radial-gradient(circle at 12% 77%, #fff 0.3px, transparent 0.6px),
+    radial-gradient(circle at 89% 34%, #fff 0.3px, transparent 0.6px);
+  background-size: 4px 4px, 5px 5px, 3px 3px, 6px 6px;
+  z-index: 11;
+}
+
+/* ========= Ken Burns animation ========= */
+.slide.active {
+  opacity: 1;
+  transition: opacity 1.2s ease;
+}
+.slide.active .scene {
+  animation: kenburns var(--dur, 5.2s) linear forwards;
+}
+.slide.kb-a .scene { --kbx: -4%; --kby: -3%; --kbs: 1.15; }
+.slide.kb-b .scene { --kbx:  3%; --kby: -4%; --kbs: 1.18; }
+.slide.kb-c .scene { --kbx: -3%; --kby:  3%; --kbs: 1.16; }
+
+@keyframes kenburns {
+  0%   { transform: translate(0, 0) scale(1.0); }
+  100% { transform: translate(var(--kbx), var(--kby)) scale(var(--kbs)); }
+}
+
+/* ========= UI ========= */
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #07c160;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(7, 193, 96, 0.35);
+}
+.replay:hover { transform: translateY(-1px); }
+
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  z-index: 100;
+}
+.info .atom-name {
+  color: #e4e5ea;
+  font-weight: 700;
+}
+.info .tech {
+  color: #7a7d86;
+}
+
+/* Progress bar */
+.progress {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(0,0,0,0.3);
+  z-index: 12;
+}
+.progress .bar {
+  height: 100%;
+  background: rgba(255,255,255,0.55);
+  width: 0;
+}
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">09 · Ken Burns</span>
+  <span class="tech">CSS transform · keyframes</span>
+</div>
+
+<div class="stage" id="stage">
+
+  <div class="slide s1 kb-a" data-caption="BARCELONA · 1998" data-sub="SUNSET OVER THE HARBOR">
+    <div class="scene">
+      <div class="sky-strip"></div>
+      <div class="sun"></div>
+      <div class="city"></div>
+      <div class="silhouette"></div>
+      <div class="city-lights"></div>
+      <div class="water"></div>
+    </div>
+    <div class="caption">
+      <span class="line">BARCELONA · 1998</span>
+      <span class="sub">SUNSET OVER THE HARBOR</span>
+    </div>
+  </div>
+
+  <div class="slide s2 kb-b" data-caption="PATAGONIA · 2003" data-sub="SILENCE OF THE GLACIERS">
+    <div class="scene">
+      <div class="sky-glow"></div>
+      <div class="peak-back"></div>
+      <div class="peak-main"></div>
+      <div class="snow-field"></div>
+    </div>
+    <div class="caption">
+      <span class="line">PATAGONIA · 2003</span>
+      <span class="sub">SILENCE OF THE GLACIERS</span>
+    </div>
+  </div>
+
+  <div class="slide s3 kb-c" data-caption="PACIFIC · 2011" data-sub="THE NIGHT WATCH">
+    <div class="scene">
+      <div class="clouds"></div>
+      <div class="moon"></div>
+      <div class="horizon-glow"></div>
+      <div class="moon-path"></div>
+      <div class="waves"></div>
+      <div class="ripple"></div>
+      <div class="ripple r2"></div>
+      <div class="ripple r3"></div>
+    </div>
+    <div class="caption">
+      <span class="line">PACIFIC · 2011</span>
+      <span class="sub">THE NIGHT WATCH</span>
+    </div>
+  </div>
+
+  <div class="vignette"></div>
+  <div class="grain"></div>
+
+  <div class="progress"><div class="bar" id="bar"></div></div>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const bar = document.getElementById('bar');
+const SLIDE_MS = 5200;
+const FADE_MS = 1200;
+let timers = [];
+let rafId = null;
+let startTime = 0;
+
+function clearTimers() {
+  timers.forEach(t => clearTimeout(t));
+  timers = [];
+  if (rafId) cancelAnimationFrame(rafId);
+}
+
+function run() {
+  clearTimers();
+  slides.forEach(s => {
+    s.classList.remove('active');
+    // reset keyframe by reflow
+    const scene = s.querySelector('.scene');
+    scene.style.animation = 'none';
+    void scene.offsetWidth;
+    scene.style.animation = '';
+  });
+
+  const total = slides.length * SLIDE_MS;
+  startTime = performance.now();
+
+  slides.forEach((slide, i) => {
+    timers.push(setTimeout(() => {
+      slide.classList.add('active');
+      if (i > 0) {
+        // crossfade: previous slide fades out
+        timers.push(setTimeout(() => {
+          slides[i-1].classList.remove('active');
+        }, FADE_MS));
+      }
+    }, i * SLIDE_MS));
+  });
+
+  // loop
+  timers.push(setTimeout(() => {
+    slides[slides.length - 1].classList.remove('active');
+    setTimeout(run, 800);
+  }, total + 400));
+
+  // progress bar
+  function tick(now) {
+    const elapsed = now - startTime;
+    const pct = Math.min(100, (elapsed / total) * 100);
+    bar.style.width = pct + '%';
+    if (elapsed < total) rafId = requestAnimationFrame(tick);
+  }
+  rafId = requestAnimationFrame(tick);
+}
+
+document.getElementById('replayBtn').onclick = run;
+window.addEventListener('load', () => setTimeout(run, 200));
+</script>
+</body>
+</html>

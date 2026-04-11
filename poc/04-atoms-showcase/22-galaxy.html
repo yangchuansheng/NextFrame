@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>22 · Galaxy</title>
+<style>
+:root {
+  --bg: #0a0a0d;
+  --text: #e4e5ea;
+  --text-dim: #7a7d86;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 30%, #0d0815, #020205);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+  overflow: hidden;
+  color: var(--text);
+}
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  max-height: 92vh;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #020206;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  border: 1px solid rgba(255,255,255,0.04);
+}
+canvas { display: block; width: 100%; height: 100%; }
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+}
+.replay:hover { background: rgba(255,255,255,0.12); }
+.info {
+  position: absolute;
+  left: 22px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+.atom-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+}
+.tech {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+.corner {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.25);
+  font-weight: 600;
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="stage">
+  <canvas id="c"></canvas>
+  <div class="corner">22 / 24</div>
+  <div class="info">
+    <span class="atom-name">Spiral Galaxy · Particles</span>
+    <span class="tech">THREE.JS · POINTS · LOG SPIRAL · 8000PTS</span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(function () {
+  const canvas = document.getElementById('c');
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#020206');
+  scene.fog = new THREE.FogExp2('#020206', 0.02);
+
+  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+  camera.position.set(0, 6, 14);
+  camera.lookAt(0, 0, 0);
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / rect.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ---- Galaxy particles (log-spiral) ----
+  const COUNT = 9000;
+  const ARMS = 4;
+  const ARM_TIGHTNESS = 0.28;   // b in log spiral r = a*exp(b*theta)
+  const MAX_RADIUS = 10;
+
+  const positions = new Float32Array(COUNT * 3);
+  const colors = new Float32Array(COUNT * 3);
+  const phases = new Float32Array(COUNT);    // flicker phase
+  const baseSize = new Float32Array(COUNT);
+
+  const cBlue  = new THREE.Color('#4a6eff');
+  const cPurp  = new THREE.Color('#a855f7');
+  const cPink  = new THREE.Color('#ff5ea8');
+  const cWarm  = new THREE.Color('#ffd6a0');
+
+  for (let i = 0; i < COUNT; i++) {
+    // Random radius, biased toward center
+    const t = Math.pow(Math.random(), 0.55);
+    const radius = t * MAX_RADIUS;
+
+    // Which arm
+    const arm = i % ARMS;
+    const armAngle = (arm / ARMS) * Math.PI * 2;
+
+    // Log spiral: angle increases with radius
+    const theta = armAngle + Math.log(radius + 0.1) / ARM_TIGHTNESS;
+
+    // Jitter: larger further from center
+    const jitterRadial = (Math.random() - 0.5) * 0.8 * (1 + radius * 0.15);
+    const jitterAngle = (Math.random() - 0.5) * 0.35;
+    const jitterY = (Math.random() - 0.5) * 0.6 * Math.exp(-radius * 0.15);
+
+    const finalTheta = theta + jitterAngle;
+    const finalR = radius + jitterRadial;
+
+    positions[i * 3]     = Math.cos(finalTheta) * finalR;
+    positions[i * 3 + 1] = jitterY;
+    positions[i * 3 + 2] = Math.sin(finalTheta) * finalR;
+
+    // Color: center warm/pink, mid purple, edge blue
+    const cMix = new THREE.Color();
+    const norm = radius / MAX_RADIUS;
+    if (norm < 0.25) {
+      cMix.copy(cWarm).lerp(cPink, norm / 0.25);
+    } else if (norm < 0.6) {
+      cMix.copy(cPink).lerp(cPurp, (norm - 0.25) / 0.35);
+    } else {
+      cMix.copy(cPurp).lerp(cBlue, (norm - 0.6) / 0.4);
+    }
+    // Brightness fade with distance
+    const bright = 1 - norm * 0.45;
+    colors[i * 3]     = cMix.r * bright;
+    colors[i * 3 + 1] = cMix.g * bright;
+    colors[i * 3 + 2] = cMix.b * bright;
+
+    phases[i] = Math.random() * Math.PI * 2;
+    baseSize[i] = 0.05 + Math.random() * 0.08;
+  }
+
+  // Radial sprite texture (soft circle)
+  function makeSprite() {
+    const size = 64;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const ctx = cv.getContext('2d');
+    const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.2, 'rgba(255,255,255,0.85)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,size,size);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  const sprite = makeSprite();
+
+  const galaxyGeo = new THREE.BufferGeometry();
+  galaxyGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  galaxyGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const galaxyMat = new THREE.PointsMaterial({
+    size: 0.18,
+    vertexColors: true,
+    map: sprite,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+  const galaxy = new THREE.Points(galaxyGeo, galaxyMat);
+  scene.add(galaxy);
+
+  // ---- Central bright core (big sprite) ----
+  const coreMat = new THREE.SpriteMaterial({
+    map: sprite,
+    color: 0xffe6cc,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const core = new THREE.Sprite(coreMat);
+  core.scale.set(3.2, 3.2, 1);
+  scene.add(core);
+
+  const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: sprite, color: 0xff9a3c,
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.6,
+  }));
+  coreGlow.scale.set(6, 6, 1);
+  scene.add(coreGlow);
+
+  // ---- Background stars ----
+  const STAR_COUNT = 600;
+  const starPos = new Float32Array(STAR_COUNT * 3);
+  for (let i = 0; i < STAR_COUNT; i++) {
+    // Random points on a large sphere shell
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 60 + Math.random() * 30;
+    starPos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    starPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    starPos[i*3+2] = r * Math.cos(phi);
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  const starMat = new THREE.PointsMaterial({
+    size: 0.3,
+    color: 0xaab0cc,
+    transparent: true,
+    opacity: 0.6,
+    map: sprite,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const stars = new THREE.Points(starGeo, starMat);
+  scene.add(stars);
+
+  // ---- Animate ----
+  const clock = new THREE.Clock();
+  const posAttr = galaxyGeo.getAttribute('position');
+  const colAttr = galaxyGeo.getAttribute('color');
+  // snapshot of base colors for flicker
+  const baseColors = colors.slice();
+
+  let rafId = 0;
+  function tick() {
+    const t = clock.getElapsedTime();
+
+    // Galaxy slow self-rotation
+    galaxy.rotation.y = t * 0.08;
+
+    // Camera orbit around center
+    const camR = 13 + Math.sin(t * 0.15) * 1.5;
+    camera.position.x = Math.cos(t * 0.12) * camR;
+    camera.position.z = Math.sin(t * 0.12) * camR;
+    camera.position.y = 5.5 + Math.sin(t * 0.2) * 1.2;
+    camera.lookAt(0, 0, 0);
+
+    // Flicker per particle (only update colors, cheap)
+    for (let i = 0; i < COUNT; i++) {
+      const f = 0.75 + Math.sin(t * 3 + phases[i]) * 0.25;
+      colAttr.array[i*3]     = baseColors[i*3]     * f;
+      colAttr.array[i*3 + 1] = baseColors[i*3 + 1] * f;
+      colAttr.array[i*3 + 2] = baseColors[i*3 + 2] * f;
+    }
+    colAttr.needsUpdate = true;
+
+    // Core pulse
+    const cp = 1 + Math.sin(t * 1.2) * 0.08;
+    core.scale.set(3.2 * cp, 3.2 * cp, 1);
+    coreGlow.material.opacity = 0.55 + Math.sin(t * 0.8) * 0.1;
+
+    renderer.render(scene, camera);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function replay() {
+    cancelAnimationFrame(rafId);
+    clock.start();
+    tick();
+  }
+
+  document.getElementById('replayBtn').onclick = replay;
+  tick();
+})();
+</script>
+</body>
+</html>

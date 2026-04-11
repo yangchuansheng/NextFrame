@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Duotone Pulse · 120 BPM</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 30%, #16101e, #04020a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+  overflow: hidden;
+  color: #e4e5ea;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(255, 0, 150, 0.25));
+  border: 1px solid #2a1a3a;
+  background: #0a0618;
+}
+
+/* -- color theme via CSS variables, JS will swap these -- */
+.stage {
+  --c-shadow: #1a0040;
+  --c-high: #ff1e8e;
+}
+
+/* Background that takes the two-tone color */
+.bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--c-shadow) 0%, #000 60%, var(--c-shadow) 100%);
+  transition: background 0.12s linear;
+}
+
+/* Pulse wrapper - scales on beat */
+.pulse {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  animation: beat 0.8s ease-in-out infinite;
+}
+@keyframes beat {
+  0%, 100% { transform: scale(1); }
+  10% { transform: scale(1.04); }
+  50% { transform: scale(1.0); }
+}
+
+/* Portrait SVG wrapper - duotone effect via filter + blend */
+.portrait {
+  width: 48%;
+  height: 82%;
+  position: relative;
+  filter: contrast(1.2) drop-shadow(0 0 40px rgba(255, 30, 142, 0.4));
+}
+
+/* SVG strokes/fills will inherit currentColor so we can set via var */
+.portrait svg {
+  width: 100%;
+  height: 100%;
+  color: var(--c-high);
+  transition: color 0.12s linear;
+}
+
+/* Halftone pattern overlay */
+.halftone {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1.6px);
+  background-size: 10px 10px;
+  mix-blend-mode: overlay;
+  z-index: 5;
+}
+
+/* Noise grain */
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.06) 0.5px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.06) 0.5px, transparent 1px);
+  background-size: 4px 4px, 6px 6px;
+  mix-blend-mode: overlay;
+  z-index: 6;
+  animation: grainShift 0.1s infinite;
+}
+@keyframes grainShift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 2px 3px, 4px 1px; }
+}
+
+/* Top-left BPM indicator */
+.bpm {
+  position: absolute;
+  top: 22px; left: 26px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--c-high);
+  letter-spacing: 0.15em;
+  z-index: 10;
+  transition: color 0.12s linear;
+}
+.bpm .num { font-size: 26px; }
+.bpm .dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  background: var(--c-high);
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: bpmBlink 0.8s infinite;
+  box-shadow: 0 0 12px var(--c-high);
+  transition: background 0.12s linear, box-shadow 0.12s linear;
+}
+@keyframes bpmBlink {
+  0%, 20% { opacity: 1; transform: scale(1.2); }
+  40%, 100% { opacity: 0.3; transform: scale(1); }
+}
+
+/* Bottom-left label */
+.label {
+  position: absolute;
+  bottom: 22px; left: 26px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--c-high);
+  letter-spacing: 0.2em;
+  opacity: 0.7;
+  z-index: 10;
+  transition: color 0.12s linear;
+}
+
+/* Bottom-right waveform-ish bars */
+.wave {
+  position: absolute;
+  bottom: 20px; right: 26px;
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 34px;
+  z-index: 10;
+}
+.wave span {
+  display: block;
+  width: 4px;
+  background: var(--c-high);
+  box-shadow: 0 0 6px var(--c-high);
+  transition: background 0.12s linear, box-shadow 0.12s linear;
+  animation: wave 0.8s infinite;
+}
+.wave span:nth-child(1) { height: 40%; animation-delay: 0.00s; }
+.wave span:nth-child(2) { height: 70%; animation-delay: 0.10s; }
+.wave span:nth-child(3) { height: 90%; animation-delay: 0.20s; }
+.wave span:nth-child(4) { height: 55%; animation-delay: 0.30s; }
+.wave span:nth-child(5) { height: 85%; animation-delay: 0.40s; }
+.wave span:nth-child(6) { height: 65%; animation-delay: 0.15s; }
+.wave span:nth-child(7) { height: 95%; animation-delay: 0.25s; }
+.wave span:nth-child(8) { height: 50%; animation-delay: 0.35s; }
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1.2); }
+}
+
+/* Color flash overlay on every beat */
+.flash {
+  position: absolute;
+  inset: 0;
+  background: var(--c-high);
+  opacity: 0;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 4;
+  animation: flash 0.8s infinite;
+  transition: background 0.12s linear;
+}
+@keyframes flash {
+  0% { opacity: 0.28; }
+  25% { opacity: 0.05; }
+  100% { opacity: 0; }
+}
+
+/* Scan lines */
+.scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.15) 0px,
+    rgba(0,0,0,0.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 7;
+}
+
+.vig {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* REPLAY btn */
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #1a0030;
+  color: #ff9ee0;
+  border: 1px solid #ff1e8e;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  z-index: 100;
+  box-shadow: 0 0 16px rgba(255, 30, 142, 0.35);
+}
+.replay:hover { background: #2a0550; }
+
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #7a7d86;
+}
+.info .atom-name { color: #ff9ee0; font-weight: 700; letter-spacing: 0.1em; }
+.info .tech { color: #5a3d55; }
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">08 · DUOTONE PULSE</span>
+  <span class="tech">CSS vars · beat sync</span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="bg"></div>
+
+  <div class="pulse">
+    <div class="portrait">
+      <svg viewBox="0 0 400 520" xmlns="http://www.w3.org/2000/svg">
+        <!-- Abstract head -->
+        <defs>
+          <linearGradient id="headGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="currentColor" stop-opacity="1"/>
+            <stop offset="1" stop-color="currentColor" stop-opacity="0.4"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Neck -->
+        <rect x="160" y="340" width="80" height="120" fill="url(#headGrad)"/>
+
+        <!-- Shoulders / torso -->
+        <path d="M 60 520 L 90 420 Q 200 380 310 420 L 340 520 Z" fill="currentColor" opacity="0.7"/>
+
+        <!-- Head ellipse -->
+        <ellipse cx="200" cy="200" rx="120" ry="150" fill="currentColor"/>
+
+        <!-- Jawline highlight -->
+        <path d="M 85 230 Q 200 400 315 230" fill="none" stroke="#000" stroke-width="3" opacity="0.4"/>
+
+        <!-- Hair mass -->
+        <path d="M 80 180 Q 90 60 200 50 Q 310 60 320 180 Q 310 120 270 100 Q 200 80 130 100 Q 90 120 80 180 Z" fill="#000" opacity="0.55"/>
+
+        <!-- Eyes (negative space) -->
+        <ellipse cx="160" cy="200" rx="14" ry="8" fill="#000" opacity="0.85"/>
+        <ellipse cx="240" cy="200" rx="14" ry="8" fill="#000" opacity="0.85"/>
+        <!-- Eye highlight -->
+        <circle cx="164" cy="198" r="3" fill="currentColor"/>
+        <circle cx="244" cy="198" r="3" fill="currentColor"/>
+
+        <!-- Nose shadow -->
+        <path d="M 200 210 L 190 260 L 210 260 Z" fill="#000" opacity="0.35"/>
+
+        <!-- Lips -->
+        <path d="M 170 295 Q 200 310 230 295 Q 200 305 170 295 Z" fill="#000" opacity="0.5"/>
+        <line x1="170" y1="298" x2="230" y2="298" stroke="#000" stroke-width="2" opacity="0.4"/>
+
+        <!-- Cheek shadow -->
+        <ellipse cx="120" cy="260" rx="25" ry="40" fill="#000" opacity="0.2"/>
+        <ellipse cx="280" cy="260" rx="25" ry="40" fill="#000" opacity="0.2"/>
+
+        <!-- Earring -->
+        <circle cx="85" cy="260" r="6" fill="currentColor"/>
+        <circle cx="85" cy="260" r="2" fill="#000"/>
+
+        <!-- Abstract geometric accent -->
+        <circle cx="60" cy="100" r="25" fill="none" stroke="currentColor" stroke-width="3" opacity="0.6"/>
+        <rect x="310" y="80" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" opacity="0.6" transform="rotate(25 330 100)"/>
+        <line x1="20" y1="440" x2="90" y2="440" stroke="currentColor" stroke-width="3" opacity="0.6"/>
+        <line x1="310" y1="440" x2="380" y2="440" stroke="currentColor" stroke-width="3" opacity="0.6"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="flash"></div>
+  <div class="halftone"></div>
+  <div class="grain"></div>
+  <div class="scan"></div>
+  <div class="vig"></div>
+
+  <div class="bpm"><span class="dot"></span>BPM <span class="num" id="bpmNum">120</span></div>
+  <div class="label">CH.01 // DUOTONE.VFX</div>
+  <div class="wave">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+</div>
+
+<script>
+const THEMES = [
+  { shadow: '#1a0040', high: '#ff1e8e' }, // magenta/deep-blue
+  { shadow: '#002840', high: '#b6f2ff' }, // cyan/teal
+  { shadow: '#1a0a00', high: '#ffd84a' }, // amber/black
+  { shadow: '#001a0a', high: '#6affb0' }, // green/dark-green
+  { shadow: '#280028', high: '#c86aff' }, // purple/violet
+];
+
+const stage = document.getElementById('stage');
+let idx = 0;
+let beatTimer;
+const BEAT_MS = 800; // ~75 BPM visual but tile doubles to feel 120; keep 800
+
+function applyTheme(i) {
+  const t = THEMES[i];
+  stage.style.setProperty('--c-shadow', t.shadow);
+  stage.style.setProperty('--c-high', t.high);
+}
+
+function tickBeat() {
+  idx = (idx + 1) % THEMES.length;
+  applyTheme(idx);
+}
+
+function reset() {
+  clearInterval(beatTimer);
+  idx = 0;
+  applyTheme(0);
+  // restart animations
+  document.querySelectorAll('.stage *').forEach(el => {
+    const anims = el.getAnimations ? el.getAnimations() : [];
+    anims.forEach(a => { a.cancel(); a.play(); });
+  });
+  beatTimer = setInterval(tickBeat, BEAT_MS);
+}
+
+document.getElementById('replayBtn').onclick = reset;
+window.addEventListener('load', reset);
+</script>
+</body>
+</html>

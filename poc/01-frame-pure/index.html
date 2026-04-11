@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Frame-Pure Demo · 10 分钟纯函数动画</title>
+<style>
+:root {
+  --bg: #07060c;
+  --fg: #f4f2fb;
+  --dim: #7a7590;
+  --accent: #ff7e55;
+  --accent2: #ff6bb5;
+  --accent3: #b878ff;
+  --line: #1e1b2c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+}
+
+.stage {
+  position: fixed;
+  inset: 0 0 80px 0;
+  overflow: hidden;
+}
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* HUD */
+.hud {
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  right: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 10;
+}
+.hud-left .tag {
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.28em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.hud-left .title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-top: 4px;
+  background: linear-gradient(90deg, #fff, #ffc98a 50%, #ff6bb5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hud-right {
+  text-align: right;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--dim);
+}
+.hud-right .time {
+  font-size: 24px;
+  color: var(--fg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.hud-right .total {
+  margin-top: 2px;
+  letter-spacing: 0.06em;
+}
+
+/* chapter overlay */
+.chapter-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
+}
+.chapter-overlay .num {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.3em;
+  font-weight: 700;
+}
+.chapter-overlay .name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--fg);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+}
+
+/* control bar */
+.controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 80px;
+  background: rgba(7, 6, 12, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  gap: 18px;
+  z-index: 100;
+}
+button.play {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff7e55, #ff6bb5);
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(255, 126, 85, 0.35);
+  flex-shrink: 0;
+}
+.time-display {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  width: 110px;
+  flex-shrink: 0;
+}
+.time-display .sep { color: var(--dim); margin: 0 4px; }
+.time-display .total { color: var(--dim); }
+
+/* scrubber */
+.scrubber-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 24px;
+}
+.scrubber-track {
+  position: absolute;
+  left: 0; right: 0;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+.scrubber-fill {
+  position: absolute;
+  left: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #ff7e55, #ff6bb5, #b878ff);
+  border-radius: 3px;
+  box-shadow: 0 0 14px rgba(255, 126, 85, 0.5);
+  pointer-events: none;
+}
+.scrubber {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 24px;
+  opacity: 0;
+  cursor: pointer;
+}
+.scrubber-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+/* chapter ticks */
+.chapter-ticks {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.chapter-ticks .tick {
+  position: absolute;
+  width: 2px;
+  height: 14px;
+  background: var(--dim);
+  opacity: 0.4;
+  transform: translateX(-50%);
+}
+
+.label {
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <canvas id="canvas"></canvas>
+  <div class="hud">
+    <div class="hud-left">
+      <div class="tag">FRAME-PURE DEMO</div>
+      <div class="title" id="hud-title">f(t) → frame</div>
+    </div>
+    <div class="hud-right">
+      <div class="time" id="hud-time">00:00:00</div>
+      <div class="total">/ 10:00:00</div>
+    </div>
+  </div>
+  <div class="chapter-overlay">
+    <div class="num" id="ch-num">CHAPTER 01 / 06</div>
+    <div class="name" id="ch-name">EPICYCLES</div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="play" id="play-btn">⏸</button>
+  <div class="time-display">
+    <span id="time-cur">00:00</span>
+    <span class="sep">/</span>
+    <span class="total">10:00</span>
+  </div>
+  <div class="scrubber-wrap">
+    <div class="scrubber-track"></div>
+    <div class="scrubber-fill" id="scrub-fill"></div>
+    <div class="chapter-ticks" id="ticks"></div>
+    <div class="scrubber-thumb" id="scrub-thumb"></div>
+    <input type="range" class="scrubber" id="scrubber" min="0" max="600" step="0.01" value="0">
+  </div>
+  <div class="label">FRAME-PURE · 600s</div>
+</div>
+
+<script>
+// ============================================================
+// Frame-pure animation engine
+// 唯一规则：renderAt(t) 给我时间，我画那一帧。完全不依赖历史。
+// ============================================================
+
+const TAU = Math.PI * 2;
+const TOTAL = 600; // 10 minutes
+const CHAPTERS = [
+  { start: 0,   end: 100, name: 'EPICYCLES',     fn: drawEpicycles },
+  { start: 100, end: 200, name: 'FLOW FIELD',    fn: drawFlowField },
+  { start: 200, end: 300, name: 'LISSAJOUS',     fn: drawLissajous },
+  { start: 300, end: 400, name: 'TYPOGRAPHY',    fn: drawTypography },
+  { start: 400, end: 500, name: 'CONSTELLATION', fn: drawConstellation },
+  { start: 500, end: 600, name: 'TUNNEL',        fn: drawTunnel },
+];
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W = rect.width;
+  H = rect.height;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ============================================================
+// 确定性的伪随机（种子化）
+// 同一个 (i, t) 永远返回相同值，frame-pure 的关键
+// ============================================================
+function hash(i, salt = 0) {
+  let x = (i * 374761393 + salt * 668265263) | 0;
+  x = (x ^ (x >>> 13)) * 1274126177 | 0;
+  x = (x ^ (x >>> 16));
+  return ((x >>> 0) % 10000) / 10000;
+}
+
+// 平滑噪声（输入连续，输出也连续）
+function smoothNoise(x, seed = 0) {
+  const i = Math.floor(x);
+  const f = x - i;
+  const a = hash(i, seed);
+  const b = hash(i + 1, seed);
+  const t = f * f * (3 - 2 * f); // smoothstep
+  return a * (1 - t) + b * t;
+}
+
+// ============================================================
+// CHAPTER 1: EPICYCLES (傅里叶级数旋转圆链)
+// ============================================================
+function drawEpicycles(t, localT) {
+  // localT: 0~1 within chapter
+  // 圆数量从 1 缓慢增长到 19
+  const numCircles = Math.floor(1 + localT * 19);
+  const baseR = Math.min(W * 0.08, H * 0.18);
+  const cx = W * 0.3;
+  const cy = H * 0.5;
+  const speed = 0.6;
+  const angleBase = t * speed;
+
+  // 计算 chain
+  let x = cx, y = cy;
+  const chain = [];
+  for (let k = 0; k < numCircles; k++) {
+    const n = 2 * k + 1;
+    const r = baseR / n;
+    const angle = n * angleBase;
+    chain.push({ x, y, r, angle });
+    x += r * Math.cos(angle);
+    y += r * Math.sin(angle);
+  }
+
+  // 画圆和轴
+  ctx.lineWidth = 1.5;
+  for (const c of chain) {
+    ctx.strokeStyle = 'rgba(170, 185, 235, 0.4)';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, TAU);
+    ctx.stroke();
+    const tx = c.x + c.r * Math.cos(c.angle);
+    const ty = c.y + c.r * Math.sin(c.angle);
+    ctx.strokeStyle = '#a5bfff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+  }
+  // 红点 tip
+  const last = chain[chain.length - 1];
+  const tipX = last.x + last.r * Math.cos(last.angle);
+  const tipY = last.y + last.r * Math.sin(last.angle);
+  ctx.fillStyle = '#ff4d5e';
+  ctx.shadowColor = 'rgba(255, 77, 94, 0.85)';
+  ctx.shadowBlur = 16;
+  ctx.beginPath();
+  ctx.arc(tipX, tipY, 8, 0, TAU);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // 画历史 trace（从当前 t 往回算 200 帧）
+  const traceX0 = W * 0.55;
+  const traceWidth = W * 0.4;
+  const traceY = cy;
+  ctx.strokeStyle = '#ff9a3c';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(255, 154, 60, 0.5)';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  const samples = 240;
+  for (let i = 0; i < samples; i++) {
+    const dt = i / 60; // 走过去 4 秒
+    const tt = t - 4 + dt;
+    let py = cy;
+    for (let k = 0; k < numCircles; k++) {
+      const n = 2 * k + 1;
+      const r = baseR / n;
+      py += r * Math.sin(n * tt * speed);
+    }
+    // 减回原始 cy
+    let cumY = 0;
+    let py2 = cy;
+    for (let k = 0; k < numCircles; k++) {
+      const n = 2 * k + 1;
+      const r = baseR / n;
+      cumY += r * Math.sin(n * tt * speed);
+    }
+    const x = traceX0 + (i / samples) * traceWidth;
+    const y = cy + cumY;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // axis
+  ctx.strokeStyle = 'rgba(110, 110, 140, 0.3)';
+  ctx.setLineDash([3, 6]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(traceX0, cy);
+  ctx.lineTo(traceX0 + traceWidth, cy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // count badge
+  ctx.fillStyle = 'rgba(255, 154, 60, 0.85)';
+  ctx.font = '900 80px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(numCircles, W * 0.85, H * 0.15);
+  ctx.font = '600 12px -apple-system, sans-serif';
+  ctx.fillStyle = '#9a8eb5';
+  ctx.fillText('CIRCLES', W * 0.85, H * 0.15 + 56);
+}
+
+// ============================================================
+// CHAPTER 2: FLOW FIELD (粒子流场)
+// 每个粒子位置 = pure function of (i, t)
+// ============================================================
+function drawFlowField(t, localT) {
+  // 半透明黑做 trail（不依赖历史，每帧固定衰减）
+  ctx.fillStyle = 'rgba(7, 6, 12, 0.92)';
+  ctx.fillRect(0, 0, W, H);
+
+  const N = 800;
+  const cx = W / 2;
+  const cy = H / 2;
+
+  for (let i = 0; i < N; i++) {
+    // 每个粒子的 path 完全由 (i, t) 决定
+    const seed1 = hash(i, 1);
+    const seed2 = hash(i, 2);
+    const phase = seed1 * TAU;
+    const radius = 60 + seed2 * Math.min(W, H) * 0.35;
+
+    // 角度由时间和粒子种子驱动
+    const angle = phase + t * 0.15 + smoothNoise(t * 0.2 + i * 0.01, i) * TAU;
+    const wobble = Math.sin(t * 0.6 + i * 0.05) * 30;
+
+    const x = cx + Math.cos(angle) * (radius + wobble);
+    const y = cy + Math.sin(angle) * (radius + wobble) * 0.6;
+
+    // 颜色基于种子和时间
+    const hue = (seed1 * 60 + 280 + Math.sin(t * 0.1) * 20) % 360;
+    const sat = 70 + seed2 * 30;
+    const lit = 60 + Math.sin(t + i * 0.1) * 15;
+
+    ctx.fillStyle = `hsl(${hue}, ${sat}%, ${lit}%)`;
+    const size = 1.5 + seed1 * 2;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, TAU);
+    ctx.fill();
+  }
+}
+
+// ============================================================
+// CHAPTER 3: LISSAJOUS (利萨如曲线)
+// ============================================================
+function drawLissajous(t, localT) {
+  ctx.clearRect(0, 0, W, H);
+
+  // 参数随时间变化
+  const a = 3 + Math.sin(t * 0.1) * 2;
+  const b = 4 + Math.cos(t * 0.13) * 2;
+  const delta = t * 0.2;
+
+  const cx = W / 2;
+  const cy = H / 2;
+  const R = Math.min(W, H) * 0.32;
+
+  // 多条 curve 叠加
+  const NUM_CURVES = 5;
+  for (let layer = 0; layer < NUM_CURVES; layer++) {
+    const layerT = layer / NUM_CURVES;
+    const layerR = R * (1 - layerT * 0.3);
+    const phase = delta + layerT * Math.PI;
+    const hue = 20 + layerT * 60 + t * 5;
+
+    ctx.strokeStyle = `hsla(${hue % 360}, 80%, 60%, ${0.85 - layerT * 0.5})`;
+    ctx.lineWidth = 3 - layerT;
+    ctx.shadowColor = `hsla(${hue % 360}, 80%, 60%, 0.6)`;
+    ctx.shadowBlur = 15 - layerT * 2;
+    ctx.beginPath();
+    const STEPS = 400;
+    for (let i = 0; i <= STEPS; i++) {
+      const u = (i / STEPS) * TAU;
+      const x = cx + layerR * Math.sin(a * u + phase);
+      const y = cy + layerR * Math.sin(b * u);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+
+  // params display
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = '600 11px "SF Mono", Menlo, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`a = ${a.toFixed(2)}`, W * 0.05, H * 0.9);
+  ctx.fillText(`b = ${b.toFixed(2)}`, W * 0.05, H * 0.9 + 18);
+  ctx.fillText(`δ = ${(delta % TAU).toFixed(2)}`, W * 0.05, H * 0.9 + 36);
+}
+
+// ============================================================
+// CHAPTER 4: TYPOGRAPHY (字母漂浮)
+// ============================================================
+function drawTypography(t, localT) {
+  ctx.clearRect(0, 0, W, H);
+
+  const text = 'FRAME PURE FUNCTION OF TIME';
+  const cx = W / 2;
+  const cy = H / 2;
+
+  ctx.font = `900 ${Math.min(W * 0.06, 80)}px -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // 总宽度估算
+  const fullWidth = ctx.measureText(text).width;
+  const startX = cx - fullWidth / 2;
+
+  let cursorX = startX;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const charWidth = ctx.measureText(ch).width;
+
+    // 每个字母独立动画 — 完全由 (i, t) 决定
+    const phase = i * 0.15;
+    const yOffset = Math.sin(t * 1.5 + phase) * 20;
+    const scale = 1 + Math.sin(t * 0.8 + phase) * 0.05;
+    const hue = (t * 30 + i * 12) % 360;
+    const alpha = ch === ' ' ? 0 : 0.85 + Math.sin(t * 2 + phase) * 0.15;
+
+    ctx.save();
+    ctx.translate(cursorX + charWidth / 2, cy + yOffset);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = `hsla(${hue}, 70%, 70%, ${alpha})`;
+    ctx.shadowColor = `hsla(${hue}, 80%, 60%, 0.6)`;
+    ctx.shadowBlur = 16;
+    ctx.fillText(ch, 0, 0);
+    ctx.restore();
+
+    cursorX += charWidth;
+  }
+
+  // sub line
+  ctx.font = '600 14px "SF Mono", Menlo, monospace';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.shadowBlur = 0;
+  ctx.fillText('renderAt(' + t.toFixed(2) + ') → frame', cx, cy + 80);
+}
+
+// ============================================================
+// CHAPTER 5: CONSTELLATION (连线粒子)
+// ============================================================
+function drawConstellation(t, localT) {
+  ctx.clearRect(0, 0, W, H);
+
+  const N = 60;
+  const points = [];
+  for (let i = 0; i < N; i++) {
+    const seed = hash(i);
+    const phase = hash(i, 3) * TAU;
+    const radius = (0.2 + hash(i, 4) * 0.3) * Math.min(W, H);
+    const angle = phase + t * (0.05 + hash(i, 5) * 0.08);
+
+    points.push({
+      x: W / 2 + Math.cos(angle) * radius * 1.4,
+      y: H / 2 + Math.sin(angle) * radius * 0.9,
+      r: 2 + hash(i, 6) * 3,
+    });
+  }
+
+  // 连线（距离阈值内才连）
+  const MAX_DIST = Math.min(W, H) * 0.18;
+  ctx.strokeStyle = 'rgba(180, 200, 255, 0.25)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      const dx = points[i].x - points[j].x;
+      const dy = points[i].y - points[j].y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < MAX_DIST) {
+        ctx.globalAlpha = (1 - d / MAX_DIST) * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(points[i].x, points[i].y);
+        ctx.lineTo(points[j].x, points[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // 点
+  for (const p of points) {
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#a5bfff';
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, TAU);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+// CHAPTER 6: TUNNEL (穿越隧道)
+// ============================================================
+function drawTunnel(t, localT) {
+  ctx.fillStyle = 'rgba(7, 6, 12, 0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2;
+  const cy = H / 2;
+  const NUM_RINGS = 50;
+  const RING_GAP = 1.0;
+
+  for (let i = 0; i < NUM_RINGS; i++) {
+    // 每个环的 z 完全由 (i, t) 决定
+    const z = ((i * RING_GAP) - (t * 3 % RING_GAP)) * 0.5;
+    if (z < 0.05) continue;
+    const scale = 1 / z;
+    const baseR = 0.45 * Math.min(W, H);
+    const r = baseR * scale * 0.5;
+    if (r > Math.max(W, H)) continue;
+
+    // 偏移以模拟弯曲
+    const offsetX = Math.sin(z * 0.3 + t * 0.2) * 60 * scale;
+    const offsetY = Math.cos(z * 0.4 + t * 0.15) * 40 * scale;
+
+    const alpha = Math.min(1, scale * 0.8);
+    const hue = (z * 20 + t * 30) % 360;
+    ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${alpha})`;
+    ctx.lineWidth = 2.5 * scale + 0.5;
+    ctx.shadowColor = `hsla(${hue}, 80%, 60%, ${alpha * 0.6})`;
+    ctx.shadowBlur = 15 * scale;
+    ctx.beginPath();
+    ctx.arc(cx + offsetX, cy + offsetY, r, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+// MASTER renderAt(t) — frame-pure 入口
+// ============================================================
+function renderAt(t) {
+  // clamp
+  t = Math.max(0, Math.min(TOTAL, t));
+
+  // 找当前 chapter
+  let chapter = CHAPTERS[0];
+  let chapterIdx = 0;
+  for (let i = 0; i < CHAPTERS.length; i++) {
+    if (t >= CHAPTERS[i].start && t < CHAPTERS[i].end) {
+      chapter = CHAPTERS[i];
+      chapterIdx = i;
+      break;
+    }
+  }
+  const localT = (t - chapter.start) / (chapter.end - chapter.start);
+
+  // 清屏（chapter 内部决定是否清，因为粒子轨迹要叠加）
+  if (chapter.name !== 'FLOW FIELD' && chapter.name !== 'TUNNEL') {
+    ctx.clearRect(0, 0, W, H);
+  }
+
+  // chapter 主绘制
+  chapter.fn(t, localT);
+
+  // 更新 HUD
+  document.getElementById('hud-time').textContent = fmtTime(t);
+  document.getElementById('time-cur').textContent = fmtMmSs(t);
+  document.getElementById('ch-num').textContent =
+    `CHAPTER ${String(chapterIdx + 1).padStart(2, '0')} / ${String(CHAPTERS.length).padStart(2, '0')}`;
+  document.getElementById('ch-name').textContent = chapter.name;
+
+  // 进度条
+  const pct = (t / TOTAL) * 100;
+  document.getElementById('scrub-fill').style.width = pct + '%';
+  document.getElementById('scrub-thumb').style.left = pct + '%';
+  document.getElementById('scrubber').value = t;
+}
+
+function fmtTime(t) {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  const ms = Math.floor((t * 100) % 100);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(ms).padStart(2, '0')}`;
+}
+function fmtMmSs(t) {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// ============================================================
+// 播放控制
+// 注意：这个 loop 只是把 renderAt 不停调用，
+// 任何时刻调 renderAt(任意 t) 都能直接出对应帧
+// ============================================================
+let playing = true;
+let virtualT = 0;
+let lastWall = performance.now();
+
+function tick(now) {
+  if (playing) {
+    const dt = (now - lastWall) / 1000;
+    virtualT = (virtualT + dt) % TOTAL;
+    renderAt(virtualT);
+  }
+  lastWall = now;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// scrubber 拖动
+const scrubber = document.getElementById('scrubber');
+scrubber.addEventListener('input', e => {
+  virtualT = parseFloat(e.target.value);
+  renderAt(virtualT);
+});
+
+// 播放/暂停
+document.getElementById('play-btn').addEventListener('click', () => {
+  playing = !playing;
+  document.getElementById('play-btn').textContent = playing ? '⏸' : '▶';
+});
+
+// 章节 ticks
+const ticks = document.getElementById('ticks');
+for (let i = 1; i < CHAPTERS.length; i++) {
+  const tick = document.createElement('div');
+  tick.className = 'tick';
+  tick.style.left = (CHAPTERS[i].start / TOTAL) * 100 + '%';
+  ticks.appendChild(tick);
+}
+
+// 初始渲染
+renderAt(0);
+
+// ============================================================
+// recorder 兼容（如果之后接入 recorder 就直接能用）
+// ============================================================
+window.__onFrame = function(data) {
+  renderAt(data.time);
+};
+</script>
+</body>
+</html>

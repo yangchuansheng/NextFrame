@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FIRST LIGHT · A Visual Poem</title>
+<style>
+/* =========================================================
+   FIRST LIGHT
+   A single-file cinematic opening — dawn over alpine lake
+   All hand-drawn SVG + CSS keyframes + one tiny canvas.
+   Loop: 24s  (night → first-light → sunrise → back)
+   ========================================================= */
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#000;overflow:hidden;font-family:"Times New Roman","EB Garamond",Garamond,serif;color:#f3ecdf;-webkit-font-smoothing:antialiased}
+
+/* stage — anamorphic 2.39:1 cinema frame */
+.theater{
+  position:fixed;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 60%,#0a0a0e 0%,#000 80%);
+}
+.frame{
+  position:relative;
+  width:min(1600px,98vw);
+  aspect-ratio:2.39/1;
+  overflow:hidden;
+  box-shadow:
+    0 60px 180px rgba(0,0,0,.9),
+    0 0 0 1px rgba(255,255,255,.03) inset;
+  background:#000;
+}
+
+/* permanent letterbox bars (cinema) */
+.bar{position:absolute;left:0;right:0;height:6%;background:#000;z-index:80;pointer-events:none}
+.bar.top{top:0;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.bar.bot{bottom:0;box-shadow:0 -10px 30px rgba(0,0,0,.6)}
+
+/* camera — slow ken burns push-in */
+.camera{
+  position:absolute;inset:0;
+  transform-origin:52% 48%;
+  animation:push 24s cubic-bezier(.4,0,.3,1) infinite;
+}
+@keyframes push{
+  0%  { transform:scale(1.00) translate(0,0); }
+  50% { transform:scale(1.045) translate(-.6%,-.4%); }
+  100%{ transform:scale(1.00) translate(0,0); }
+}
+
+/* world layers cover full frame; sky is SVG */
+.sky,.mountains,.lake,.flare,.grain,.text-layer{
+  position:absolute;inset:0;
+}
+.sky svg,.mountains svg,.lake svg{width:100%;height:100%;display:block}
+
+/* ===== Sky color drive (CSS variable pulses from night → dawn) =====
+   The sky itself is an SVG with gradients referencing CSS vars via JS? No —
+   we drive it with opacity crossfade of two stacked skies. Simpler + crisp. */
+.sky-night,.sky-dawn{position:absolute;inset:0}
+.sky-night{animation:fadeOutIn 24s ease-in-out infinite}
+.sky-dawn { animation:fadeInOut 24s ease-in-out infinite}
+@keyframes fadeOutIn{
+  0%   {opacity:1}
+  28%  {opacity:1}
+  52%  {opacity:0}
+  76%  {opacity:0}
+  100% {opacity:1}
+}
+@keyframes fadeInOut{
+  0%   {opacity:0}
+  28%  {opacity:0}
+  52%  {opacity:1}
+  76%  {opacity:1}
+  100% {opacity:0}
+}
+
+/* star field — fades out as dawn arrives */
+.stars{position:absolute;inset:0;animation:starsFade 24s ease-in-out infinite}
+@keyframes starsFade{
+  0%   {opacity:1}
+  30%  {opacity:1}
+  48%  {opacity:0}
+  72%  {opacity:0}
+  100% {opacity:1}
+}
+.stars .tw{animation:twinkle 4s ease-in-out infinite}
+@keyframes twinkle{
+  0%,100%{opacity:.2}
+  50%    {opacity:1}
+}
+
+/* sun rises slowly — applied to wrapper div (SVG <g> transforms aren't animatable cross-browser) */
+.sun{
+  animation:sunRise 24s cubic-bezier(.45,0,.4,1) infinite;
+  will-change:transform,opacity;
+}
+@keyframes sunRise{
+  0%   { transform:translateY(9%)  scale(.88); opacity:0; }
+  30%  { opacity:0; }
+  42%  { transform:translateY(7%)  scale(.90); opacity:.35; }
+  55%  { transform:translateY(4%)  scale(.95); opacity:.8; }
+  70%  { transform:translateY(1.5%) scale(1);   opacity:1; }
+  85%  { transform:translateY(0)   scale(1.02); opacity:1; }
+  100% { transform:translateY(9%)  scale(.88); opacity:0; }
+}
+
+/* cloud drift — two bands, different speeds */
+.clouds-far{animation:cloudFar 90s linear infinite}
+.clouds-near{animation:cloudNear 55s linear infinite}
+@keyframes cloudFar { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes cloudNear{ from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+/* mountains parallax — subtle lateral drift (not scrolling, just breathing) */
+.ridge-far  { animation:breathe1 28s ease-in-out infinite }
+.ridge-mid  { animation:breathe2 24s ease-in-out infinite }
+.ridge-near { animation:breathe3 20s ease-in-out infinite }
+@keyframes breathe1 { 0%,100%{transform:translate(0,0)}    50%{transform:translate(-.4%,.15%)} }
+@keyframes breathe2 { 0%,100%{transform:translate(0,0)}    50%{transform:translate(-.6%,.1%)} }
+@keyframes breathe3 { 0%,100%{transform:translate(0,0)}    50%{transform:translate(-.8%,.05%)} }
+
+/* lake — subtle vertical bob to hint reflection wobble */
+.lake{animation:lakeBob 10s ease-in-out infinite}
+@keyframes lakeBob{
+  0%,100%{transform:translateY(0)}
+  50%    {transform:translateY(.15%)}
+}
+
+/* lens flare — sweeps across in last phase */
+.flare{mix-blend-mode:screen;pointer-events:none;opacity:0;animation:flareSweep 24s ease-in-out infinite}
+@keyframes flareSweep{
+  0%,55%   {opacity:0; transform:translate(-8%,4%)}
+  70%      {opacity:.55; transform:translate(-2%,2%)}
+  85%      {opacity:.8; transform:translate(0,0)}
+  95%      {opacity:.3; transform:translate(3%,-1%)}
+  100%     {opacity:0; transform:translate(-8%,4%)}
+}
+
+/* film grain */
+.grain{pointer-events:none;opacity:.09;mix-blend-mode:overlay;z-index:70}
+.grain canvas{width:100%;height:100%;display:block}
+
+/* final vignette */
+.vignette{
+  position:absolute;inset:0;pointer-events:none;z-index:60;
+  background:
+    radial-gradient(ellipse 120% 85% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%),
+    radial-gradient(ellipse 100% 60% at 50% 100%,rgba(10,5,20,.4) 0%,transparent 70%);
+}
+
+/* ============ TEXT OVERLAY ============ */
+.text-layer{z-index:90;pointer-events:none}
+
+.chapter{
+  position:absolute;top:11%;left:5%;
+  font-size:clamp(10px,1vw,13px);
+  letter-spacing:.45em;
+  color:rgba(243,236,223,.72);
+  font-family:"Helvetica Neue","Inter",sans-serif;
+  font-weight:300;
+  animation:chapterFade 24s ease-in-out infinite;
+}
+.chapter::before{
+  content:"";display:inline-block;width:32px;height:1px;
+  background:rgba(243,236,223,.5);
+  vertical-align:middle;margin-right:14px;
+}
+@keyframes chapterFade{
+  0%,5%   {opacity:0;transform:translateX(-6px)}
+  12%,88% {opacity:1;transform:translateX(0)}
+  95%,100%{opacity:0;transform:translateX(6px)}
+}
+
+.title-wrap{
+  position:absolute;
+  left:50%;top:52%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  width:90%;
+}
+.title{
+  font-family:"Times New Roman","EB Garamond",serif;
+  font-weight:300;
+  font-size:clamp(38px,6vw,88px);
+  letter-spacing:.38em;
+  padding-left:.38em; /* optical center from tracking */
+  color:#f6eedf;
+  text-shadow:
+    0 0 30px rgba(255,210,140,.25),
+    0 0 60px rgba(255,180,100,.1);
+  opacity:0;
+  animation:titleIn 24s ease-in-out infinite;
+}
+.title .amp{
+  display:inline-block;
+  height:1px;width:60px;
+  background:linear-gradient(90deg,transparent,rgba(246,238,223,.8),transparent);
+  vertical-align:middle;
+  margin:0 .6em .25em;
+}
+@keyframes titleIn{
+  0%,70%   {opacity:0; letter-spacing:.55em; filter:blur(8px)}
+  80%      {opacity:1; letter-spacing:.38em; filter:blur(0)}
+  92%      {opacity:1; letter-spacing:.38em; filter:blur(0)}
+  100%     {opacity:0; letter-spacing:.55em; filter:blur(8px)}
+}
+.subtitle{
+  margin-top:22px;
+  font-family:"Helvetica Neue","Inter",sans-serif;
+  font-weight:200;
+  font-size:clamp(9px,.85vw,12px);
+  letter-spacing:.55em;
+  color:rgba(243,236,223,.7);
+  padding-left:.55em;
+  opacity:0;
+  animation:subIn 24s ease-in-out infinite;
+}
+@keyframes subIn{
+  0%,74%  {opacity:0}
+  84%,92% {opacity:1}
+  100%    {opacity:0}
+}
+
+/* bottom info — small */
+.meta{
+  position:absolute;left:5%;bottom:11%;
+  font-family:"Helvetica Neue","Inter",sans-serif;
+  font-size:10px;letter-spacing:.4em;
+  color:rgba(243,236,223,.45);
+  font-weight:300;
+  animation:chapterFade 24s ease-in-out infinite;
+}
+.meta .dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:rgba(243,236,223,.6);vertical-align:middle;margin:0 10px}
+
+/* light motes floating */
+.mote{
+  position:absolute;width:2px;height:2px;border-radius:50%;
+  background:rgba(255,220,170,.9);
+  box-shadow:0 0 6px 1px rgba(255,200,130,.7);
+  pointer-events:none;z-index:55;
+  animation:motes 12s ease-in-out infinite;
+}
+@keyframes motes{
+  0%,100%{transform:translateY(0);opacity:0}
+  15%    {opacity:.9}
+  50%    {transform:translateY(-22px)}
+  85%    {opacity:.8}
+  100%   {transform:translateY(-44px);opacity:0}
+}
+</style>
+</head>
+<body>
+
+<div class="theater">
+  <div class="frame" id="frame">
+
+    <div class="camera">
+
+      <!-- ============ SKY (night + dawn stacked, crossfaded) ============ -->
+      <div class="sky">
+        <!-- NIGHT sky -->
+        <div class="sky-night">
+          <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="nightGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#0a0a1e"/>
+                <stop offset="35%"  stop-color="#12143a"/>
+                <stop offset="65%"  stop-color="#1a1e4a"/>
+                <stop offset="90%"  stop-color="#2a2d5a"/>
+                <stop offset="100%" stop-color="#3a3560"/>
+              </linearGradient>
+            </defs>
+            <rect width="2390" height="1000" fill="url(#nightGrad)"/>
+          </svg>
+        </div>
+        <!-- DAWN sky -->
+        <div class="sky-dawn">
+          <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="dawnGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#1b1436"/>
+                <stop offset="18%"  stop-color="#3b244a"/>
+                <stop offset="38%"  stop-color="#7a3d58"/>
+                <stop offset="55%"  stop-color="#c2604b"/>
+                <stop offset="70%"  stop-color="#e89659"/>
+                <stop offset="82%"  stop-color="#f4b574"/>
+                <stop offset="92%"  stop-color="#f0c890"/>
+                <stop offset="100%" stop-color="#dab38a"/>
+              </linearGradient>
+              <!-- soft warmth behind the sun area -->
+              <radialGradient id="sunGlow" cx="58%" cy="78%" r="65%">
+                <stop offset="0%"  stop-color="rgba(255,220,160,.55)"/>
+                <stop offset="30%" stop-color="rgba(255,170,100,.25)"/>
+                <stop offset="70%" stop-color="rgba(255,120,70,.05)"/>
+                <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+              </radialGradient>
+            </defs>
+            <rect width="2390" height="1000" fill="url(#dawnGrad)"/>
+            <rect width="2390" height="1000" fill="url(#sunGlow)"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ============ STARS ============ -->
+      <div class="stars">
+        <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%">
+          <g fill="#f0f0ff" id="starGroup"></g>
+        </svg>
+      </div>
+
+      <!-- ============ SUN ============ -->
+      <div class="sun" style="position:absolute;inset:0;z-index:5">
+        <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%">
+          <defs>
+            <radialGradient id="sunBody" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#fff6d8"/>
+              <stop offset="40%"  stop-color="#ffe6a8"/>
+              <stop offset="75%"  stop-color="#ffb060"/>
+              <stop offset="100%" stop-color="rgba(255,140,60,0)"/>
+            </radialGradient>
+            <radialGradient id="sunHalo" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="rgba(255,220,150,.6)"/>
+              <stop offset="25%"  stop-color="rgba(255,180,100,.3)"/>
+              <stop offset="60%"  stop-color="rgba(255,130,70,.08)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+          </defs>
+          <g class="sun-group">
+            <!-- wide halo -->
+            <circle cx="1380" cy="625" r="360" fill="url(#sunHalo)"/>
+            <!-- body -->
+            <circle cx="1380" cy="625" r="72"  fill="url(#sunBody)"/>
+            <!-- hot core -->
+            <circle cx="1380" cy="625" r="38"  fill="#fff9e4"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ============ CLOUDS (mid) ============ -->
+      <div class="clouds-far" style="position:absolute;left:0;right:0;top:0;height:65%;width:200%;z-index:6;opacity:.35">
+        <svg viewBox="0 0 4780 650" preserveAspectRatio="none" style="width:100%;height:100%">
+          <defs>
+            <filter id="cloudBlur"><feGaussianBlur stdDeviation="6"/></filter>
+          </defs>
+          <g filter="url(#cloudBlur)" fill="#f2d5b0">
+            <ellipse cx="300"  cy="450" rx="260" ry="14"/>
+            <ellipse cx="820"  cy="420" rx="340" ry="10"/>
+            <ellipse cx="1480" cy="470" rx="420" ry="13"/>
+            <ellipse cx="2150" cy="430" rx="300" ry="11"/>
+            <ellipse cx="2780" cy="460" rx="380" ry="12"/>
+            <ellipse cx="3380" cy="440" rx="320" ry="10"/>
+            <ellipse cx="3980" cy="470" rx="420" ry="13"/>
+            <ellipse cx="4500" cy="430" rx="260" ry="11"/>
+            <!-- repeat shifted by 2390 -->
+            <ellipse cx="2690" cy="450" rx="260" ry="14"/>
+            <ellipse cx="3210" cy="420" rx="340" ry="10"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="clouds-near" style="position:absolute;left:0;right:0;top:10%;height:55%;width:200%;z-index:7;opacity:.5">
+        <svg viewBox="0 0 4780 550" preserveAspectRatio="none" style="width:100%;height:100%">
+          <defs>
+            <filter id="cloudBlur2"><feGaussianBlur stdDeviation="9"/></filter>
+          </defs>
+          <g filter="url(#cloudBlur2)" fill="#e9b987">
+            <ellipse cx="150"  cy="320" rx="420" ry="16"/>
+            <ellipse cx="1050" cy="360" rx="520" ry="18"/>
+            <ellipse cx="2000" cy="300" rx="380" ry="13"/>
+            <ellipse cx="2540" cy="340" rx="420" ry="16"/>
+            <ellipse cx="3440" cy="380" rx="520" ry="18"/>
+            <ellipse cx="4390" cy="320" rx="380" ry="13"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ============ MOUNTAINS (8 layers) ============ -->
+      <div class="mountains" style="z-index:10">
+        <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <!-- atmospheric haze top of each ridge -->
+            <linearGradient id="ridgeHaze" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(255,180,130,.25)"/>
+              <stop offset="100%" stop-color="rgba(255,180,130,0)"/>
+            </linearGradient>
+
+            <!-- per-ridge gradients (lit warm top, cool shadow bottom) -->
+            <linearGradient id="r1Grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#6a6e8e"/>
+              <stop offset="55%" stop-color="#4a4a6a"/>
+              <stop offset="100%" stop-color="#363650"/>
+            </linearGradient>
+            <linearGradient id="r2Grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#5c5a7c"/>
+              <stop offset="50%" stop-color="#3d3a58"/>
+              <stop offset="100%" stop-color="#2a2742"/>
+            </linearGradient>
+            <linearGradient id="r3Grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#48445c"/>
+              <stop offset="50%" stop-color="#2e2a42"/>
+              <stop offset="100%" stop-color="#1e1c32"/>
+            </linearGradient>
+            <linearGradient id="r4Grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#34304a"/>
+              <stop offset="55%" stop-color="#1f1c32"/>
+              <stop offset="100%" stop-color="#131022"/>
+            </linearGradient>
+            <linearGradient id="r5Grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#24203a"/>
+              <stop offset="50%" stop-color="#131020"/>
+              <stop offset="100%" stop-color="#07050e"/>
+            </linearGradient>
+
+            <!-- snow cap on lit side (dawn-warm) -->
+            <linearGradient id="snow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#f5d9b0"/>
+              <stop offset="60%" stop-color="#d9b082"/>
+              <stop offset="100%" stop-color="rgba(180,130,90,0)"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Layer 1: farthest distant ridge (barely visible) -->
+          <g class="ridge-far" opacity=".55">
+            <path d="M0,580
+                     L90,545 L170,560 L250,520 L340,555 L430,510 L520,540 L610,500
+                     L700,530 L800,495 L900,525 L1020,490 L1140,520 L1260,495
+                     L1390,520 L1520,485 L1650,515 L1780,490 L1900,520 L2020,495
+                     L2150,520 L2270,490 L2390,510 L2390,1000 L0,1000 Z"
+                  fill="url(#r1Grad)"/>
+          </g>
+
+          <!-- Layer 2: far ridge -->
+          <g class="ridge-far" opacity=".78">
+            <path d="M0,620
+                     L60,590 L140,605 L220,570 L310,595 L390,560 L480,590 L560,550
+                     L650,585 L740,545 L830,580 L930,540 L1030,575 L1140,535
+                     L1250,575 L1370,530 L1490,570 L1610,540 L1740,575 L1870,535
+                     L2000,570 L2130,540 L2260,570 L2390,545 L2390,1000 L0,1000 Z"
+                  fill="url(#r2Grad)"/>
+            <!-- snow caps -->
+            <path d="M310,595 L340,580 L370,590 L430,560 L478,588
+                     M560,550 L590,540 L625,552 L680,528 L732,555
+                     M830,580 L860,565 L890,575 L925,545 L970,573
+                     M1140,535 L1175,522 L1210,533 L1250,510 L1295,534
+                     M1490,570 L1520,555 L1560,565 L1605,540 L1650,566
+                     M2000,570 L2035,555 L2075,565 L2125,540 L2175,565"
+                  stroke="url(#snow)" stroke-width="4" fill="none" opacity=".55"/>
+          </g>
+
+          <!-- Layer 3: mid ridge — big alpine peaks -->
+          <g class="ridge-mid">
+            <!-- main ridge silhouette with sharp peaks -->
+            <path d="M0,680
+                     L80,640 L140,665 L200,600 L260,640 L330,540 L410,620
+                     L460,560 L540,510 L620,580 L680,450 L780,560 L840,510
+                     L910,440 L1000,540 L1070,470 L1150,520 L1220,400
+                     L1310,520 L1370,460 L1440,380 L1530,500 L1600,430
+                     L1690,520 L1760,460 L1830,550 L1900,490 L1980,580
+                     L2060,510 L2140,590 L2210,530 L2290,600 L2390,560
+                     L2390,1000 L0,1000 Z"
+                  fill="url(#r3Grad)"/>
+            <!-- snow on lit flank of peaks -->
+            <g fill="url(#snow)" opacity=".9">
+              <!-- peak 1 -->
+              <path d="M330,540 L410,620 L370,605 L355,588 L345,570 L340,555 Z"/>
+              <!-- peak 2 -->
+              <path d="M680,450 L780,560 L725,540 L705,515 L693,490 L685,470 Z"/>
+              <!-- peak 3 (biggest) -->
+              <path d="M910,440 L1000,540 L965,525 L945,505 L930,480 L918,460 Z"/>
+              <!-- peak 4 -->
+              <path d="M1220,400 L1310,520 L1275,505 L1255,480 L1240,455 L1228,428 Z"/>
+              <!-- peak 5 big -->
+              <path d="M1440,380 L1530,500 L1497,485 L1475,460 L1460,435 L1448,410 Z"/>
+              <!-- peak 6 -->
+              <path d="M1690,520 L1760,460 L1730,510 L1720,530 L1712,548 L1707,565 Z"/>
+              <!-- peak 7 -->
+              <path d="M1830,550 L1900,490 L1875,540 L1865,560 L1858,578 L1852,595 Z"/>
+            </g>
+          </g>
+
+          <!-- Layer 4: near mid ridge, darker -->
+          <g class="ridge-mid">
+            <path d="M0,760
+                     L90,720 L170,745 L250,690 L340,735 L430,680 L520,720 L600,665
+                     L690,710 L780,680 L870,735 L960,690 L1050,745 L1140,700
+                     L1220,750 L1310,705 L1400,755 L1490,715 L1580,760 L1670,720
+                     L1760,765 L1850,730 L1940,770 L2030,735 L2120,775 L2210,740
+                     L2300,775 L2390,750 L2390,1000 L0,1000 Z"
+                  fill="url(#r4Grad)"/>
+          </g>
+
+          <!-- Layer 5: closest foreground ridge — almost black -->
+          <g class="ridge-near">
+            <path d="M0,830
+                     L120,810 L230,820 L340,795 L450,815 L560,790 L680,810 L790,785
+                     L900,808 L1020,782 L1140,805 L1260,780 L1380,802 L1500,778
+                     L1620,800 L1740,776 L1860,798 L1980,774 L2100,796 L2220,774
+                     L2390,790 L2390,1000 L0,1000 Z"
+                  fill="url(#r5Grad)"/>
+          </g>
+
+          <!-- ground haze in the valley -->
+          <rect x="0" y="740" width="2390" height="140" fill="url(#ridgeHaze)" opacity=".5"/>
+        </svg>
+      </div>
+
+      <!-- ============ LAKE + REFLECTION (lower half) ============ -->
+      <div class="lake" style="z-index:15">
+        <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <!-- Water base -->
+            <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stop-color="#2a2540"/>
+              <stop offset="20%"  stop-color="#1a1832"/>
+              <stop offset="60%"  stop-color="#0e0c1e"/>
+              <stop offset="100%" stop-color="#050410"/>
+            </linearGradient>
+
+            <!-- Reflection gradient (warm dawn reflecting down) -->
+            <linearGradient id="reflGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stop-color="rgba(240,170,100,.55)"/>
+              <stop offset="35%"  stop-color="rgba(190,100,90,.22)"/>
+              <stop offset="70%"  stop-color="rgba(60,40,80,.1)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </linearGradient>
+
+            <!-- Ripple turbulence -->
+            <filter id="ripple" x="-5%" y="-5%" width="110%" height="110%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.014 0.055" numOctaves="2" seed="7">
+                <animate attributeName="baseFrequency"
+                         dur="18s" values="0.014 0.055;0.018 0.065;0.014 0.055"
+                         repeatCount="indefinite"/>
+              </feTurbulence>
+              <feDisplacementMap in="SourceGraphic" scale="6"/>
+            </filter>
+
+            <!-- Reflection of the ridge silhouette, flipped -->
+            <linearGradient id="reflRidgeFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="rgba(14,12,30,.7)"/>
+              <stop offset="100%" stop-color="rgba(14,12,30,0)"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Lake starts at y~830 (matching near-ridge base) -->
+          <rect x="0" y="830" width="2390" height="170" fill="url(#waterGrad)"/>
+
+          <!-- Reflection of sky glow (warm) -->
+          <rect x="0" y="830" width="2390" height="140" fill="url(#reflGrad)" filter="url(#ripple)"/>
+
+          <!-- Reflected mountain silhouette (mirrored, distorted) -->
+          <g filter="url(#ripple)" opacity=".55">
+            <path d="M0,830
+                     L120,850 L230,840 L340,865 L450,845 L560,870 L680,850 L790,875
+                     L900,852 L1020,878 L1140,855 L1260,880 L1380,858 L1500,882
+                     L1620,860 L1740,884 L1860,862 L1980,886 L2100,864 L2220,886
+                     L2390,870 L2390,830 Z"
+                  fill="url(#reflRidgeFade)"/>
+          </g>
+
+          <!-- Sun column reflecting straight down (subtle streak) -->
+          <rect x="1340" y="830" width="80" height="140" fill="url(#reflGrad)" opacity=".6" filter="url(#ripple)"/>
+
+          <!-- Shoreline highlight -->
+          <rect x="0" y="829" width="2390" height="1.5" fill="rgba(255,200,140,.35)"/>
+          <rect x="0" y="832" width="2390" height=".5" fill="rgba(255,200,140,.18)"/>
+
+          <!-- Horizontal ripple lines — thin, animated -->
+          <g stroke="rgba(255,230,180,.18)" stroke-width=".8" fill="none">
+            <line x1="0" y1="845" x2="2390" y2="845"/>
+            <line x1="0" y1="860" x2="2390" y2="860"/>
+            <line x1="0" y1="878" x2="2390" y2="878"/>
+            <line x1="0" y1="898" x2="2390" y2="898"/>
+            <line x1="0" y1="918" x2="2390" y2="918"/>
+            <line x1="0" y1="940" x2="2390" y2="940"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ============ LAKESIDE TREES (foreground silhouette) ============ -->
+      <div class="trees" style="position:absolute;inset:0;z-index:20;animation:breathe3 16s ease-in-out infinite">
+        <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <filter id="treeRipple" x="-5%" y="-5%" width="110%" height="110%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.014 0.055" numOctaves="2" seed="11">
+                <animate attributeName="baseFrequency"
+                         dur="18s" values="0.014 0.055;0.018 0.065;0.014 0.055"
+                         repeatCount="indefinite"/>
+              </feTurbulence>
+              <feDisplacementMap in="SourceGraphic" scale="5"/>
+            </filter>
+          </defs>
+          <g fill="#020108">
+            <!-- left cluster: pine silhouettes -->
+            <g transform="translate(100,700)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+              <rect x="-2" y="155" width="4" height="18"/>
+            </g>
+            <g transform="translate(155,705) scale(.85)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+              <rect x="-2" y="155" width="4" height="18"/>
+            </g>
+            <g transform="translate(205,710) scale(1.1)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+              <rect x="-2" y="155" width="4" height="18"/>
+            </g>
+
+            <!-- right cluster -->
+            <g transform="translate(2180,708) scale(1.05)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+              <rect x="-2" y="155" width="4" height="18"/>
+            </g>
+            <g transform="translate(2245,712) scale(.9)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+              <rect x="-2" y="155" width="4" height="18"/>
+            </g>
+            <g transform="translate(2295,704) scale(1.15)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+              <rect x="-2" y="155" width="4" height="18"/>
+            </g>
+          </g>
+
+          <!-- tree reflections in water (flipped, faded, rippled) -->
+          <g fill="#020108" opacity=".35" filter="url(#treeRipple)">
+            <g transform="translate(100,860) scale(1,-0.6)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+            </g>
+            <g transform="translate(205,860) scale(1.1,-0.6)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+            </g>
+            <g transform="translate(2180,860) scale(1.05,-0.6)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+            </g>
+            <g transform="translate(2295,860) scale(1.15,-0.6)">
+              <path d="M0,160 L-18,130 L-8,130 L-20,100 L-6,100 L-22,70 L-4,70 L-24,40 L-2,40 L-22,10 L0,-10 L22,10 L2,40 L24,40 L4,70 L22,70 L6,100 L20,100 L8,130 L18,130 L0,160 Z"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- light motes -->
+      <div class="mote" style="left:18%;top:62%;animation-delay:-2s"></div>
+      <div class="mote" style="left:28%;top:70%;animation-delay:-7s"></div>
+      <div class="mote" style="left:42%;top:58%;animation-delay:-4s"></div>
+      <div class="mote" style="left:55%;top:66%;animation-delay:-9s"></div>
+      <div class="mote" style="left:66%;top:60%;animation-delay:-1s"></div>
+      <div class="mote" style="left:74%;top:72%;animation-delay:-6s"></div>
+      <div class="mote" style="left:82%;top:64%;animation-delay:-3s"></div>
+      <div class="mote" style="left:88%;top:68%;animation-delay:-10s"></div>
+
+      <!-- ============ LENS FLARE ============ -->
+      <div class="flare">
+        <svg viewBox="0 0 2390 1000" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%">
+          <defs>
+            <radialGradient id="fl1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,235,190,.9)"/>
+              <stop offset="60%" stop-color="rgba(255,160,100,.15)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+            <radialGradient id="fl2" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,200,140,.7)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+            <linearGradient id="flStreak" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"  stop-color="rgba(255,220,160,0)"/>
+              <stop offset="50%" stop-color="rgba(255,220,160,.6)"/>
+              <stop offset="100%" stop-color="rgba(255,220,160,0)"/>
+            </linearGradient>
+          </defs>
+          <!-- main bloom at sun -->
+          <circle cx="1380" cy="625" r="280" fill="url(#fl1)"/>
+          <!-- horizontal streak -->
+          <rect x="0" y="618" width="2390" height="14" fill="url(#flStreak)"/>
+          <!-- ghosts along line from sun to opposite corner -->
+          <circle cx="1180" cy="660" r="40" fill="url(#fl2)"/>
+          <circle cx="960"  cy="700" r="65" fill="url(#fl2)" opacity=".6"/>
+          <circle cx="720"  cy="740" r="28" fill="url(#fl2)" opacity=".7"/>
+          <circle cx="500"  cy="780" r="55" fill="url(#fl2)" opacity=".4"/>
+          <circle cx="1600" cy="590" r="22" fill="url(#fl2)" opacity=".8"/>
+          <circle cx="1800" cy="555" r="42" fill="url(#fl2)" opacity=".5"/>
+        </svg>
+      </div>
+
+      <!-- film grain (canvas) -->
+      <div class="grain"><canvas id="grain"></canvas></div>
+
+      <!-- vignette -->
+      <div class="vignette"></div>
+
+    </div><!-- /camera -->
+
+    <!-- ============ TEXT OVERLAY ============ -->
+    <div class="text-layer">
+      <div class="chapter">CHAPTER&nbsp;&nbsp;I</div>
+      <div class="title-wrap">
+        <div class="title">FIRST&nbsp;LIGHT</div>
+        <div class="subtitle">A&nbsp;&nbsp;VISUAL&nbsp;&nbsp;POEM&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;MMXXVI</div>
+      </div>
+      <div class="meta">DIR.&nbsp;CLAUDE<span class="dot"></span>ALPINE&nbsp;LAKE<span class="dot"></span>04:47</div>
+    </div>
+
+    <!-- letterbox bars -->
+    <div class="bar top"></div>
+    <div class="bar bot"></div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   1. Generate stars into the SVG
+   ============================================================ */
+(function(){
+  const g = document.getElementById('starGroup');
+  const W = 2390, H = 700; // only upper sky area
+  const rng = (a,b)=>a+Math.random()*(b-a);
+  const N = 180;
+  let svg = '';
+  for(let i=0;i<N;i++){
+    const x = rng(0,W);
+    const y = rng(0,H);
+    const r = Math.random() < .9 ? rng(.4,1.1) : rng(1.2,1.8);
+    const delay = rng(0,4).toFixed(2);
+    const opacity = rng(.3,1).toFixed(2);
+    svg += `<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" opacity="${opacity}" style="animation-delay:-${delay}s"/>`;
+  }
+  // a few bright ones
+  for(let i=0;i<8;i++){
+    const x = rng(0,W);
+    const y = rng(0,H*.7);
+    svg += `<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.8" fill="#fff" style="animation-delay:-${rng(0,4).toFixed(2)}s"/>`;
+  }
+  g.innerHTML = svg;
+})();
+
+/* ============================================================
+   2. Film grain — regenerate periodically
+   ============================================================ */
+(function(){
+  const cv = document.getElementById('grain');
+  const ctx = cv.getContext('2d');
+  const W = 320, H = 180;
+  cv.width = W; cv.height = H;
+  function draw(){
+    const id = ctx.createImageData(W,H);
+    const d = id.data;
+    for(let i=0;i<d.length;i+=4){
+      const v = (Math.random()*255)|0;
+      d[i]=v; d[i+1]=v; d[i+2]=v; d[i+3]=Math.random()<.5?40:0;
+    }
+    ctx.putImageData(id,0,0);
+  }
+  draw();
+  setInterval(draw, 80);
+})();
+</script>
+
+</body>
+</html>

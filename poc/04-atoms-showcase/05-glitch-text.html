@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Glitch Text · RGB Split</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 30%, #0f0f14, #050608);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  user-select: none;
+  overflow: hidden;
+  color: #e4e5ea;
+}
+
+.stage {
+  width: min(960px, 96vw);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background: #000;
+  border-radius: 14px;
+  overflow: hidden;
+  filter: drop-shadow(0 30px 80px rgba(0,0,0,0.7));
+  border: 1px solid #1a1f1a;
+}
+
+/* Scanlines */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 255, 120, 0.06) 0px,
+    rgba(0, 255, 120, 0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 5;
+  mix-blend-mode: overlay;
+}
+
+/* CRT vignette */
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.crt-flicker {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 255, 120, 0.02);
+  pointer-events: none;
+  z-index: 4;
+  animation: flicker 0.12s infinite;
+}
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.92; }
+}
+
+/* Top bar */
+.topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 14px 22px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #2dff6f;
+  display: flex;
+  justify-content: space-between;
+  z-index: 7;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 6px rgba(45, 255, 111, 0.5);
+}
+.topbar .dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: #ff3344;
+  border-radius: 50%;
+  animation: dotblink 1s infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+  box-shadow: 0 0 8px #ff3344;
+}
+@keyframes dotblink {
+  0%, 50% { opacity: 1; }
+  50.1%, 100% { opacity: 0.2; }
+}
+
+/* Center glitch text */
+.glitch-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.glitch {
+  position: relative;
+  font-family: "SF Mono", "Courier New", monospace;
+  font-size: clamp(40px, 8vw, 86px);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #eaffea;
+  text-shadow: 0 0 18px rgba(45, 255, 111, 0.35);
+}
+.glitch .layer {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  mix-blend-mode: screen;
+}
+.glitch .r { color: #ff0044; animation: shift-r 3.4s infinite; }
+.glitch .g { color: #00ff88; animation: shift-g 2.8s infinite; }
+.glitch .b { color: #00a8ff; animation: shift-b 3.1s infinite; }
+
+@keyframes shift-r {
+  0%, 100% { transform: translate(2px, 0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(3px, -1px); }
+  60% { transform: translate(-1px, 2px); }
+  80% { transform: translate(2px, -1px); }
+}
+@keyframes shift-g {
+  0%, 100% { transform: translate(-1px, 0); }
+  25% { transform: translate(2px, 1px); }
+  50% { transform: translate(-2px, -1px); }
+  75% { transform: translate(1px, 2px); }
+}
+@keyframes shift-b {
+  0%, 100% { transform: translate(0, 1px); }
+  33% { transform: translate(-2px, -2px); }
+  66% { transform: translate(3px, 0); }
+}
+
+/* Big burst shake */
+.glitch.burst {
+  animation: burst 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes burst {
+  0%   { transform: translate(0, 0) skewX(0); filter: hue-rotate(0) contrast(1); }
+  10%  { transform: translate(-8px, 3px) skewX(-6deg); filter: hue-rotate(30deg) contrast(1.4); }
+  20%  { transform: translate(7px, -4px) skewX(4deg); }
+  30%  { transform: translate(-5px, 6px) skewX(-3deg); }
+  50%  { transform: translate(6px, -2px) skewX(2deg); filter: hue-rotate(-20deg) contrast(1.2); }
+  70%  { transform: translate(-3px, 4px); }
+  100% { transform: translate(0, 0); filter: none; }
+}
+
+.subtitle {
+  margin-top: 18px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: #5bff8d;
+  letter-spacing: 0.3em;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+/* slice bands during burst */
+.slice {
+  position: absolute;
+  left: 0; right: 0;
+  height: 10px;
+  background: rgba(0,255,120,0.15);
+  pointer-events: none;
+  z-index: 4;
+  display: none;
+}
+.slice.on { display: block; }
+
+/* Bottom error line */
+.errline {
+  position: absolute;
+  bottom: 14px; left: 22px; right: 22px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #2dff6f;
+  letter-spacing: 0.08em;
+  z-index: 7;
+  display: flex;
+  justify-content: space-between;
+  text-shadow: 0 0 6px rgba(45, 255, 111, 0.4);
+}
+.errline .blink { animation: dotblink 0.6s infinite; }
+
+/* REPLAY btn */
+.replay {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  padding: 10px 18px;
+  background: #00170a;
+  color: #2dff6f;
+  border: 1px solid #2dff6f;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  z-index: 100;
+  box-shadow: 0 0 16px rgba(45, 255, 111, 0.25);
+}
+.replay:hover { background: #002812; }
+
+/* Info corner */
+.info {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #7a7d86;
+}
+.info .atom-name { color: #e4e5ea; font-weight: 700; letter-spacing: 0.1em; }
+.info .tech { color: #5a5d65; }
+
+/* Hex rain background */
+.rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+  opacity: 0.18;
+  pointer-events: none;
+}
+.rain span {
+  position: absolute;
+  top: -20px;
+  font-family: "SF Mono", monospace;
+  font-size: 12px;
+  color: #2dff6f;
+  white-space: pre;
+  animation: fall linear infinite;
+}
+@keyframes fall {
+  to { transform: translateY(120%); }
+}
+</style>
+</head>
+<body>
+
+<button class="replay" id="replayBtn">↻ REPLAY</button>
+
+<div class="info">
+  <span class="atom-name">05 · GLITCH TEXT</span>
+  <span class="tech">CSS keyframes · RGB split</span>
+</div>
+
+<div class="stage">
+  <div class="rain" id="rain"></div>
+  <div class="crt-flicker"></div>
+
+  <div class="topbar">
+    <span><span class="dot"></span>SYS.MONITOR // 0x7B</span>
+    <span id="clock">[ KERNEL PANIC ]</span>
+  </div>
+
+  <div class="slice" id="slice1" style="top: 30%"></div>
+  <div class="slice" id="slice2" style="top: 55%; height: 4px"></div>
+
+  <div class="glitch-wrap">
+    <div class="glitch" id="glitch">
+      <span class="layer r" id="gr">SYSTEM FAILURE</span>
+      <span class="layer g" id="gg">SYSTEM FAILURE</span>
+      <span class="layer b" id="gb">SYSTEM FAILURE</span>
+      <span class="layer base" id="gbase">SYSTEM FAILURE</span>
+    </div>
+    <div class="subtitle" id="sub">&gt; stack overflow at 0xDEADBEEF</div>
+  </div>
+
+  <div class="errline">
+    <span>ERROR 0x0000007B :: UNMOUNTABLE_BOOT_VOLUME</span>
+    <span class="blink">▊</span>
+  </div>
+</div>
+
+<script>
+const WORDS = [
+  "SYSTEM FAILURE",
+  "NULL POINTER",
+  "STACK OVERFLOW",
+  "SEGFAULT"
+];
+const SUBS = [
+  "> stack overflow at 0xDEADBEEF",
+  "> null deref at 0x00000000",
+  "> heap corrupted at 0xCAFEBABE",
+  "> access violation at 0xBADC0FFE"
+];
+
+const glitch = document.getElementById('glitch');
+const gr = document.getElementById('gr');
+const gg = document.getElementById('gg');
+const gb = document.getElementById('gb');
+const gbase = document.getElementById('gbase');
+const sub = document.getElementById('sub');
+const s1 = document.getElementById('slice1');
+const s2 = document.getElementById('slice2');
+
+let wordIdx = 0;
+let burstTimer, wordTimer, microTimer;
+
+function setWord(w, s) {
+  [gr, gg, gb, gbase].forEach(el => el.textContent = w);
+  sub.textContent = s;
+}
+
+function burst() {
+  glitch.classList.remove('burst');
+  void glitch.offsetWidth;
+  glitch.classList.add('burst');
+  s1.classList.add('on');
+  setTimeout(() => s1.classList.remove('on'), 80 + Math.random() * 100);
+  setTimeout(() => {
+    s2.classList.add('on');
+    setTimeout(() => s2.classList.remove('on'), 60);
+  }, 120);
+  // swap chars briefly for extra chaos
+  const orig = gbase.textContent;
+  const scrambled = [...orig].map(c =>
+    Math.random() < 0.4 && c !== ' ' ? String.fromCharCode(33 + Math.floor(Math.random() * 90)) : c
+  ).join('');
+  [gr, gg, gb, gbase].forEach(el => el.textContent = scrambled);
+  setTimeout(() => {
+    [gr, gg, gb, gbase].forEach(el => el.textContent = orig);
+  }, 120);
+}
+
+function microJitter() {
+  // tiny asymmetric offset on base layer every now and then
+  if (Math.random() < 0.3) {
+    gbase.style.transform = `translate(${(Math.random()*2-1)|0}px, ${(Math.random()*2-1)|0}px)`;
+  } else {
+    gbase.style.transform = '';
+  }
+}
+
+function cycleWord() {
+  wordIdx = (wordIdx + 1) % WORDS.length;
+  setWord(WORDS[wordIdx], SUBS[wordIdx]);
+  burst();
+}
+
+function scheduleNextBurst() {
+  const next = 1800 + Math.random() * 1600;
+  burstTimer = setTimeout(() => {
+    burst();
+    scheduleNextBurst();
+  }, next);
+}
+
+// hex rain
+function buildRain() {
+  const rain = document.getElementById('rain');
+  rain.innerHTML = '';
+  const cols = 28;
+  for (let i = 0; i < cols; i++) {
+    const s = document.createElement('span');
+    let txt = '';
+    for (let j = 0; j < 24; j++) {
+      txt += Math.floor(Math.random() * 16).toString(16).toUpperCase() + '\n';
+    }
+    s.textContent = txt;
+    s.style.left = (i / cols * 100) + '%';
+    s.style.animationDuration = (8 + Math.random() * 6) + 's';
+    s.style.animationDelay = (-Math.random() * 10) + 's';
+    rain.appendChild(s);
+  }
+}
+
+function reset() {
+  clearTimeout(burstTimer);
+  clearInterval(wordTimer);
+  clearInterval(microTimer);
+  wordIdx = 0;
+  setWord(WORDS[0], SUBS[0]);
+  buildRain();
+  setTimeout(burst, 400);
+  scheduleNextBurst();
+  wordTimer = setInterval(cycleWord, 5200);
+  microTimer = setInterval(microJitter, 90);
+}
+
+document.getElementById('replayBtn').onclick = reset;
+window.addEventListener('load', reset);
+</script>
+</body>
+</html>
