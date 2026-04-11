@@ -11,6 +11,7 @@ export function createDefaultTimeline() {
     version: "1",
     duration: 30,
     background: "#0b0b14",
+    assets: [],
     tracks: [],
   };
 }
@@ -27,6 +28,7 @@ function createInitialState() {
     selectedClipId: null,
     searchQuery: "",
     assets: [],
+    assetBuffers: new Map(),
     selection: {
       trackId: null,
       clipId: null,
@@ -39,12 +41,35 @@ function createInitialState() {
   };
 }
 
-function cloneState(state) {
-  if (typeof globalThis.structuredClone === "function") {
-    return globalThis.structuredClone(state);
+function isPlainObject(value) {
+  if (!value || Object.prototype.toString.call(value) !== "[object Object]") {
+    return false;
   }
 
-  return JSON.parse(JSON.stringify(state));
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function cloneValue(value) {
+  if (value instanceof Map) {
+    return new Map([...value.entries()].map(([key, entryValue]) => [cloneValue(key), cloneValue(entryValue)]));
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneValue(entry));
+  }
+
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [key, cloneValue(entryValue)]),
+    );
+  }
+
+  return value;
+}
+
+function cloneState(state) {
+  return cloneValue(state);
 }
 
 function cloneValue(value) {

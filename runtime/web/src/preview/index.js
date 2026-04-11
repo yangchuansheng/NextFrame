@@ -1,3 +1,5 @@
+import { getAudioContext } from "../audio/context.js";
+import { createMixer } from "../audio/mixer.js";
 import { renderAt as defaultRenderAt, setupDPR as defaultSetupDPR } from "../engine/index.js";
 import { computeLetterboxRect } from "./letterbox.js";
 import { createLoop } from "./loop.js";
@@ -34,6 +36,10 @@ export function mountPreview(container, { engine, store } = {}) {
     renderAt: typeof engine?.renderAt === "function" ? engine.renderAt : defaultRenderAt,
     setupDPR: typeof engine?.setupDPR === "function" ? engine.setupDPR : defaultSetupDPR,
   };
+  const audioMixer = createMixer({
+    getAudioContext,
+    getState: () => store?.state ?? null,
+  });
 
   let ctx = null;
   let lastRect = { x: 0, y: 0, width: 0, height: 0 };
@@ -98,6 +104,7 @@ export function mountPreview(container, { engine, store } = {}) {
         ? advancePlayhead(store, time, dt, timeline)
         : time;
 
+      audioMixer.syncToPlayhead(nextTime, Boolean(store?.state?.playing));
       renderFrame(nextTime, timeline);
     },
     getTime: readTime,
@@ -115,7 +122,13 @@ export function mountPreview(container, { engine, store } = {}) {
       const nextSnapshot = createSnapshot(state);
 
       if (nextSnapshot.playing !== lastSnapshot.playing) {
-        syncLoopState(nextSnapshot.playing);
+        if (nextSnapshot.playing) {
+          audioMixer.syncToPlayhead(readTime(), true);
+          syncLoopState(true);
+        } else {
+          audioMixer.stop();
+          syncLoopState(false);
+        }
       }
 
       if (didLayoutChange(lastSnapshot, nextSnapshot)) {
@@ -126,12 +139,21 @@ export function mountPreview(container, { engine, store } = {}) {
         renderFrame(readTime());
       }
 
+      if (nextSnapshot.timeline !== lastSnapshot.timeline
+        || nextSnapshot.assets !== lastSnapshot.assets
+        || nextSnapshot.assetBuffers !== lastSnapshot.assetBuffers) {
+        audioMixer.syncToPlayhead(readTime(), Boolean(state?.playing));
+      }
+
       lastSnapshot = nextSnapshot;
     })
     : () => {};
 
   layoutCanvas();
   renderFrame(readTime());
+  if (lastSnapshot.playing) {
+    audioMixer.syncToPlayhead(readTime(), true);
+  }
   syncLoopState(lastSnapshot.playing);
 
   const api = {
@@ -139,16 +161,26 @@ export function mountPreview(container, { engine, store } = {}) {
     get ctx() {
       return ctx;
     },
-    play: () => syncLoopState(true),
-    pause: () => loop.pause(),
+    play: () => {
+      audioMixer.syncToPlayhead(readTime(), true);
+      syncLoopState(true);
+    },
+    pause: () => {
+      audioMixer.stop();
+      syncLoopState(false);
+    },
     setRecordingMode(active) {
       recordingMode = Boolean(active);
       syncLoopState();
     },
-    stop: () => loop.stop(),
+    stop: () => {
+      audioMixer.stop();
+      loop.stop();
+    },
     destroy() {
       unsubscribe();
       resizeObserver.disconnect();
+      audioMixer.stop();
       loop.stop();
       delete container[MOUNT_STATE];
     },
@@ -167,6 +199,8 @@ function createSnapshot(state) {
     projectHeight: readFiniteNumber(state?.project?.height),
     aspectRatio: getAspectRatio(state?.project),
     timeline: state?.timeline,
+    assets: state?.assets,
+    assetBuffers: state?.assetBuffers,
   };
 }
 

@@ -63,6 +63,7 @@ function createStructure(container) {
 
 function getTrackSignature(track) {
   return JSON.stringify({
+    kind: track.kind || "",
     label: track.label || "",
     name: track.name || "",
     muted: Boolean(track.muted),
@@ -74,6 +75,8 @@ function getTrackSignature(track) {
       scene: clip.scene || "",
       start: Number(clip.start) || 0,
       duration: Number(clip.duration ?? clip.dur) || 0,
+      assetId: clip.assetId || clip.params?.assetId || "",
+      src: clip.src || clip.params?.src || "",
     })),
   });
 }
@@ -94,6 +97,10 @@ export function mountTimeline(container, store) {
 
   let duration = 1;
   let currentTimeline = store.state.timeline || { duration: 1, tracks: [] };
+  let lastTimelineRef = currentTimeline;
+  let lastAssetsRef = store.state.assets;
+  let lastAssetBuffersRef = store.state.assetBuffers;
+  let lastPlayhead = Number(store.state.playhead) || 0;
 
   function syncTrackRows(tracks, forceRender = false) {
     const nextIds = new Set();
@@ -158,7 +165,8 @@ export function mountTimeline(container, store) {
       ui.tracksCanvas.appendChild(playhead.line);
     }
     updateSummary();
-    playhead.setTime(store.state.playhead || 0, zoom);
+    lastPlayhead = Number(store.state.playhead) || 0;
+    playhead.setTime(lastPlayhead, zoom);
   }
 
   function syncZoomUI() {
@@ -228,15 +236,24 @@ export function mountTimeline(container, store) {
   ui.fit.addEventListener("click", fitTimeline);
   window.addEventListener("keydown", onKeydown);
 
-  const unsubscribe = store.subscribe((nextState, previousState) => {
-    if (nextState.timeline !== previousState.timeline) {
+  const unsubscribe = store.subscribe((nextState) => {
+    if (nextState.timeline !== lastTimelineRef) {
       const previousDuration = duration;
       currentTimeline = nextState.timeline || { duration: 1, tracks: [] };
       renderTimeline(previousDuration !== getProjectDuration(currentTimeline));
+      lastTimelineRef = nextState.timeline;
     }
 
-    if (nextState.playhead !== previousState.playhead) {
-      playhead.setTime(nextState.playhead || 0, zoom);
+    if (nextState.assets !== lastAssetsRef || nextState.assetBuffers !== lastAssetBuffersRef) {
+      renderTimeline(true);
+      lastAssetsRef = nextState.assets;
+      lastAssetBuffersRef = nextState.assetBuffers;
+    }
+
+    const nextPlayhead = Number(nextState.playhead) || 0;
+    if (nextPlayhead !== lastPlayhead) {
+      playhead.setTime(nextPlayhead, zoom);
+      lastPlayhead = nextPlayhead;
     }
   });
 

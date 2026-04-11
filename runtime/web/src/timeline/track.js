@@ -1,6 +1,7 @@
 import { getDragDropContext } from "../dnd/index.js";
 import { readDragPayload } from "../dnd/source.js";
 import { registerDropTarget } from "../dnd/target.js";
+import { createProjectAssetIndex, normalizeAudioUrl } from "../audio/buffer.js";
 import { createClip } from "./clip.js";
 import { hasTrackOverlap } from "./clip-range.js";
 import { getTickStep } from "./ruler.js";
@@ -202,6 +203,28 @@ function createHeaderIcon(kind, active) {
   return badge;
 }
 
+function resolveClipAudioBuffer(track, clip, state, assetIndex) {
+  if (track?.kind !== "audio" || !(state?.assetBuffers instanceof Map)) {
+    return null;
+  }
+
+  const params = clip?.params && typeof clip.params === "object" ? clip.params : {};
+  const assetId = typeof params.assetId === "string" && params.assetId.length > 0
+    ? params.assetId
+    : typeof clip?.assetId === "string" && clip.assetId.length > 0
+      ? clip.assetId
+      : null;
+
+  if (assetId && assetIndex.byId.has(assetId)) {
+    const asset = assetIndex.byId.get(assetId);
+    const assetUrl = normalizeAudioUrl(asset?.path || asset?.url);
+    return assetUrl ? state.assetBuffers.get(assetUrl) ?? null : null;
+  }
+
+  const clipUrl = normalizeAudioUrl(params.src ?? clip?.src ?? null);
+  return clipUrl ? state.assetBuffers.get(clipUrl) ?? null : null;
+}
+
 export function createTrackRow(track, { duration, zoom, store }) {
   bindGlobalDropGhostCleanup();
 
@@ -209,6 +232,7 @@ export function createTrackRow(track, { duration, zoom, store }) {
   const laneWidth = Math.max(zoom.timeToPx(safeDuration), 1);
   const majorStep = getTickStep(zoom.pxPerSecond);
   const minorStep = majorStep === 1 ? 0.5 : majorStep === 5 ? 1 : 2;
+  const assetIndex = createProjectAssetIndex(store?.state);
 
   const row = document.createElement("div");
   row.className = "timeline-track-row";
@@ -241,7 +265,11 @@ export function createTrackRow(track, { duration, zoom, store }) {
   lane.style.setProperty("--timeline-minor-step", `${Math.max(zoom.timeToPx(minorStep), 1)}px`);
 
   (track.clips || []).forEach((clip) => {
-    const clipElement = createClip(clip, zoom, store);
+    const clipElement = createClip(clip, zoom, {
+      trackKind: track.kind || "",
+      audioBuffer: resolveClipAudioBuffer(track, clip, store?.state, assetIndex),
+      store,
+    });
     if (clip.id === pendingFlashClipId) {
       clipElement.classList.add("timeline-clip-flash");
       window.setTimeout(() => {

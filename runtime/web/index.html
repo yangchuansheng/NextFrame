@@ -1124,18 +1124,36 @@
         transition: opacity 80ms ease, background-color 80ms ease, box-shadow 80ms ease;
       }
 
+      .timeline-clip.is-audio::before {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 60%),
+          linear-gradient(90deg, rgba(20, 184, 166, 0.1), rgba(45, 212, 191, 0.02));
+        opacity: 1;
+      }
+
+      .timeline-clip-waveform {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.95;
+        pointer-events: none;
+      }
+
       .timeline-clip-label {
         position: relative;
-        z-index: 1;
+        z-index: 2;
         min-width: 0;
         font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
       }
 
       .timeline-clip-handle {
         position: absolute;
+        z-index: 2;
         top: 5px;
         bottom: 5px;
         width: 6px;
@@ -1622,6 +1640,7 @@
 
     <script type="module">
       import * as bridge from "./src/bridge.js";
+      import { loadAudioBuffer, mergeProjectAssets, normalizeAudioUrl } from "./src/audio/buffer.js";
       import { initDragDrop } from "./src/dnd/index.js";
       import * as engine from "./src/engine/index.js";
       import { installOnFrame } from "./src/export/onframe.js";
@@ -1730,6 +1749,89 @@
         return Math.min(Math.max(playhead, 0), duration);
       }
 
+      function areMapsEqual(left, right) {
+        if (left === right) {
+          return true;
+        }
+
+        if (!(left instanceof Map) || !(right instanceof Map) || left.size !== right.size) {
+          return false;
+        }
+
+        for (const [key, value] of left.entries()) {
+          if (right.get(key) !== value) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      function createAudioAssetBufferSync(store) {
+        let requestId = 0;
+        let lastAssetsRef = store.state.assets;
+        let lastTimelineAssetsRef = store.state.timeline?.assets;
+
+        async function syncAssets(state) {
+          const currentRequestId = ++requestId;
+          const assets = mergeProjectAssets(state);
+          const audioAssets = assets.filter((asset) => asset?.kind === "audio");
+
+          if (audioAssets.length === 0) {
+            if (store.state.assetBuffers instanceof Map && store.state.assetBuffers.size > 0) {
+              store.mutate((draft) => {
+                draft.assetBuffers = new Map();
+              });
+            }
+            return;
+          }
+
+          const nextBuffers = new Map();
+
+          for (const asset of audioAssets) {
+            const audioUrl = normalizeAudioUrl(asset.path || asset.url);
+            if (!audioUrl) {
+              continue;
+            }
+
+            try {
+              const buffer = await loadAudioBuffer(audioUrl);
+              if (buffer) {
+                nextBuffers.set(audioUrl, buffer);
+              }
+            } catch (error) {
+              console.warn("[NextFrame] Failed to decode audio asset:", audioUrl, error);
+            }
+          }
+
+          if (currentRequestId !== requestId) {
+            return;
+          }
+
+          const previousBuffers = store.state.assetBuffers instanceof Map
+            ? store.state.assetBuffers
+            : new Map();
+
+          if (!areMapsEqual(previousBuffers, nextBuffers)) {
+            store.mutate((draft) => {
+              draft.assetBuffers = nextBuffers;
+            });
+          }
+        }
+
+        const unsubscribe = store.subscribe((nextState) => {
+          const nextTimelineAssetsRef = nextState.timeline?.assets;
+          if (nextState.assets !== lastAssetsRef || nextTimelineAssetsRef !== lastTimelineAssetsRef) {
+            lastAssetsRef = nextState.assets;
+            lastTimelineAssetsRef = nextTimelineAssetsRef;
+            void syncAssets(nextState);
+          }
+        });
+
+        void syncAssets(store.state);
+        return unsubscribe;
+      }
+
       function togglePlaying() {
         store.mutate((state) => {
           state.playing = !state.playing;
@@ -1790,6 +1892,8 @@
 
         store.mutate((state) => {
           state.timeline = timeline;
+          state.assets = Array.isArray(timeline.assets) ? timeline.assets : [];
+          state.assetBuffers = new Map();
           state.playhead = 0;
           state.playing = true;
           state.dirty = false;
@@ -1829,6 +1933,7 @@
 
         initDragDrop({ store, scenes: SCENE_MANIFEST });
         initMenu({ bridge, store });
+        createAudioAssetBufferSync(store);
         window.addEventListener("keydown", onKeyDown);
       }
 
