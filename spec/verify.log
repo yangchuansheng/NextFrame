@@ -3,55 +3,57 @@ $ cargo fmt --check
 [exit 0]
 
 $ cargo clippy --workspace --all-targets -- -D warnings
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+    Checking bridge v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/bridge)
+    Checking shell v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/shell)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
 
 [exit 0]
 
 $ node runtime/web/test/lint.mjs
-Checked 52 JavaScript file(s) under runtime/web/src with 0 TODO warning(s).
+Checked 60 JavaScript file(s) under runtime/web/src with 0 TODO warning(s).
 
 [exit 0]
 
 $ cargo test -p bridge
-   Compiling bridge v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/bridge)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
      Running unittests src/lib.rs (target/debug/deps/bridge-2a4fbf10d9d5756b)
 
-running 32 tests
-test tests::build_recorder_args_matches_expected_contract ... ok
+running 33 tests
 test tests::build_ffmpeg_filter_complex_formats_delays_and_mix ... ok
-test tests::fs_dialog_open_dispatch_happy_and_error ... ok
+test tests::build_recorder_args_matches_expected_contract ... ok
 test tests::fs_dialog_save_dispatch_happy_and_error ... ok
+test tests::fs_dialog_open_dispatch_happy_and_error ... ok
 test tests::fs_read_rejects_parent_traversal_path ... ok
 test tests::fs_list_dir_rejects_symlink_escape ... ok
-test tests::fs_read_rejects_symlink_escape ... ok
-test tests::fs_reveal_dispatch_happy_and_error ... ok
 test tests::fs_write_rejects_absolute_system_path ... ok
 test tests::fs_read_dispatch_happy_and_error ... ok
-test tests::log_dispatch_happy_and_error ... ok
+test tests::fs_read_rejects_symlink_escape ... ok
+test tests::fs_reveal_dispatch_happy_and_error ... ok
 test tests::export_mux_audio_copies_video_when_no_audio_sources ... ok
-test tests::fs_write_dispatch_happy_and_error ... ok
-test tests::resolve_write_path_expands_home_and_allows_missing_export_dirs ... ok
-test tests::fs_write_rejects_symlink_parent_escape ... ok
-test tests::fs_list_dir_dispatch_happy_and_error ... ok
-test tests::fs_write_rejects_symlink_target_escape ... ok
-test tests::scene_list_dispatch_happy_and_error ... ok
 test tests::export_mux_audio_builds_expected_ffmpeg_command ... ok
+test tests::fs_write_dispatch_happy_and_error ... ok
+test tests::log_dispatch_happy_and_error ... ok
+test tests::fs_list_dir_dispatch_happy_and_error ... ok
+test tests::resolve_write_path_expands_home_and_allows_missing_export_dirs ... ok
+test tests::scene_list_dispatch_happy_and_error ... ok
+test tests::fs_write_rejects_symlink_parent_escape ... ok
+test tests::fs_write_rejects_symlink_target_escape ... ok
 test tests::resolve_recorder_launch_plan_falls_back_to_cargo_manifest ... ok
-test tests::timeline_save_dispatch_error_on_disallowed_path ... ok
-test tests::timeline_load_dispatch_happy_path ... ok
 test tests::timeline_load_dispatch_error_on_invalid_json ... ok
-test tests::resolve_recorder_launch_plan_prefers_env_override ... ok
+test tests::timeline_save_dispatch_error_on_disallowed_path ... ok
+test tests::export_mux_audio_surfaces_ffmpeg_stderr ... ok
 test tests::timeline_load_rejects_symlink_escape ... ok
+test tests::timeline_load_dispatch_happy_path ... ok
 test tests::timeline_save_accepts_timeline_alias ... ok
 test tests::timeline_save_rejects_symlink_parent_escape ... ok
 test tests::timeline_save_dispatch_happy_path ... ok
-test tests::export_mux_audio_surfaces_ffmpeg_stderr ... ok
+test tests::resolve_recorder_launch_plan_prefers_env_override ... ok
 test tests::timeline_save_rejects_symlink_target_escape ... ok
 test tests::export_mux_audio_reports_missing_ffmpeg ... ok
 test tests::initialize_primes_ffmpeg_cache_before_mux_requests ... ok
+test tests::recent_add_dispatch_dedupes_and_caps_entries ... ok
 
-test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
    Doc-tests bridge
 
@@ -65,16 +67,20 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 $ cargo build --workspace --release
    Compiling bridge v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/bridge)
    Compiling shell v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/shell)
-    Finished `release` profile [optimized] target(s) in 3.11s
+    Finished `release` profile [optimized] target(s) in 3.27s
 
 [exit 0]
 
 $ node runtime/web/test/bdd/run.mjs
 BDD critical scenarios
+  ✓ STORE-01 preview perf overlay defaults to off
+  ✓ STORE-02 playback updates avoid cloning timeline and asset state
   ✓ TL-01 fresh timeline has 3 default tracks
   ✓ TL-05 zoom changes pxPerSecond
   ✓ CLIP-01 addClip on an empty track creates a clip at the requested start
   ✓ CLIP-02 moveClip updates the clip start time
+  ✓ CLIP-03 setClipField updates top-level clip label and note with undo
+  ✓ CLIP-04 randomizeParams updates scene params with undo
   ✓ CLIP-05 splitClip produces two clips
   ✓ SCRUB-01 store.playhead mutations notify subscribers
   ✓ SCRUB-03 renderAt at t=5 matches rendering t=2 then t=5
@@ -82,7 +88,17 @@ BDD critical scenarios
   ✓ UNDO-01 dispatch then undo restores the previous timeline state
   ✓ FILE-03 validateTimeline rejects malformed timelines and accepts valid ones
   ✓ INS-02 SCENE_MANIFEST exposes 10 scenes with parameter schemas
-✓ 11 passed, 0 failed
+Preview perf monitor
+  ✓ reports fps percentiles and drops across the latest frame window
+  ✓ keeps only the most recent 120 frames and reset clears the monitor
+Timeline stats bar
+  ✓ renders project stats and only re-renders for timeline or dirty changes
+Toast notifications
+  ✓ injects the root once, keeps newest toasts on top, and caps the stack at five
+  ✓ auto-dismisses toasts and clears the full stack with exit timing
+Title bar
+  ✓ renders Untitled initially and syncs dirty/file name changes
+✓ 21 passed, 0 failed
 
 [exit 0]
 

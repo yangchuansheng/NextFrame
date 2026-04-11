@@ -1,13 +1,13 @@
 # NextFrame v0.1 — Overnight Build Verification Report
 
-Generated: 2026-04-12 02:10:26 CST
+Generated: 2026-04-12 04:01:09 CST
 
 ## Summary
-- Rounds completed: 31
+- Rounds completed: 42
 - Cargo clippy: PASS
 - Web lint: PASS
-- Cargo tests: 32 passed / 32 total
-- BDD tests: 11 passed / 11 total
+- Cargo tests: 33 passed / 33 total
+- BDD tests: 21 passed / 21 total
 - Release build: PASS
 
 ## What works (manual walkthrough)
@@ -36,8 +36,8 @@ Generated: 2026-04-12 02:10:26 CST
 
 ## Verification command summaries
 - `cargo fmt --check`: PASS. stdout/stderr summary: No output captured.
-- `cargo clippy --workspace --all-targets -- -D warnings`: PASS. stdout/stderr summary:    Finished `dev` profile [unoptimized  debuginfo] target(s) in 0.08s
-- `node runtime/web/test/lint.mjs`: PASS. stdout/stderr summary: Checked 52 JavaScript file(s) under runtime/web/src with 0 TODO warning(s).
-- `cargo test -p bridge`: PASS. stdout/stderr summary:    Finished `test` profile [unoptimized  debuginfo] target(s) in 0.42s     Running unittests src/lib.rs (target/debug/deps/bridge-2a4fbf10d9d5756b)|test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-- `cargo build --workspace --release`: PASS. stdout/stderr summary:   Compiling bridge v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/bridge)   Compiling shell v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/shell)|   Finished `release` profile [optimized] target(s) in 3.11s
-- `node runtime/web/test/bdd/run.mjs`: PASS. stdout/stderr summary: ✓ 11 passed, 0 failed
+- `cargo clippy --workspace --all-targets -- -D warnings`: PASS. stdout/stderr summary:    Checking bridge v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/bridge)    Checking shell v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/shell)|   Finished `dev` profile [unoptimized  debuginfo] target(s) in 0.37s
+- `node runtime/web/test/lint.mjs`: PASS. stdout/stderr summary: Checked 60 JavaScript file(s) under runtime/web/src with 0 TODO warning(s).
+- `cargo test -p bridge`: PASS. stdout/stderr summary:    Finished `test` profile [unoptimized  debuginfo] target(s) in 0.06s     Running unittests src/lib.rs (target/debug/deps/bridge-2a4fbf10d9d5756b)|test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+- `cargo build --workspace --release`: PASS. stdout/stderr summary:   Compiling bridge v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/bridge)   Compiling shell v0.1.0 (/Users/Zhuanz/bigbang/NextFrame/shell)|   Finished `release` profile [optimized] target(s) in 3.27s
+- `node runtime/web/test/bdd/run.mjs`: PASS. stdout/stderr summary: ✓ 21 passed, 0 failed
