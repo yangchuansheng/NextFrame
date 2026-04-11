@@ -22,6 +22,9 @@ function createInitialState() {
     timeline: createDefaultTimeline(),
     filePath: null,
     dirty: false,
+    selectedClipId: null,
+    searchQuery: "",
+    assets: [],
     ui: {
       zoom: 1,
       timelineVisible: true,
