@@ -1,6 +1,7 @@
 import { validateTimeline } from "./engine/index.js";
 import { showExportDialog } from "./export/dialog.js";
 import { createDefaultTimeline } from "./store.js";
+import { toast } from "./toast.js";
 
 const DEFAULT_SAVE_NAME = "Untitled.nfproj";
 const DEFAULT_STATUS = "Ready";
@@ -211,6 +212,7 @@ export function initMenu({ bridge, store }) {
             state.dirty = false;
           });
           showNotice("New project");
+          toast("New project");
           return;
         case "open":
           await openProject();
@@ -296,7 +298,7 @@ export function initMenu({ bridge, store }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       showNotice("Action failed", { dirty: store.state.dirty });
-      window.alert(message);
+      toast(message, { type: "error" });
     }
   }
 
@@ -325,6 +327,7 @@ export function initMenu({ bridge, store }) {
       state.dirty = false;
     });
     showNotice(`Opened ${basename(path) ?? DEFAULT_SAVE_NAME}`);
+    toast(`Opened ${basename(path) ?? DEFAULT_SAVE_NAME}`);
   }
 
   async function saveProject() {
@@ -336,6 +339,7 @@ export function initMenu({ bridge, store }) {
 
     await writeProject(path);
     showNotice(`Saved ${basename(path) ?? DEFAULT_SAVE_NAME}`);
+    toast("Saved.", { type: "success" });
   }
 
   async function saveProjectAs() {
@@ -349,6 +353,7 @@ export function initMenu({ bridge, store }) {
 
     await writeProject(path);
     showNotice(`Saved ${basename(path) ?? DEFAULT_SAVE_NAME}`);
+    toast("Saved.", { type: "success" });
   }
 
   async function writeProject(path) {
