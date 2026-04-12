@@ -1,4 +1,8 @@
 import { hasSoloTrack, shouldRenderTrack } from "../track-flags.js";
+import { applyEnterEffect, applyExitEffect, hasClipEffects } from "./effects.js";
+import { applyFilters, hasClipFilters } from "./filters.js";
+import { evalParam } from "./keyframes.js";
+
 export { evalParam } from "./keyframes.js";
 
 const DEFAULT_BACKGROUND = "#0b0b14";
@@ -179,8 +183,9 @@ export function renderAt(ctx, timeline, t) {
 
   const tracks = Array.isArray(timeline?.tracks) ? timeline.tracks : [];
   const soloActive = hasSoloTrack(tracks);
+  let firstLayer = true;
   for (const track of tracks) {
-    if (!shouldRenderTrack(track, soloActive)) {
+    if (track?.kind === "audio" || !shouldRenderTrack(track, soloActive)) {
       continue;
     }
 
@@ -201,14 +206,53 @@ export function renderAt(ctx, timeline, t) {
       }
 
       const localT = t - clip.start;
-      const params = isPlainObject(clip.params) ? clip.params : EMPTY_PARAMS;
+      const params = resolveParams(clip.params, localT);
+      const blend = resolveBlendMode(clip, firstLayer);
+      const hasEffects = hasClipEffects(clip);
+      const hasFilters = hasClipFilters(clip);
 
-      ctx.save();
-      try {
-        sceneFn(localT, params, ctx, t, W, H, Number(clip.dur) || 0);
-      } finally {
-        ctx.restore();
+      if (blend === "source-over" && firstLayer && !hasEffects && !hasFilters) {
+        ctx.save();
+        try {
+          sceneFn(localT, params, ctx, t, W, H, Number(clip.dur) || 0);
+        } finally {
+          ctx.restore();
+        }
+      } else {
+        const clipCanvas = createWorkingCanvas(W, H);
+        const clipCtx = clipCanvas.getContext("2d");
+        if (!clipCtx) {
+          throw new Error("renderAt could not acquire an offscreen 2D context");
+        }
+
+        resetContext(clipCtx, W, H);
+        clipCtx.save();
+        try {
+          sceneFn(localT, params, clipCtx, t, W, H, Number(clip.dur) || 0);
+        } finally {
+          clipCtx.restore();
+        }
+
+        if (hasFilters) {
+          applyFilters(clipCtx, W, H, clip.filters, localT);
+        }
+
+        ctx.save();
+        try {
+          ctx.globalCompositeOperation = blend;
+          if (clip.effects?.enter) {
+            applyEnterEffect(ctx, localT, clip.effects.enter, W, H);
+          }
+          if (clip.effects?.exit) {
+            applyExitEffect(ctx, localT, Number(clip.dur) || 0, clip.effects.exit, W, H);
+          }
+          ctx.drawImage(clipCanvas, 0, 0, W, H);
+        } finally {
+          ctx.restore();
+        }
       }
+
+      firstLayer = false;
     }
   }
 }
@@ -280,6 +324,31 @@ function getDisplaySize(canvas) {
   };
 }
 
+function createWorkingCanvas(width, height) {
+  if (typeof OffscreenCanvas === "function") {
+    return new OffscreenCanvas(width, height);
+  }
+
+  if (typeof document !== "undefined" && typeof document.createElement === "function") {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+
+  throw new Error("renderAt could not allocate an offscreen canvas");
+}
+
+function resetContext(ctx, width, height) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  if (typeof ctx.filter === "string") {
+    ctx.filter = "none";
+  }
+  ctx.clearRect(0, 0, width, height);
+}
+
 function getDevicePixelRatio() {
   const ratio = globalThis.devicePixelRatio;
   return isFiniteNumber(ratio) && ratio > 0 ? ratio : 1;
@@ -309,6 +378,28 @@ function isActiveClip(clip, t) {
     && isFiniteNumber(clip?.dur)
     && t >= clip.start
     && t < clip.start + clip.dur;
+}
+
+function resolveBlendMode(clip, firstLayer) {
+  const requested = typeof clip?.blend === "string" ? clip.blend : "";
+  const fallback = firstLayer ? "source-over" : "lighten";
+  const blend = requested || fallback;
+
+  if (blend === "add") {
+    return "lighter";
+  }
+
+  return blend;
+}
+
+function resolveParams(params, localT) {
+  if (!isPlainObject(params)) {
+    return EMPTY_PARAMS;
+  }
+
+  return Object.fromEntries(
+    Object.entries(params).map(([key, value]) => [key, evalParam(value, localT)]),
+  );
 }
 
 function isFiniteNumber(value) {

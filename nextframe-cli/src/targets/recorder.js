@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bakeBrowserScenes } from "../cli/bakeBrowser.js";
 import { guarded } from "../engine/_guard.js";
-import { renderAt } from "../engine/render.js";
 import { resolveTimeline } from "../engine/time.js";
 import { exportMP4 } from "./ffmpeg-mp4.js";
+import { generateHarness } from "./harness-gen.js";
 
 function normalizeCrf(value) {
   if (value === undefined || value === null) return 20;
@@ -29,28 +29,10 @@ function warnRecorderFallback(binary) {
   process.stderr.write(`warning: ${binary} not found in PATH, falling back to ffmpeg\n`);
 }
 
-async function renderFrameFiles(timeline, dir, opts) {
-  const frameFiles = [];
-  for (let i = 0; i < opts.totalFrames; i++) {
-    const t = i / opts.fps;
-    const frame = renderAt(timeline, t, { width: opts.width, height: opts.height });
-    if (!frame.ok) {
-      return { ok: false, error: frame.error };
-    }
-    const framePath = join(dir, `frame-${String(i).padStart(6, "0")}.png`);
-    await writeFile(framePath, frame.canvas.toBuffer("image/png"));
-    frameFiles.push(framePath);
-    if (opts.onProgress && ((i + 1) % 30 === 0 || i + 1 === opts.totalFrames)) {
-      opts.onProgress(i + 1, opts.totalFrames);
-    }
-  }
-  return { ok: true, value: frameFiles };
-}
-
-async function runRecorder(binary, frameFiles, outputPath, opts) {
+async function runRecorder(binary, htmlFile, outputPath, opts) {
   const args = [
     "slide",
-    ...frameFiles,
+    htmlFile,
     "--out", outputPath,
     "--fps", String(opts.fps),
     "--crf", String(opts.crf),
@@ -127,33 +109,19 @@ export async function exportRecorder(timeline, outputPath, opts = {}) {
     return guarded("exportRecorder", { ok: false, error: { code: "BAD_CRF", hint: "0..51" } });
   }
 
-  const baked = await bakeBrowserScenes(timeline, {
-    width,
-    height,
-    rootDir: opts.projectDir,
-  });
-  if (!baked.ok) return guarded("exportRecorder", baked);
-
   const binary = recorderBinary(opts);
   if (!isRecorderAvailable(binary)) {
     warnRecorderFallback(binary);
-    return exportMP4(timeline, outputPath, opts);
+    return exportViaFfmpegFallback(timeline, outputPath, opts, { width, height });
   }
 
-  const framesDir = await mkdtemp(join(tmpdir(), "nextframe-recorder-"));
+  const harnessDir = await mkdtemp(join(tmpdir(), "nextframe-recorder-"));
   try {
-    const frameFiles = await renderFrameFiles(resolved, framesDir, {
-      fps,
-      width,
-      height,
-      totalFrames,
-      onProgress: opts.onProgress,
-    });
-    if (!frameFiles.ok) {
-      return guarded("exportRecorder", frameFiles);
-    }
+    const htmlPath = join(harnessDir, "harness.html");
+    const html = generateHarness(resolved, { width, height });
+    await writeFile(htmlPath, html, "utf8");
 
-    const recorded = await runRecorder(binary, frameFiles.value, outputPath, {
+    const recorded = await runRecorder(binary, htmlPath, outputPath, {
       fps,
       crf,
       width,
@@ -162,7 +130,7 @@ export async function exportRecorder(timeline, outputPath, opts = {}) {
     if (!recorded.ok) {
       if (recorded.error.code === "RECORDER_NOT_FOUND") {
         warnRecorderFallback(binary);
-        return exportMP4(timeline, outputPath, opts);
+        return exportViaFfmpegFallback(timeline, outputPath, opts, { width, height });
       }
       return guarded("exportRecorder", recorded);
     }
@@ -179,6 +147,19 @@ export async function exportRecorder(timeline, outputPath, opts = {}) {
       },
     });
   } finally {
-    await rm(framesDir, { recursive: true, force: true });
+    await rm(harnessDir, { recursive: true, force: true });
   }
+}
+
+async function exportViaFfmpegFallback(timeline, outputPath, opts, size) {
+  const baked = await bakeBrowserScenes(timeline, {
+    width: size.width,
+    height: size.height,
+    rootDir: opts.projectDir,
+  });
+  if (!baked.ok) {
+    return guarded("exportRecorder", baked);
+  }
+
+  return exportMP4(timeline, outputPath, opts);
 }
