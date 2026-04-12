@@ -10,11 +10,14 @@ const SUBCOMMANDS = {
   describe: () => import("../src/cli/describe.js"),
   ascii: () => import("../src/cli/ascii.js"),
   new: () => import("../src/cli/new.js"),
-  "add-clip": () => import("../src/cli/add.js"),
-  "move-clip": () => import("../src/cli/add.js"),
-  "resize-clip": () => import("../src/cli/add.js"),
-  "remove-clip": () => import("../src/cli/add.js"),
-  "set-param": () => import("../src/cli/add.js"),
+  "add-clip": () => import("../src/cli/ops.js"),
+  "move-clip": () => import("../src/cli/ops.js"),
+  "resize-clip": () => import("../src/cli/ops.js"),
+  "remove-clip": () => import("../src/cli/ops.js"),
+  "set-param": () => import("../src/cli/ops.js"),
+  "add-marker": () => import("../src/cli/ops.js"),
+  "list-clips": () => import("../src/cli/ops.js"),
+  "dup-clip": () => import("../src/cli/ops.js"),
   scenes: () => import("../src/cli/scenes.js"),
   help: null,
 };
@@ -33,9 +36,14 @@ SUBCOMMANDS
   ascii <timeline.json> <t> [--width N]       ASCII art preview of a frame
   gantt <timeline.json>                       ASCII gantt
   scenes                                      list all scenes with META
-  add-clip <timeline.json> <track> <clip-json>  add a clip
-  move-clip <timeline.json> <clipId> <newStart> move a clip's start time
-  resize-clip <timeline.json> <clipId> <newDur> resize clip duration
+  add-clip <timeline.json> ...                add a clip to a track
+  move-clip <timeline.json> <clipId> ...      move a clip's start time
+  resize-clip <timeline.json> <clipId> ...    resize clip duration
+  remove-clip <timeline.json> <clipId>        remove a clip
+  set-param <timeline.json> <clipId> ...      update clip params
+  add-marker <timeline.json> ...              append a timeline marker
+  list-clips <timeline.json> [--json]         list clips grouped by track
+  dup-clip <timeline.json> <clipId> ...       duplicate a clip at a new time
 
 FLAGS
   --json     output structured JSON (for AI / scripts)

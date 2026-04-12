@@ -6,3 +6,4 @@ import "./architecture.test.js";
 import "./scene-contract.test.js";
 import "./cli-render.test.js";
 import "./safety-gates.test.js";
+import "./cli-timeline-ops.test.js";
