@@ -1588,13 +1588,30 @@ button { cursor: pointer; }
   flex: 1; font-size: 12px; color: var(--ink);
 }
 
-.settings-select {
+/* Custom select (replaces native <select> for WKWebView) */
+.custom-select {
   flex: 1; height: 28px; background: var(--bg-surface);
   border: 1px solid var(--ink-faint); padding: 0 8px;
   color: var(--ink); font-size: 12px; font-family: var(--font-body);
-  cursor: pointer; transition: border-color 0.3s var(--ease);
+  cursor: pointer; position: relative; display: flex; align-items: center;
+  transition: border-color 0.3s var(--ease);
 }
-.settings-select:hover { border-color: rgba(138,111,174,0.25); }
+.custom-select:hover { border-color: rgba(138,111,174,0.25); }
+.custom-select.open { border-color: var(--accent); }
+.cs-value { flex: 1; }
+.cs-arrow { font-size: 8px; color: var(--ink-dim); margin-left: 4px; }
+.cs-options {
+  position: absolute; top: 100%; left: -1px; right: -1px;
+  background: var(--bg-surface); border: 1px solid rgba(138,111,174,0.2);
+  z-index: 10; display: none; max-height: 160px; overflow-y: auto;
+}
+.custom-select.open .cs-options { display: block; }
+.cs-opt {
+  padding: 6px 10px; font-size: 12px; color: var(--ink-dim);
+  cursor: pointer; transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.cs-opt:hover { background: var(--bg-hover); color: var(--ink); }
+.cs-opt.active { color: var(--accent); }
 
 .settings-path {
   flex: 1; display: flex; align-items: center; gap: 8px;
@@ -1948,7 +1965,10 @@ button { cursor: pointer; }
         <div class="settings-section-title">GENERAL</div>
         <div class="settings-row">
           <span class="settings-label">Language</span>
-          <select class="settings-select"><option>English</option><option>简体中文</option><option>日本語</option></select>
+          <div class="custom-select" onclick="toggleCustomSelect(this)">
+            <div class="cs-value">English</div><div class="cs-arrow">&#9662;</div>
+            <div class="cs-options"><div class="cs-opt active" onclick="pickOpt(this)">English</div><div class="cs-opt" onclick="pickOpt(this)">简体中文</div><div class="cs-opt" onclick="pickOpt(this)">日本語</div></div>
+          </div>
         </div>
         <div class="settings-row">
           <span class="settings-label">Project Path</span>
@@ -1959,11 +1979,17 @@ button { cursor: pointer; }
         </div>
         <div class="settings-row">
           <span class="settings-label">Auto Save</span>
-          <select class="settings-select"><option>On</option><option>Off</option></select>
+          <div class="custom-select" onclick="toggleCustomSelect(this)">
+            <div class="cs-value">On</div><div class="cs-arrow">&#9662;</div>
+            <div class="cs-options"><div class="cs-opt active" onclick="pickOpt(this)">On</div><div class="cs-opt" onclick="pickOpt(this)">Off</div></div>
+          </div>
         </div>
         <div class="settings-row">
           <span class="settings-label">Theme</span>
-          <select class="settings-select"><option>Obsidian Velvet</option><option>Volcanic</option></select>
+          <div class="custom-select" onclick="toggleCustomSelect(this)">
+            <div class="cs-value">Obsidian Velvet</div><div class="cs-arrow">&#9662;</div>
+            <div class="cs-options"><div class="cs-opt active" onclick="pickOpt(this)">Obsidian Velvet</div><div class="cs-opt" onclick="pickOpt(this)">Volcanic</div></div>
+          </div>
         </div>
       </div>
 
@@ -1972,11 +1998,17 @@ button { cursor: pointer; }
         <div class="settings-section-title">EXPORT DEFAULTS</div>
         <div class="settings-row">
           <span class="settings-label">Resolution</span>
-          <select class="settings-select"><option>1920×1080</option><option>3840×2160</option><option>1280×720</option></select>
+          <div class="custom-select" onclick="toggleCustomSelect(this)">
+            <div class="cs-value">1920×1080</div><div class="cs-arrow">&#9662;</div>
+            <div class="cs-options"><div class="cs-opt active" onclick="pickOpt(this)">1920×1080</div><div class="cs-opt" onclick="pickOpt(this)">3840×2160</div><div class="cs-opt" onclick="pickOpt(this)">1280×720</div></div>
+          </div>
         </div>
         <div class="settings-row">
           <span class="settings-label">FPS</span>
-          <select class="settings-select"><option>30</option><option>24</option><option>60</option></select>
+          <div class="custom-select" onclick="toggleCustomSelect(this)">
+            <div class="cs-value">30</div><div class="cs-arrow">&#9662;</div>
+            <div class="cs-options"><div class="cs-opt active" onclick="pickOpt(this)">30</div><div class="cs-opt" onclick="pickOpt(this)">24</div><div class="cs-opt" onclick="pickOpt(this)">60</div></div>
+          </div>
         </div>
         <div class="settings-row">
           <span class="settings-label">CRF</span>
@@ -1984,7 +2016,10 @@ button { cursor: pointer; }
         </div>
         <div class="settings-row">
           <span class="settings-label">Codec</span>
-          <select class="settings-select"><option>h264</option><option>h265</option><option>ProRes</option></select>
+          <div class="custom-select" onclick="toggleCustomSelect(this)">
+            <div class="cs-value">h264</div><div class="cs-arrow">&#9662;</div>
+            <div class="cs-options"><div class="cs-opt active" onclick="pickOpt(this)">h264</div><div class="cs-opt" onclick="pickOpt(this)">h265</div><div class="cs-opt" onclick="pickOpt(this)">ProRes</div></div>
+          </div>
         </div>
       </div>
 
@@ -2548,6 +2583,27 @@ function toggleExports() {
   document.getElementById('exports-overlay').classList.toggle('show');
   document.getElementById('exports-panel').classList.toggle('show');
 }
+
+function toggleCustomSelect(el) {
+  // close all other selects first
+  document.querySelectorAll('.custom-select.open').forEach(s => { if (s !== el) s.classList.remove('open'); });
+  el.classList.toggle('open');
+}
+
+function pickOpt(opt) {
+  const sel = opt.closest('.custom-select');
+  sel.querySelector('.cs-value').textContent = opt.textContent;
+  sel.querySelectorAll('.cs-opt').forEach(o => o.classList.remove('active'));
+  opt.classList.add('active');
+  sel.classList.remove('open');
+}
+
+// close custom selects on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.custom-select')) {
+    document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+  }
+});
 
 function toggleSettings() {
   // close exports if open
