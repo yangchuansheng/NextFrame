@@ -75,6 +75,13 @@ impl SegmentClock {
         self.skipped_frames
     }
 
+    /// Records whether the final frame decision reused the previous capture.
+    pub fn record_capture_decision(&mut self, needs_capture: bool) {
+        if !needs_capture {
+            self.skipped_frames += 1;
+        }
+    }
+
     /// Advances the clock and returns the render decision for the requested frame index.
     pub fn next(&mut self, frame_index: usize) -> FrameDecision {
         let timestamp_sec = frame_index as f64 / self.fps as f64;
@@ -101,10 +108,6 @@ impl SegmentClock {
         } else {
             frame_index == 0 || cue_changed || subtitle_changed || frame_index < self.capture_until
         };
-        if !needs_capture {
-            self.skipped_frames += 1;
-        }
-
         self.last_cue = cue_index;
         self.last_subtitle = subtitle_text.clone();
 
