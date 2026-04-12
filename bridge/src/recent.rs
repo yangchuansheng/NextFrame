@@ -153,10 +153,7 @@ fn read_recent_records(storage_path: &Path) -> Result<Vec<RecentProjectRecord>, 
     })
 }
 
-fn save_recent_records(
-    storage_path: &Path,
-    records: &[RecentProjectRecord],
-) -> Result<(), String> {
+fn save_recent_records(storage_path: &Path, records: &[RecentProjectRecord]) -> Result<(), String> {
     let serialized = serde_json::to_string_pretty(records).map_err(|error| {
         format!(
             "failed to serialize recent file '{}': {error}",

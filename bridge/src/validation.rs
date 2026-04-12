@@ -72,10 +72,7 @@ pub(crate) fn require_string_alias<'a>(
     Err(format!("missing params.{}", keys[0]))
 }
 
-pub(crate) fn require_array<'a>(
-    params: &'a Value,
-    key: &str,
-) -> Result<&'a Vec<Value>, String> {
+pub(crate) fn require_array<'a>(params: &'a Value, key: &str) -> Result<&'a Vec<Value>, String> {
     require_value(params, key)?
         .as_array()
         .ok_or_else(|| format!("params.{key} must be an array"))
