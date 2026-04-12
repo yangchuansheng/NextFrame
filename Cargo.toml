@@ -1,5 +1,5 @@
 [workspace]
-members = ["shell", "bridge", "engine", "project"]
+members = ["shell", "bridge", "engine", "project", "recorder"]
 resolver = "2"
 
 [workspace.package]
