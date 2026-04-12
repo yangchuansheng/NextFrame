@@ -859,20 +859,47 @@ function updateInspectorContext() {
 }
 
 function requestPreviewFrame(t) {
-  const timelinePath = getCurrentSegmentPath();
-  if (!timelinePath || !currentTimeline) return;
+  if (!currentTimeline) return;
+  // Use render engine if available (instant, <16ms)
+  if (window.__renderEngine && window.__renderEngine.ready) {
+    renderPreviewCanvas(t);
+    return;
+  }
+  // Fallback: CLI subprocess (slow, ~1s per frame)
+  var timelinePath = getCurrentSegmentPath();
+  if (!timelinePath) return;
   clearTimeout(_previewTimer);
   _previewPendingTime = Math.max(0, finiteNumber(t, 0));
   _previewTimer = setTimeout(function() {
-    renderPreviewFrame(_previewPendingTime);
+    renderPreviewFrameCLI(_previewPendingTime);
   }, 200);
 }
 
-function renderPreviewFrame(t) {
-  const timelinePath = getCurrentSegmentPath();
-  if (!timelinePath || !currentTimeline) {
-    return;
+function renderPreviewCanvas(t) {
+  var canvas = document.getElementById("render-canvas");
+  if (!canvas || !currentTimeline) return;
+  var ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  // Hide fallbacks, show canvas
+  var placeholder = document.getElementById("preview-placeholder");
+  var img = document.getElementById("preview-frame-img");
+  var video = document.getElementById("preview-video");
+  if (placeholder) placeholder.style.display = "none";
+  if (img) img.style.display = "none";
+  if (video) video.style.display = "none";
+  canvas.style.display = "block";
+
+  try {
+    window.__renderEngine.renderAt(ctx, currentTimeline, Math.max(0, t));
+  } catch (e) {
+    console.error("[render] frame error at t=" + t + ":", e.message);
   }
+}
+
+function renderPreviewFrameCLI(t) {
+  var timelinePath = getCurrentSegmentPath();
+  if (!timelinePath || !currentTimeline) return;
   if (_previewRendering) {
     _previewPendingTime = t;
     return;
@@ -887,27 +914,36 @@ function renderPreviewFrame(t) {
     width: 960,
     height: 540,
   }).then(function(result) {
-    if (seq !== _previewSeq) return; // stale
-    var img = document.getElementById("preview-frame-img");
+    if (seq !== _previewSeq) return;
+    var imgEl = document.getElementById("preview-frame-img");
     var placeholder = document.getElementById("preview-placeholder");
-    if (img && result && result.dataUrl) {
-      img.src = result.dataUrl;
-      img.style.display = "block";
+    if (imgEl && result && result.dataUrl) {
+      imgEl.src = result.dataUrl;
+      imgEl.style.display = "block";
       if (placeholder) placeholder.style.display = "none";
     }
   }).catch(function(error) {
     if (seq !== _previewSeq) return;
-    const hasFrame = Boolean(document.getElementById("preview-frame-img")?.getAttribute("src"));
+    var hasFrame = Boolean(document.getElementById("preview-frame-img")?.getAttribute("src"));
     setPreviewPlaceholder("PREVIEW", getBridgeMessage(error), hasFrame);
   }).finally(function() {
     _previewRendering = false;
     if (_previewPendingTime != null) {
-      const nextTime = _previewPendingTime;
+      var nextTime = _previewPendingTime;
       _previewPendingTime = null;
-      renderPreviewFrame(nextTime);
+      renderPreviewFrameCLI(nextTime);
     }
   });
 }
+
+// Called by engine module when it finishes loading
+window.__onEngineReady = function() {
+  console.log("[app] render engine ready, " + (window.__renderEngine?.scenes?.size || 0) + " scenes");
+  // Re-render current frame with engine
+  if (currentTimeline) {
+    renderPreviewCanvas(currentTime);
+  }
+};
 
 function setPlayheadTime(time) {
   const options = arguments[1] || {};
