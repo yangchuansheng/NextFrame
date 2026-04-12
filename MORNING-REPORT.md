@@ -17,12 +17,17 @@ open examples/out/launch.mp4        # 我（Opus）设计的 12s 产品发布
 open examples/out/sonnet-arcade.mp4  # Sonnet 设计的 13s 复古街机
 ```
 
-## 已经存在的两个视频
+## 5 个已渲染视频（examples/out/）
 
 | 文件 | 作者 | 时长 | 大小 | 主题 |
 |---|---|---|---|---|
-| `examples/out/launch.mp4` | Opus（我手写） | 12s 1080p h264 | 2.7MB | fluidBackground + meshGrid + kineticHeadline "NEXTFRAME" + shapeBurst + orbitRings + lowerThirdVelvet |
-| `examples/out/sonnet-arcade.mp4` | **Sonnet subagent** | 13s 1080p h264 | 1.4MB | pixelRain Matrix → countdown "3,2,1,GO" → "ARCADE / INSERT COIN" |
+| `multitrack.mp4` | Opus | 10s | 4.8MB | **多轨道能力展示**：每秒新层加入 LAYER 1/2/3/4，t=5.5 同时 6 层 |
+| `launch.mp4` | Opus | 12s | 5.0MB | fluid + mesh + "HELLO YUXUAN" + "NEXTFRAME" + lowerThird |
+| `sonnet-arcade.mp4` | **Sonnet subagent** | 13s | 8.7MB | pixelRain Matrix → countdown → "ARCADE / INSERT COIN" |
+| `sonnet-metrics.mp4` | **Sonnet subagent #2** | 14s | 3.7MB | Q3 Business Review · barChart → lineChart → dataPulse |
+| `cosmic.mp4` | Opus | 10s | 4.6MB | starfield + orbitRings → "COSMIC DRIFT" + LIVE FEED badge |
+
+**注意：所有视频已用新 multi-track engine 重渲过**。之前渲染的版本只能看到最上层 scene（v0.1 scene 库每个都画全背景，会覆盖下层）。新 engine 对 track 1+ 走 offscreen canvas + `lighten` 混合，真正实现 N 层叠加。
 
 **两个视频对比验证了整条管线**：AI 能独立设计主题、选场景、调参数、验证、导出。无人工介入。
 
