@@ -631,8 +631,7 @@ fn autosave_dispatch_round_trips_and_lists_entries() {
 fn autosave_rejects_invalid_project_id() {
     let home = home_dir().expect("home dir");
     let temp = TestDir::new_in(&home, "autosave-invalid-id");
-    let _autosave_override =
-        AutosaveStorageOverrideGuard::new(temp.join(".nextframe/autosave"));
+    let _autosave_override = AutosaveStorageOverrideGuard::new(temp.join(".nextframe/autosave"));
 
     let response = dispatch(request(
         "autosave.write",

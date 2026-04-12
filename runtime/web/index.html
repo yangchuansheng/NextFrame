@@ -432,13 +432,15 @@ window.__ipc = window.__ipc || {};
 
 <!-- Render engine — ES module, loaded after IIFE bundle -->
 <script type="module">
-import { renderAt, SCENES } from "./src/engine/index.js";
-import "./src/scenes/index.js";
+import * as engine from "./src/engine/index.js";
+import { registerAllScenes } from "./src/scenes/index.js";
+
+registerAllScenes(engine);
 
 // Expose to global for app-bundle.js to call
 window.__renderEngine = {
-  renderAt: renderAt,
-  scenes: SCENES,
+  renderAt: engine.renderAt,
+  scenes: engine.SCENES,
   ready: true,
 };
 
@@ -446,7 +448,7 @@ window.__renderEngine = {
 if (typeof window.__onEngineReady === "function") {
   window.__onEngineReady();
 }
-console.log("[engine] loaded, " + SCENES.size + " scenes registered");
+console.log("[engine] loaded, " + engine.SCENES.size + " scenes registered");
 </script>
 
 <!-- AI操作能力：截图 + 诊断 -->

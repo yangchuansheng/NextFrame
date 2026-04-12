@@ -6,10 +6,7 @@ pub(crate) fn handle_log(params: &Value) -> Result<Value, String> {
     let level = require_string(params, "level")?;
     let message = require_string(params, "msg")?;
 
-    match level {
-        "error" => eprintln!("[webview][error] {message}"),
-        _ => println!("[webview][{level}] {message}"),
-    }
+    eprintln!("[webview][{level}] {message}");
 
     Ok(json!({
         "logged": true,
