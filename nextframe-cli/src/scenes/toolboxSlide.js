@@ -4,6 +4,14 @@
  * P2 (12-32s): 增长条形图 + 瑞士军刀 + 100+ 大数字
  */
 
+// ─── 字体（napi-canvas 需要显式指定 CJK 字体） ───
+const CJK = '"Hiragino Sans GB", "Heiti TC"';
+function font(weight, size, family) {
+  if (family === "mono") return `${weight} ${size}px Menlo, ${CJK}, monospace`;
+  if (family === "serif") return `${weight} ${size}px "Songti SC", Georgia, ${CJK}, serif`;
+  return `${weight} ${size}px ${CJK}, sans-serif`;
+}
+
 // ─── 色板（匹配 theme.css） ───
 const INK = "#f5ece0";
 const INK50 = "rgba(245,236,224,0.5)";
@@ -72,13 +80,13 @@ function drawCard(ctx, x, y, w, h, { name, desc, color, iconFn, progress }) {
 
   // name
   ctx.fillStyle = INK;
-  ctx.font = "bold 16px monospace";
+  ctx.font = font("bold", 16, "mono");
   ctx.textAlign = "center";
   ctx.fillText(name, x + w / 2, y + 75);
 
   // desc
   ctx.fillStyle = INK50;
-  ctx.font = "14px sans-serif";
+  ctx.font = font("", 14, "sans");
   ctx.fillText(desc, x + w / 2, y + 95);
 
   ctx.restore();
@@ -88,7 +96,7 @@ function drawCard(ctx, x, y, w, h, { name, desc, color, iconFn, progress }) {
 function iconBash(ctx, cx, cy, color) {
   ctx.strokeStyle = color; ctx.lineWidth = 2;
   roundRect(ctx, cx - 18, cy - 14, 36, 28, 4); ctx.stroke();
-  ctx.fillStyle = color; ctx.font = "bold 16px monospace";
+  ctx.fillStyle = color; ctx.font = font("bold", 16, "mono");
   ctx.textAlign = "center"; ctx.fillText("$_", cx, cy + 6);
 }
 function iconRead(ctx, cx, cy, color) {
@@ -156,17 +164,17 @@ function drawSchemaBlock(ctx, x, y, w, h, progress) {
   });
 
   // title
-  ctx.fillStyle = "rgba(245,236,224,0.3)"; ctx.font = "14px monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(245,236,224,0.3)"; ctx.font = font("", 14, "mono"); ctx.textAlign = "center";
   ctx.fillText("tools[0] — Bash", x + w / 2, dotY + 4);
 
   // badge
   ctx.fillStyle = AC10; ctx.strokeStyle = AC25;
   roundRect(ctx, x + w - 110, dotY - 12, 90, 24, 6); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = AC; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = AC; ctx.font = font("bold", 14, "mono"); ctx.textAlign = "center";
   ctx.fillText("JSON Schema", x + w - 65, dotY + 4);
 
   // code lines
-  ctx.textAlign = "left"; ctx.font = "16px monospace";
+  ctx.textAlign = "left"; ctx.font = font("", 16, "mono");
   const codeX = x + 28;
   let lineY = y + yOff + 60;
   const lh = 28;
@@ -220,7 +228,7 @@ function drawBarChart(ctx, x, y, w, progress, barProgress) {
     const by = y + i * 52;
 
     // label
-    ctx.fillStyle = bar.color; ctx.font = "bold 16px monospace"; ctx.textAlign = "right";
+    ctx.fillStyle = bar.color; ctx.font = font("bold", 16, "mono"); ctx.textAlign = "right";
     ctx.fillText(bar.label, x + 130, by + 24);
 
     // track
@@ -240,7 +248,7 @@ function drawBarChart(ctx, x, y, w, progress, barProgress) {
     }
 
     // value text
-    ctx.fillStyle = bar.color; ctx.font = "bold 14px monospace"; ctx.textAlign = "left";
+    ctx.fillStyle = bar.color; ctx.font = font("bold", 14, "mono"); ctx.textAlign = "left";
     ctx.fillText(bar.value, trackX + 14, by + 28);
 
     // chips
@@ -248,7 +256,7 @@ function drawBarChart(ctx, x, y, w, progress, barProgress) {
     for (const chip of bar.chips) {
       ctx.fillStyle = "rgba(255,255,255,0.05)";
       roundRect(ctx, chipX, by + 12, ctx.measureText(chip).width + 16, 22, 4); ctx.fill();
-      ctx.fillStyle = INK50; ctx.font = "14px monospace";
+      ctx.fillStyle = INK50; ctx.font = font("", 14, "mono");
       ctx.fillText(chip, chipX + 8, by + 28);
       chipX += ctx.measureText(chip).width + 24;
     }
@@ -269,7 +277,7 @@ function drawKnife(ctx, cx, cy, progress) {
   roundRect(ctx, cx - 60, cy - 30, 120, 60, 10);
   ctx.fillStyle = "rgba(224,108,117,0.15)"; ctx.fill();
   ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = RED; ctx.font = "bold 16px monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = RED; ctx.font = font("bold", 16, "mono"); ctx.textAlign = "center";
   ctx.fillText("tools[]", cx, cy + 6);
 
   // 展开的刀片
@@ -342,13 +350,13 @@ export function toolboxSlide(t, params = {}, ctx) {
     // tag pill
     ctx.fillStyle = AC10; ctx.strokeStyle = AC25; ctx.lineWidth = 1;
     roundRect(ctx, pad.x, pad.y, 90, 30, 15); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = AC; ctx.font = "bold 16px monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = AC; ctx.font = font("bold", 16, "mono"); ctx.textAlign = "center";
     ctx.fillText("tools[]", pad.x + 45, pad.y + 20);
 
     // title
-    ctx.fillStyle = AC; ctx.font = "bold 36px Georgia, serif"; ctx.textAlign = "left";
+    ctx.fillStyle = AC; ctx.font = font("bold", 36, "serif");
     ctx.fillText("工具箱", pad.x + 110, pad.y + 26);
-    ctx.fillStyle = INK; ctx.font = "bold 36px Georgia, serif";
+    ctx.fillStyle = INK; ctx.font = font("bold", 36, "serif");
     ctx.fillText("· 20+ built-in", pad.x + 246, pad.y + 26);
     ctx.restore();
 
@@ -382,10 +390,10 @@ export function toolboxSlide(t, params = {}, ctx) {
     const noteP = tween(pt, 10.0, 0.5, easeOutCubic);
     ctx.save();
     ctx.globalAlpha = noteP;
-    ctx.fillStyle = INK75; ctx.font = "15px sans-serif"; ctx.textAlign = "left";
+    ctx.fillStyle = INK75; ctx.font = font("", 15, "sans"); ctx.textAlign = "left";
     const noteY = H - pad.y - 10;
     ctx.fillText("每个工具 = 一份完整的 JSON Schema 说明书。模型靠这个知道怎么调用。", pad.x + 28, noteY);
-    ctx.fillStyle = AC; ctx.font = "bold 15px sans-serif";
+    ctx.fillStyle = AC; ctx.font = font("bold", 15, "sans");
     ctx.fillText("每个工具", pad.x + 28, noteY);
     ctx.restore();
 
@@ -411,10 +419,10 @@ export function toolboxSlide(t, params = {}, ctx) {
     ctx.save();
     ctx.globalAlpha = knifeP;
     const textX = W * 0.45;
-    ctx.fillStyle = GOLD; ctx.font = "italic 26px Georgia, serif"; ctx.textAlign = "left";
+    ctx.fillStyle = GOLD; ctx.font = font("italic", 26, "serif");
     ctx.fillText("\u201C有些刀片你知道有但没打开过，", textX, knifeY + 50);
     ctx.fillText("需要的时候再拽出来\u201D", textX, knifeY + 86);
-    ctx.fillStyle = INK75; ctx.font = "18px sans-serif";
+    ctx.fillStyle = INK75; ctx.font = font("", 18, "sans");
     ctx.fillText("Deferred 工具只注册名字，不发说明书。", textX, knifeY + 120);
     ctx.fillText("用到了才临时查 Schema — 省 token，不占上下文。", textX, knifeY + 146);
     ctx.restore();
@@ -427,9 +435,9 @@ export function toolboxSlide(t, params = {}, ctx) {
     const numY = H - pad.y - 40;
     ctx.translate(W / 2, numY);
     ctx.scale(scale, scale);
-    ctx.fillStyle = AC; ctx.font = "900 80px Georgia, serif"; ctx.textAlign = "center";
+    ctx.fillStyle = AC; ctx.font = font("900", 80, "serif");
     ctx.fillText("100+", 0, 0);
-    ctx.fillStyle = INK75; ctx.font = "20px sans-serif";
+    ctx.fillStyle = INK75; ctx.font = font("", 20, "sans");
     ctx.fillText("接上五六个 MCP，工具数量能到一百多个", 0, 40);
     ctx.restore();
   }
