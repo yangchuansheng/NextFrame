@@ -84,7 +84,7 @@ function lerpValue(a, b, p) {
 }
 
 /**
- * Lerp two hex colors in HSL space.
+ * Lerp two hex colors in RGB space.
  */
 function lerpColor(hexA, hexB, p) {
   const [rA, gA, bA] = hexToRgb(hexA);

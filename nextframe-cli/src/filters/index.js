@@ -33,12 +33,13 @@ export function listFilters() {
  * @param {number} width
  * @param {number} height
  * @param {Array<string|{type:string}>} filters
+ * @param {number} [t=0] — local clip time for time-varying filters
  */
-export function applyFilters(ctx, width, height, filters) {
+export function applyFilters(ctx, width, height, filters, t = 0) {
   if (!filters || !filters.length) return;
   const imageData = ctx.getImageData(0, 0, width, height);
   for (const f of filters) {
-    const spec = typeof f === "string" ? { type: f } : f;
+    const spec = typeof f === "string" ? { type: f, _t: t } : { ...f, _t: t };
     const fn = FILTER_FNS[spec.type];
     if (fn) fn(imageData.data, width, height, spec);
   }

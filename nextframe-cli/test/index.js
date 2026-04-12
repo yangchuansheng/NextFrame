@@ -14,3 +14,5 @@ import "./cli-project-hierarchy.test.js";
 import "./ai-tools.test.js";
 import "./video-scene.test.js";
 import "./html-scene.test.js";
+import "./keyframes.test.js";
+import "./effects-filters.test.js";

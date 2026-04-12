@@ -89,7 +89,7 @@ export function renderAt(timeline, t, opts = {}) {
           const offCtx = off.getContext("2d");
           entry.render(localT, resolvedParams, offCtx, t);
           // Apply filters (post-processing on pixels)
-          if (hasFilters) applyFilters(offCtx, width, height, clip.filters);
+          if (hasFilters) applyFilters(offCtx, width, height, clip.filters, localT);
         } catch (err) {
           drawCrashMarker(ctx, width, height, clip.scene, err);
           continue;
