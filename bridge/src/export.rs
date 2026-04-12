@@ -1,0 +1,533 @@
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::env;
+use std::fs;
+use std::io::ErrorKind;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
+
+use nextframe_recorder::api::{record_segments, RecordArgs, RecordOutput};
+
+use crate::fs::resolve_write_path;
+use crate::recorder_bridge::{
+    build_recording_url, resolve_recorder_frame_path_from_url, RecorderRequest,
+};
+use crate::time::trim_float;
+use crate::validation::{
+    read_optional_u8_in_range, require_positive_f64, require_positive_u32, require_string_alias,
+    require_u32,
+};
+
+pub(crate) const EXPORT_RUNNING: &str = "running";
+pub(crate) const EXPORT_DONE: &str = "done";
+pub(crate) const EXPORT_FAILED: &str = "failed";
+pub(crate) const EXPORT_ERROR_ALREADY_RUNNING: &str = "export_already_running";
+pub(crate) const EXPORT_ERROR_CANCELED: &str = "canceled";
+pub(crate) const DEFAULT_EXPORT_CRF: u8 = 20;
+
+pub(crate) struct ProcessHandle {
+    pub(crate) export_task: ExportTask,
+    pub(crate) output_path: PathBuf,
+    pub(crate) log_path: PathBuf,
+    pub(crate) duration_secs: f64,
+    pub(crate) started_at: Instant,
+    pub(crate) terminal: Option<ProcessTerminal>,
+}
+
+pub(crate) struct ExportTask {
+    pub(crate) join_handle: JoinHandle<()>,
+    pub(crate) completion: Arc<Mutex<Option<Result<(), String>>>>,
+    pub(crate) cancel_requested: Arc<AtomicBool>,
+}
+
+pub(crate) struct ProcessTerminal {
+    pub(crate) state: &'static str,
+    pub(crate) error: Option<String>,
+}
+
+pub(crate) struct ProcessRegistry {
+    pub(crate) export_start_reserved: bool,
+    pub(crate) handles: HashMap<u32, ProcessHandle>,
+}
+
+pub(crate) static PROCESS_REGISTRY: OnceLock<Mutex<ProcessRegistry>> = OnceLock::new();
+pub(crate) static EXPORT_RUNTIME: OnceLock<Result<Runtime, String>> = OnceLock::new();
+pub(crate) static NEXT_EXPORT_PID: AtomicU32 = AtomicU32::new(1);
+
+pub(crate) fn handle_export_start(params: &Value) -> Result<Value, String> {
+    let output_path_raw = require_string_alias(params, &["outputPath", "output_path"])?;
+    let output_path = resolve_write_path(output_path_raw)?;
+    let width = require_positive_u32(params, "width")?;
+    let height = require_positive_u32(params, "height")?;
+    let fps = require_positive_u32(params, "fps")?;
+    let duration = require_positive_f64(params, "duration")?;
+    let crf = read_optional_u8_in_range(params, "crf", 0, 51)?.unwrap_or(DEFAULT_EXPORT_CRF);
+    let current_dir =
+        env::current_dir().map_err(|error| format!("failed to read current directory: {error}"))?;
+
+    {
+        let mut registry = lock_process_registry()?;
+        if !reserve_export_start(&mut registry)? {
+            return Ok(json!({
+                "ok": false,
+                "error": EXPORT_ERROR_ALREADY_RUNNING,
+            }));
+        }
+    }
+
+    let start_result = (|| -> Result<Value, String> {
+        let request = build_export_request(
+            &current_dir,
+            &output_path,
+            width,
+            height,
+            fps,
+            duration,
+            crf,
+        )?;
+
+        let Some(parent) = output_path.parent() else {
+            return Err(format!(
+                "failed to resolve parent for '{}'",
+                output_path.display()
+            ));
+        };
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "failed to create export directory '{}': {error}",
+                parent.display()
+            )
+        })?;
+
+        let log_path = create_export_log_path()?;
+        let export_task = match spawn_recorder_task(request, log_path.clone()) {
+            Ok(task) => task,
+            Err(error) => {
+                return Ok(json!({
+                    "ok": false,
+                    "error": error,
+                    "logPath": log_path.display().to_string(),
+                }));
+            }
+        };
+        let pid = next_export_pid();
+
+        let handle = ProcessHandle {
+            export_task,
+            output_path,
+            log_path: log_path.clone(),
+            duration_secs: duration,
+            started_at: Instant::now(),
+            terminal: None,
+        };
+
+        match lock_process_registry() {
+            Ok(mut registry) => {
+                registry.export_start_reserved = false;
+                registry.handles.insert(pid, handle);
+            }
+            Err(error) => return Err(error),
+        }
+
+        Ok(json!({
+            "ok": true,
+            "pid": pid,
+            "logPath": log_path.display().to_string(),
+        }))
+    })();
+
+    let started = start_result
+        .as_ref()
+        .ok()
+        .and_then(|result| result.get("ok"))
+        .and_then(Value::as_bool)
+        == Some(true);
+
+    if !started {
+        clear_export_start_reservation()?;
+    }
+
+    start_result
+}
+
+pub(crate) fn handle_export_status(params: &Value) -> Result<Value, String> {
+    let pid = require_u32(params, "pid")?;
+    let mut registry = lock_process_registry()?;
+    let Some(handle) = registry.handles.get_mut(&pid) else {
+        return Ok(json!({
+            "state": EXPORT_FAILED,
+            "percent": 0,
+            "eta": 0,
+            "outputPath": Value::Null,
+            "error": "unknown_pid",
+        }));
+    };
+
+    refresh_process_state(handle)?;
+    Ok(export_status_json(handle))
+}
+
+pub(crate) fn handle_export_cancel(params: &Value) -> Result<Value, String> {
+    let pid = require_u32(params, "pid")?;
+    let mut registry = lock_process_registry()?;
+    let Some(handle) = registry.handles.get_mut(&pid) else {
+        return Ok(json!({
+            "ok": false,
+            "error": "unknown_pid",
+        }));
+    };
+
+    refresh_process_state(handle)?;
+    if handle.terminal.is_none() {
+        handle
+            .export_task
+            .cancel_requested
+            .store(true, Ordering::SeqCst);
+        handle.export_task.join_handle.abort();
+        handle.terminal = Some(ProcessTerminal {
+            state: EXPORT_FAILED,
+            error: Some(EXPORT_ERROR_CANCELED.to_string()),
+        });
+    }
+
+    Ok(json!({
+        "ok": true,
+        "pid": pid,
+    }))
+}
+
+fn lock_process_registry() -> Result<std::sync::MutexGuard<'static, ProcessRegistry>, String> {
+    process_registry()
+        .lock()
+        .map_err(|_| "process registry is unavailable".to_string())
+}
+
+pub(crate) fn process_registry() -> &'static Mutex<ProcessRegistry> {
+    PROCESS_REGISTRY.get_or_init(|| {
+        Mutex::new(ProcessRegistry {
+            export_start_reserved: false,
+            handles: HashMap::new(),
+        })
+    })
+}
+
+fn reserve_export_start(registry: &mut ProcessRegistry) -> Result<bool, String> {
+    if registry.export_start_reserved {
+        return Ok(false);
+    }
+
+    for handle in registry.handles.values_mut() {
+        refresh_process_state(handle)?;
+        if handle.terminal.is_none() {
+            return Ok(false);
+        }
+    }
+
+    registry.export_start_reserved = true;
+    Ok(true)
+}
+
+fn clear_export_start_reservation() -> Result<(), String> {
+    let mut registry = lock_process_registry()?;
+    registry.export_start_reserved = false;
+    Ok(())
+}
+
+fn refresh_process_state(handle: &mut ProcessHandle) -> Result<(), String> {
+    if handle.terminal.is_some() {
+        return Ok(());
+    }
+
+    let completion = handle
+        .export_task
+        .completion
+        .lock()
+        .map_err(|_| "export task state is unavailable".to_string())?
+        .take();
+
+    if let Some(result) = completion {
+        handle.terminal = Some(match result {
+            Ok(()) => ProcessTerminal {
+                state: EXPORT_DONE,
+                error: None,
+            },
+            Err(error) => ProcessTerminal {
+                state: EXPORT_FAILED,
+                error: Some(error),
+            },
+        });
+    }
+
+    Ok(())
+}
+
+fn export_status_json(handle: &ProcessHandle) -> Value {
+    let elapsed = handle.started_at.elapsed().as_secs_f64();
+    let (state, percent, eta, error) = match &handle.terminal {
+        Some(terminal) => (
+            terminal.state,
+            if terminal.state == EXPORT_DONE {
+                100.0
+            } else {
+                percent_complete(elapsed, handle.duration_secs)
+            },
+            0.0,
+            terminal.error.clone(),
+        ),
+        None => (
+            EXPORT_RUNNING,
+            percent_complete(elapsed, handle.duration_secs).min(99.0),
+            remaining_secs(elapsed, handle.duration_secs),
+            None,
+        ),
+    };
+
+    json!({
+        "state": state,
+        "percent": percent,
+        "eta": eta,
+        "outputPath": handle.output_path.display().to_string(),
+        "logPath": handle.log_path.display().to_string(),
+        "error": error,
+    })
+}
+
+fn percent_complete(elapsed: f64, duration_secs: f64) -> f64 {
+    if duration_secs.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+        return 0.0;
+    }
+
+    ((elapsed / duration_secs) * 100.0).clamp(0.0, 100.0)
+}
+
+fn remaining_secs(elapsed: f64, duration_secs: f64) -> f64 {
+    if duration_secs.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+        return 0.0;
+    }
+
+    (duration_secs - elapsed).max(0.0)
+}
+
+pub(crate) fn build_export_request(
+    current_dir: &Path,
+    output_path: &Path,
+    width: u32,
+    height: u32,
+    fps: u32,
+    duration: f64,
+    crf: u8,
+) -> Result<RecorderRequest, String> {
+    Ok(RecorderRequest {
+        url: build_recording_url(current_dir)?,
+        output_path: output_path.to_path_buf(),
+        width,
+        height,
+        fps,
+        duration,
+        crf,
+    })
+}
+
+pub(crate) fn spawn_recorder_task(
+    request: RecorderRequest,
+    log_path: PathBuf,
+) -> Result<ExportTask, String> {
+    let completion = Arc::new(Mutex::new(None));
+    let completion_for_task = Arc::clone(&completion);
+    let cancel_requested = Arc::new(AtomicBool::new(false));
+    let cancel_requested_for_task = Arc::clone(&cancel_requested);
+    let runtime = export_runtime()?;
+
+    let join_handle = runtime.spawn_blocking(move || {
+        let result = std::panic::catch_unwind(|| {
+            run_embedded_recorder(request, &log_path, cancel_requested_for_task)
+        })
+        .map_err(|_| "embedded recorder task panicked".to_string())
+        .and_then(|result| result);
+
+        if let Ok(mut slot) = completion_for_task.lock() {
+            *slot = Some(result);
+        }
+    });
+
+    Ok(ExportTask {
+        join_handle,
+        completion,
+        cancel_requested,
+    })
+}
+
+pub(crate) fn export_runtime() -> Result<&'static Runtime, String> {
+    match EXPORT_RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .thread_name("bridge-export")
+            .enable_all()
+            .build()
+            .map_err(|error| format!("failed to initialize export runtime: {error}"))
+    }) {
+        Ok(runtime) => Ok(runtime),
+        Err(error) => Err(error.clone()),
+    }
+}
+
+pub(crate) fn next_export_pid() -> u32 {
+    NEXT_EXPORT_PID.fetch_add(1, Ordering::Relaxed)
+}
+
+pub(crate) fn run_embedded_recorder(
+    request: RecorderRequest,
+    log_path: &Path,
+    cancel_requested: Arc<AtomicBool>,
+) -> Result<(), String> {
+    let mut log_file = fs::File::create(log_path).map_err(|error| {
+        format!(
+            "failed to create export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+
+    writeln!(
+        log_file,
+        "Starting embedded recorder for '{}' from '{}' ({}x{} @ {}fps, {}s)",
+        request.output_path.display(),
+        request.url,
+        request.width,
+        request.height,
+        request.fps,
+        trim_float(request.duration)
+    )
+    .map_err(|error| {
+        format!(
+            "failed to write export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+
+    if cancel_requested.load(Ordering::SeqCst) {
+        return Err(EXPORT_ERROR_CANCELED.to_string());
+    }
+
+    let current_dir =
+        env::current_dir().map_err(|error| format!("failed to read current directory: {error}"))?;
+    let frame_path = resolve_recorder_frame_path_from_url(&request.url, &current_dir)?;
+    let args = RecordArgs {
+        frames: vec![frame_path.clone()],
+        dir: None,
+        out: request.output_path.clone(),
+        fps: request.fps as usize,
+        crf: request.crf,
+        dpr: 2.0,
+        jobs: None,
+        no_skip: false,
+        headed: false,
+        width: request.width as f64,
+        height: request.height as f64,
+        parallel: None,
+    };
+
+    writeln!(
+        log_file,
+        "Resolved recorder frame '{}' from '{}'",
+        frame_path.display(),
+        request.url
+    )
+    .map_err(|error| {
+        format!(
+            "failed to write export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+    writeln!(
+        log_file,
+        "Recorder args: {}",
+        serde_json::to_string(&args)
+            .map_err(|error| format!("failed to serialize recorder args: {error}"))?
+    )
+    .map_err(|error| {
+        format!(
+            "failed to write export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+
+    if cancel_requested.load(Ordering::SeqCst) {
+        return Err(EXPORT_ERROR_CANCELED.to_string());
+    }
+
+    let output: RecordOutput = record_segments(args).map_err(|error| {
+        let _ = writeln!(log_file, "Recorder failed: {error}");
+        error
+    })?;
+
+    writeln!(log_file, "Recorder output:").map_err(|error| {
+        format!(
+            "failed to write export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+    serde_json::to_writer_pretty(&mut log_file, &output).map_err(|error| {
+        format!(
+            "failed to write export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+    writeln!(log_file).map_err(|error| {
+        format!(
+            "failed to write export log '{}': {error}",
+            log_path.display()
+        )
+    })?;
+
+    if cancel_requested.load(Ordering::SeqCst) {
+        let _ = writeln!(log_file, "Cancellation requested during recording");
+        return Err(EXPORT_ERROR_CANCELED.to_string());
+    }
+
+    Ok(())
+}
+
+pub(crate) fn copy_video_output(video_path: &Path, output_path: &Path) -> Result<(), String> {
+    if video_path == output_path {
+        return Ok(());
+    }
+
+    fs::copy(video_path, output_path).map_err(|error| {
+        format!(
+            "failed to copy '{}' to '{}': {error}",
+            video_path.display(),
+            output_path.display()
+        )
+    })?;
+
+    Ok(())
+}
+
+pub(crate) fn cleanup_intermediate_video(video_path: &Path, output_path: &Path) {
+    if video_path == output_path {
+        return;
+    }
+
+    if let Err(error) = fs::remove_file(video_path) {
+        if error.kind() != ErrorKind::NotFound {
+            eprintln!(
+                "warning: failed to remove intermediate export '{}': {error}",
+                video_path.display()
+            );
+        }
+    }
+}
+
+pub(crate) fn create_export_log_path() -> Result<PathBuf, String> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("system clock before unix epoch: {error}"))?
+        .as_secs();
+
+    Ok(env::temp_dir().join(format!("nextframe-export-{timestamp}.log")))
+}
