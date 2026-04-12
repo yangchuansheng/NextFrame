@@ -14,12 +14,17 @@ const MAC_CJK_CANDIDATES = [
     families: ["PingFang SC", "sans-serif", "system-ui"],
   },
   {
+    // Hiragino Sans GB carries the broadest simplified Chinese set on macOS.
+    path: "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    families: ["Hiragino Sans GB", "PingFang SC", "sans-serif", "system-ui"],
+  },
+  {
     path: "/System/Library/Fonts/STHeiti Medium.ttc",
-    families: ["STHeiti", "PingFang SC", "sans-serif", "system-ui"],
+    families: ["STHeiti", "sans-serif", "system-ui"],
   },
   {
     path: "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
-    families: ["Hiragino Sans", "sans-serif"],
+    families: ["Hiragino Sans"],
   },
 ];
 
