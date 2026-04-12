@@ -142,30 +142,42 @@ const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 function decodePNGToRGBA(buf) {
   if (!Buffer.isBuffer(buf)) buf = Buffer.from(buf);
   if (!buf.subarray(0, 8).equals(PNG_SIG)) return null;
-  let w = 0, h = 0;
+  let w = 0, h = 0, colorType = 6;
   const idat = [];
   for (let off = 8; off < buf.length;) {
     const len = buf.readUInt32BE(off);
     const type = buf.subarray(off + 4, off + 8).toString("ascii");
     const data = buf.subarray(off + 8, off + 8 + len);
     off += len + 12;
-    if (type === "IHDR") { w = data.readUInt32BE(0); h = data.readUInt32BE(4); }
-    else if (type === "IDAT") idat.push(data);
+    if (type === "IHDR") {
+      w = data.readUInt32BE(0);
+      h = data.readUInt32BE(4);
+      colorType = data[9];
+    } else if (type === "IDAT") idat.push(data);
     else if (type === "IEND") break;
   }
   if (!w || !h) return null;
+  // bpp: colorType 2=RGB(3), 4=GA(2), 6=RGBA(4)
+  const bpp = colorType === 6 ? 4 : colorType === 2 ? 3 : colorType === 4 ? 2 : 1;
   const raw = inflateSync(Buffer.concat(idat));
-  const stride = w * 4;
+  const srcStride = w * bpp;
   const out = Buffer.alloc(w * h * 4);
-  let src = 0, dst = 0, prev = null;
+  let src = 0, prev = null;
   for (let y = 0; y < h; y++) {
     const filter = raw[src++];
-    const row = Buffer.from(raw.subarray(src, src + stride));
-    src += stride;
-    unfilterRow(row, prev, filter, 4);
-    row.copy(out, dst);
+    const row = Buffer.from(raw.subarray(src, src + srcStride));
+    src += srcStride;
+    unfilterRow(row, prev, filter, bpp);
+    // Expand to RGBA
+    for (let x = 0; x < w; x++) {
+      const si = x * bpp;
+      const di = (y * w + x) * 4;
+      if (bpp === 4) { out[di] = row[si]; out[di+1] = row[si+1]; out[di+2] = row[si+2]; out[di+3] = row[si+3]; }
+      else if (bpp === 3) { out[di] = row[si]; out[di+1] = row[si+1]; out[di+2] = row[si+2]; out[di+3] = 255; }
+      else if (bpp === 2) { out[di] = row[si]; out[di+1] = row[si]; out[di+2] = row[si]; out[di+3] = row[si+1]; }
+      else { out[di] = row[si]; out[di+1] = row[si]; out[di+2] = row[si]; out[di+3] = 255; }
+    }
     prev = row;
-    dst += stride;
   }
   return { width: w, height: h, data: out };
 }
