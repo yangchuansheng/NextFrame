@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>NextFrame Editor</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg0:#0f0d0a;--bg1:#1a1714;--bg2:#211e19;--bg3:#2a2621;
+    --border:#332e28;--border-soft:#2a2520;
+    --fg:#f5ece0;--dim:#9a8e7e;--dim2:#6b6158;
+    --accent:#da7756;--accent-soft:#c4916e;
+    --green:#7cb37a;--blue:#6e9ecf;--purple:#a882c9;
+    --pink:#c97b9e;--yellow:#c9b06e;--red:#c95858;
+    --topbar-h:48px;--left-w:280px;--timeline-h:260px;--inspector-w:260px;
+    --track-header-w:72px;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--fg);font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.4}
+  input,select,button{font:inherit;color:inherit;background:none;border:none;outline:none}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+  /* === TOPBAR === */
+  .topbar{height:var(--topbar-h);background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;position:relative;z-index:100}
+  .topbar-logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .topbar-logo .logo-icon{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#da7756,#c97b9e);flex-shrink:0}
+  .topbar-logo .brand{font-weight:700;font-size:14px;letter-spacing:-0.3px;color:var(--fg)}
+  .topbar-logo .version{font-size:11px;color:var(--dim2);margin-left:2px}
+  .cmd-bar{flex:1;max-width:480px;margin:0 auto;position:relative}
+  .cmd-bar-input{width:100%;height:32px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0 12px 0 34px;color:var(--dim);font-size:13px;cursor:pointer;transition:border-color .15s}
+  .cmd-bar-input:hover,.cmd-bar-input:focus{border-color:var(--accent);color:var(--fg)}
+  .cmd-bar .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--dim2);font-size:14px;pointer-events:none}
+  .cmd-bar .kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--dim2);background:var(--bg1);padding:1px 6px;border-radius:4px;border:1px solid var(--border-soft);pointer-events:none}
+  .cmd-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:none;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .cmd-suggestions.show{display:block}
+  .cmd-suggestion{padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .1s}
+  .cmd-suggestion:hover{background:var(--bg3)}
+  .cmd-suggestion .cmd-icon{width:24px;height:24px;border-radius:6px;background:var(--bg1);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  .cmd-suggestion .cmd-text{font-size:13px;color:var(--fg)}
+  .cmd-suggestion .cmd-hint{font-size:11px;color:var(--dim2);margin-left:auto;flex-shrink:0}
+  .topbar-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .timecode{font-family:'SF Mono',Menlo,monospace;font-size:12px;color:var(--dim);letter-spacing:0.5px}
+  .timecode .current{color:var(--fg)}
+  .play-controls{display:flex;align-items:center;gap:2px}
+  .play-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;transition:background .1s;color:var(--dim)}
+  .play-btn:hover{background:var(--bg3);color:var(--fg)}
+  .play-btn.primary{background:var(--accent);color:#fff;border-radius:50%;width:30px;height:30px}
+  .play-btn.primary:hover{background:#e08866}
+  .export-btn{height:30px;padding:0 14px;background:var(--accent);color:#fff;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:5px}
+  .export-btn:hover{background:#e08866}
+
+  /* === MAIN LAYOUT === */
+  .main{display:flex;height:calc(100vh - var(--topbar-h) - var(--timeline-h));overflow:hidden}
+
+  /* === LEFT PANEL === */
+  .left-panel{width:var(--left-w);min-width:var(--left-w);background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s,min-width .2s}
+  .left-panel.collapsed{width:0;min-width:0;overflow:hidden}
+  .panel-header{height:36px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--border-soft);font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;flex-shrink:0;justify-content:space-between}
+  .panel-header .collapse-btn{width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;color:var(--dim2);font-size:16px;transition:color .1s}
+  .panel-header .collapse-btn:hover{color:var(--fg)}
+
+  /* JSON Editor */
+  .json-editor{flex:1;overflow:auto;min-height:0}
+  .json-code{padding:12px 0;font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:11.5px;line-height:1.65;white-space:pre;counter-reset:line}
+  .json-line{display:flex;padding:0 12px 0 0;transition:background .1s}
+  .json-line:hover{background:rgba(255,255,255,.02)}
+  .json-line.highlight{background:rgba(218,119,86,.08);border-left:2px solid var(--accent);padding-left:0}
+  .json-line .ln{width:36px;text-align:right;color:var(--dim2);padding-right:10px;flex-shrink:0;user-select:none;font-size:11px}
+  .json-line.highlight .ln{color:var(--accent-soft)}
+  .json-line .code{flex:1}
+  .j-key{color:#c9b06e}.j-str{color:#7cb37a}.j-num{color:#da7756}.j-bool{color:#a882c9}.j-null{color:#6b6158}.j-brace{color:#9a8e7e}.j-colon{color:#6b6158}
+
+  /* Scene Library */
+  .scene-library{border-top:1px solid var(--border);flex-shrink:0}
+  .scene-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}
+  .scene-card{background:var(--bg2);border:1px solid var(--border-soft);border-radius:6px;padding:10px;cursor:pointer;transition:border-color .15s,background .15s}
+  .scene-card:hover{border-color:var(--border);background:var(--bg3)}
+  .scene-card.active{border-color:var(--accent);background:rgba(218,119,86,.06)}
+  .scene-card .sc-icon{font-size:16px;margin-bottom:4px}
+  .scene-card .sc-name{font-size:11px;font-weight:600;color:var(--fg);margin-bottom:2px}
+  .scene-card .sc-desc{font-size:10px;color:var(--dim2);line-height:1.3}
+
+  /* === CENTER + RIGHT === */
+  .center-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  .preview-section{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg0);position:relative;min-height:0}
+
+  /* Canvas */
+  .canvas-wrap{position:relative;width:100%;max-width:720px;aspect-ratio:16/9;background:#1a1510;border-radius:4px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.4)}
+  .canvas-inner{width:100%;height:100%;position:relative;overflow:hidden}
+  .canvas-element{position:absolute;cursor:move;user-select:none}
+  .canvas-element.selected .sel-border{display:block}
+  .sel-border{display:none;position:absolute;inset:-2px;border:1.5px dashed var(--accent);pointer-events:none}
+  .sel-handle{position:absolute;width:8px;height:8px;background:var(--accent);border:1.5px solid #fff;border-radius:50%;pointer-events:all;cursor:nwse-resize;z-index:5}
+  .sel-handle.tl{top:-5px;left:-5px}.sel-handle.tr{top:-5px;right:-5px;cursor:nesw-resize}.sel-handle.bl{bottom:-5px;left:-5px;cursor:nesw-resize}.sel-handle.br{bottom:-5px;right:-5px}
+  .sel-handle.rot{top:-22px;left:50%;transform:translateX(-50%);cursor:grab;width:10px;height:10px;background:var(--accent);border-radius:50%}
+  .rot-line{position:absolute;top:-16px;left:50%;width:1px;height:14px;background:var(--accent);transform:translateX(-50%);display:none}
+  .canvas-element.selected .rot-line{display:block}
+  .canvas-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 40% 50%,rgba(218,119,86,.12) 0%,rgba(201,123,158,.06) 40%,transparent 70%)}
+  .canvas-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+  .canvas-text h1{font-size:72px;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#da7756,#c97b9e 50%,#c9b06e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+  .canvas-text p{font-size:16px;color:rgba(245,236,224,.5);margin-top:8px;font-family:monospace}
+  .corner-badge{position:absolute;bottom:16px;left:16px;display:flex;align-items:center;gap:6px}
+  .corner-badge .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .corner-badge .badge-label{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase}
+  .corner-badge .badge-sub{font-size:10px;color:var(--dim2);margin-left:4px}
+
+  /* Inspector */
+  .inspector{background:var(--bg1);border-top:1px solid var(--border);flex-shrink:0;overflow:auto;max-height:240px}
+  .inspector.collapsed{display:none}
+  .inspector .panel-header{border-bottom:1px solid var(--border-soft)}
+  .insp-title{display:flex;align-items:center;gap:6px}
+  .insp-title .insp-icon{font-size:13px}
+  .insp-title .insp-name{font-size:12px;font-weight:600;color:var(--fg)}
+  .insp-title .insp-type{font-size:10px;color:var(--dim2);background:var(--bg2);padding:1px 6px;border-radius:4px}
+  .insp-body{padding:8px 12px}
+  .insp-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+  .insp-row:last-child{border-bottom:none}
+  .insp-label{width:70px;font-size:11px;color:var(--dim);flex-shrink:0}
+  .insp-input{flex:1;height:26px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:4px;padding:0 8px;color:var(--fg);font-size:12px;transition:border-color .15s}
+  .insp-input:focus{border-color:var(--accent)}
+  .insp-input.short{width:56px;flex:none;text-align:center}
+  .insp-slider-wrap{flex:1;display:flex;align-items:center;gap:8px}
+  .insp-slider{flex:1;-webkit-appearance:none;height:3px;background:var(--border);border-radius:2px;outline:none}
+  .insp-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+  .insp-select{flex:1;height:26px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:4px;padding:0 8px;color:var(--fg);font-size:12px;cursor:pointer}
+  .insp-row-group{display:flex;gap:6px;flex:1}
+  .insp-row-group .labeled-input{display:flex;align-items:center;gap:4px}
+  .insp-row-group .labeled-input .mini-label{font-size:10px;color:var(--dim2)}
+
+  /* === TIMELINE === */
+  .timeline{height:var(--timeline-h);background:var(--bg1);border-top:1px solid var(--border);display:flex;flex-direction:column;position:relative}
+  .timeline-header{height:28px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--border-soft);justify-content:space-between;flex-shrink:0}
+  .timeline-header .tl-title{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px}
+  .timeline-header .tl-controls{display:flex;gap:8px;align-items:center}
+  .timeline-header .tl-controls button{font-size:11px;color:var(--dim2);cursor:pointer;padding:2px 6px;border-radius:3px;transition:color .1s}
+  .timeline-header .tl-controls button:hover{color:var(--fg)}
+  .timeline-body{flex:1;display:flex;overflow:hidden}
+  .track-headers{width:var(--track-header-w);flex-shrink:0;border-right:1px solid var(--border-soft);display:flex;flex-direction:column}
+  .ruler-header{height:24px;flex-shrink:0;border-bottom:1px solid var(--border-soft)}
+  .track-head{height:44px;display:flex;align-items:center;padding:0 8px;border-bottom:1px solid rgba(255,255,255,.03);gap:4px}
+  .track-head .th-name{font-size:11px;font-weight:600;color:var(--dim);flex:1;white-space:nowrap;overflow:hidden}
+  .track-head .th-icon{font-size:10px;color:var(--dim2);cursor:pointer;padding:2px;border-radius:3px;transition:color .1s}
+  .track-head .th-icon:hover{color:var(--fg)}
+  .track-lanes{flex:1;overflow-x:auto;overflow-y:hidden;position:relative}
+  .ruler{height:24px;position:relative;border-bottom:1px solid var(--border-soft);flex-shrink:0}
+  .ruler-tick{position:absolute;top:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+  .ruler-tick .tick-line{width:1px;background:var(--border)}
+  .ruler-tick .tick-label{font-size:9px;color:var(--dim2);font-family:monospace;margin-bottom:2px}
+  .ruler-tick.major .tick-line{height:10px;background:var(--dim2)}
+  .ruler-tick.minor .tick-line{height:5px}
+  .tracks-area{position:relative}
+  .track-lane{height:44px;position:relative;border-bottom:1px solid rgba(255,255,255,.03)}
+  .clip{position:absolute;top:4px;height:36px;border-radius:4px;cursor:pointer;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:600;overflow:hidden;transition:filter .15s,border-color .15s;border:1.5px solid transparent}
+  .clip:hover{filter:brightness(1.15)}
+  .clip.selected{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
+  .clip-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;z-index:1}
+  .clip-bg{position:absolute;inset:0;border-radius:4px;opacity:.85}
+
+  /* clip colors */
+  .clip-orange .clip-bg{background:linear-gradient(90deg,rgba(218,119,86,.4),rgba(218,119,86,.25))}.clip-orange{color:#f0c4a8}
+  .clip-green .clip-bg{background:linear-gradient(90deg,rgba(124,179,122,.4),rgba(124,179,122,.25))}.clip-green{color:#b5dbb4}
+  .clip-purple .clip-bg{background:linear-gradient(90deg,rgba(168,130,201,.4),rgba(168,130,201,.25))}.clip-purple{color:#cdb8e0}
+  .clip-pink .clip-bg{background:linear-gradient(90deg,rgba(201,123,158,.4),rgba(201,123,158,.25))}.clip-pink{color:#e0b5cc}
+  .clip-blue .clip-bg{background:linear-gradient(90deg,rgba(110,158,207,.35),rgba(110,158,207,.2))}.clip-blue{color:#b0ceeb}
+  .clip-yellow .clip-bg{background:linear-gradient(90deg,rgba(201,176,110,.35),rgba(201,176,110,.2))}.clip-yellow{color:#e0d4a8}
+  .clip-dim .clip-bg{background:linear-gradient(90deg,rgba(107,97,88,.3),rgba(107,97,88,.2))}.clip-dim{color:var(--dim)}
+
+  /* audio waveform */
+  .audio-wave{position:absolute;inset:4px 0;display:flex;align-items:center;padding:0 4px;gap:1px}
+  .audio-wave .bar{width:2px;background:rgba(124,179,122,.25);border-radius:1px;flex-shrink:0}
+
+  /* playhead */
+  .playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--accent);z-index:50;pointer-events:none;transition:left .05s linear}
+  .playhead .ph-handle{position:absolute;top:-1px;left:-5px;width:11px;height:8px;background:var(--accent);clip-path:polygon(0 0,100% 0,50% 100%);pointer-events:all;cursor:ew-resize}
+  .playhead.playing{transition:none}
+
+  /* === UTILITIES === */
+  .overlay-backdrop{position:fixed;inset:0;z-index:150;display:none}
+  .overlay-backdrop.show{display:block}
+  .left-toggle{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:20px;height:40px;background:var(--bg2);border:1px solid var(--border);border-radius:0 6px 6px 0;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:10;color:var(--dim);font-size:12px}
+  .left-toggle:hover{color:var(--fg)}
+  .left-panel.collapsed ~ .center-area .left-toggle{display:flex}
+</style>
+</head>
+<body>
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-icon"></div>
+      <span class="brand">NextFrame</span>
+      <span class="version">v0.1</span>
+    </div>
+    <div class="cmd-bar">
+      <span class="search-icon">&#9906;</span>
+      <input class="cmd-bar-input" placeholder="Ask AI to edit timeline..." readonly id="cmdInput">
+      <span class="kbd">&#8984;K</span>
+      <div class="cmd-suggestions" id="cmdSuggestions">
+        <div class="cmd-suggestion"><div class="cmd-icon">&#9997;</div><div class="cmd-text">Add subtitle track from transcript</div><div class="cmd-hint">generate</div></div>
+        <div class="cmd-suggestion"><div class="cmd-icon">&#127912;</div><div class="cmd-text">Change all headings to serif font</div><div class="cmd-hint">style</div></div>
+        <div class="cmd-suggestion"><div class="cmd-icon">&#128249;</div><div class="cmd-text">Export at 4K (3840 x 2160)</div><div class="cmd-hint">export</div></div>
+        <div class="cmd-suggestion"><div class="cmd-icon">&#9201;</div><div class="cmd-text">Trim all clips to 2 seconds</div><div class="cmd-hint">edit</div></div>
+      </div>
+    </div>
+    <div class="overlay-backdrop" id="cmdBackdrop"></div>
+    <div class="topbar-right">
+      <div class="timecode"><span class="current" id="tcCurrent">00:01.15</span> / 00:18.00</div>
+      <div class="play-controls">
+        <div class="play-btn" title="Previous">&#9198;</div>
+        <div class="play-btn primary" id="playBtn" title="Play">&#9654;</div>
+        <div class="play-btn" title="Next">&#9197;</div>
+      </div>
+      <button class="export-btn">&#8599; Export</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- LEFT PANEL -->
+    <div class="left-panel" id="leftPanel">
+      <div class="panel-header">
+        <span>timeline.json</span>
+        <span class="collapse-btn" id="collapseLeft" title="Collapse">&lsaquo;</span>
+      </div>
+      <div class="json-editor" id="jsonEditor"></div>
+      <div class="scene-library">
+        <div class="panel-header"><span>Scene Library</span></div>
+        <div class="scene-grid">
+          <div class="scene-card active" data-scene="kineticHeadline"><div class="sc-icon">&#9733;</div><div class="sc-name">kineticHeadline</div><div class="sc-desc">Animated text + gradient</div></div>
+          <div class="scene-card" data-scene="htmlSlide"><div class="sc-icon">&#9671;</div><div class="sc-name">htmlSlide</div><div class="sc-desc">Full HTML layout</div></div>
+          <div class="scene-card" data-scene="svgOverlay"><div class="sc-icon">&#9678;</div><div class="sc-name">svgOverlay</div><div class="sc-desc">Vector graphics layer</div></div>
+          <div class="scene-card" data-scene="markdownSlide"><div class="sc-icon">&#9998;</div><div class="sc-name">markdownSlide</div><div class="sc-desc">Docs as video frames</div></div>
+          <div class="scene-card" data-scene="videoClip"><div class="sc-icon">&#9654;</div><div class="sc-name">videoClip</div><div class="sc-desc">ffmpeg frame extract</div></div>
+          <div class="scene-card" data-scene="lottieAnim"><div class="sc-icon">&#10022;</div><div class="sc-name">lottieAnim</div><div class="sc-desc">After Effects JSON</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER AREA -->
+    <div class="center-area">
+      <div class="left-toggle" id="leftToggle">&rsaquo;</div>
+      <!-- Preview -->
+      <div class="preview-section">
+        <div class="canvas-wrap">
+          <div class="canvas-inner">
+            <div class="canvas-bg"></div>
+            <div class="canvas-element selected" id="canvasEl" style="left:50%;top:50%;transform:translate(-50%,-50%)">
+              <div class="canvas-text">
+                <h1>CANVAS</h1>
+                <p>napi-canvas frame-pure scenes</p>
+              </div>
+              <div class="sel-border">
+                <div class="sel-handle tl"></div>
+                <div class="sel-handle tr"></div>
+                <div class="sel-handle bl"></div>
+                <div class="sel-handle br"></div>
+                <div class="sel-handle rot"></div>
+              </div>
+              <div class="rot-line"></div>
+            </div>
+            <div class="corner-badge">
+              <div class="badge-dot"></div>
+              <span class="badge-label">CANVAS</span>
+              <span class="badge-sub">napi-canvas</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Inspector -->
+      <div class="inspector" id="inspector">
+        <div class="panel-header">
+          <div class="insp-title">
+            <span class="insp-icon">&#9733;</span>
+            <span class="insp-name" id="inspName">kineticHeadline</span>
+            <span class="insp-type" id="inspType">c-canvas</span>
+          </div>
+          <span class="collapse-btn" id="collapseInsp" title="Toggle Inspector">&#8964;</span>
+        </div>
+        <div class="insp-body" id="inspBody">
+          <div class="insp-row"><span class="insp-label">text</span><input class="insp-input" value="CANVAS"></div>
+          <div class="insp-row"><span class="insp-label">subtitle</span><input class="insp-input" value="napi-canvas frame-pure scenes"></div>
+          <div class="insp-row"><span class="insp-label">hueStart</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="360" value="25"><input class="insp-input short" value="25"></div></div>
+          <div class="insp-row"><span class="insp-label">hueEnd</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="360" value="345"><input class="insp-input short" value="345"></div></div>
+          <div class="insp-row"><span class="insp-label">blend</span><select class="insp-select"><option selected>source-over</option><option>screen</option><option>multiply</option><option>overlay</option></select></div>
+          <div class="insp-row"><span class="insp-label">position</span><div class="insp-row-group"><div class="labeled-input"><span class="mini-label">X</span><input class="insp-input short" value="960"></div><div class="labeled-input"><span class="mini-label">Y</span><input class="insp-input short" value="540"></div></div></div>
+          <div class="insp-row"><span class="insp-label">rotation</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="360" value="0"><input class="insp-input short" value="0&deg;"></div></div>
+          <div class="insp-row"><span class="insp-label">scale</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="10" max="200" value="100"><input class="insp-input short" value="100%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="timeline">
+    <div class="timeline-header">
+      <span class="tl-title">Timeline</span>
+      <div class="tl-controls">
+        <button>Snap: On</button>
+        <button>Zoom: Fit</button>
+      </div>
+    </div>
+    <div class="timeline-body">
+      <div class="track-headers">
+        <div class="ruler-header"></div>
+        <div class="track-head"><span class="th-name">V1</span><span class="th-icon">&#9673;</span><span class="th-icon">&#128274;</span></div>
+        <div class="track-head"><span class="th-name">V2</span><span class="th-icon">&#9673;</span><span class="th-icon">&#128274;</span></div>
+        <div class="track-head"><span class="th-name">V3</span><span class="th-icon">&#9673;</span><span class="th-icon">&#128274;</span></div>
+        <div class="track-head"><span class="th-name">V4</span><span class="th-icon">&#9673;</span><span class="th-icon">&#128274;</span></div>
+        <div class="track-head"><span class="th-name">A1</span><span class="th-icon">&#9673;</span><span class="th-icon">&#128274;</span></div>
+      </div>
+      <div class="track-lanes" id="trackLanes">
+        <!-- Ruler -->
+        <div class="ruler" id="ruler"></div>
+        <!-- Tracks -->
+        <div class="tracks-area" id="tracksArea">
+          <!-- V1: background -->
+          <div class="track-lane">
+            <div class="clip clip-dim" data-id="bg" style="left:0%;width:100%"><div class="clip-bg"></div><span class="clip-label">auroraGradient (0-18s)</span></div>
+          </div>
+          <!-- V2: content — the main 6 scenes -->
+          <div class="track-lane">
+            <div class="clip clip-orange selected" data-id="c-canvas" data-start="0" data-dur="3" style="left:0%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">canvas</span></div>
+            <div class="clip clip-green" data-id="c-html" data-start="3" data-dur="3" style="left:16.667%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">html</span></div>
+            <div class="clip clip-purple" data-id="c-svg" data-start="6" data-dur="3" style="left:33.333%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">svg</span></div>
+            <div class="clip clip-pink" data-id="c-md" data-start="9" data-dur="3" style="left:50%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">markdown</span></div>
+            <div class="clip clip-blue" data-id="c-video" data-start="12" data-dur="3" style="left:66.667%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">video</span></div>
+            <div class="clip clip-orange" data-id="c-multi" data-start="15" data-dur="3" style="left:83.333%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">multi</span></div>
+          </div>
+          <!-- V3: labels -->
+          <div class="track-lane">
+            <div class="clip clip-yellow" style="left:0%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">CANVAS</span></div>
+            <div class="clip clip-yellow" style="left:16.667%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">HTML</span></div>
+            <div class="clip clip-yellow" style="left:33.333%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">SVG</span></div>
+            <div class="clip clip-yellow" style="left:50%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">MARKDOWN</span></div>
+            <div class="clip clip-yellow" style="left:66.667%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">VIDEO</span></div>
+            <div class="clip clip-yellow" style="left:83.333%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">6 TYPES</span></div>
+          </div>
+          <!-- V4: effects -->
+          <div class="track-lane">
+            <div class="clip clip-dim" style="left:0%;width:83.333%"><div class="clip-bg"></div><span class="clip-label">circleRipple</span></div>
+            <div class="clip clip-dim" style="left:83.333%;width:16.667%"><div class="clip-bg"></div><span class="clip-label">orbitRings</span></div>
+          </div>
+          <!-- A1: audio -->
+          <div class="track-lane">
+            <div class="audio-wave" id="audioWave"></div>
+          </div>
+          <!-- Playhead -->
+          <div class="playhead" id="playhead" style="left:6.4%">
+            <div class="ph-handle"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // --- JSON EDITOR ---
+  const jsonLines = [
+    ['{', 'brace'],
+    ['  "schema": "nextframe/v0.1",', 'str'],
+    ['  "duration": 18,', 'num'],
+    ['  "project": { "width": 1920, "height": 1080, "fps": 30 },', 'mixed'],
+    ['  "tracks": [', 'brace'],
+    ['    {', 'brace'],
+    ['      "id": "v1-bg",', 'str'],
+    ['      "kind": "video",', 'str'],
+    ['      "clips": [{ "scene": "auroraGradient", ... }]', 'dim'],
+    ['    },', 'brace'],
+    ['    {', 'brace'],
+    ['      "id": "v2-content",', 'str', true],
+    ['      "kind": "video",', 'str', true],
+    ['      "clips": [', 'brace', true],
+    ['        {', 'brace', true],
+    ['          "id": "c-canvas",', 'str', true],
+    ['          "start": 0, "dur": 3,', 'num', true],
+    ['          "scene": "kineticHeadline",', 'str', true],
+    ['          "params": {', 'brace', true],
+    ['            "text": "CANVAS",', 'str', true],
+    ['            "subtitle": "napi-canvas frame-pure scenes",', 'str', true],
+    ['            "hueStart": 25, "hueEnd": 345', 'num', true],
+    ['          }', 'brace', true],
+    ['        },', 'brace'],
+    ['        { "id": "c-html", "scene": "htmlSlide", ... },', 'dim'],
+    ['        { "id": "c-svg", "scene": "svgOverlay", ... },', 'dim'],
+    ['        { "id": "c-md", "scene": "markdownSlide", ... },', 'dim'],
+    ['        { "id": "c-video", "scene": "videoClip", ... },', 'dim'],
+    ['        { "id": "c-multi", "scene": "kineticHeadline", ... }', 'dim'],
+    ['      ]', 'brace'],
+    ['    },', 'brace'],
+    ['    { "id": "v3-label", "clips": [...] },', 'dim'],
+    ['    { "id": "v4-accent", "clips": [...] }', 'dim'],
+    ['  ]', 'brace'],
+    ['}', 'brace']
+  ];
+  function colorize(text, type) {
+    if (type === 'dim') return `<span class="j-null">${esc(text)}</span>`;
+    let s = esc(text);
+    s = s.replace(/"([^"]+)"(\s*:)/g, '<span class="j-key">"$1"</span><span class="j-colon">$2</span>');
+    s = s.replace(/:\s*"([^"]*)"/g, ': <span class="j-str">"$1"</span>');
+    s = s.replace(/:\s*(\d+\.?\d*)/g, ': <span class="j-num">$1</span>');
+    s = s.replace(/"(\d+\.?\d*)"/g, '"<span class="j-num">$1</span>"');
+    s = s.replace(/([{}\[\]])/g, '<span class="j-brace">$1</span>');
+    return s;
+  }
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  const edEl = document.getElementById('jsonEditor');
+  let html = '<div class="json-code">';
+  jsonLines.forEach((l,i)=>{
+    const hl = l[2] ? ' highlight' : '';
+    html += `<div class="json-line${hl}"><span class="ln">${i+1}</span><span class="code">${colorize(l[0],l[1])}</span></div>`;
+  });
+  html += '</div>';
+  edEl.innerHTML = html;
+
+  // --- RULER ---
+  const ruler = document.getElementById('ruler');
+  const dur = 18;
+  for(let s=0;s<=dur;s++){
+    const pct = (s/dur*100);
+    const major = s % 3 === 0;
+    const tick = document.createElement('div');
+    tick.className = 'ruler-tick ' + (major?'major':'minor');
+    tick.style.left = pct + '%';
+    if(major) tick.innerHTML = `<span class="tick-label">${s}s</span><span class="tick-line"></span>`;
+    else tick.innerHTML = '<span class="tick-line"></span>';
+    ruler.appendChild(tick);
+  }
+
+  // --- AUDIO WAVEFORM ---
+  const wave = document.getElementById('audioWave');
+  for(let i=0;i<300;i++){
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const h = 4 + Math.random() * 20 + Math.sin(i*0.15)*8;
+    bar.style.height = Math.max(2, h) + 'px';
+    wave.appendChild(bar);
+  }
+
+  // --- CLIP SELECTION ---
+  const clips = document.querySelectorAll('.clip[data-id]');
+  const inspName = document.getElementById('inspName');
+  const inspType = document.getElementById('inspType');
+  const inspBody = document.getElementById('inspBody');
+  const canvasText = document.querySelector('.canvas-text');
+
+  const clipData = {
+    'c-canvas': {scene:'kineticHeadline',text:'CANVAS',subtitle:'napi-canvas frame-pure scenes',hueStart:25,hueEnd:345,blend:'source-over'},
+    'c-html': {scene:'htmlSlide',text:'HTML',subtitle:'Flexbox \u00b7 CSS \u00b7 Fonts \u00b7 Any Layout',hueStart:0,hueEnd:0,blend:'source-over'},
+    'c-svg': {scene:'svgOverlay',text:'SVG',subtitle:'Vector \u00b7 Flowchart \u00b7 Diagram \u00b7 Icon',hueStart:0,hueEnd:0,blend:'source-over'},
+    'c-md': {scene:'markdownSlide',text:'Markdown',subtitle:'Code docs and README as video',hueStart:0,hueEnd:0,blend:'source-over'},
+    'c-video': {scene:'videoClip',text:'VIDEO',subtitle:'ffmpeg frame extract',hueStart:0,hueEnd:0,blend:'source-over'},
+    'c-multi': {scene:'kineticHeadline',text:'MULTI-TRACK',subtitle:'All types composited together',hueStart:30,hueEnd:350,blend:'source-over'}
+  };
+
+  function selectClip(id){
+    clips.forEach(c=>c.classList.remove('selected'));
+    const clip = document.querySelector(`.clip[data-id="${id}"]`);
+    if(clip) clip.classList.add('selected');
+    const d = clipData[id];
+    if(!d) return;
+    inspName.textContent = d.scene;
+    inspType.textContent = id;
+    canvasText.querySelector('h1').textContent = d.text;
+    canvasText.querySelector('p').textContent = d.subtitle;
+    document.querySelector('.badge-label').textContent = d.text;
+    // update scene cards
+    document.querySelectorAll('.scene-card').forEach(c=>{
+      c.classList.toggle('active', c.dataset.scene === d.scene);
+    });
+    // update playhead position
+    const start = parseFloat(clip.dataset.start||0);
+    playhead.style.left = (start/dur*100+1) + '%';
+    updateTimecode(start + 0.5);
+  }
+
+  clips.forEach(c=>{
+    c.addEventListener('click', ()=>{ selectClip(c.dataset.id); });
+  });
+
+  // --- COMMAND BAR ---
+  const cmdInput = document.getElementById('cmdInput');
+  const cmdSugg = document.getElementById('cmdSuggestions');
+  const cmdBack = document.getElementById('cmdBackdrop');
+  function openCmd(){ cmdSugg.classList.add('show'); cmdBack.classList.add('show'); cmdInput.style.borderColor='var(--accent)'; }
+  function closeCmd(){ cmdSugg.classList.remove('show'); cmdBack.classList.remove('show'); cmdInput.style.borderColor=''; }
+  cmdInput.addEventListener('click', openCmd);
+  cmdBack.addEventListener('click', closeCmd);
+  document.addEventListener('keydown', e=>{
+    if((e.metaKey||e.ctrlKey) && e.key==='k'){e.preventDefault(); cmdSugg.classList.contains('show')?closeCmd():openCmd();}
+    if(e.key==='Escape') closeCmd();
+  });
+
+  // --- PLAY ---
+  const playhead = document.getElementById('playhead');
+  const playBtn = document.getElementById('playBtn');
+  let playing = false;
+  let playStart = null;
+  let playFrom = 1.15;
+  function updateTimecode(t){
+    const m = Math.floor(t/60); const s = Math.floor(t%60); const f = Math.floor((t%1)*30);
+    document.getElementById('tcCurrent').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+String(f).padStart(2,'0');
+  }
+  function animatePlay(ts){
+    if(!playing) return;
+    if(!playStart) playStart = ts;
+    const elapsed = (ts - playStart)/1000;
+    const t = playFrom + elapsed;
+    if(t >= dur){ stopPlay(); return; }
+    playhead.style.left = (t/dur*100) + '%';
+    updateTimecode(t);
+    requestAnimationFrame(animatePlay);
+  }
+  function startPlay(){ playing=true; playhead.classList.add('playing'); playBtn.innerHTML='&#10074;&#10074;'; playStart=null; requestAnimationFrame(animatePlay); }
+  function stopPlay(){ playing=false; playhead.classList.remove('playing'); playBtn.innerHTML='&#9654;'; playFrom=parseFloat(playhead.style.left)/100*dur; }
+  playBtn.addEventListener('click', ()=>{ playing ? stopPlay() : startPlay(); });
+
+  // --- CANVAS DRAG ---
+  const canvasEl = document.getElementById('canvasEl');
+  let dragging=false, dragOx, dragOy;
+  canvasEl.addEventListener('mousedown', e=>{
+    if(e.target.classList.contains('sel-handle')) return;
+    dragging=true;
+    const r = canvasEl.getBoundingClientRect();
+    dragOx = e.clientX - r.left; dragOy = e.clientY - r.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const parent = canvasEl.parentElement.getBoundingClientRect();
+    let x = e.clientX - parent.left - dragOx;
+    let y = e.clientY - parent.top - dragOy;
+    canvasEl.style.left = x + 'px';
+    canvasEl.style.top = y + 'px';
+    canvasEl.style.transform = 'none';
+  });
+  document.addEventListener('mouseup', ()=>{ dragging=false; });
+
+  // --- COLLAPSE PANELS ---
+  document.getElementById('collapseLeft').addEventListener('click', ()=>{
+    document.getElementById('leftPanel').classList.add('collapsed');
+  });
+  document.getElementById('leftToggle').addEventListener('click', ()=>{
+    document.getElementById('leftPanel').classList.remove('collapsed');
+  });
+  const inspEl = document.getElementById('inspector');
+  document.getElementById('collapseInsp').addEventListener('click', ()=>{
+    const body = inspEl.querySelector('.insp-body');
+    body.style.display = body.style.display==='none' ? '' : 'none';
+  });
+
+  // --- SLIDER SYNC ---
+  document.querySelectorAll('.insp-slider').forEach(sl=>{
+    const numInput = sl.parentElement.querySelector('.insp-input.short');
+    if(!numInput) return;
+    sl.addEventListener('input', ()=>{ numInput.value = sl.value + (numInput.value.includes('%')?'%':numInput.value.includes('\u00b0')?'\u00b0':''); });
+  });
+})();
+</script>
+</body>
+</html>
