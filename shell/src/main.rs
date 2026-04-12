@@ -141,7 +141,7 @@ fn home_dir() -> Option<PathBuf> {
         .or_else(|| std::env::var_os("USERPROFILE").map(PathBuf::from))
 }
 
-fn protocol_response(root: &PathBuf, relative_path: &str) -> wry::http::Response<std::borrow::Cow<'static, [u8]>> {
+fn protocol_response(root: &std::path::Path, relative_path: &str) -> wry::http::Response<std::borrow::Cow<'static, [u8]>> {
     let Some(safe_relative_path) = sanitize_relative_path(relative_path) else {
         return build_protocol_response(400, "text/plain", b"400".to_vec());
     };

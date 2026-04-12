@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { loadTimeline, parseFlags, emit } from "./_io.js";
 import { resolveTimeline, timelineDir, timelineUsage } from "./_resolve.js";

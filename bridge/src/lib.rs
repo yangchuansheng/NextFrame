@@ -862,7 +862,7 @@ fn handle_segment_list(params: &Value) -> Result<Value, String> {
     let episode = require_string(params, "episode")?;
     let episode_dir = projects_root().join(project).join(episode);
     if !episode_dir.exists() {
-        return Err(format!("episode directory not found"));
+        return Err("episode directory not found".to_string());
     }
 
     let mut segments: Vec<Value> = Vec::new();
@@ -991,7 +991,7 @@ fn handle_preview_frame(params: &Value) -> Result<Value, String> {
 
 fn base64_encode(data: &[u8]) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut result = String::with_capacity((data.len() + 2) / 3 * 4);
+    let mut result = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
         let b0 = chunk[0] as u32;
         let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };

@@ -189,17 +189,17 @@ fn record_single(
             offset_sec += plan.effective_duration_sec;
             total_frames += summary.total_frames;
 
-            if plan.metadata.slide_type == SlideType::Clip {
-                if let Some(ref audio) = plan.metadata.audio_path {
-                    let ext = audio.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-                    if matches!(ext, "mp4" | "mov" | "webm") {
-                        println!(
-                            "  auto-overlay: clip segment {} → {}",
-                            index + 1,
-                            audio.display()
-                        );
-                        overlay_video(&summary.path, audio)?;
-                    }
+            if plan.metadata.slide_type == SlideType::Clip
+                && let Some(ref audio) = plan.metadata.audio_path
+            {
+                let ext = audio.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+                if matches!(ext, "mp4" | "mov" | "webm") {
+                    println!(
+                        "  auto-overlay: clip segment {} → {}",
+                        index + 1,
+                        audio.display()
+                    );
+                    overlay_video(&summary.path, audio)?;
                 }
             }
 
