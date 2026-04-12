@@ -101,7 +101,7 @@ test("arch-3 error contract", () => {
 });
 
 test("arch-4 extension registry", () => {
-  assert.ok(SCENE_IDS.length >= 21, `expected at least 21 scenes, got ${SCENE_IDS.length}`);
+  assert.ok(SCENE_IDS.length >= 30, `expected at least 30 scenes, got ${SCENE_IDS.length}`);
   for (const id of SCENE_IDS) {
     const entry = REGISTRY.get(id);
     assert.ok(entry, `${id}: missing registry entry`);
@@ -119,7 +119,7 @@ test("arch-4 extension registry", () => {
   for (const key of REQUIRED_SUBCOMMANDS) assert.ok(keys.includes(key), `missing subcommand ${key}`);
 
   const toolNames = Object.keys(TOOLS);
-  assert.ok(toolNames.length >= 7, `expected at least 7 tools, got ${toolNames.length}`);
+  assert.ok(toolNames.length >= 12, `expected at least 12 tools, got ${toolNames.length}`);
   for (const name of toolNames) {
     assert.ok(TOOLS[name].schema && typeof TOOLS[name].schema === "object", `${name}: schema missing`);
   }
@@ -196,6 +196,7 @@ function countNonCommentLines(source) {
 function isAllowedImport(source, spec) {
   if (spec.startsWith("node:")) return true;
   if (spec === "@napi-rs/canvas") return source.startsWith("src/scenes/") || source.startsWith("src/targets/") || source.startsWith("src/engine/");
+  if (spec === "puppeteer-core") return source.startsWith("src/cli/");
   if (!spec.startsWith(".")) return false;
   const target = resolveImport(source, spec);
   const sameDir = posix.dirname(source) === posix.dirname(target);

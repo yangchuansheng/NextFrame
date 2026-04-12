@@ -1,4 +1,5 @@
 // nextframe validate <timeline.json>
+import { dirname, resolve } from "node:path";
 import { parseFlags, loadTimeline, emit } from "./_io.js";
 import { validateTimeline } from "../engine/validate.js";
 
@@ -14,7 +15,7 @@ export async function run(argv) {
     emit(loaded, flags);
     return 2;
   }
-  const result = validateTimeline(loaded.value);
+  const result = validateTimeline(loaded.value, { projectDir: dirname(resolve(path)) });
   if (flags.json) {
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } else {

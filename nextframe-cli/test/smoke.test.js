@@ -76,7 +76,7 @@ test("describe launch t=6 → visible clips", () => {
 
 test("timeline ops round trip: new → set-param → move-clip → resize → remove → add", () => {
   const p = "/tmp/smoke-ops.json";
-  run(["new", p]);
+  run(["new", p, "--seed"]);
   let r = runJSON(["set-param", p, "clip-1", "hueA=180"]);
   assert.equal(r.ok, true);
   r = runJSON(["set-param", p, "clip-1", "intensity=1.2"]);

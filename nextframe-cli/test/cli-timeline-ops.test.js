@@ -62,6 +62,17 @@ test("cli-ops-1: new with flags creates an empty timeline scaffold", () => {
   cleanup(path);
 });
 
+test("cli-ops-1b: new without flags creates an empty timeline (no seed clip)", () => {
+  const path = tmpPath("cli-ops-1b");
+  const out = runJson(["new", path, "--json"]);
+  assert.equal(out.ok, true);
+  const timeline = readTimeline(path);
+  assert.equal(timeline.schema, "nextframe/v0.1");
+  const totalClips = (timeline.tracks || []).reduce((n, t) => n + (t.clips || []).length, 0);
+  assert.equal(totalClips, 0, "default new should have zero clips");
+  cleanup(path);
+});
+
 test("cli-ops-2: add-clip with flags auto-creates the track and scene-based id", () => {
   const path = tmpPath("cli-ops-2");
   runJson(["new", path, "--duration=10", "--json"]);
