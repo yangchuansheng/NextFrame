@@ -12,6 +12,8 @@ const SUBCOMMANDS = {
   "add-clip": () => import("../src/cli/add.js"),
   "move-clip": () => import("../src/cli/add.js"),
   "resize-clip": () => import("../src/cli/add.js"),
+  "remove-clip": () => import("../src/cli/add.js"),
+  "set-param": () => import("../src/cli/add.js"),
   scenes: () => import("../src/cli/scenes.js"),
   help: null,
 };

@@ -71,6 +71,27 @@ test("describe launch t=6 → visible clips", () => {
   assert.ok(r.value.active_clips.length >= 1);
 });
 
+test("timeline ops round trip: new → set-param → move-clip → resize → remove → add", () => {
+  const p = "/tmp/smoke-ops.json";
+  run(["new", p]);
+  let r = runJSON(["set-param", p, "clip-1", "hueA=180"]);
+  assert.equal(r.ok, true);
+  r = runJSON(["set-param", p, "clip-1", "intensity=1.2"]);
+  assert.equal(r.ok, true);
+  r = runJSON(["resize-clip", p, "clip-1", "3"]);
+  assert.equal(r.ok, true);
+  r = runJSON(["move-clip", p, "clip-1", "1"]);
+  assert.equal(r.ok, true);
+  // The default timeline has duration=5 clip-1 moves to 1 so 1+3=4 ≤ 5 ok
+  r = runJSON(["remove-clip", p, "clip-1"]);
+  assert.equal(r.ok, true);
+  r = runJSON(["add-clip", p, "v1", '{"id":"c2","start":0,"dur":5,"scene":"starfield","params":{}}']);
+  assert.equal(r.ok, true);
+  // Final timeline renders
+  const tl = JSON.parse(run(["validate", p, "--json"]).stdout);
+  assert.equal(tl.ok, true);
+});
+
 test("render minimal → h264 1920x1080 mp4", () => {
   const out = "/tmp/smoke-minimal.mp4";
   const r = run(["render", MINIMAL, out]);

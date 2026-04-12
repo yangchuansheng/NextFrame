@@ -1,6 +1,6 @@
-// nextframe add-clip / move-clip / resize-clip
+// nextframe add-clip / move-clip / resize-clip / remove-clip / set-param
 import { parseFlags, loadTimeline, saveTimeline, emit } from "./_io.js";
-import { addClip, moveClip, resizeClip } from "../timeline/ops.js";
+import { addClip, moveClip, resizeClip, removeClip, setParam } from "../timeline/ops.js";
 
 export async function run(argv, ctx) {
   const { positional, flags } = parseFlags(argv);
@@ -50,6 +50,28 @@ export async function run(argv, ctx) {
       return 3;
     }
     result = resizeClip(loaded.value, clipId, dur);
+  } else if (sub === "remove-clip") {
+    const [clipId] = rest;
+    if (!clipId) {
+      emit({ ok: false, error: { code: "USAGE", message: "usage: nextframe remove-clip <timeline> <clipId>" } }, flags);
+      return 3;
+    }
+    result = removeClip(loaded.value, clipId);
+  } else if (sub === "set-param") {
+    const [clipId, kvSpec] = rest;
+    if (!clipId || !kvSpec) {
+      emit({ ok: false, error: { code: "USAGE", message: "usage: nextframe set-param <timeline> <clipId> <key=value>" } }, flags);
+      return 3;
+    }
+    const eq = kvSpec.indexOf("=");
+    if (eq <= 0) {
+      emit({ ok: false, error: { code: "BAD_KV", message: "expected key=value" } }, flags);
+      return 3;
+    }
+    const key = kvSpec.slice(0, eq);
+    const raw = kvSpec.slice(eq + 1);
+    const value = parseParamValue(raw);
+    result = setParam(loaded.value, clipId, key, value);
   } else {
     emit({ ok: false, error: { code: "BAD_SUB", message: `unknown ${sub}` } }, flags);
     return 3;
@@ -69,6 +91,17 @@ export async function run(argv, ctx) {
     process.stdout.write(`updated ${path}\n`);
   }
   return 0;
+}
+
+function parseParamValue(raw) {
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  if (raw === "null") return null;
+  if (/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+  if (raw.startsWith("{") || raw.startsWith("[")) {
+    try { return JSON.parse(raw); } catch { /* fall through */ }
+  }
+  return raw;
 }
 
 function parseStartSpec(spec) {
