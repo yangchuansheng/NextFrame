@@ -466,6 +466,52 @@ export function generateHarness(timeline, opts = {}) {
   <canvas id="nf-canvas" width="${width}" height="${height}"></canvas>
   <script>window.__TIMELINE = ${serializedTimeline}; window.__onFrame_meta = ${serializedRecorderMeta};</script>
   <script>${runtimeScript}</script>
+  <script>
+  // Browser preview: scale canvas for Retina sharpness + add controls
+  if (typeof window.__onFrame === 'function' && !window.__RECORDER_MODE) {
+    const dpr = window.devicePixelRatio || 1;
+    const c = document.getElementById('nf-canvas');
+    if (dpr > 1 && c) {
+      const w = c.width, h = c.height;
+      c.width = w * dpr;
+      c.height = h * dpr;
+      c.style.width = w + 'px';
+      c.style.height = h + 'px';
+      const ctx2 = c.getContext('2d');
+      if (ctx2) ctx2.scale(dpr, dpr);
+    }
+    const dur = ${JSON.stringify(duration)} || 10;
+    const fps = ${JSON.stringify(fps)} || 30;
+    const controls = document.createElement('div');
+    controls.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:12px 20px;background:rgba(0,0,0,0.85);display:flex;align-items:center;gap:12px;font:13px -apple-system,sans-serif;color:#ccc;z-index:9999';
+    const playBtn = document.createElement('button');
+    playBtn.textContent = '▶';
+    playBtn.style.cssText = 'background:#333;border:1px solid #555;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:14px';
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = '0'; slider.max = String(dur * 1000); slider.value = '0';
+    slider.style.cssText = 'flex:1;accent-color:#e44';
+    const label = document.createElement('span');
+    label.style.cssText = 'min-width:80px;text-align:right';
+    label.textContent = '0.000s';
+    controls.append(playBtn, slider, label);
+    document.body.appendChild(controls);
+    let playing = false, animId = null, startWall = 0, startTime = 0;
+    function seek(t) {
+      t = Math.max(0, Math.min(dur, t));
+      slider.value = String(t * 1000);
+      label.textContent = t.toFixed(3) + 's';
+      window.__onFrame({ time: t });
+    }
+    slider.addEventListener('input', function() { playing = false; playBtn.textContent = '▶'; seek(Number(this.value) / 1000); });
+    playBtn.addEventListener('click', function() {
+      if (playing) { playing = false; playBtn.textContent = '▶'; return; }
+      playing = true; playBtn.textContent = '⏸';
+      startWall = performance.now(); startTime = Number(slider.value) / 1000;
+      (function tick() { if (!playing) return; const t = startTime + (performance.now() - startWall) / 1000; if (t >= dur) { seek(dur); playing = false; playBtn.textContent = '▶'; return; } seek(t); animId = requestAnimationFrame(tick); })();
+    });
+    seek(2);
+  }
+  </script>
 </body>
 </html>
 `;
