@@ -27,6 +27,7 @@ const SUBCOMMANDS = {
   "list-assets": () => import("../src/cli/assets.js"),
   "remove-asset": () => import("../src/cli/assets.js"),
   scenes: () => import("../src/cli/scenes.js"),
+  guide: () => import("../src/cli/guide.js"),
   help: null,
 };
 
@@ -60,6 +61,7 @@ SUBCOMMANDS
   import-audio <timeline.json> <audio-path>   add an audio asset to timeline.assets[]
   list-assets <timeline.json> [--json]        list assets grouped by kind
   remove-asset <timeline.json> <asset-id>     remove an asset by id
+  guide                                       AI onboarding: conventions, workflow, naming
 
 FLAGS
   --json     output structured JSON (for AI / scripts)

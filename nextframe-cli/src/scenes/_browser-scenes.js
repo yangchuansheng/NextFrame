@@ -1,8 +1,8 @@
 import { createCanvas } from "@napi-rs/canvas";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { inflateSync } from "node:zlib";
+import { decodePNGFile } from "./_png-decode.js";
 
 export const CACHE_DIRS = Object.freeze({
   htmlSlide: "/tmp/nextframe-html-cache",
@@ -43,7 +43,7 @@ export function drawBrowserScene(ctx, sceneId, params, fallback) {
   const height = ctx?.canvas?.height || 1080;
   const cachePath = cachePathForScene(sceneId, width, height, params, fallback.t || 0);
   if (existsSync(cachePath)) {
-    const decoded = decodePNGToRGBA(readFileSync(cachePath));
+    const decoded = decodePNGFile(cachePath);
     if (decoded) {
       const imgData = ctx.createImageData(decoded.width, decoded.height);
       imgData.data.set(decoded.data);
@@ -135,69 +135,4 @@ function browserScenePayload(sceneId, params, t) {
   return { html: String(params?.html || params?.src || "") };
 }
 
-// Minimal PNG decoder — extracts RGBA pixel data from a PNG buffer.
-// Reuses the same approach as src/views/ascii.js (IHDR + IDAT + inflate + unfilter).
-const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-
-function decodePNGToRGBA(buf) {
-  if (!Buffer.isBuffer(buf)) buf = Buffer.from(buf);
-  if (!buf.subarray(0, 8).equals(PNG_SIG)) return null;
-  let w = 0, h = 0, colorType = 6;
-  const idat = [];
-  for (let off = 8; off < buf.length;) {
-    const len = buf.readUInt32BE(off);
-    const type = buf.subarray(off + 4, off + 8).toString("ascii");
-    const data = buf.subarray(off + 8, off + 8 + len);
-    off += len + 12;
-    if (type === "IHDR") {
-      w = data.readUInt32BE(0);
-      h = data.readUInt32BE(4);
-      colorType = data[9];
-    } else if (type === "IDAT") idat.push(data);
-    else if (type === "IEND") break;
-  }
-  if (!w || !h) return null;
-  // bpp: colorType 2=RGB(3), 4=GA(2), 6=RGBA(4)
-  const bpp = colorType === 6 ? 4 : colorType === 2 ? 3 : colorType === 4 ? 2 : 1;
-  const raw = inflateSync(Buffer.concat(idat));
-  const srcStride = w * bpp;
-  const out = Buffer.alloc(w * h * 4);
-  let src = 0, prev = null;
-  for (let y = 0; y < h; y++) {
-    const filter = raw[src++];
-    const row = Buffer.from(raw.subarray(src, src + srcStride));
-    src += srcStride;
-    unfilterRow(row, prev, filter, bpp);
-    // Expand to RGBA
-    for (let x = 0; x < w; x++) {
-      const si = x * bpp;
-      const di = (y * w + x) * 4;
-      if (bpp === 4) { out[di] = row[si]; out[di+1] = row[si+1]; out[di+2] = row[si+2]; out[di+3] = row[si+3]; }
-      else if (bpp === 3) { out[di] = row[si]; out[di+1] = row[si+1]; out[di+2] = row[si+2]; out[di+3] = 255; }
-      else if (bpp === 2) { out[di] = row[si]; out[di+1] = row[si]; out[di+2] = row[si]; out[di+3] = row[si+1]; }
-      else { out[di] = row[si]; out[di+1] = row[si]; out[di+2] = row[si]; out[di+3] = 255; }
-    }
-    prev = row;
-  }
-  return { width: w, height: h, data: out };
-}
-
-function unfilterRow(row, prev, filter, bpp) {
-  for (let i = 0; i < row.length; i++) {
-    const left = i >= bpp ? row[i - bpp] : 0;
-    const up = prev ? prev[i] : 0;
-    const upLeft = prev && i >= bpp ? prev[i - bpp] : 0;
-    if (filter === 1) row[i] = (row[i] + left) & 255;
-    else if (filter === 2) row[i] = (row[i] + up) & 255;
-    else if (filter === 3) row[i] = (row[i] + Math.floor((left + up) / 2)) & 255;
-    else if (filter === 4) row[i] = (row[i] + paeth(left, up, upLeft)) & 255;
-  }
-}
-
-function paeth(a, b, c) {
-  const p = a + b - c;
-  const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
-  if (pa <= pb && pa <= pc) return a;
-  if (pb <= pc) return b;
-  return c;
-}
+// PNG decoding moved to ./_png-decode.js (shared with videoWindow.js).
