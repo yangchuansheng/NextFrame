@@ -10,29 +10,39 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io::ErrorKind;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::{Mutex, OnceLock};
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
 
 const EXPORT_RUNNING: &str = "running";
 const EXPORT_DONE: &str = "done";
 const EXPORT_FAILED: &str = "failed";
-const EXPORT_ERROR_NOT_FOUND: &str = "recorder_not_found";
 const EXPORT_ERROR_ALREADY_RUNNING: &str = "export_already_running";
 const EXPORT_ERROR_CANCELED: &str = "canceled";
+const EXPORT_ERROR_API_UNAVAILABLE: &str = "embedded_recorder_api_unavailable";
 const RECENT_DIR_NAME: &str = ".nextframe";
 const RECENT_FILE_NAME: &str = "recent.json";
 const RECENT_MAX_ENTRIES: usize = 10;
 const AUTOSAVE_DIR_NAME: &str = "autosave";
 
 struct ProcessHandle {
-    child: Child,
+    export_task: ExportTask,
     output_path: PathBuf,
     log_path: PathBuf,
     duration_secs: f64,
     started_at: Instant,
     terminal: Option<ProcessTerminal>,
+}
+
+struct ExportTask {
+    join_handle: JoinHandle<()>,
+    completion: Arc<Mutex<Option<Result<(), String>>>>,
+    cancel_requested: Arc<AtomicBool>,
 }
 
 struct ProcessTerminal {
@@ -45,20 +55,20 @@ struct ProcessRegistry {
     handles: HashMap<u32, ProcessHandle>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum RecorderLauncher {
-    Binary(PathBuf),
-    Cargo(PathBuf),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct RecorderLaunchPlan {
-    launcher: RecorderLauncher,
-    recorder_args: Vec<String>,
+#[derive(Clone, Debug, PartialEq)]
+struct RecorderRequest {
+    url: String,
+    output_path: PathBuf,
+    width: u32,
+    height: u32,
+    fps: u32,
+    duration: f64,
 }
 
 static PROCESS_REGISTRY: OnceLock<Mutex<ProcessRegistry>> = OnceLock::new();
 static FFMPEG_PATH_CACHE: OnceLock<Mutex<Option<Option<PathBuf>>>> = OnceLock::new();
+static EXPORT_RUNTIME: OnceLock<Result<Runtime, String>> = OnceLock::new();
+static NEXT_EXPORT_PID: AtomicU32 = AtomicU32::new(1);
 
 #[derive(Clone, Debug, PartialEq)]
 struct AudioSource {
@@ -295,14 +305,8 @@ fn handle_export_start(params: &Value) -> Result<Value, String> {
     }
 
     let start_result = (|| -> Result<Value, String> {
-        let Some(plan) =
-            build_export_plan(&current_dir, &output_path, width, height, fps, duration)?
-        else {
-            return Ok(json!({
-                "ok": false,
-                "error": EXPORT_ERROR_NOT_FOUND,
-            }));
-        };
+        let request =
+            build_export_request(&current_dir, &output_path, width, height, fps, duration)?;
 
         let Some(parent) = output_path.parent() else {
             return Err(format!(
@@ -318,8 +322,8 @@ fn handle_export_start(params: &Value) -> Result<Value, String> {
         })?;
 
         let log_path = create_export_log_path()?;
-        let child = match spawn_recorder(&plan, &log_path) {
-            Ok(child) => child,
+        let export_task = match spawn_recorder_task(request, log_path.clone()) {
+            Ok(task) => task,
             Err(error) => {
                 return Ok(json!({
                     "ok": false,
@@ -328,10 +332,10 @@ fn handle_export_start(params: &Value) -> Result<Value, String> {
                 }));
             }
         };
-        let pid = child.id();
+        let pid = next_export_pid();
 
-        let mut handle = ProcessHandle {
-            child,
+        let handle = ProcessHandle {
+            export_task,
             output_path,
             log_path: log_path.clone(),
             duration_secs: duration,
@@ -344,11 +348,7 @@ fn handle_export_start(params: &Value) -> Result<Value, String> {
                 registry.export_start_reserved = false;
                 registry.handles.insert(pid, handle);
             }
-            Err(error) => {
-                let _ = handle.child.kill();
-                let _ = handle.child.wait();
-                return Err(error);
-            }
+            Err(error) => return Err(error),
         }
 
         Ok(json!({
@@ -402,10 +402,10 @@ fn handle_export_cancel(params: &Value) -> Result<Value, String> {
     refresh_process_state(handle)?;
     if handle.terminal.is_none() {
         handle
-            .child
-            .kill()
-            .map_err(|error| format!("failed to cancel export pid {pid}: {error}"))?;
-        let _ = handle.child.wait();
+            .export_task
+            .cancel_requested
+            .store(true, Ordering::SeqCst);
+        handle.export_task.join_handle.abort();
         handle.terminal = Some(ProcessTerminal {
             state: EXPORT_FAILED,
             error: Some(EXPORT_ERROR_CANCELED.to_string()),
@@ -1701,21 +1701,23 @@ fn refresh_process_state(handle: &mut ProcessHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    if let Some(status) = handle
-        .child
-        .try_wait()
-        .map_err(|error| format!("failed to read export process state: {error}"))?
-    {
-        handle.terminal = Some(if status.success() {
-            ProcessTerminal {
+    let completion = handle
+        .export_task
+        .completion
+        .lock()
+        .map_err(|_| "export task state is unavailable".to_string())?
+        .take();
+
+    if let Some(result) = completion {
+        handle.terminal = Some(match result {
+            Ok(()) => ProcessTerminal {
                 state: EXPORT_DONE,
                 error: None,
-            }
-        } else {
-            ProcessTerminal {
+            },
+            Err(error) => ProcessTerminal {
                 state: EXPORT_FAILED,
-                error: Some(format_exit_status(status)),
-            }
+                error: Some(error),
+            },
         });
     }
 
@@ -1769,83 +1771,22 @@ fn remaining_secs(elapsed: f64, duration_secs: f64) -> f64 {
     (duration_secs - elapsed).max(0.0)
 }
 
-fn resolve_recorder_launch_plan(current_dir: &Path) -> Option<RecorderLaunchPlan> {
-    let env_override = env::var_os("NEXTFRAME_RECORDER_PATH")
-        .map(PathBuf::from)
-        .map(|path| absolutize_path(current_dir, path));
-    let release_path = current_dir
-        .join("../MediaAgentTeam/recorder/target/release")
-        .join(recorder_binary_name());
-    let manifest_path = current_dir.join("../MediaAgentTeam/recorder/Cargo.toml");
-
-    resolve_recorder_launch_plan_with(env_override, release_path, manifest_path).map(|launcher| {
-        RecorderLaunchPlan {
-            launcher,
-            recorder_args: Vec::new(),
-        }
-    })
-}
-
-fn resolve_recorder_launch_plan_with(
-    env_override: Option<PathBuf>,
-    release_path: PathBuf,
-    manifest_path: PathBuf,
-) -> Option<RecorderLauncher> {
-    if let Some(path) = env_override.filter(|path| path.is_file()) {
-        return Some(RecorderLauncher::Binary(path));
-    }
-
-    if release_path.is_file() {
-        return Some(RecorderLauncher::Binary(release_path));
-    }
-
-    if manifest_path.is_file() {
-        return Some(RecorderLauncher::Cargo(manifest_path));
-    }
-
-    None
-}
-
-fn build_export_plan(
+fn build_export_request(
     current_dir: &Path,
     output_path: &Path,
     width: u32,
     height: u32,
     fps: u32,
     duration: f64,
-) -> Result<Option<RecorderLaunchPlan>, String> {
-    let Some(mut plan) = resolve_recorder_launch_plan(current_dir) else {
-        return Ok(None);
-    };
-
-    let url = build_recording_url(current_dir)?;
-    plan.recorder_args =
-        build_recorder_args(url, output_path.to_path_buf(), width, height, fps, duration);
-    Ok(Some(plan))
-}
-
-fn build_recorder_args(
-    url: String,
-    output_path: PathBuf,
-    width: u32,
-    height: u32,
-    fps: u32,
-    duration: f64,
-) -> Vec<String> {
-    vec![
-        "--url".to_string(),
-        url,
-        "--out".to_string(),
-        output_path.display().to_string(),
-        "--width".to_string(),
-        width.to_string(),
-        "--height".to_string(),
-        height.to_string(),
-        "--fps".to_string(),
-        fps.to_string(),
-        "--duration".to_string(),
-        trim_float(duration),
-    ]
+) -> Result<RecorderRequest, String> {
+    Ok(RecorderRequest {
+        url: build_recording_url(current_dir)?,
+        output_path: output_path.to_path_buf(),
+        width,
+        height,
+        fps,
+        duration,
+    })
 }
 
 fn build_recording_url(current_dir: &Path) -> Result<String, String> {
@@ -1857,40 +1798,81 @@ fn build_recording_url(current_dir: &Path) -> Result<String, String> {
     Ok(format!("{}?record=true", path_to_file_url(&web_path)))
 }
 
-fn spawn_recorder(plan: &RecorderLaunchPlan, log_path: &Path) -> Result<Child, String> {
-    let stdout = fs::File::create(log_path).map_err(|error| {
+fn spawn_recorder_task(request: RecorderRequest, log_path: PathBuf) -> Result<ExportTask, String> {
+    let completion = Arc::new(Mutex::new(None));
+    let completion_for_task = Arc::clone(&completion);
+    let cancel_requested = Arc::new(AtomicBool::new(false));
+    let cancel_requested_for_task = Arc::clone(&cancel_requested);
+    let runtime = export_runtime()?;
+
+    let join_handle = runtime.spawn_blocking(move || {
+        let result = std::panic::catch_unwind(|| {
+            run_embedded_recorder(request, &log_path, cancel_requested_for_task)
+        })
+        .map_err(|_| "embedded recorder task panicked".to_string())
+        .and_then(|result| result);
+
+        if let Ok(mut slot) = completion_for_task.lock() {
+            *slot = Some(result);
+        }
+    });
+
+    Ok(ExportTask {
+        join_handle,
+        completion,
+        cancel_requested,
+    })
+}
+
+fn export_runtime() -> Result<&'static Runtime, String> {
+    match EXPORT_RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .thread_name("bridge-export")
+            .enable_all()
+            .build()
+            .map_err(|error| format!("failed to initialize export runtime: {error}"))
+    }) {
+        Ok(runtime) => Ok(runtime),
+        Err(error) => Err(error.clone()),
+    }
+}
+
+fn next_export_pid() -> u32 {
+    NEXT_EXPORT_PID.fetch_add(1, Ordering::Relaxed)
+}
+
+fn run_embedded_recorder(
+    request: RecorderRequest,
+    log_path: &Path,
+    cancel_requested: Arc<AtomicBool>,
+) -> Result<(), String> {
+    let mut log_file = fs::File::create(log_path).map_err(|error| {
         format!(
             "failed to create export log '{}': {error}",
             log_path.display()
         )
     })?;
-    let stderr = stdout
-        .try_clone()
-        .map_err(|error| format!("failed to clone export log handle: {error}"))?;
 
-    let mut command = match &plan.launcher {
-        RecorderLauncher::Binary(path) => {
-            let mut command = Command::new(path);
-            command.args(&plan.recorder_args);
-            command
-        }
-        RecorderLauncher::Cargo(manifest_path) => {
-            let mut command = Command::new("cargo");
-            command
-                .args(["run", "--release", "-p", "recorder", "--manifest-path"])
-                .arg(manifest_path)
-                .arg("--")
-                .args(&plan.recorder_args);
-            command
-        }
-    };
+    writeln!(
+        log_file,
+        "Starting embedded recorder for '{}' from '{}' ({}x{} @ {}fps, {}s)",
+        request.output_path.display(),
+        request.url,
+        request.width,
+        request.height,
+        request.fps,
+        trim_float(request.duration)
+    )
+    .map_err(|error| format!("failed to write export log '{}': {error}", log_path.display()))?;
 
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .spawn()
-        .map_err(|error| error.to_string())
+    if cancel_requested.load(Ordering::SeqCst) {
+        return Err(EXPORT_ERROR_CANCELED.to_string());
+    }
+
+    // TODO: Replace this placeholder with the real embedded API call once
+    // `nextframe_recorder::api::record_segments(args)` is available.
+    Err(EXPORT_ERROR_API_UNAVAILABLE.to_string())
 }
 
 fn copy_video_output(video_path: &Path, output_path: &Path) -> Result<(), String> {
@@ -2055,22 +2037,6 @@ fn format_exit_status(status: ExitStatus) -> String {
     match status.code() {
         Some(code) => format!("exit_code_{code}"),
         None => "terminated_by_signal".to_string(),
-    }
-}
-
-fn recorder_binary_name() -> &'static str {
-    if cfg!(windows) {
-        "recorder.exe"
-    } else {
-        "recorder"
-    }
-}
-
-fn absolutize_path(current_dir: &Path, path: PathBuf) -> PathBuf {
-    if path.is_absolute() {
-        path
-    } else {
-        current_dir.join(path)
     }
 }
 
@@ -2418,12 +2384,11 @@ fn recent_storage_test_lock() -> &'static Mutex<()> {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::{
-        autosave_storage_test_lock, build_ffmpeg_filter_complex, build_recorder_args, dispatch,
-        home_dir, initialize, mock_ffmpeg_state, recent_storage_test_lock, recorder_binary_name,
-        reset_ffmpeg_path_cache_for_tests, resolve_recorder_launch_plan_with, resolve_write_path,
+        autosave_storage_test_lock, build_ffmpeg_filter_complex, dispatch, home_dir, initialize,
+        mock_ffmpeg_state, recent_storage_test_lock, reset_ffmpeg_path_cache_for_tests,
+        resolve_write_path,
         set_autosave_storage_path_override_for_tests, set_recent_storage_path_override_for_tests,
-        CommandOutput, FfmpegCommand, MockFfmpegState, RecorderLauncher, Request,
-        MOCK_FFMPEG_TEST_LOCK,
+        CommandOutput, FfmpegCommand, MockFfmpegState, Request, MOCK_FFMPEG_TEST_LOCK,
     };
     use serde_json::{json, Value};
     use std::collections::HashSet;
@@ -3072,79 +3037,6 @@ mod tests {
         let result = resolve_write_path("~/Movies/NextFrame/render.mp4")
             .expect("resolve export path under home");
         assert_eq!(result, home.join("Movies/NextFrame/render.mp4"));
-    }
-
-    #[test]
-    fn resolve_recorder_launch_plan_prefers_env_override() {
-        let temp = TestDir::new("recorder-env");
-        let env_binary = temp.join(recorder_binary_name());
-        let release_binary = temp.join("release").join(recorder_binary_name());
-        let manifest = temp.join("Cargo.toml");
-        fs::create_dir_all(release_binary.parent().expect("release parent"))
-            .expect("create release dir");
-        fs::write(&env_binary, "").expect("write env binary");
-        fs::write(&release_binary, "").expect("write release binary");
-        fs::write(
-            &manifest,
-            "[package]\nname = \"recorder\"\nversion = \"0.1.0\"\n",
-        )
-        .expect("write manifest");
-
-        let launcher =
-            resolve_recorder_launch_plan_with(Some(env_binary.clone()), release_binary, manifest)
-                .expect("resolve launcher");
-
-        assert_eq!(launcher, RecorderLauncher::Binary(env_binary));
-    }
-
-    #[test]
-    fn resolve_recorder_launch_plan_falls_back_to_cargo_manifest() {
-        let temp = TestDir::new("recorder-cargo");
-        let manifest = temp.join("Cargo.toml");
-        fs::write(
-            &manifest,
-            "[package]\nname = \"recorder\"\nversion = \"0.1.0\"\n",
-        )
-        .expect("write manifest");
-
-        let launcher =
-            resolve_recorder_launch_plan_with(None, temp.join("missing"), manifest.clone())
-                .expect("resolve cargo launcher");
-
-        assert_eq!(launcher, RecorderLauncher::Cargo(manifest));
-    }
-
-    #[test]
-    fn build_recorder_args_matches_expected_contract() {
-        let args = build_recorder_args(
-            "file:///tmp/runtime/web/index.html?record=true".to_string(),
-            PathBuf::from("/tmp/output.mp4"),
-            1920,
-            1080,
-            60,
-            12.5,
-        );
-
-        assert_eq!(
-            args,
-            vec![
-                "--url",
-                "file:///tmp/runtime/web/index.html?record=true",
-                "--out",
-                "/tmp/output.mp4",
-                "--width",
-                "1920",
-                "--height",
-                "1080",
-                "--fps",
-                "60",
-                "--duration",
-                "12.5",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect::<Vec<_>>()
-        );
     }
 
     #[test]

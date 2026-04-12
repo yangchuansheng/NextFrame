@@ -9,6 +9,8 @@ use tao::dpi::LogicalSize;
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::WindowBuilder;
+#[cfg(target_os = "macos")]
+use wry::BackgroundThrottlingPolicy;
 use wry::WebViewBuilder;
 
 fn main() {
@@ -33,10 +35,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         .build(&event_loop)?;
 
     let webview_url = webview_url()?;
-    let webview = WebViewBuilder::new(&window)
+    let webview_builder = WebViewBuilder::new()
         .with_initialization_script("window.__ipc = window.__ipc || {};")
-        .with_ipc_handler(move |payload| {
-            let response = parse_request(&payload)
+        .with_ipc_handler(move |request| {
+            let response = parse_request(request.body())
                 .map(bridge::dispatch)
                 .unwrap_or_else(invalid_request_response);
 
@@ -51,8 +53,14 @@ fn run() -> Result<(), Box<dyn Error>> {
                 }
             }
         })
-        .with_url(&webview_url)
-        .build()?;
+        .with_url(webview_url);
+
+    #[cfg(target_os = "macos")]
+    let webview_builder = webview_builder
+        .with_accept_first_mouse(false)
+        .with_background_throttling(BackgroundThrottlingPolicy::Disabled);
+
+    let webview = webview_builder.build(&window)?;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

@@ -794,9 +794,3 @@ fn pump_main_run_loop(duration: Duration) {
     let date = NSDate::dateWithTimeIntervalSinceNow(duration.as_secs_f64());
     let _ = run_loop.runMode_beforeDate(unsafe { NSDefaultRunLoopMode }, &date);
 }
-
-fn escape_concat_path(path: &Path) -> String {
-    path.to_string_lossy()
-        .replace('\\', "\\\\")
-        .replace('\'', "\\'")
-}

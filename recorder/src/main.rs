@@ -1,26 +1,14 @@
-//! CLI entry point for the recorder binary.
+#![cfg(feature = "cli")]
 
-mod overlay;
-mod parallel;
-mod plan;
-mod record;
-mod util;
-
+use std::env;
 use std::fs;
-use std::path::PathBuf;
-use std::time::Instant;
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use objc2::MainThreadMarker;
-
-use overlay::{overlay_video, write_perf_log};
-use parallel::run_parallel;
-use plan::{build_segment_plans, collect_frame_files, detect_root};
-use record::record_segment;
-use recorder::encoder::{concat_segments, detect_backend, probe_audio_duration};
-use recorder::server::HttpFileServer;
-use recorder::webview::WebViewHost;
-use util::{absolute_path, auto_jobs, create_temp_dir};
+use nextframe_recorder::api::{
+    OUTPUT_JSON_ENV, RecordArgs, RecordOutput, overlay_output, record_segments,
+};
+use nextframe_recorder::util::absolute_path;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -41,7 +29,6 @@ enum Command {
     Clip(ClipArgs),
 }
 
-/// Shared recording options
 #[derive(Parser, Debug, Clone)]
 struct CommonArgs {
     /// HTML slide files to record (one or more)
@@ -91,10 +78,6 @@ struct CommonArgs {
     /// Record slides in parallel using N processes (default: 4)
     #[arg(long, value_name = "N", default_missing_value = "4", num_args = 0..=1)]
     pub parallel: Option<usize>,
-
-    /// Progress bar fill color as hex (e.g. #e8c47a). Default: #da7756
-    #[arg(long, value_name = "HEX")]
-    pub progress_color: Option<String>,
 }
 
 #[derive(Parser, Debug)]
@@ -114,6 +97,25 @@ struct ClipArgs {
     video: PathBuf,
 }
 
+impl From<CommonArgs> for RecordArgs {
+    fn from(args: CommonArgs) -> Self {
+        Self {
+            frames: args.frames,
+            dir: args.dir,
+            out: args.out,
+            fps: args.fps,
+            crf: args.crf,
+            dpr: args.dpr,
+            jobs: args.jobs,
+            no_skip: args.no_skip,
+            headed: args.headed,
+            width: args.width,
+            height: args.height,
+            parallel: args.parallel,
+        }
+    }
+}
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("\n  ✗ {err}");
@@ -123,10 +125,10 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let top = Cli::parse();
-    let (cli, video_overlay) = match top.command {
+    let output = match top.command {
         Command::Slide(args) => {
             println!("\n  mode: slide (pure HTML)");
-            (args.common, None)
+            record_segments(args.common.into())?
         }
         Command::Clip(args) => {
             let video = absolute_path(&args.video)?;
@@ -135,220 +137,27 @@ fn run() -> Result<(), String> {
             }
             println!("\n  mode: clip (HTML + video overlay)");
             println!("  video: {}", video.display());
-            (args.common, Some(video))
-        }
-    };
-    if cli.fps == 0 {
-        return Err("--fps must be greater than 0".into());
-    }
-    if cli.dpr <= 0.0 {
-        return Err("--dpr must be greater than 0".into());
-    }
 
-    let frame_files = collect_frame_files(&cli)?;
-    if let Some(requested) = cli.parallel {
-        let out = absolute_path(&cli.out)?;
-        return run_parallel(&cli, &frame_files, &out, requested);
-    }
-
-    let root = detect_root(&frame_files)?;
-    let out = absolute_path(&cli.out)?;
-    let requested_jobs = cli.jobs.unwrap_or_else(|| auto_jobs(cli.dpr));
-    let effective_jobs = 1usize;
-
-    println!("\n  recorder — CALayer.render + takeSnapshot fallback + VideoToolbox");
-    println!("  frames: {}", frame_files.len());
-    println!(
-        "  output: {}x{} @{}fps CRF{} DPR {:.2}",
-        (cli.width * cli.dpr).round() as usize,
-        (cli.height * cli.dpr).round() as usize,
-        cli.fps,
-        cli.crf,
-        cli.dpr
-    );
-    println!("  jobs: {requested_jobs} requested, {effective_jobs} active capture lane");
-    println!("  file: {}\n", out.display());
-
-    let plans = build_segment_plans(&frame_files)?;
-    let total_duration_sec: f64 = plans.iter().map(|plan| plan.effective_duration_sec).sum();
-    let total_frame_budget: usize = plans
-        .iter()
-        .map(|plan| ((plan.effective_duration_sec + 0.5) * cli.fps as f64).ceil() as usize)
-        .sum();
-    println!(
-        "  total audio: {:.1}s -> {} frames\n",
-        total_duration_sec, total_frame_budget
-    );
-
-    let temp_root = create_temp_dir()?;
-    let server = match HttpFileServer::start(root.clone()) {
-        Ok(server) => {
-            println!("  server: {}\n", server.base_url());
-            Some(server)
-        }
-        Err(err) => {
-            eprintln!("  warn server disabled: {err}");
-            eprintln!("  warn falling back to file:// loadFileURL mode\n");
-            None
+            let output = record_segments(args.common.into())?;
+            overlay_output(&output.output_path, &video)?;
+            output
         }
     };
 
-    let backend = detect_backend();
-    let mtm = MainThreadMarker::new().ok_or("recorder must start on the main thread")?;
-    let mut host = WebViewHost::new(mtm, cli.headed, cli.dpr, cli.width, cli.height)?;
-    let pixel_size = host.target_pixel_size();
-    println!(
-        "  capture: {}x{} ({})\n",
-        pixel_size.0,
-        pixel_size.1,
-        backend.label()
-    );
-
-    let started_at = Instant::now();
-    let mut offset_sec = 0.0f64;
-    let mut segment_paths = Vec::with_capacity(plans.len());
-    let mut summaries = Vec::with_capacity(plans.len());
-    let mut total_frames = 0usize;
-    let segment_titles: Vec<String> = plans
-        .iter()
-        .map(|p| {
-            p.metadata
-                .html_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("segment")
-                .to_owned()
-        })
-        .collect();
-    let total_segments = plans.len();
-    let segment_durations: Vec<f64> = plans.iter().map(|p| p.effective_duration_sec).collect();
-    let progress_color = cli
-        .progress_color
-        .as_ref()
-        .and_then(|hex| recorder::progress::parse_hex_color(hex));
-    if cli.progress_color.is_some() && progress_color.is_none() {
-        eprintln!("  warn: invalid --progress-color, using default");
-    }
-
-    let recording_result = (|| -> Result<(), String> {
-        for (index, plan) in plans.iter().enumerate() {
-            let summary = record_segment(
-                &mut host,
-                server.as_ref(),
-                &root,
-                plan,
-                index,
-                &temp_root,
-                offset_sec,
-                total_duration_sec,
-                &cli,
-                backend,
-                total_segments,
-                &segment_titles,
-                &segment_durations,
-                progress_color,
-            )?;
-            offset_sec += plan.effective_duration_sec;
-            total_frames += summary.total_frames;
-
-            // Auto-overlay for clip segments in slide mode:
-            // If this HTML is a clip type and its audio_path points to a .mp4,
-            // overlay the source video into the recorded segment's black video area.
-            if video_overlay.is_none()
-                && plan.metadata.slide_type == recorder::parser::SlideType::Clip
-            {
-                if let Some(ref audio) = plan.metadata.audio_path {
-                    let ext = audio
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("");
-                    if ext == "mp4" || ext == "mov" || ext == "webm" {
-                        println!("  auto-overlay: clip segment {} → {}", index + 1, audio.display());
-                        overlay_video(&summary.path, audio)?;
-                    }
-                }
-            }
-
-            segment_paths.push(summary.path.clone());
-            summaries.push(summary);
-        }
-
-        println!("\n  ffmpeg concat...");
-        concat_segments(&segment_paths, &out)?;
-
-        // Self-verify: check output duration matches expected total
-        if segment_paths.len() > 1 {
-            let expected = total_duration_sec;
-            match probe_audio_duration(Some(&out)) {
-                Ok(actual) if actual > 0.0 => {
-                    let delta = (actual - expected).abs();
-                    if delta > 2.0 {
-                        return Err(format!(
-                            "concat duration mismatch: output {actual:.1}s vs expected {expected:.1}s (delta {delta:.1}s). \
-                             This is a bug — segments have incompatible time_base."
-                        ));
-                    }
-                    println!("  duration check: {actual:.1}s ≈ {expected:.1}s ✓");
-                }
-                _ => {
-                    eprintln!("  warn: could not verify output duration");
-                }
-            }
-        }
-
-        Ok(())
-    })();
-
-    let _ = fs::remove_dir_all(&temp_root);
-    recording_result?;
-
-    let elapsed = started_at.elapsed();
-    let output_size_mb = fs::metadata(&out)
-        .map(|meta| meta.len() as f64 / 1024.0 / 1024.0)
-        .unwrap_or(0.0);
-    let skipped_frames: usize = summaries.iter().map(|summary| summary.skipped_frames).sum();
-    let fps = total_frames as f64 / elapsed.as_secs_f64().max(0.001);
-
-    println!("\n  ✓ {}", out.display());
-    println!(
-        "  {:.1} MB | {}x{} | {}fps | {} | skipped {}",
-        output_size_mb,
-        pixel_size.0,
-        pixel_size.1,
-        cli.fps,
-        backend.label(),
-        skipped_frames
-    );
-    println!(
-        "  {} frames in {:.2}s = {:.1} fps\n",
-        total_frames,
-        elapsed.as_secs_f64(),
-        fps
-    );
-
-    let overlay_secs = if let Some(ref video_path) = video_overlay {
-        let t0 = Instant::now();
-        overlay_video(&out, video_path)?;
-        t0.elapsed().as_secs_f64()
-    } else {
-        0.0
-    };
-
-    write_perf_log(
-        &out,
-        &frame_files,
-        &video_overlay,
-        total_frames,
-        skipped_frames,
-        total_duration_sec,
-        elapsed.as_secs_f64(),
-        overlay_secs,
-        fps,
-        output_size_mb,
-        pixel_size,
-        cli.fps,
-        backend.label(),
-    );
-
+    maybe_write_output_json(&output)?;
     Ok(())
+}
+
+fn maybe_write_output_json(output: &RecordOutput) -> Result<(), String> {
+    let Some(path) = env::var_os(OUTPUT_JSON_ENV).map(PathBuf::from) else {
+        return Ok(());
+    };
+
+    write_output_json(&path, output)
+}
+
+fn write_output_json(path: &Path, output: &RecordOutput) -> Result<(), String> {
+    let bytes = serde_json::to_vec(output)
+        .map_err(|err| format!("failed to serialize record output: {err}"))?;
+    fs::write(path, bytes).map_err(|err| format!("failed to write {}: {err}", path.display()))
 }

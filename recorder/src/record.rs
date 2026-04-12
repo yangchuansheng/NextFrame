@@ -5,15 +5,15 @@ use objc2::rc::{Retained, autoreleasepool};
 use objc2_core_graphics::CGImage;
 
 use crate::CommonArgs;
-use crate::plan::{SegmentPlan, SegmentSummary};
-use recorder::capture::{
+use crate::capture::{
     BLACK_FRAME_MAX_RETRIES, cgimage_from_nsimage, is_cgimage_mostly_black, is_nsimage_black,
 };
-use recorder::clock::SegmentClock;
-use recorder::encoder::{EncoderBackend, SegmentEncoder};
-use recorder::progress::ProgressBar;
-use recorder::server::HttpFileServer;
-use recorder::webview::{WebViewHost, relative_http_url};
+use crate::clock::SegmentClock;
+use crate::encoder::{EncoderBackend, SegmentEncoder};
+use crate::plan::{SegmentPlan, SegmentSummary};
+use crate::progress::ProgressBar;
+use crate::server::HttpFileServer;
+use crate::webview::{WebViewHost, relative_http_url};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CaptureMethod {
@@ -63,7 +63,10 @@ pub fn record_segment(
     let progress_rect = if total_segments > 1 {
         let rect = host.query_progress_rect(cli.dpr);
         match &rect {
-            Some(r) => println!("  progress bar found: {}x{} at ({},{})", r.width, r.height, r.x, r.y),
+            Some(r) => println!(
+                "  progress bar found: {}x{} at ({},{})",
+                r.width, r.height, r.x, r.y
+            ),
             None => println!("  progress bar: not found in DOM"),
         }
         rect.map(|rect| {

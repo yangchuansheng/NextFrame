@@ -20,6 +20,7 @@ pub struct CommonArgs {
     pub parallel: Option<usize>,
 }
 
+pub mod api;
 pub mod capture;
 pub mod clock;
 pub mod encoder;

@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::CommonArgs;
+use crate::encoder::concat_segments;
 use crate::util::create_temp_dir;
-use recorder::encoder::concat_segments;
 
 pub fn run_parallel(
     cli: &CommonArgs,

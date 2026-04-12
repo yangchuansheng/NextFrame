@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::CommonArgs;
+use crate::encoder::probe_audio_duration;
+use crate::parser::{FrameMetadata, parse_frame_file};
 use crate::util::absolute_path;
-use recorder::encoder::probe_audio_duration;
-use recorder::parser::{FrameMetadata, parse_frame_file};
 
 pub struct SegmentPlan {
     pub metadata: FrameMetadata,
