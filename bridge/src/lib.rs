@@ -165,6 +165,11 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "scene.list" => handle_scene_list(&params),
         "timeline.load" => handle_timeline_load(&params),
         "timeline.save" => handle_timeline_save(&params),
+        "project.list" => handle_project_list(&params),
+        "project.create" => handle_project_create(&params),
+        "episode.list" => handle_episode_list(&params),
+        "episode.create" => handle_episode_create(&params),
+        "segment.list" => handle_segment_list(&params),
         _ => Err(format!("unknown method: {method}")),
     }
 }
@@ -628,6 +633,301 @@ fn handle_timeline_save(params: &Value) -> Result<Value, String> {
         "path": path,
         "bytesWritten": bytes_written,
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Project / Episode / Segment hierarchy
+// ---------------------------------------------------------------------------
+
+fn projects_root() -> PathBuf {
+    let home = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    PathBuf::from(home).join("NextFrame").join("projects")
+}
+
+fn handle_project_list(_params: &Value) -> Result<Value, String> {
+    let root = projects_root();
+    if !root.exists() {
+        return Ok(json!({ "projects": [] }));
+    }
+
+    let mut projects: Vec<Value> = Vec::new();
+    let entries =
+        fs::read_dir(&root).map_err(|e| format!("failed to read projects dir: {e}"))?;
+
+    for entry_result in entries {
+        let entry = entry_result.map_err(|e| format!("dir entry error: {e}"))?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let project_json = path.join("project.json");
+        if !project_json.exists() {
+            continue;
+        }
+        let content = fs::read_to_string(&project_json)
+            .map_err(|e| format!("failed to read {}: {e}", project_json.display()))?;
+        let meta: Value =
+            serde_json::from_str(&content).unwrap_or_else(|_| json!({}));
+
+        // count episode subdirs
+        let episode_count = fs::read_dir(&path)
+            .map(|rd| {
+                rd.filter_map(Result::ok)
+                    .filter(|e| e.path().is_dir() && e.path().join("episode.json").exists())
+                    .count()
+            })
+            .unwrap_or(0);
+
+        let updated = meta
+            .get("updated")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+
+        projects.push(json!({
+            "name": meta.get("name").and_then(Value::as_str).unwrap_or_default(),
+            "path": path.display().to_string(),
+            "episodes": episode_count,
+            "updated": updated,
+        }));
+    }
+
+    projects.sort_by(|a, b| {
+        let a_updated = a.get("updated").and_then(Value::as_str).unwrap_or("");
+        let b_updated = b.get("updated").and_then(Value::as_str).unwrap_or("");
+        b_updated.cmp(a_updated)
+    });
+
+    Ok(json!({ "projects": projects }))
+}
+
+fn handle_project_create(params: &Value) -> Result<Value, String> {
+    let name = require_string(params, "name")?;
+    let root = projects_root();
+    let project_dir = root.join(name);
+    if project_dir.exists() {
+        return Err(format!("project '{}' already exists", name));
+    }
+
+    fs::create_dir_all(&project_dir)
+        .map_err(|e| format!("failed to create project dir: {e}"))?;
+
+    let now = iso_now();
+    let meta = json!({
+        "name": name,
+        "created": now,
+        "updated": now,
+    });
+
+    let project_json = project_dir.join("project.json");
+    fs::write(
+        &project_json,
+        serde_json::to_string_pretty(&meta).unwrap_or_default(),
+    )
+    .map_err(|e| format!("failed to write project.json: {e}"))?;
+
+    Ok(json!({ "path": project_dir.display().to_string() }))
+}
+
+fn handle_episode_list(params: &Value) -> Result<Value, String> {
+    let project = require_string(params, "project")?;
+    let project_dir = projects_root().join(project);
+    if !project_dir.exists() {
+        return Err(format!("project '{}' not found", project));
+    }
+
+    let mut episodes: Vec<Value> = Vec::new();
+    let entries =
+        fs::read_dir(&project_dir).map_err(|e| format!("failed to read project dir: {e}"))?;
+
+    for entry_result in entries {
+        let entry = entry_result.map_err(|e| format!("dir entry error: {e}"))?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let episode_json = path.join("episode.json");
+        if !episode_json.exists() {
+            continue;
+        }
+        let content = fs::read_to_string(&episode_json)
+            .map_err(|e| format!("failed to read {}: {e}", episode_json.display()))?;
+        let meta: Value =
+            serde_json::from_str(&content).unwrap_or_else(|_| json!({}));
+
+        // count segment .json files (excluding episode.json)
+        let mut segment_count = 0;
+        let mut total_duration = 0.0_f64;
+        if let Ok(rd) = fs::read_dir(&path) {
+            for seg_entry in rd.filter_map(Result::ok) {
+                let seg_path = seg_entry.path();
+                if seg_path.extension().and_then(|e| e.to_str()) == Some("json")
+                    && seg_path.file_name().and_then(|n| n.to_str()) != Some("episode.json")
+                {
+                    segment_count += 1;
+                    if let Ok(seg_content) = fs::read_to_string(&seg_path) {
+                        if let Ok(seg_val) = serde_json::from_str::<Value>(&seg_content) {
+                            if let Some(dur) = seg_val.get("duration").and_then(Value::as_f64)
+                            {
+                                total_duration += dur;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let order = meta.get("order").and_then(Value::as_u64).unwrap_or(0);
+        episodes.push(json!({
+            "name": meta.get("name").and_then(Value::as_str).unwrap_or_default(),
+            "path": path.display().to_string(),
+            "order": order,
+            "segments": segment_count,
+            "totalDuration": total_duration,
+        }));
+    }
+
+    episodes.sort_by_key(|e| e.get("order").and_then(Value::as_u64).unwrap_or(0));
+
+    Ok(json!({ "episodes": episodes }))
+}
+
+fn handle_episode_create(params: &Value) -> Result<Value, String> {
+    let project = require_string(params, "project")?;
+    let name = require_string(params, "name")?;
+    let project_dir = projects_root().join(project);
+    if !project_dir.exists() {
+        return Err(format!("project '{}' not found", project));
+    }
+
+    let episode_dir = project_dir.join(name);
+    if episode_dir.exists() {
+        return Err(format!("episode '{}' already exists", name));
+    }
+
+    // count existing episodes for order
+    let order = fs::read_dir(&project_dir)
+        .map(|rd| {
+            rd.filter_map(Result::ok)
+                .filter(|e| e.path().is_dir() && e.path().join("episode.json").exists())
+                .count()
+        })
+        .unwrap_or(0);
+
+    fs::create_dir_all(&episode_dir)
+        .map_err(|e| format!("failed to create episode dir: {e}"))?;
+
+    let now = iso_now();
+    let meta = json!({
+        "name": name,
+        "order": order,
+        "created": now,
+    });
+
+    fs::write(
+        episode_dir.join("episode.json"),
+        serde_json::to_string_pretty(&meta).unwrap_or_default(),
+    )
+    .map_err(|e| format!("failed to write episode.json: {e}"))?;
+
+    // update project.json updated timestamp
+    let project_json_path = project_dir.join("project.json");
+    if let Ok(content) = fs::read_to_string(&project_json_path) {
+        if let Ok(mut project_meta) = serde_json::from_str::<Value>(&content) {
+            if let Some(obj) = project_meta.as_object_mut() {
+                obj.insert("updated".to_string(), json!(now));
+                let _ = fs::write(
+                    &project_json_path,
+                    serde_json::to_string_pretty(&project_meta).unwrap_or_default(),
+                );
+            }
+        }
+    }
+
+    Ok(json!({ "path": episode_dir.display().to_string() }))
+}
+
+fn handle_segment_list(params: &Value) -> Result<Value, String> {
+    let project = require_string(params, "project")?;
+    let episode = require_string(params, "episode")?;
+    let episode_dir = projects_root().join(project).join(episode);
+    if !episode_dir.exists() {
+        return Err(format!("episode directory not found"));
+    }
+
+    let mut segments: Vec<Value> = Vec::new();
+    let entries =
+        fs::read_dir(&episode_dir).map_err(|e| format!("failed to read episode dir: {e}"))?;
+
+    for entry_result in entries {
+        let entry = entry_result.map_err(|e| format!("dir entry error: {e}"))?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        if path.file_name().and_then(|n| n.to_str()) == Some("episode.json") {
+            continue;
+        }
+        let name = path
+            .file_stem()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        let mut duration = 0.0_f64;
+        if let Ok(content) = fs::read_to_string(&path) {
+            if let Ok(val) = serde_json::from_str::<Value>(&content) {
+                duration = val.get("duration").and_then(Value::as_f64).unwrap_or(0.0);
+            }
+        }
+
+        segments.push(json!({
+            "name": name,
+            "path": path.display().to_string(),
+            "duration": duration,
+        }));
+    }
+
+    segments.sort_by(|a, b| {
+        let a_name = a.get("name").and_then(Value::as_str).unwrap_or("");
+        let b_name = b.get("name").and_then(Value::as_str).unwrap_or("");
+        a_name.cmp(b_name)
+    });
+
+    Ok(json!({ "segments": segments }))
+}
+
+fn iso_now() -> String {
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = duration.as_secs();
+    // simple ISO 8601 without chrono dependency
+    let days = secs / 86400;
+    let time_secs = secs % 86400;
+    let hours = time_secs / 3600;
+    let minutes = (time_secs % 3600) / 60;
+    let seconds = time_secs % 60;
+    // approximate date from epoch days (good enough for display)
+    let (year, month, day) = epoch_days_to_date(days);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}Z"
+    )
+}
+
+fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
+    // civil_from_days algorithm (Howard Hinnant)
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
 }
 
 fn handle_autosave_write(params: &Value) -> Result<Value, String> {
