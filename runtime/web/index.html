@@ -303,7 +303,9 @@ window.__ipc = window.__ipc || {};
       <div class="preview-canvas-wrap">
         <div class="canvas-frame">
           <div class="canvas-inner" id="canvas-inner">
-            <div class="canvas-bg"></div>
+            <!-- Real render canvas — engine draws directly here -->
+            <canvas id="render-canvas" width="1920" height="1080" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+            <!-- Fallbacks -->
             <img id="preview-frame-img" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none" alt="">
             <video id="preview-video" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none" playsinline></video>
             <div id="preview-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
@@ -428,7 +430,24 @@ window.__ipc = window.__ipc || {};
 
 <script src="src/app-bundle.js"></script>
 
+<!-- Render engine — ES module, loaded after IIFE bundle -->
+<script type="module">
+import { renderAt, SCENES } from "./src/engine/index.js";
+import "./src/scenes/index.js";
 
+// Expose to global for app-bundle.js to call
+window.__renderEngine = {
+  renderAt: renderAt,
+  scenes: SCENES,
+  ready: true,
+};
+
+// Notify app-bundle that engine is ready
+if (typeof window.__onEngineReady === "function") {
+  window.__onEngineReady();
+}
+console.log("[engine] loaded, " + SCENES.size + " scenes registered");
+</script>
 
 </body>
 </html>
