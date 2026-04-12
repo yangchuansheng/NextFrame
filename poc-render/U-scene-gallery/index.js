@@ -187,7 +187,6 @@ function buildHtml(items, totalSeconds) {
 
       body {
         margin: 0;
-        min-width: 1500px;
         background:
           radial-gradient(circle at top, rgba(46, 89, 179, 0.2), transparent 30%),
           linear-gradient(180deg, var(--bg-alt), var(--bg));
@@ -216,10 +215,16 @@ function buildHtml(items, totalSeconds) {
         font-size: 15px;
       }
 
+      .grid-shell {
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+
       .grid {
         display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
+        grid-template-columns: repeat(7, 240px);
         gap: 14px;
+        width: max-content;
       }
 
       .card {
@@ -233,7 +238,7 @@ function buildHtml(items, totalSeconds) {
 
       .card img {
         display: block;
-        width: 100%;
+        width: 240px;
         height: auto;
         background: #02040a;
       }
@@ -255,29 +260,9 @@ function buildHtml(items, totalSeconds) {
         font-size: 11px;
       }
 
-      @media (max-width: 1800px) {
-        body {
-          min-width: 0;
-        }
-
-        .grid {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-      }
-
-      @media (max-width: 1100px) {
-        .grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-
       @media (max-width: 700px) {
         main {
           padding: 16px;
-        }
-
-        .grid {
-          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -288,9 +273,11 @@ function buildHtml(items, totalSeconds) {
         <h1>POC U Scene Gallery</h1>
         <p>21 scenes rendered at t=${RENDER_TIME_SECONDS}s from 1920x1080 and downscaled to 480x270. Total render time: ${totalSeconds.toFixed(2)}s.</p>
       </header>
-      <section class="grid">
+      <div class="grid-shell">
+        <section class="grid">
 ${cards}
-      </section>
+        </section>
+      </div>
     </main>
   </body>
 </html>`;

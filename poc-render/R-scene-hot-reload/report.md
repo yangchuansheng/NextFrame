@@ -29,11 +29,13 @@ Even though the file on disk is still `mySimpleScene.js`, each `?v=...` query st
 
 ## Measured latency
 
-Pending validation run. The final measured save-to-next-render latency will be filled in after running `node index.js` and mutating `mySimpleScene.js` during the live loop.
+- Measured live by running `node index.js`, then applying the `sed` edit above while the loop was active.
+- Save-to-next-render latency: `95.2 ms`
+- Validation signal: `/tmp/poc-r/latest.png` changed from SHA1 `2dc1de93c0c8392dfec263c642dd2660c71f8ddc` to `656b8e3aa64c3b1a711b68ad8c7c1e3830b50d25` without restarting Node.
 
 ## LOC
 
-Pending final count after install and validation.
+- Total POC LOC: `218`
 
 ## Gotchas
 

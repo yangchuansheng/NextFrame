@@ -13,10 +13,10 @@
 - All four blend modes rendered without errors in `@napi-rs/canvas`.
 - Blend modes that matched the intended "bright white circle on top of aurora" result: `source-over`, `screen`
 - Blend modes that composited but did not keep the center near-white: `multiply`, `overlay`
-- `multiply` is the main gotcha for this content: multiplying with a white source mostly preserves the darker destination, so the circle is effectively not visible even though the track is composited in the correct order.
+- `multiply` is the main gotcha for this content: multiplying with a white source mostly preserves the darker destination, so the center sample is effectively indistinguishable from the background-only frame.
 
 ### source-over
-- Render + PNG encode: `395.888 ms`
+- Render + PNG encode: `393.581 ms`
 - Corner sample `(40, 40)`: `2, 2, 6, 255`, luminance `2.29`
 - Center sample `(960, 540)`: `255, 255, 255, 255`, luminance `255`
 - Background dark check: `true`
@@ -24,7 +24,7 @@
 - Z-order check: `true`
 
 ### screen
-- Render + PNG encode: `391.208 ms`
+- Render + PNG encode: `400.267 ms`
 - Corner sample `(40, 40)`: `2, 2, 6, 255`, luminance `2.29`
 - Center sample `(960, 540)`: `255, 255, 255, 255`, luminance `255`
 - Background dark check: `true`
@@ -32,7 +32,7 @@
 - Z-order check: `true`
 
 ### multiply
-- Render + PNG encode: `385.815 ms`
+- Render + PNG encode: `393.951 ms`
 - Corner sample `(40, 40)`: `2, 2, 6, 255`, luminance `2.29`
 - Center sample `(960, 540)`: `100, 35, 117, 255`, luminance `54.74`
 - Background dark check: `true`
@@ -40,7 +40,7 @@
 - Z-order check: `false`
 
 ### overlay
-- Render + PNG encode: `396.612 ms`
+- Render + PNG encode: `398.354 ms`
 - Corner sample `(40, 40)`: `2, 2, 6, 255`, luminance `2.29`
 - Center sample `(960, 540)`: `200, 70, 234, 255`, luminance `109.48`
 - Background dark check: `true`
@@ -55,10 +55,10 @@
 
 ## Timing
 
-- `source-over`: `395.888 ms`
-- `screen`: `391.208 ms`
-- `multiply`: `385.815 ms`
-- `overlay`: `396.612 ms`
+- `source-over`: `393.581 ms`
+- `screen`: `400.267 ms`
+- `multiply`: `393.951 ms`
+- `overlay`: `398.354 ms`
 
 ## LOC
 
