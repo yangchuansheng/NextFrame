@@ -1,5 +1,10 @@
+function clamp01(value, fallback) {
+  const normalized = value ?? fallback;
+  return Math.max(0, Math.min(1, normalized));
+}
+
 export function sepia(data, w, h, params) {
-  const intensity = params.intensity ?? 0.8;
+  const intensity = clamp01(params.intensity, 0.8);
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
@@ -9,4 +14,8 @@ export function sepia(data, w, h, params) {
     data[i + 1] = g + (sg - g) * intensity;
     data[i + 2] = b + (sb - b) * intensity;
   }
+}
+
+export function getSepiaCssFilter(params = {}) {
+  return `sepia(${clamp01(params.intensity, 0.8)})`;
 }

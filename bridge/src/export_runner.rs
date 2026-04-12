@@ -62,6 +62,7 @@ pub(crate) fn run_embedded_recorder(
         width: request.width as f64,
         height: request.height as f64,
         parallel: None,
+        skip_aggressive: false,
     };
 
     writeln!(
