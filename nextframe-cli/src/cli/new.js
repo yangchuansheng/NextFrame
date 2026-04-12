@@ -1,14 +1,55 @@
-// nextframe new <out.json>
 import { parseFlags, saveTimeline, emit } from "./_io.js";
 
 export async function run(argv) {
   const { positional, flags } = parseFlags(argv);
   const [outPath] = positional;
   if (!outPath) {
-    emit({ ok: false, error: { code: "USAGE", message: "usage: nextframe new <out.json>" } }, flags);
+    emit({ ok: false, error: { code: "USAGE", message: "usage: nextframe new <out.json> [--duration=N --fps=N --width=N --height=N]" } }, flags);
     return 3;
   }
-  const timeline = {
+
+  const timeline = hasProjectFlags(flags) ? makeEmptyTimeline(flags) : makeLegacySeedTimeline();
+  const saved = await saveTimeline(outPath, timeline);
+  if (!saved.ok) {
+    emit(saved, flags);
+    return 2;
+  }
+
+  const result = { ok: true, output: outPath };
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+  } else {
+    process.stdout.write(`created ${outPath}\n`);
+  }
+  return 0;
+}
+
+function hasProjectFlags(flags) {
+  return flags.duration !== undefined || flags.fps !== undefined || flags.width !== undefined || flags.height !== undefined;
+}
+
+function makeEmptyTimeline(flags) {
+  const width = finiteOr(flags.width, 1920);
+  const height = finiteOr(flags.height, 1080);
+  return {
+    schema: "nextframe/v0.1",
+    duration: finiteOr(flags.duration, 10),
+    background: "#0b0b14",
+    project: {
+      width,
+      height,
+      aspectRatio: width / height,
+      fps: finiteOr(flags.fps, 30),
+    },
+    chapters: [],
+    markers: [],
+    tracks: [],
+    assets: [],
+  };
+}
+
+function makeLegacySeedTimeline() {
+  return {
     schema: "nextframe/v0.1",
     duration: 5,
     background: "#0b0b14",
@@ -35,16 +76,11 @@ export async function run(argv) {
         ],
       },
     ],
+    assets: [],
   };
-  const r = await saveTimeline(outPath, timeline);
-  if (!r.ok) {
-    emit(r, flags);
-    return 2;
-  }
-  if (flags.json) {
-    process.stdout.write(JSON.stringify({ ok: true, value: { path: outPath } }, null, 2) + "\n");
-  } else {
-    process.stdout.write(`created ${outPath}\n`);
-  }
-  return 0;
+}
+
+function finiteOr(raw, fallback) {
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
 }

@@ -160,6 +160,13 @@ function buildContext(timeline) {
           value: clip.dur,
           path: ["tracks", ti, "clips", ci, "dur"],
         });
+        addNode(ctx, {
+          nodeId: `clip.${clip.id}.end`,
+          refBase: `clip-${clip.id}`,
+          field: "end",
+          value: { offset: `clip-${clip.id}`, by: typeof clip.dur === "number" ? clip.dur : 0 },
+          path: null,
+        });
       }
     });
   });
