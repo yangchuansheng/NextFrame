@@ -13,7 +13,7 @@
     --accent:#da7756;--accent-soft:#c4916e;
     --green:#7cb37a;--blue:#6e9ecf;--purple:#a882c9;
     --pink:#c97b9e;--yellow:#c9b06e;--red:#c95858;
-    --topbar-h:48px;--left-w:280px;--timeline-h:260px;--inspector-w:260px;
+    --topbar-h:48px;--timeline-h:260px;--inspector-w:280px;
     --track-header-w:72px;
   }
   html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--fg);font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.4}
@@ -28,7 +28,7 @@
   .topbar-logo .logo-icon{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#da7756,#c97b9e);flex-shrink:0}
   .topbar-logo .brand{font-weight:700;font-size:14px;letter-spacing:-0.3px;color:var(--fg)}
   .topbar-logo .version{font-size:11px;color:var(--dim2);margin-left:2px}
-  .cmd-bar{flex:1;max-width:480px;margin:0 auto;position:relative}
+  .cmd-bar{flex:1;max-width:520px;margin:0 auto;position:relative}
   .cmd-bar-input{width:100%;height:32px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0 12px 0 34px;color:var(--dim);font-size:13px;cursor:pointer;transition:border-color .15s}
   .cmd-bar-input:hover,.cmd-bar-input:focus{border-color:var(--accent);color:var(--fg)}
   .cmd-bar .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--dim2);font-size:14px;pointer-events:none}
@@ -41,53 +41,18 @@
   .cmd-suggestion .cmd-text{font-size:13px;color:var(--fg)}
   .cmd-suggestion .cmd-hint{font-size:11px;color:var(--dim2);margin-left:auto;flex-shrink:0}
   .topbar-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
-  .timecode{font-family:'SF Mono',Menlo,monospace;font-size:12px;color:var(--dim);letter-spacing:0.5px}
-  .timecode .current{color:var(--fg)}
-  .play-controls{display:flex;align-items:center;gap:2px}
-  .play-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;transition:background .1s;color:var(--dim)}
-  .play-btn:hover{background:var(--bg3);color:var(--fg)}
-  .play-btn.primary{background:var(--accent);color:#fff;border-radius:50%;width:30px;height:30px}
-  .play-btn.primary:hover{background:#e08866}
   .export-btn{height:30px;padding:0 14px;background:var(--accent);color:#fff;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:5px}
   .export-btn:hover{background:#e08866}
 
   /* === MAIN LAYOUT === */
   .main{display:flex;height:calc(100vh - var(--topbar-h) - var(--timeline-h));overflow:hidden}
 
-  /* === LEFT PANEL === */
-  .left-panel{width:var(--left-w);min-width:var(--left-w);background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s,min-width .2s}
-  .left-panel.collapsed{width:0;min-width:0;overflow:hidden}
-  .panel-header{height:36px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--border-soft);font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;flex-shrink:0;justify-content:space-between}
-  .panel-header .collapse-btn{width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;color:var(--dim2);font-size:16px;transition:color .1s}
-  .panel-header .collapse-btn:hover{color:var(--fg)}
-
-  /* JSON Editor */
-  .json-editor{flex:1;overflow:auto;min-height:0}
-  .json-code{padding:12px 0;font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:11.5px;line-height:1.65;white-space:pre;counter-reset:line}
-  .json-line{display:flex;padding:0 12px 0 0;transition:background .1s}
-  .json-line:hover{background:rgba(255,255,255,.02)}
-  .json-line.highlight{background:rgba(218,119,86,.08);border-left:2px solid var(--accent);padding-left:0}
-  .json-line .ln{width:36px;text-align:right;color:var(--dim2);padding-right:10px;flex-shrink:0;user-select:none;font-size:11px}
-  .json-line.highlight .ln{color:var(--accent-soft)}
-  .json-line .code{flex:1}
-  .j-key{color:#c9b06e}.j-str{color:#7cb37a}.j-num{color:#da7756}.j-bool{color:#a882c9}.j-null{color:#6b6158}.j-brace{color:#9a8e7e}.j-colon{color:#6b6158}
-
-  /* Scene Library */
-  .scene-library{border-top:1px solid var(--border);flex-shrink:0}
-  .scene-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}
-  .scene-card{background:var(--bg2);border:1px solid var(--border-soft);border-radius:6px;padding:10px;cursor:pointer;transition:border-color .15s,background .15s}
-  .scene-card:hover{border-color:var(--border);background:var(--bg3)}
-  .scene-card.active{border-color:var(--accent);background:rgba(218,119,86,.06)}
-  .scene-card .sc-icon{font-size:16px;margin-bottom:4px}
-  .scene-card .sc-name{font-size:11px;font-weight:600;color:var(--fg);margin-bottom:2px}
-  .scene-card .sc-desc{font-size:10px;color:var(--dim2);line-height:1.3}
-
-  /* === CENTER + RIGHT === */
-  .center-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-  .preview-section{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg0);position:relative;min-height:0}
+  /* === PREVIEW + INSPECTOR side by side === */
+  .preview-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--bg0)}
+  .preview-canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0}
 
   /* Canvas */
-  .canvas-wrap{position:relative;width:100%;max-width:720px;aspect-ratio:16/9;background:#1a1510;border-radius:4px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.4)}
+  .canvas-wrap{position:relative;width:100%;max-width:780px;aspect-ratio:16/9;background:#1a1510;border-radius:4px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.4)}
   .canvas-inner{width:100%;height:100%;position:relative;overflow:hidden}
   .canvas-element{position:absolute;cursor:move;user-select:none}
   .canvas-element.selected .sel-border{display:block}
@@ -106,21 +71,35 @@
   .corner-badge .badge-label{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase}
   .corner-badge .badge-sub{font-size:10px;color:var(--dim2);margin-left:4px}
 
-  /* Inspector */
-  .inspector{background:var(--bg1);border-top:1px solid var(--border);flex-shrink:0;overflow:auto;max-height:240px}
-  .inspector.collapsed{display:none}
-  .inspector .panel-header{border-bottom:1px solid var(--border-soft)}
+  /* Playback bar below canvas */
+  .playback-bar{height:44px;display:flex;align-items:center;justify-content:center;gap:16px;flex-shrink:0;border-top:1px solid var(--border-soft);background:var(--bg0)}
+  .timecode{font-family:'SF Mono',Menlo,monospace;font-size:12px;color:var(--dim);letter-spacing:0.5px}
+  .timecode .current{color:var(--fg)}
+  .play-controls{display:flex;align-items:center;gap:2px}
+  .play-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;transition:background .1s;color:var(--dim)}
+  .play-btn:hover{background:var(--bg3);color:var(--fg)}
+  .play-btn.primary{background:var(--accent);color:#fff;border-radius:50%;width:30px;height:30px}
+  .play-btn.primary:hover{background:#e08866}
+
+  /* === INSPECTOR (right side) === */
+  .inspector{width:var(--inspector-w);min-width:var(--inspector-w);background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s,min-width .2s}
+  .inspector.collapsed{width:0;min-width:0;overflow:hidden}
+  .panel-header{height:36px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--border-soft);font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;flex-shrink:0;justify-content:space-between}
+  .panel-header .collapse-btn{width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;color:var(--dim2);font-size:16px;transition:color .1s}
+  .panel-header .collapse-btn:hover{color:var(--fg)}
   .insp-title{display:flex;align-items:center;gap:6px}
   .insp-title .insp-icon{font-size:13px}
   .insp-title .insp-name{font-size:12px;font-weight:600;color:var(--fg)}
   .insp-title .insp-type{font-size:10px;color:var(--dim2);background:var(--bg2);padding:1px 6px;border-radius:4px}
-  .insp-body{padding:8px 12px}
+  .insp-body{flex:1;overflow-y:auto;padding:8px 12px}
+  .insp-section{margin-bottom:12px}
+  .insp-section-title{font-size:10px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border-soft)}
   .insp-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03)}
   .insp-row:last-child{border-bottom:none}
-  .insp-label{width:70px;font-size:11px;color:var(--dim);flex-shrink:0}
+  .insp-label{width:64px;font-size:11px;color:var(--dim);flex-shrink:0}
   .insp-input{flex:1;height:26px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:4px;padding:0 8px;color:var(--fg);font-size:12px;transition:border-color .15s}
   .insp-input:focus{border-color:var(--accent)}
-  .insp-input.short{width:56px;flex:none;text-align:center}
+  .insp-input.short{width:52px;flex:none;text-align:center}
   .insp-slider-wrap{flex:1;display:flex;align-items:center;gap:8px}
   .insp-slider{flex:1;-webkit-appearance:none;height:3px;background:var(--border);border-radius:2px;outline:none}
   .insp-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
@@ -128,6 +107,16 @@
   .insp-row-group{display:flex;gap:6px;flex:1}
   .insp-row-group .labeled-input{display:flex;align-items:center;gap:4px}
   .insp-row-group .labeled-input .mini-label{font-size:10px;color:var(--dim2)}
+
+  /* Empty state */
+  .insp-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--dim2);display:none}
+  .insp-empty .empty-icon{font-size:28px;opacity:.4}
+  .insp-empty .empty-text{font-size:12px}
+
+  /* Scene type chips in inspector */
+  .scene-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .scene-chip{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--bg2);border:1px solid var(--border-soft);color:var(--dim);cursor:default}
+  .scene-chip.active{border-color:var(--accent);color:var(--accent);background:rgba(218,119,86,.08)}
 
   /* === TIMELINE === */
   .timeline{height:var(--timeline-h);background:var(--bg1);border-top:1px solid var(--border);display:flex;flex-direction:column;position:relative}
@@ -179,9 +168,11 @@
   /* === UTILITIES === */
   .overlay-backdrop{position:fixed;inset:0;z-index:150;display:none}
   .overlay-backdrop.show{display:block}
-  .left-toggle{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:20px;height:40px;background:var(--bg2);border:1px solid var(--border);border-radius:0 6px 6px 0;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:10;color:var(--dim);font-size:12px}
-  .left-toggle:hover{color:var(--fg)}
-  .left-panel.collapsed ~ .center-area .left-toggle{display:flex}
+
+  /* Inspector toggle when collapsed */
+  .insp-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:20px;height:40px;background:var(--bg2);border:1px solid var(--border);border-radius:6px 0 0 6px;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:10;color:var(--dim);font-size:12px}
+  .insp-toggle:hover{color:var(--fg)}
+  .inspector.collapsed ~ .insp-toggle{display:flex}
 </style>
 </head>
 <body>
@@ -205,50 +196,22 @@
     </div>
     <div class="overlay-backdrop" id="cmdBackdrop"></div>
     <div class="topbar-right">
-      <div class="timecode"><span class="current" id="tcCurrent">00:01.15</span> / 00:18.00</div>
-      <div class="play-controls">
-        <div class="play-btn" title="Previous">&#9198;</div>
-        <div class="play-btn primary" id="playBtn" title="Play">&#9654;</div>
-        <div class="play-btn" title="Next">&#9197;</div>
-      </div>
       <button class="export-btn">&#8599; Export</button>
     </div>
   </div>
 
-  <!-- MAIN -->
+  <!-- MAIN: Preview + Inspector side by side -->
   <div class="main">
-    <!-- LEFT PANEL -->
-    <div class="left-panel" id="leftPanel">
-      <div class="panel-header">
-        <span>timeline.json</span>
-        <span class="collapse-btn" id="collapseLeft" title="Collapse">&lsaquo;</span>
-      </div>
-      <div class="json-editor" id="jsonEditor"></div>
-      <div class="scene-library">
-        <div class="panel-header"><span>Scene Library</span></div>
-        <div class="scene-grid">
-          <div class="scene-card active" data-scene="kineticHeadline"><div class="sc-icon">&#9733;</div><div class="sc-name">kineticHeadline</div><div class="sc-desc">Animated text + gradient</div></div>
-          <div class="scene-card" data-scene="htmlSlide"><div class="sc-icon">&#9671;</div><div class="sc-name">htmlSlide</div><div class="sc-desc">Full HTML layout</div></div>
-          <div class="scene-card" data-scene="svgOverlay"><div class="sc-icon">&#9678;</div><div class="sc-name">svgOverlay</div><div class="sc-desc">Vector graphics layer</div></div>
-          <div class="scene-card" data-scene="markdownSlide"><div class="sc-icon">&#9998;</div><div class="sc-name">markdownSlide</div><div class="sc-desc">Docs as video frames</div></div>
-          <div class="scene-card" data-scene="videoClip"><div class="sc-icon">&#9654;</div><div class="sc-name">videoClip</div><div class="sc-desc">ffmpeg frame extract</div></div>
-          <div class="scene-card" data-scene="lottieAnim"><div class="sc-icon">&#10022;</div><div class="sc-name">lottieAnim</div><div class="sc-desc">After Effects JSON</div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CENTER AREA -->
-    <div class="center-area">
-      <div class="left-toggle" id="leftToggle">&rsaquo;</div>
-      <!-- Preview -->
-      <div class="preview-section">
+    <!-- Preview area (canvas + playback bar) -->
+    <div class="preview-area">
+      <div class="preview-canvas-wrap">
         <div class="canvas-wrap">
           <div class="canvas-inner">
             <div class="canvas-bg"></div>
             <div class="canvas-element selected" id="canvasEl" style="left:50%;top:50%;transform:translate(-50%,-50%)">
               <div class="canvas-text">
-                <h1>CANVAS</h1>
-                <p>napi-canvas frame-pure scenes</p>
+                <h1 id="canvasTitle">CANVAS</h1>
+                <p id="canvasSub">napi-canvas frame-pure scenes</p>
               </div>
               <div class="sel-border">
                 <div class="sel-handle tl"></div>
@@ -267,25 +230,57 @@
           </div>
         </div>
       </div>
-      <!-- Inspector -->
-      <div class="inspector" id="inspector">
-        <div class="panel-header">
-          <div class="insp-title">
-            <span class="insp-icon">&#9733;</span>
-            <span class="insp-name" id="inspName">kineticHeadline</span>
-            <span class="insp-type" id="inspType">c-canvas</span>
-          </div>
-          <span class="collapse-btn" id="collapseInsp" title="Toggle Inspector">&#8964;</span>
+      <!-- Playback controls below canvas -->
+      <div class="playback-bar">
+        <div class="timecode"><span class="current" id="tcCurrent">00:01.15</span> / 00:18.00</div>
+        <div class="play-controls">
+          <div class="play-btn" title="Previous">&#9198;</div>
+          <div class="play-btn primary" id="playBtn" title="Play">&#9654;</div>
+          <div class="play-btn" title="Next">&#9197;</div>
         </div>
-        <div class="insp-body" id="inspBody">
-          <div class="insp-row"><span class="insp-label">text</span><input class="insp-input" value="CANVAS"></div>
-          <div class="insp-row"><span class="insp-label">subtitle</span><input class="insp-input" value="napi-canvas frame-pure scenes"></div>
+      </div>
+    </div>
+
+    <!-- Inspector (right side) -->
+    <div class="inspector" id="inspector">
+      <div class="panel-header">
+        <div class="insp-title">
+          <span class="insp-icon" id="inspIcon">&#9733;</span>
+          <span class="insp-name" id="inspName">kineticHeadline</span>
+          <span class="insp-type" id="inspType">c-canvas</span>
+        </div>
+        <span class="collapse-btn" id="collapseInsp" title="Collapse">&rsaquo;</span>
+      </div>
+      <div class="insp-body" id="inspBody">
+        <!-- Scene params -->
+        <div class="insp-section">
+          <div class="insp-section-title">Scene Params</div>
+          <div class="insp-row"><span class="insp-label">text</span><input class="insp-input" value="CANVAS" id="paramText"></div>
+          <div class="insp-row"><span class="insp-label">subtitle</span><input class="insp-input" value="napi-canvas frame-pure scenes" id="paramSub"></div>
           <div class="insp-row"><span class="insp-label">hueStart</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="360" value="25"><input class="insp-input short" value="25"></div></div>
           <div class="insp-row"><span class="insp-label">hueEnd</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="360" value="345"><input class="insp-input short" value="345"></div></div>
           <div class="insp-row"><span class="insp-label">blend</span><select class="insp-select"><option selected>source-over</option><option>screen</option><option>multiply</option><option>overlay</option></select></div>
+        </div>
+        <!-- Transform -->
+        <div class="insp-section">
+          <div class="insp-section-title">Transform</div>
           <div class="insp-row"><span class="insp-label">position</span><div class="insp-row-group"><div class="labeled-input"><span class="mini-label">X</span><input class="insp-input short" value="960"></div><div class="labeled-input"><span class="mini-label">Y</span><input class="insp-input short" value="540"></div></div></div>
           <div class="insp-row"><span class="insp-label">rotation</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="360" value="0"><input class="insp-input short" value="0&deg;"></div></div>
           <div class="insp-row"><span class="insp-label">scale</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="10" max="200" value="100"><input class="insp-input short" value="100%"></div></div>
+          <div class="insp-row"><span class="insp-label">opacity</span><div class="insp-slider-wrap"><input type="range" class="insp-slider" min="0" max="100" value="100"><input class="insp-input short" value="100%"></div></div>
+        </div>
+        <!-- Clip info -->
+        <div class="insp-section">
+          <div class="insp-section-title">Clip</div>
+          <div class="insp-row"><span class="insp-label">start</span><input class="insp-input short" value="0s" style="flex:none;width:56px"><span class="insp-label" style="width:auto;margin-left:8px">dur</span><input class="insp-input short" value="3s" style="flex:none;width:56px"></div>
+          <div class="insp-row"><span class="insp-label">scene</span><div class="scene-chips" id="sceneChips">
+            <span class="scene-chip active" data-s="kineticHeadline">kinetic</span>
+            <span class="scene-chip" data-s="htmlSlide">html</span>
+            <span class="scene-chip" data-s="svgOverlay">svg</span>
+            <span class="scene-chip" data-s="markdownSlide">md</span>
+            <span class="scene-chip" data-s="videoClip">video</span>
+            <span class="scene-chip" data-s="lottieAnim">lottie</span>
+          </div></div>
         </div>
       </div>
     </div>
@@ -310,9 +305,7 @@
         <div class="track-head"><span class="th-name">A1</span><span class="th-icon">&#9673;</span><span class="th-icon">&#128274;</span></div>
       </div>
       <div class="track-lanes" id="trackLanes">
-        <!-- Ruler -->
         <div class="ruler" id="ruler"></div>
-        <!-- Tracks -->
         <div class="tracks-area" id="tracksArea">
           <!-- V1: background -->
           <div class="track-lane">
@@ -356,67 +349,10 @@
 
 <script>
 (function(){
-  // --- JSON EDITOR ---
-  const jsonLines = [
-    ['{', 'brace'],
-    ['  "schema": "nextframe/v0.1",', 'str'],
-    ['  "duration": 18,', 'num'],
-    ['  "project": { "width": 1920, "height": 1080, "fps": 30 },', 'mixed'],
-    ['  "tracks": [', 'brace'],
-    ['    {', 'brace'],
-    ['      "id": "v1-bg",', 'str'],
-    ['      "kind": "video",', 'str'],
-    ['      "clips": [{ "scene": "auroraGradient", ... }]', 'dim'],
-    ['    },', 'brace'],
-    ['    {', 'brace'],
-    ['      "id": "v2-content",', 'str', true],
-    ['      "kind": "video",', 'str', true],
-    ['      "clips": [', 'brace', true],
-    ['        {', 'brace', true],
-    ['          "id": "c-canvas",', 'str', true],
-    ['          "start": 0, "dur": 3,', 'num', true],
-    ['          "scene": "kineticHeadline",', 'str', true],
-    ['          "params": {', 'brace', true],
-    ['            "text": "CANVAS",', 'str', true],
-    ['            "subtitle": "napi-canvas frame-pure scenes",', 'str', true],
-    ['            "hueStart": 25, "hueEnd": 345', 'num', true],
-    ['          }', 'brace', true],
-    ['        },', 'brace'],
-    ['        { "id": "c-html", "scene": "htmlSlide", ... },', 'dim'],
-    ['        { "id": "c-svg", "scene": "svgOverlay", ... },', 'dim'],
-    ['        { "id": "c-md", "scene": "markdownSlide", ... },', 'dim'],
-    ['        { "id": "c-video", "scene": "videoClip", ... },', 'dim'],
-    ['        { "id": "c-multi", "scene": "kineticHeadline", ... }', 'dim'],
-    ['      ]', 'brace'],
-    ['    },', 'brace'],
-    ['    { "id": "v3-label", "clips": [...] },', 'dim'],
-    ['    { "id": "v4-accent", "clips": [...] }', 'dim'],
-    ['  ]', 'brace'],
-    ['}', 'brace']
-  ];
-  function colorize(text, type) {
-    if (type === 'dim') return `<span class="j-null">${esc(text)}</span>`;
-    let s = esc(text);
-    s = s.replace(/"([^"]+)"(\s*:)/g, '<span class="j-key">"$1"</span><span class="j-colon">$2</span>');
-    s = s.replace(/:\s*"([^"]*)"/g, ': <span class="j-str">"$1"</span>');
-    s = s.replace(/:\s*(\d+\.?\d*)/g, ': <span class="j-num">$1</span>');
-    s = s.replace(/"(\d+\.?\d*)"/g, '"<span class="j-num">$1</span>"');
-    s = s.replace(/([{}\[\]])/g, '<span class="j-brace">$1</span>');
-    return s;
-  }
-  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-  const edEl = document.getElementById('jsonEditor');
-  let html = '<div class="json-code">';
-  jsonLines.forEach((l,i)=>{
-    const hl = l[2] ? ' highlight' : '';
-    html += `<div class="json-line${hl}"><span class="ln">${i+1}</span><span class="code">${colorize(l[0],l[1])}</span></div>`;
-  });
-  html += '</div>';
-  edEl.innerHTML = html;
+  const dur = 18;
 
   // --- RULER ---
   const ruler = document.getElementById('ruler');
-  const dur = 18;
   for(let s=0;s<=dur;s++){
     const pct = (s/dur*100);
     const major = s % 3 === 0;
@@ -438,20 +374,30 @@
     wave.appendChild(bar);
   }
 
+  // --- CLIP DATA ---
+  const clipData = {
+    'c-canvas': {scene:'kineticHeadline',text:'CANVAS',subtitle:'napi-canvas frame-pure scenes',hueStart:25,hueEnd:345,start:0,dur:3},
+    'c-html': {scene:'htmlSlide',text:'HTML',subtitle:'Flexbox \u00b7 CSS \u00b7 Fonts \u00b7 Any Layout',hueStart:0,hueEnd:0,start:3,dur:3},
+    'c-svg': {scene:'svgOverlay',text:'SVG',subtitle:'Vector \u00b7 Flowchart \u00b7 Diagram \u00b7 Icon',hueStart:0,hueEnd:0,start:6,dur:3},
+    'c-md': {scene:'markdownSlide',text:'Markdown',subtitle:'Code docs and README as video',hueStart:0,hueEnd:0,start:9,dur:3},
+    'c-video': {scene:'videoClip',text:'VIDEO',subtitle:'ffmpeg frame extract',hueStart:0,hueEnd:0,start:12,dur:3},
+    'c-multi': {scene:'kineticHeadline',text:'MULTI-TRACK',subtitle:'All types composited together',hueStart:30,hueEnd:350,start:15,dur:3}
+  };
+
   // --- CLIP SELECTION ---
   const clips = document.querySelectorAll('.clip[data-id]');
   const inspName = document.getElementById('inspName');
   const inspType = document.getElementById('inspType');
-  const inspBody = document.getElementById('inspBody');
-  const canvasText = document.querySelector('.canvas-text');
+  const inspIcon = document.getElementById('inspIcon');
+  const canvasTitle = document.getElementById('canvasTitle');
+  const canvasSub = document.getElementById('canvasSub');
+  const paramText = document.getElementById('paramText');
+  const paramSub = document.getElementById('paramSub');
+  const playhead = document.getElementById('playhead');
 
-  const clipData = {
-    'c-canvas': {scene:'kineticHeadline',text:'CANVAS',subtitle:'napi-canvas frame-pure scenes',hueStart:25,hueEnd:345,blend:'source-over'},
-    'c-html': {scene:'htmlSlide',text:'HTML',subtitle:'Flexbox \u00b7 CSS \u00b7 Fonts \u00b7 Any Layout',hueStart:0,hueEnd:0,blend:'source-over'},
-    'c-svg': {scene:'svgOverlay',text:'SVG',subtitle:'Vector \u00b7 Flowchart \u00b7 Diagram \u00b7 Icon',hueStart:0,hueEnd:0,blend:'source-over'},
-    'c-md': {scene:'markdownSlide',text:'Markdown',subtitle:'Code docs and README as video',hueStart:0,hueEnd:0,blend:'source-over'},
-    'c-video': {scene:'videoClip',text:'VIDEO',subtitle:'ffmpeg frame extract',hueStart:0,hueEnd:0,blend:'source-over'},
-    'c-multi': {scene:'kineticHeadline',text:'MULTI-TRACK',subtitle:'All types composited together',hueStart:30,hueEnd:350,blend:'source-over'}
+  const sceneIcons = {
+    kineticHeadline:'&#9733;', htmlSlide:'&#9671;', svgOverlay:'&#9678;',
+    markdownSlide:'&#9998;', videoClip:'&#9654;', lottieAnim:'&#10022;'
   };
 
   function selectClip(id){
@@ -462,17 +408,19 @@
     if(!d) return;
     inspName.textContent = d.scene;
     inspType.textContent = id;
-    canvasText.querySelector('h1').textContent = d.text;
-    canvasText.querySelector('p').textContent = d.subtitle;
+    inspIcon.innerHTML = sceneIcons[d.scene] || '&#9733;';
+    canvasTitle.textContent = d.text;
+    canvasSub.textContent = d.subtitle;
+    paramText.value = d.text;
+    paramSub.value = d.subtitle;
     document.querySelector('.badge-label').textContent = d.text;
-    // update scene cards
-    document.querySelectorAll('.scene-card').forEach(c=>{
-      c.classList.toggle('active', c.dataset.scene === d.scene);
+    // scene chips
+    document.querySelectorAll('.scene-chip').forEach(c=>{
+      c.classList.toggle('active', c.dataset.s === d.scene);
     });
-    // update playhead position
-    const start = parseFloat(clip.dataset.start||0);
-    playhead.style.left = (start/dur*100+1) + '%';
-    updateTimecode(start + 0.5);
+    // playhead
+    playhead.style.left = (d.start/dur*100+1) + '%';
+    updateTimecode(d.start + 0.5);
   }
 
   clips.forEach(c=>{
@@ -493,11 +441,8 @@
   });
 
   // --- PLAY ---
-  const playhead = document.getElementById('playhead');
   const playBtn = document.getElementById('playBtn');
-  let playing = false;
-  let playStart = null;
-  let playFrom = 1.15;
+  let playing = false, playStart = null, playFrom = 1.15;
   function updateTimecode(t){
     const m = Math.floor(t/60); const s = Math.floor(t%60); const f = Math.floor((t%1)*30);
     document.getElementById('tcCurrent').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+String(f).padStart(2,'0');
@@ -537,24 +482,20 @@
   });
   document.addEventListener('mouseup', ()=>{ dragging=false; });
 
-  // --- COLLAPSE PANELS ---
-  document.getElementById('collapseLeft').addEventListener('click', ()=>{
-    document.getElementById('leftPanel').classList.add('collapsed');
-  });
-  document.getElementById('leftToggle').addEventListener('click', ()=>{
-    document.getElementById('leftPanel').classList.remove('collapsed');
-  });
+  // --- COLLAPSE INSPECTOR ---
   const inspEl = document.getElementById('inspector');
   document.getElementById('collapseInsp').addEventListener('click', ()=>{
-    const body = inspEl.querySelector('.insp-body');
-    body.style.display = body.style.display==='none' ? '' : 'none';
+    inspEl.classList.toggle('collapsed');
   });
 
   // --- SLIDER SYNC ---
   document.querySelectorAll('.insp-slider').forEach(sl=>{
     const numInput = sl.parentElement.querySelector('.insp-input.short');
     if(!numInput) return;
-    sl.addEventListener('input', ()=>{ numInput.value = sl.value + (numInput.value.includes('%')?'%':numInput.value.includes('\u00b0')?'\u00b0':''); });
+    sl.addEventListener('input', ()=>{
+      const suffix = numInput.value.includes('%')?'%':numInput.value.includes('\u00b0')?'\u00b0':'';
+      numInput.value = sl.value + suffix;
+    });
   });
 })();
 </script>
