@@ -13,6 +13,12 @@ const SUBCOMMANDS = {
   ascii: () => import("../src/cli/ascii.js"),
   "bake-browser": () => import("../src/cli/bakeBrowser.js"),
   new: () => import("../src/cli/new.js"),
+  "project-new": () => import("../src/cli/project-new.js"),
+  "project-list": () => import("../src/cli/project-list.js"),
+  "episode-new": () => import("../src/cli/episode-new.js"),
+  "episode-list": () => import("../src/cli/episode-list.js"),
+  "segment-new": () => import("../src/cli/segment-new.js"),
+  "segment-list": () => import("../src/cli/segment-list.js"),
   "bake-video": () => import("../src/cli/bakeVideo.js"),
   "add-clip": () => import("../src/cli/ops.js"),
   "move-clip": () => import("../src/cli/ops.js"),
@@ -62,6 +68,14 @@ SUBCOMMANDS
   list-assets <timeline.json> [--json]        list assets grouped by kind
   remove-asset <timeline.json> <asset-id>     remove an asset by id
   guide                                       AI onboarding: conventions, workflow, naming
+
+PROJECT MANAGEMENT
+  project-new <name>                          create a project folder under ~/NextFrame/projects
+  project-list [--root=PATH] [--json]        list projects with episode counts
+  episode-new <project> <name>               create an episode inside a project
+  episode-list <project> [--json]            list episodes for a project
+  segment-new <project> <episode> <name>     create an empty segment timeline JSON
+  segment-list <project> <episode> [--json]  list segment JSON files in an episode
 
 FLAGS
   --json     output structured JSON (for AI / scripts)
