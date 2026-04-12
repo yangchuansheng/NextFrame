@@ -5,6 +5,7 @@ import "./smoke.test.js";
 import "./architecture.test.js";
 import "./scene-contract.test.js";
 import "./cli-render.test.js";
+import "./cli-export.test.js";
 import "./safety-gates.test.js";
 import "./cli-timeline-ops.test.js";
 import "./ai-tools.test.js";
