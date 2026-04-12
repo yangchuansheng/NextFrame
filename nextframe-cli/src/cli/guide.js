@@ -15,6 +15,8 @@ const GUIDE = `
   A CLI video editor. You write a timeline.json, the engine
   renders it to mp4. No GUI needed. Every operation is a
   subcommand that reads/writes JSON.
+  The AI helper layer exposes 12 tools for scene lookup,
+  validation, patching, timing, and assertions.
 
 ■ YOUR WORKFLOW (5 steps, every time)
 
@@ -65,6 +67,8 @@ const GUIDE = `
 
 ■ SCENE TYPES
 
+  33 scenes total across 7 render buckets.
+
   Canvas (26 scenes)  — procedural graphics via napi-canvas
     Backgrounds: auroraGradient, fluidBackground, starfield,
                  spotlightSweep, pixelRain, particleFlow, orbitRings
@@ -82,6 +86,9 @@ const GUIDE = `
 
   Markdown (1 scene) — docs/code as slides via puppeteer
     markdownSlide — markdown text with anthropic-warm theme
+
+  Media (1 scene) — image files via napi-canvas
+    imageHero    — hero image with ken-burns zoom and pan
 
   Video (2 scenes) — external video frames via ffmpeg
     videoClip    — full-frame video

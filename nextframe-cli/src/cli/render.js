@@ -73,7 +73,7 @@ export async function run(argv) {
     return 2;
   }
   // BDD cli-render-8 invariant: render must validate before touching ffmpeg.
-  const v = validateTimeline(loaded.value);
+  const v = validateTimeline(loaded.value, { projectDir: dirname(resolve(path)) });
   if (v.errors && v.errors.length > 0) {
     emit({ ok: false, error: v.errors[0], errors: v.errors, hints: v.hints }, flags);
     return 2;

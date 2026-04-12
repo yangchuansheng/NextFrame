@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -51,4 +51,37 @@ test("preview-1: /api/mp4 rejects paths outside the workspace root", async (t) =
   const payload = await response.json();
   assert.equal(payload.ok, false);
   assert.match(payload.error.message, /path outside workspace/);
+});
+
+test("preview-2: /api/gantt returns the rendered ASCII gantt view", async (t) => {
+  const workspaceRoot = mkdtempSync(join(tmpdir(), "nextframe-preview-"));
+  const timelinePath = join(workspaceRoot, "timeline.json");
+  writeFileSync(timelinePath, JSON.stringify({
+    schema: "nextframe/v0.1",
+    duration: 4,
+    background: "#000000",
+    project: { width: 320, height: 180, fps: 30, aspectRatio: 16 / 9 },
+    chapters: [],
+    markers: [],
+    tracks: [
+      {
+        id: "v1",
+        kind: "video",
+        clips: [{ id: "auroraGradient-1", start: 0, dur: 4, scene: "auroraGradient", params: {} }],
+      },
+    ],
+    assets: [],
+  }, null, 2));
+
+  const preview = await startPreviewServer(workspaceRoot);
+  t.after(async () => {
+    await preview.close();
+    rmSync(workspaceRoot, { recursive: true, force: true });
+  });
+
+  const response = await fetch(`${preview.baseUrl}/api/gantt?path=${encodeURIComponent("timeline.json")}`);
+  assert.equal(response.status, 200);
+  const chart = await response.text();
+  assert.doesNotMatch(chart, /\(gantt view missing\)/);
+  assert.match(chart, /auroraGradient/);
 });

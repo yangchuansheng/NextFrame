@@ -161,9 +161,9 @@ const server = createServer(async (req, res) => {
       const timeline = JSON.parse(text);
       const r = resolveTimeline(timeline);
       if (!r.ok) return err(res, 400, r.error.message);
-      const { gantt } = await import("../src/views/gantt.js").catch(() => ({ gantt: null }));
+      const { renderGantt } = await import("../src/views/gantt.js").catch(() => ({ renderGantt: null }));
       let chart = "(gantt view missing)";
-      if (gantt) chart = gantt(r.value, { width: Number(q.width) || 80 });
+      if (renderGantt) chart = renderGantt(r.value, { width: Number(q.width) || 80 });
       res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
       res.end(chart);
       return;
@@ -274,7 +274,7 @@ function buildSonnetSystemPrompt(tlPath) {
   return `You are an AI video director using nextframe-cli.
 
 TOOLS AVAILABLE (via Bash):
-  node ${ROOT}/bin/nextframe.js scenes                              # list all 21 scenes + META
+  node ${ROOT}/bin/nextframe.js scenes                              # list all 33 scenes + META
   node ${ROOT}/bin/nextframe.js validate <timeline.json>             # 6-gate safety
   node ${ROOT}/bin/nextframe.js frame <timeline.json> <t> <png>     # single frame
   node ${ROOT}/bin/nextframe.js describe <timeline.json> <t>        # what is visible at t (JSON)

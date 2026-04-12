@@ -1,6 +1,6 @@
 # nextframe-cli v0.1.0
 
-> Frame-pure CLI video editor for AI. 6 scene types, 33 scenes, 69 tests.
+> Frame-pure CLI video editor for AI. 7 scene types, 33 scenes, 75 tests.
 > `(timeline.json, t) → pixels → mp4`
 
 ## Quick start
@@ -73,6 +73,7 @@ Exit 0 = ok, 1 = warning, 2 = error, 3 = usage.
 | Type | Scene | Render path | Use case |
 |------|-------|-------------|----------|
 | Canvas | 26 built-in scenes | napi-canvas | Gradients, particles, text, charts |
+| Image | `imageHero` | napi-canvas | Ken-burns zoom and pan on still images |
 | HTML | `htmlSlide` | puppeteer → PNG cache | Complex layouts, CSS, flexbox |
 | SVG | `svgOverlay` | puppeteer → PNG cache | Diagrams, flowcharts, icons |
 | Markdown | `markdownSlide` | md→HTML → puppeteer | Docs, code blocks, READMEs |
@@ -108,10 +109,10 @@ src/targets/
   napi-canvas.js           frame → PNG
   ffmpeg-mp4.js            frames → h264 MP4 + audio mux
 src/cli/                   one file per subcommand group
-src/ai/tools.js            7 AI tool functions (TOOLS map)
+src/ai/tools.js            12 AI tool functions (TOOLS map)
 src/views/                 gantt + ASCII art
 preview/                   HTML preview server + vanilla-JS UI
-test/                      69 tests (node:test)
+test/                      75 tests (node:test)
 ```
 
 ## Scene contract

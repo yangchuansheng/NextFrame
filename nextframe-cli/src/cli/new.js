@@ -8,7 +8,7 @@ export async function run(argv) {
     return 3;
   }
 
-  const timeline = hasProjectFlags(flags) ? makeEmptyTimeline(flags) : makeLegacySeedTimeline();
+  const timeline = flags.seed ? makeLegacySeedTimeline() : makeEmptyTimeline(flags);
   const saved = await saveTimeline(outPath, timeline);
   if (!saved.ok) {
     emit(saved, flags);
@@ -22,10 +22,6 @@ export async function run(argv) {
     process.stdout.write(`created ${outPath}\n`);
   }
   return 0;
-}
-
-function hasProjectFlags(flags) {
-  return flags.duration !== undefined || flags.fps !== undefined || flags.width !== undefined || flags.height !== undefined;
 }
 
 function makeEmptyTimeline(flags) {
