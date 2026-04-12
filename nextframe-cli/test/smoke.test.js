@@ -1,7 +1,7 @@
 // Smoke test for nextframe-cli walking skeleton.
 // Runs: node --test test/
 // What it checks:
-//   1. scenes subcommand lists 21 scenes with META
+//   1. scenes subcommand lists public scenes with META, including htmlSlide
 //   2. validate examples/minimal.timeline.json → ok
 //   3. validate examples/launch.timeline.json → ok
 //   4. frame examples/minimal 1.5 → valid PNG
@@ -32,10 +32,11 @@ function runJSON(args) {
   return JSON.parse(r.stdout);
 }
 
-test("scenes lists 21 entries with full META", () => {
+test("scenes lists public entries with full META", () => {
   const r = runJSON(["scenes"]);
   assert.equal(r.ok, true);
-  assert.equal(r.value.length, 21);
+  assert.ok(r.value.length >= 22);
+  assert.ok(r.value.some((scene) => scene.id === "htmlSlide"), "htmlSlide must be listed");
   for (const s of r.value) {
     assert.ok(s.id, `scene missing id`);
     assert.ok(s.category, `${s.id} missing category`);

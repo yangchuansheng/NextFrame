@@ -9,3 +9,4 @@ import "./cli-export.test.js";
 import "./safety-gates.test.js";
 import "./cli-timeline-ops.test.js";
 import "./ai-tools.test.js";
+import "./html-scene.test.js";
