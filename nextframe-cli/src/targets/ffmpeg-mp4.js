@@ -102,3 +102,54 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
     },
   });
 }
+
+/**
+ * Mux an external audio track into an MP4 file.
+ * @param {string} videoPath
+ * @param {string} audioPath
+ * @param {string} outputPath
+ * @param {{ffmpegPath?: string}} [opts]
+ * @returns {Promise<{ok: true, value: object} | {ok: false, error: object}>}
+ */
+export async function muxMP4Audio(videoPath, audioPath, outputPath, opts = {}) {
+  const ffmpegPath = opts.ffmpegPath || "ffmpeg";
+  const ffmpegArgs = [
+    "-y",
+    "-i", videoPath,
+    "-i", audioPath,
+    "-c:v", "copy",
+    "-c:a", "aac",
+    "-shortest",
+    outputPath,
+  ];
+
+  let ffmpeg;
+  try {
+    ffmpeg = spawn(ffmpegPath, ffmpegArgs, { stdio: ["ignore", "ignore", "pipe"] });
+  } catch (err) {
+    return guarded("muxMP4Audio", {
+      ok: false,
+      error: { code: "MUX_FAIL", message: err.message, hint: `ffmpeg ${ffmpegArgs.join(" ")}` },
+    });
+  }
+
+  let stderr = "";
+  ffmpeg.stderr.setEncoding("utf8");
+  ffmpeg.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const [exitCode] = await once(ffmpeg, "close");
+  if (exitCode !== 0) {
+    return guarded("muxMP4Audio", {
+      ok: false,
+      error: {
+        code: "MUX_FAIL",
+        message: `ffmpeg exited ${exitCode}`,
+        hint: stderr.split("\n").slice(-5).join("\n"),
+      },
+    });
+  }
+
+  return guarded("muxMP4Audio", { ok: true, value: { outputPath, videoPath, audioPath } });
+}
