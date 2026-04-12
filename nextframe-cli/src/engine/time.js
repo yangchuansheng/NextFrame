@@ -2,12 +2,18 @@
 // Resolves {at|after|before|sync|until|offset} expressions on a Timeline
 // (tracks[].clips[]) into raw seconds, with cycle detection and 0.1s quantization.
 
+/** @typedef {import("../types.d.ts").Timeline} Timeline */
+/** @typedef {import("../types.d.ts").TimeValue} TimeValue */
+/** @typedef {import("../types.d.ts").Result<number>} NumberResult */
+
+import { guarded } from "./_guard.js";
+
 export const GRID_SIZE = 0.1;
 
 /**
  * Resolve all symbolic time values in a timeline.
- * @param {object} timeline - Timeline JSON (may contain TimeExpression objects)
- * @returns {{ok: true, value: object, lookup: object} | {ok: false, error: object}}
+ * @param {Timeline} timeline - Timeline JSON (may contain TimeExpression objects)
+ * @returns {{ok: true, value: Timeline, lookup: object} | {ok: false, error: object}}
  */
 export function resolveTimeline(timeline) {
   try {
@@ -19,9 +25,9 @@ export function resolveTimeline(timeline) {
     rangeCheck(context.nodes, values, timeline.duration);
     const resolved = materialize(context, values);
     const lookup = buildLookup(context, values);
-    return { ok: true, value: resolved, lookup };
+    return guarded("resolveTimeline", { ok: true, value: resolved, lookup });
   } catch (err) {
-    return {
+    return guarded("resolveTimeline", {
       ok: false,
       error: {
         code: err.code || "TIME_RESOLVE_ERROR",
@@ -29,32 +35,32 @@ export function resolveTimeline(timeline) {
         ref: err.ref,
         hint: err.hint,
       },
-    };
+    });
   }
 }
 
 /**
  * Resolve a single TimeValue into a number, given an already-resolved lookup.
- * @param {number|object} expr
+ * @param {TimeValue} expr
  * @param {Record<string, number>} lookup
  * @param {number} duration
- * @returns {{ok: true, value: number} | {ok: false, error: object}}
+ * @returns {NumberResult}
  */
 export function resolveExpression(expr, lookup, duration) {
   if (typeof expr === "number") {
-    return { ok: true, value: quantize(expr) };
+    return guarded("resolveExpression", { ok: true, value: quantize(expr) });
   }
   if (!expr || typeof expr !== "object") {
-    return { ok: false, error: { code: "BAD_TIME", message: `bad time: ${JSON.stringify(expr)}` } };
+    return guarded("resolveExpression", { ok: false, error: { code: "BAD_TIME", message: `bad time: ${JSON.stringify(expr)}` } });
   }
   const op = ["at", "after", "before", "sync", "until", "offset"].find((k) => k in expr);
   if (!op) {
-    return { ok: false, error: { code: "BAD_TIME", message: "missing operator" } };
+    return guarded("resolveExpression", { ok: false, error: { code: "BAD_TIME", message: "missing operator" } });
   }
   const ref = op === "offset" ? expr.offset : expr[op];
   const base = lookup[ref];
   if (base === undefined) {
-    return {
+    return guarded("resolveExpression", {
       ok: false,
       error: {
         code: "TIME_REF_NOT_FOUND",
@@ -62,13 +68,16 @@ export function resolveExpression(expr, lookup, duration) {
         ref,
         hint: `available: ${Object.keys(lookup).slice(0, 10).join(", ")}`,
       },
-    };
+    });
   }
   let val = base;
   if (op === "after") val = base + (expr.gap || 0);
   if (op === "before") val = base - (expr.gap || 0);
   if (op === "offset") val = base + (expr.by || 0);
-  return { ok: true, value: quantize(val) };
+  if (val < 0 || val > duration + 1e-6) {
+    return guarded("resolveExpression", { ok: false, error: { code: "TIME_OUT_OF_RANGE", message: `resolved time ${quantize(val)} outside [0, ${duration}]`, ref } });
+  }
+  return guarded("resolveExpression", { ok: true, value: quantize(val) });
 }
 
 function buildContext(timeline) {

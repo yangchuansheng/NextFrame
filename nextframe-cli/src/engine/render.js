@@ -14,14 +14,17 @@
 // "add" | "multiply" | "overlay" | "darken" | "difference" } on the clip.
 // Frame-pure: no caches, no random, no Date.
 
+/** @typedef {import("../types.d.ts").Timeline} Timeline */
+
 import { createCanvas } from "@napi-rs/canvas";
 import "./fonts.js"; // side-effect: register CJK fonts
 import { REGISTRY } from "../scenes/index.js";
+import { guarded } from "./_guard.js";
 import { resolveTimeline } from "./time.js";
 
 /**
  * Render the timeline at time t into a fresh canvas.
- * @param {object} timeline - Timeline (raw or symbolic — will be resolved)
+ * @param {Timeline} timeline - Timeline (raw or symbolic — will be resolved)
  * @param {number} t - global time, raw seconds
  * @param {{width?: number, height?: number}} [opts]
  * @returns {{ok: true, canvas: object, value: object} | {ok: false, error: object}}
@@ -30,7 +33,7 @@ export function renderAt(timeline, t, opts = {}) {
   let resolved = timeline;
   if (needsResolve(timeline)) {
     const r = resolveTimeline(timeline);
-    if (!r.ok) return { ok: false, error: r.error };
+    if (!r.ok) return guarded("renderAt", { ok: false, error: r.error });
     resolved = r.value;
   }
   const width = opts.width || resolved.project?.width || 1920;
@@ -96,7 +99,7 @@ export function renderAt(timeline, t, opts = {}) {
     }
   }
 
-  return { ok: true, canvas, value: { width, height, t } };
+  return guarded("renderAt", { ok: true, canvas, value: { width, height, t } });
 }
 
 function drawMissingSceneMarker(ctx, width, sceneId) {
