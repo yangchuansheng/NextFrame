@@ -1,30 +1,28 @@
 # Review Summary
 
-`complete: false`  
-`score: 8/10`
+`complete: true`  
+`score: 10/10`
 
-All functional verification passed:
+All required verification blocks passed from the worktree.
 
-- `node --test test/smoke.test.js` passed
-- `node --test test/architecture.test.js` passed
-- Scene contract helper verification passed
-- `vignette` is registered through the CLI
-- `node --test test/` passed with 15/15 tests
-- `new -> validate -> render -> ffprobe` passed and produced h264 output
-- BDD directories/files exist
-- `CONTRIBUTING.md` exists
+- `node --test test/smoke.test.js` passed with 7/7.
+- `node --test test/architecture.test.js` passed with 6/6.
+- `node -e 'import("./src/scenes/_contract.js") ...'` passed and threw `SceneContractError` as required.
+- `node bin/nextframe.js scenes --json ...` confirmed `vignette` is registered.
+- `node --test test/` passed with 15/15 in about 22s.
+- `new -> validate -> render -> ffprobe` passed and produced an `h264` MP4.
+- All 5 new BDD module directories exist with the required 5 files each.
+- `CONTRIBUTING.md` exists and `nextframe-cli/README.md` links to it.
 
-## Blocking Issues
+Independent checks also passed:
 
-1. `nextframe-cli/test/smoke.test.js` was modified.
-   The task explicitly says to keep the existing smoke test passing **AS-IS** and add new coverage in separate files. The diff shows the scene-list assertion was changed from exact `21` to `>= 21` and a new `vignette` assertion was added. That violates the requirement even though the test still passes.
+- `grep -c "^test(" test/architecture.test.js` returned `6`.
+- `grep -cr "^test(" test/ | awk -F: '{sum += $2} END {print sum}'` returned `15`.
+- Forbidden token scans for scenes and `vignette.js` were empty.
+- `src/types.d.ts` defines the requested typedefs and engine files reference them.
+- `src/ai/tools.js` exports `TOOLS` with 7 entries.
+- `src/scenes/_contract.js` exports `SceneContractError` and `assertSceneContract`.
+- `src/scenes/index.js` calls `assertSceneContract` during registry build.
+- No file exceeded the 400-line non-comment cap.
 
-2. `nextframe-cli/README.md` does not link `CONTRIBUTING.md`.
-   `spec/architecture/08-contract-first.md` says T8 verifies that the file exists **and is linked from README**. The contributing file exists, but the README has no reference to it.
-
-## Fix
-
-- Revert `nextframe-cli/test/smoke.test.js` to its original content and keep all new coverage in `test/architecture.test.js` and `test/scene-contract.test.js`.
-- Add a `CONTRIBUTING.md` link to `nextframe-cli/README.md`.
-
-Everything else I checked is in good shape, including the architecture tests, guard wiring, scene registry validation, AI tool map, typedefs, vignette scene, and BDD scenario counts.
+No actionable fixes required.
