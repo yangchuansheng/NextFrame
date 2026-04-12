@@ -114,6 +114,12 @@ const server = createServer(async (req, res) => {
     if (method === "GET" && path === "/gallery") {
       return serveFile(res, join(HERE, "gallery.html"), "html");
     }
+    if (method === "GET" && path.startsWith("/gallery/")) {
+      return serveFile(res, join(HERE, "scene-detail.html"), "html");
+    }
+    if (method === "GET" && path === "/scene-detail") {
+      return serveFile(res, join(HERE, "scene-detail.html"), "html");
+    }
     if (method === "GET" && path === "/scene-editor") {
       return serveFile(res, join(HERE, "scene-editor-prototype.html"), "html");
     }

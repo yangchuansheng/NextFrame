@@ -161,7 +161,7 @@ function renderGrid(){
       </div>
     </div>
   `).join('');
-  el.querySelectorAll('.card').forEach(c=>{c.onclick=()=>showDetail(c.dataset.id)});
+  el.querySelectorAll('.card').forEach(c=>{c.onclick=()=>location.href='/gallery/'+c.dataset.id});
 }
 
 // ── Detail with live preview ──
