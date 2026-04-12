@@ -313,21 +313,16 @@ window.__ipc = window.__ipc || {};
       <div class="preview-canvas-wrap">
         <div class="canvas-frame">
           <div class="canvas-inner" id="canvas-inner">
-            <!-- Real render canvas — engine draws directly here -->
-            <canvas id="render-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-            <!-- Fallbacks -->
-            <img id="preview-frame-img" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none" alt="">
-            <video id="preview-video" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none" playsinline></video>
+            <!-- Stage: DOM + Canvas 混合渲染舞台 -->
+            <div id="render-stage" style="position:absolute;inset:0;overflow:hidden">
+              <!-- 每个 track 的 DOM/Canvas 层会动态插入这里 -->
+            </div>
+            <!-- Placeholder when no timeline loaded -->
             <div id="preview-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
               <div class="canvas-text">
-                <h1 id="canvas-title">CANVAS</h1>
-                <p id="canvas-sub">Drag playhead to preview frames</p>
+                <h1 id="canvas-title">NEXTFRAME</h1>
+                <p id="canvas-sub">Load a timeline to preview</p>
               </div>
-            </div>
-            <div class="corner-badge">
-              <span class="badge-dot"></span>
-              <span class="badge-label" id="badge-type">CANVAS</span>
-              <span class="badge-sub" id="badge-id">clip-01</span>
             </div>
           </div>
         </div>
