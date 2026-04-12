@@ -34,6 +34,8 @@ export const META_TABLE = {
   ccPill: { category: "Series", description: "Monospace label pill with accent border", duration_hint: 10, params: [p("text", "string", "ANTHROPIC CONFIDENTIAL · LEAKED"), p("x", "number", 0.5), p("y", "number", 0.28)] },
   ccNote: { category: "Series", description: "Note badge with accent dot", duration_hint: 10, params: [p("text", "string", "以 Claude Code 第一人称讲述"), p("x", "number", 0.5), p("y", "number", 0.72), p("delay", "number", 1.5)] },
   ccDesc: { category: "Series", description: "Italic mono centered description", duration_hint: 10, params: [p("text", "string", "我数过了。"), p("x", "number", 0.5), p("y", "number", 0.64), p("delay", "number", 1.0)] },
+  pulseWave: { category: "Data Viz", description: "Horizontal soundwave-style pulsing bars", duration_hint: 8, params: [p("barCount", "number", 48, { range: [8, 128] }), p("hue", "number", 260, { range: [0, 360] }), p("speed", "number", 2.0, { range: [0.1, 10] }), p("amplitude", "number", 0.7, { range: [0.1, 1] }), p("gap", "number", 0.3, { range: [0, 1] })] },
+  radialBurst: { category: "Shapes", description: "Rays shooting out from center with rotation and pulse", duration_hint: 8, params: [p("rayCount", "number", 24, { range: [4, 64] }), p("hue", "number", 35, { range: [0, 360] }), p("rotationSpeed", "number", 0.3, { range: [0, 2] }), p("pulseSpeed", "number", 1.5, { range: [0.1, 5] })] },
 };
 
 export function getSceneMeta(id) {

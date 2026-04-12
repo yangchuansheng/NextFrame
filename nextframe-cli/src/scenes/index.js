@@ -23,6 +23,8 @@ import { svgOverlay } from "./svgOverlay.js";
 import { textOverlay } from "./textOverlay.js";
 import { videoClip } from "./videoClip.js";
 import { videoWindow } from "./videoWindow.js";
+import { pulseWave } from "./pulseWave.js";
+import { radialBurst } from "./radialBurst.js";
 import { vignette } from "./vignette.js";
 import { ccFrame } from "./ccFrame.js";
 import { ccBigNumber } from "./ccBigNumber.js";
@@ -34,7 +36,7 @@ import { lottieAnim } from "./lottieAnim.js";
 import { assertSceneContract, assertNoDuplicateIds } from "./_contract.js";
 import { META_TABLE, listSceneMeta } from "./meta.js";
 
-export const RENDER_FNS = { auroraGradient, barChartReveal, circleRipple, cornerBadge, countdown, dataPulse, fluidBackground, glitchText, htmlSlide, imageHero, videoClip, videoWindow, kineticHeadline, lineChart, lottieAnim, lowerThirdVelvet, markdownSlide, meshGrid, neonGrid, orbitRings, particleFlow, pixelRain, shapeBurst, spotlightSweep, starfield, svgOverlay, textOverlay, vignette, ccFrame, ccBigNumber, ccPill, ccNote, ccDesc };
+export const RENDER_FNS = { auroraGradient, barChartReveal, circleRipple, cornerBadge, countdown, dataPulse, fluidBackground, glitchText, htmlSlide, imageHero, videoClip, videoWindow, kineticHeadline, lineChart, lottieAnim, lowerThirdVelvet, markdownSlide, meshGrid, neonGrid, orbitRings, particleFlow, pixelRain, pulseWave, radialBurst, shapeBurst, spotlightSweep, starfield, svgOverlay, textOverlay, vignette, ccFrame, ccBigNumber, ccPill, ccNote, ccDesc };
 
 function defaultParamsOf(meta) {
   const out = {};
