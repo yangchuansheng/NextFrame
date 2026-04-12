@@ -33,7 +33,6 @@ function bridgeCall(method, params) {
 }
 
 const DESKTOP_CONNECT_MESSAGE = "Connect via desktop app to load projects";
-const PX_PER_SEC = 61.33;
 const ACCENT_NAMES = ["accent", "warm", "blue"];
 const GLOW_NAMES = ["glow-accent", "glow-warm", "glow-blue"];
 
@@ -262,12 +261,26 @@ function deriveTrackLabel(track, index) {
   return prefix + String(index + 1);
 }
 
+function deriveTrackDisplayId(track, index) {
+  return String(track?.id || deriveTrackLabel(track, index));
+}
+
 function deriveClipLabel(clip, clipIndex) {
   return clip?.name || clip?.label || prettifyLabel(clip?.scene || clip?.type || clip?.id || ("Clip " + (clipIndex + 1)));
 }
 
 function deriveClipType(clip, track) {
   return prettifyLabel(clip?.type || clip?.scene || track?.kind || "clip").toUpperCase();
+}
+
+function deriveClipFamily(clip, track) {
+  const raw = String(clip?.scene || clip?.type || track?.kind || "").toLowerCase();
+  if (raw.includes("kineticheadline")) return "canvas";
+  if (raw.includes("htmlslide") || raw.includes("html") || raw.includes("audio")) return "html";
+  if (raw.includes("svgoverlay") || raw.includes("svg")) return "svg";
+  if (raw.includes("markdownslide") || raw.includes("markdown") || raw.includes("md")) return "md";
+  if (raw.includes("videoclip")) return "video";
+  return "";
 }
 
 function deriveClipClass(clip, track) {
@@ -278,6 +291,80 @@ function deriveClipClass(clip, track) {
   if (raw.includes("md") || raw.includes("markdown")) return "type-md";
   if (raw.includes("multi") || raw.includes("composite")) return "type-multi";
   return "type-video";
+}
+
+function deriveClipPalette(clip, track) {
+  const raw = String(clip?.scene || clip?.type || track?.kind || "").toLowerCase();
+  if (raw.includes("auroragradient") || raw.includes("fluidbackground") || raw.includes("cornerbadge")) {
+    return {
+      background: "rgba(160,160,170,0.18)",
+      border: "rgba(160,160,170,0.28)",
+      color: "rgba(226,226,232,0.88)",
+    };
+  }
+  if (raw.includes("kineticheadline")) {
+    return {
+      background: "rgba(218,119,86,0.26)",
+      border: "rgba(218,119,86,0.44)",
+      color: "rgba(255,201,181,0.96)",
+    };
+  }
+  if (raw.includes("htmlslide")) {
+    return {
+      background: "rgba(124,179,122,0.24)",
+      border: "rgba(124,179,122,0.4)",
+      color: "rgba(203,236,193,0.96)",
+    };
+  }
+  if (raw.includes("svgoverlay")) {
+    return {
+      background: "rgba(138,111,174,0.28)",
+      border: "rgba(138,111,174,0.46)",
+      color: "rgba(226,203,255,0.96)",
+    };
+  }
+  if (raw.includes("markdownslide")) {
+    return {
+      background: "rgba(201,123,158,0.26)",
+      border: "rgba(201,123,158,0.42)",
+      color: "rgba(255,205,226,0.96)",
+    };
+  }
+  if (raw.includes("videoclip")) {
+    return {
+      background: "rgba(110,158,207,0.26)",
+      border: "rgba(110,158,207,0.42)",
+      color: "rgba(206,228,255,0.96)",
+    };
+  }
+  if (raw.includes("circleripple") || raw.includes("orbitrings")) {
+    return {
+      background: "rgba(222,193,92,0.26)",
+      border: "rgba(222,193,92,0.42)",
+      color: "rgba(255,238,180,0.96)",
+    };
+  }
+  return {
+    background: "rgba(160,160,170,0.18)",
+    border: "rgba(160,160,170,0.28)",
+    color: "rgba(226,226,232,0.88)",
+  };
+}
+
+function deriveClipInlineStyle(clip, track, totalDuration) {
+  const start = Math.max(0, finiteNumber(clip?.start, 0));
+  const duration = Math.max(0, finiteNumber(clip?.dur ?? clip?.duration, 0));
+  const left = percentOfTotal(start, totalDuration);
+  const width = percentOfTotal(duration, totalDuration);
+  const palette = deriveClipPalette(clip, track);
+  return (
+    "left:" + left + "%;" +
+    "width:" + width + "%;" +
+    "min-width:12px;" +
+    "background:" + palette.background + ";" +
+    "border:1px solid " + palette.border + ";" +
+    "color:" + palette.color + ";"
+  );
 }
 
 function setText(id, text) {
@@ -917,7 +1004,11 @@ function renderPreviewFrameCLI(t) {
     if (seq !== _previewSeq) return;
     var imgEl = document.getElementById("preview-frame-img");
     var placeholder = document.getElementById("preview-placeholder");
+    var canvas = document.getElementById("render-canvas");
+    var video = document.getElementById("preview-video");
     if (imgEl && result && result.dataUrl) {
+      if (canvas) canvas.style.display = "none";
+      if (video) video.style.display = "none";
       imgEl.src = result.dataUrl;
       imgEl.style.display = "block";
       if (placeholder) placeholder.style.display = "none";
@@ -951,10 +1042,12 @@ function setPlayheadTime(time) {
     ? Math.min(Math.max(finiteNumber(time, 0), 0), TOTAL_DURATION)
     : 0;
 
-  const px = currentTime * PX_PER_SEC;
+  const px = TOTAL_DURATION > 0
+    ? percentOfTotal(currentTime, TOTAL_DURATION) + "%"
+    : "0%";
   const playhead = document.getElementById("tl-playhead");
   if (playhead) {
-    playhead.style.left = px + "px";
+    playhead.style.left = px;
   }
 
   setText("tc-current", formatPreciseTime(currentTime));
@@ -1007,6 +1100,7 @@ function playLoop(timestamp) {
   }
 
   setPlayheadTime(currentTime);
+  requestPreviewFrame(currentTime);
   if (isPlaying) {
     playRAF = requestAnimationFrame(playLoop);
   }
@@ -1037,14 +1131,17 @@ function selectClip(element) {
   setReadout("insp-start", formatPreciseTime(start));
   setReadout("insp-duration", duration.toFixed(3) + "s");
   setReadout("insp-params", paramsText);
-  if (currentPreviewVideoUrl) {
-    setText("canvas-title", prettifyLabel(scene || name || type || "Clip").toUpperCase());
-    setText("canvas-sub", "scene:" + slugify(scene || name || type || "clip") + " · " + formatPreciseTime(start));
-  }
+  setText("canvas-title", prettifyLabel(scene || name || type || "Clip").toUpperCase());
+  setText("canvas-sub", "scene:" + slugify(scene || name || type || "clip") + " · " + formatPreciseTime(start));
   setText("badge-type", (kind || type || "clip").toUpperCase());
   setText("badge-id", id || "--");
 
-  setPlayheadTime(start);
+  setPlayheadTime(start, { syncVideo: true });
+  if (window.__renderEngine?.ready) {
+    renderPreviewCanvas(start);
+  } else {
+    requestPreviewFrame(start);
+  }
 
   document
     .querySelectorAll(".scene-chip")
@@ -1073,10 +1170,8 @@ function resetSelection(message) {
   setReadout("insp-start", "00:00.000");
   setReadout("insp-duration", "0.000s");
   setReadout("insp-params", currentTimeline ? "Select a clip to inspect its params." : "Select a clip to inspect its params.");
-  if (currentPreviewVideoUrl) {
-    setText("canvas-title", "TIMELINE");
-    setText("canvas-sub", currentSegment ? "segment:" + slugify(currentSegment) : "Load a segment to preview video");
-  }
+  setText("canvas-title", "TIMELINE");
+  setText("canvas-sub", currentSegment ? "segment:" + slugify(currentSegment) : "Load a segment to preview video");
   setText("badge-type", "TIMELINE");
   setText("badge-id", currentSegment || "--");
   updateInspectorContext();
@@ -1112,7 +1207,7 @@ function renderTimelineRuler(duration) {
   for (let second = 0; second <= wholeSeconds; second += 1) {
     const major = second === 0 || second % 3 === 0;
     ticks.push(
-      `<div class="tl-ruler-tick${major ? " major" : ""}" style="left:${second * PX_PER_SEC}px">` +
+      `<div class="tl-ruler-tick${major ? " major" : ""}" style="left:${percentOfTotal(second, safeDuration)}%">` +
       `<div class="tick-line"></div>` +
       (major ? `<span class="tick-label">${second}s</span>` : "") +
       `</div>`
@@ -1122,7 +1217,7 @@ function renderTimelineRuler(duration) {
   if (safeDuration > wholeSeconds + 0.001) {
     const endLabel = String(Math.round(safeDuration * 10) / 10).replace(/\.0$/, "") + "s";
     ticks.push(
-      `<div class="tl-ruler-tick major" style="left:${safeDuration * PX_PER_SEC}px">` +
+      `<div class="tl-ruler-tick major" style="left:100%">` +
       `<div class="tick-line"></div>` +
       `<span class="tick-label">${endLabel}</span>` +
       `</div>`
@@ -1147,19 +1242,52 @@ function percentOfTotal(value, total) {
   return safeTotal > 0 ? (safeValue / safeTotal) * 100 : 0;
 }
 
+function prepareTimelineContainer(container) {
+  if (!container) {
+    return;
+  }
+  container.style.display = "flex";
+  container.style.width = "100%";
+  container.style.height = "100%";
+  container.style.minHeight = "0";
+}
+
+function renderTrackHeader(track, index) {
+  const trackId = deriveTrackDisplayId(track, index);
+  return (
+    `<div class="tl-track-label" title="${escapeAttr(trackId)}">` +
+    `<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;width:100%;padding:0 10px">` +
+    `<span style="display:flex;gap:6px;color:var(--ink-dim);font-size:12px;line-height:1">` +
+    `<span aria-hidden="true">&#128065;</span>` +
+    `<span aria-hidden="true">&#128274;</span>` +
+    `</span>` +
+    `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(trackId)}</span>` +
+    `</div>` +
+    `</div>`
+  );
+}
+
+function renderTrackRow(track, trackIndex, totalDuration) {
+  const clips = Array.isArray(track?.clips) ? track.clips : [];
+  const trackId = deriveTrackDisplayId(track, trackIndex);
+  const clipHtml = clips.length
+    ? clips.map((clip, clipIndex) => renderClipHtml(clip, track, trackIndex, clipIndex, totalDuration)).join("")
+    : `<div style="padding:12px;color:var(--ink-dim);font-size:11px">No clips</div>`;
+  return `<div class="tl-track" id="track-${escapeAttr(trackId)}">${clipHtml}</div>`;
+}
+
 function renderClipHtml(clip, track, trackIndex, clipIndex, totalDuration) {
   const start = Math.max(0, finiteNumber(clip?.start, 0));
   const duration = Math.max(0, finiteNumber(clip?.dur ?? clip?.duration, 0));
   const label = deriveClipLabel(clip, clipIndex);
   const type = deriveClipType(clip, track);
   const scene = String(clip?.scene || clip?.type || label || "clip");
-  const sceneLabel = prettifyLabel(scene);
-  const kind = deriveClipClass(clip, track).replace(/^type-/, "");
+  const sceneLabel = scene;
+  const kind = deriveClipFamily(clip, track);
   const id = String(clip?.id || ("clip-" + (trackIndex + 1) + "-" + (clipIndex + 1)));
-  const left = percentOfTotal(start, totalDuration);
-  const width = percentOfTotal(duration, totalDuration);
+  const domId = "tl-clip-" + slugify((track?.id || "track") + "-" + id + "-" + (clipIndex + 1));
   return (
-    `<div class="tl-clip ${deriveClipClass(clip, track)}" id="${escapeAttr(id)}"` +
+    `<div class="tl-clip ${deriveClipClass(clip, track)}" id="${escapeAttr(domId)}"` +
     ` data-name="${escapeAttr(label)}"` +
     ` data-scene="${escapeAttr(scene)}"` +
     ` data-type="${escapeAttr(type)}"` +
@@ -1169,7 +1297,7 @@ function renderClipHtml(clip, track, trackIndex, clipIndex, totalDuration) {
     ` data-dur="${escapeAttr(String(duration))}"` +
     ` data-params="${escapeAttr(stringifyClipParams(clip?.params))}"` +
     ` title="${escapeAttr(scene + " · " + id)}"` +
-    ` style="left:${left}%;width:${width}%;min-width:12px" onclick="selectClip(this)">` +
+    ` style="${escapeAttr(deriveClipInlineStyle(clip, track, totalDuration))}" onclick="selectClip(this)">` +
     `<span class="tl-clip-label">${escapeHtml(sceneLabel)}</span>` +
     `</div>`
   );
@@ -1180,13 +1308,14 @@ function renderEditorNotice(message) {
   if (!container) {
     return;
   }
+  prepareTimelineContainer(container);
 
   container.innerHTML =
-    `<div class="tl-tracks-header">` +
+    `<div class="tl-tracks-header" style="width:148px">` +
     `<div class="tl-track-label">-</div>` +
     `</div>` +
     `<div class="tl-lanes">` +
-    `<div class="tl-lanes-inner" style="width:1000px">` +
+    `<div class="tl-lanes-inner" style="width:100%">` +
     `<div class="tl-ruler">` +
     `<div class="tl-ruler-tick major" style="left:0px"><div class="tick-line"></div><span class="tick-label">0s</span></div>` +
     `</div>` +
@@ -1215,7 +1344,10 @@ function updatePlayheadFromPointer(event, lanes) {
   const rect = inner.getBoundingClientRect();
   const offset = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
   const time = rect.width > 0 ? (offset / rect.width) * TOTAL_DURATION : 0;
-  setPlayheadTime(time);
+  setPlayheadTime(time, { syncVideo: true });
+  if (!currentPreviewVideoUrl) {
+    requestPreviewFrame(time);
+  }
 }
 
 function beginTimelineScrub(event) {
@@ -1242,33 +1374,24 @@ function renderTimeline(timeline, preferredClipId) {
   if (!container) {
     return;
   }
+  prepareTimelineContainer(container);
 
   const tracks = Array.isArray(timeline?.tracks) ? timeline.tracks : [];
   const duration = deriveTimelineDuration(timeline);
   TOTAL_DURATION = duration;
-  const width = Math.max(Math.ceil(duration * PX_PER_SEC) + 80, 1000);
 
   if (!tracks.length) {
     renderEditorNotice("No tracks in timeline");
     return;
   }
 
-  const labels = tracks.map((track, index) =>
-    `<div class="tl-track-label">${escapeHtml(deriveTrackLabel(track, index))}</div>`
-  ).join("");
-
-  const trackRows = tracks.map((track, trackIndex) => {
-    const clips = Array.isArray(track?.clips) ? track.clips : [];
-    const clipHtml = clips.length
-      ? clips.map((clip, clipIndex) => renderClipHtml(clip, track, trackIndex, clipIndex, duration)).join("")
-      : `<div style="padding:12px;color:var(--ink-dim);font-size:11px">No clips</div>`;
-    return `<div class="tl-track" id="track-${escapeAttr(String(track?.id || ("track-" + (trackIndex + 1))))}">${clipHtml}</div>`;
-  }).join("");
+  const labels = tracks.map((track, index) => renderTrackHeader(track, index)).join("");
+  const trackRows = tracks.map((track, trackIndex) => renderTrackRow(track, trackIndex, duration)).join("");
 
   container.innerHTML =
-    `<div class="tl-tracks-header">${labels}</div>` +
+    `<div class="tl-tracks-header" style="width:148px">${labels}</div>` +
     `<div class="tl-lanes">` +
-    `<div class="tl-lanes-inner" style="width:${width}px">` +
+    `<div class="tl-lanes-inner" style="width:100%">` +
     `<div class="tl-ruler">${renderTimelineRuler(duration)}</div>` +
     trackRows +
     `<div class="tl-playhead" id="tl-playhead"><div class="tl-playhead-handle"></div></div>` +
