@@ -167,12 +167,6 @@ let currentTime = 2.4;
 let playRAF = null;
 let lastTS = null;
 
-function formatTC(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const wholeSeconds = Math.floor(seconds % 60);
-  return String(minutes).padStart(2, "0") + ":" + String(wholeSeconds).padStart(2, "0");
-}
-
 function playLoop(timestamp) {
   if (!lastTS) {
     lastTS = timestamp;
@@ -321,20 +315,6 @@ function toggleFullscreen() {
 }
 
 /* === app.js === */
-  closeAllDropdowns,
-  initBreadcrumbs,
-  showOverlay,
-  toggleBcDrop,
-} from "./breadcrumbs.js";
-  closePlayer,
-  openPlayer,
-  seekPlayer,
-  toggleExports,
-  togglePlayerPlay,
-} from "./exports-panel.js";
-
-{ closeAllDropdowns, showOverlay };
-
 function switchView(id) {
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   const target = document.getElementById(id);
