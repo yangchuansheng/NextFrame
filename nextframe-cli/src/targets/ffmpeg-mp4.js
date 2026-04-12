@@ -4,7 +4,7 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { guarded } from "../engine/_guard.js";
-import { renderAt } from "../engine/render.js";
+import { CanvasPool, renderAt } from "../engine/render.js";
 import { resolveTimeline } from "../engine/time.js";
 
 function normalizeCrf(value) {
@@ -14,11 +14,72 @@ function normalizeCrf(value) {
   return crf;
 }
 
+function copyFrameData(source, target) {
+  if (typeof source.copy === "function") {
+    source.copy(target, 0, 0, target.length);
+    return;
+  }
+  target.set(source);
+}
+
+function writeFrame(stream, chunk) {
+  return new Promise((resolve, reject) => {
+    let needsDrain = false;
+    let writeDone = false;
+    let drainDone = false;
+    let settled = false;
+
+    const cleanup = () => {
+      stream.off("error", onError);
+      if (needsDrain) stream.off("drain", onDrain);
+    };
+    const finish = () => {
+      if (settled || !writeDone) return;
+      if (needsDrain && !drainDone) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+    const onError = (err) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err);
+    };
+    const onDrain = () => {
+      drainDone = true;
+      finish();
+    };
+
+    stream.once("error", onError);
+    try {
+      needsDrain = !stream.write(chunk, (err) => {
+        if (err) {
+          onError(err);
+          return;
+        }
+        writeDone = true;
+        finish();
+      });
+    } catch (err) {
+      onError(err);
+      return;
+    }
+
+    if (needsDrain) {
+      stream.once("drain", onDrain);
+    } else {
+      drainDone = true;
+      finish();
+    }
+  });
+}
+
 /**
  * Export a timeline to an MP4 file.
  * @param {object} timeline
  * @param {string} outputPath - absolute path
- * @param {{fps?: number, ffmpegPath?: string, onProgress?: (frameIdx, total) => void}} [opts]
+ * @param {{fps?: number, crf?: number, width?: number, height?: number, ffmpegPath?: string, useCanvasPool?: boolean, onProgress?: (frameIdx, total) => void}} [opts]
  * @returns {Promise<{ok: true, value: object} | {ok: false, error: object}>}
  */
 export async function exportMP4(timeline, outputPath, opts = {}) {
@@ -27,12 +88,13 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
   const resolved = r.value;
 
   const fps = opts.fps || resolved.project?.fps || 30;
-  const width = resolved.project?.width || 1920;
-  const height = resolved.project?.height || 1080;
+  const width = opts.width || resolved.project?.width || 1920;
+  const height = opts.height || resolved.project?.height || 1080;
   const duration = resolved.duration;
   const totalFrames = Math.round(duration * fps);
   const ffmpegPath = opts.ffmpegPath || "ffmpeg";
   const crf = normalizeCrf(opts.crf);
+  const useCanvasPool = opts.useCanvasPool !== false;
   if (crf === null) {
     return guarded("exportMP4", { ok: false, error: { code: "BAD_CRF", hint: "0..51" } });
   }
@@ -64,24 +126,63 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
     stderr += chunk;
   });
 
+  const canvasPool = useCanvasPool ? new CanvasPool(2) : null;
+  const offscreenCanvasPool = useCanvasPool ? new CanvasPool(2) : null;
+  const frameBytes = width * height * 4;
+  const rgbaBuffers = [Buffer.allocUnsafe(frameBytes), Buffer.allocUnsafe(frameBytes)];
+  const writeDone = [Promise.resolve(), Promise.resolve()];
   let renderedFrames = 0;
   let firstError = null;
+  let pipeError = null;
 
-  for (let i = 0; i < totalFrames; i++) {
-    const t = i / fps;
-    const frame = renderAt(resolved, t, { width, height });
-    if (!frame.ok) {
-      firstError = frame.error;
-      break;
+  const renderFrameIntoSlot = (frameIdx, slot) => {
+    const frame = renderAt(resolved, frameIdx / fps, {
+      width,
+      height,
+      useCanvasPool,
+      canvasPool,
+      offscreenCanvasPool,
+    });
+    if (!frame.ok) return frame;
+    try {
+      copyFrameData(frame.canvas.data(), rgbaBuffers[slot]);
+    } finally {
+      frame.release();
     }
-    const rgba = frame.canvas.data();
-    if (!ffmpeg.stdin.write(rgba)) {
-      await once(ffmpeg.stdin, "drain");
+    return frame;
+  };
+
+  if (totalFrames > 0) {
+    const firstFrame = renderFrameIntoSlot(0, 0);
+    if (!firstFrame.ok) {
+      firstError = firstFrame.error;
     }
-    renderedFrames++;
-    if (opts.onProgress && renderedFrames % 30 === 0) {
-      opts.onProgress(renderedFrames, totalFrames);
+  }
+
+  try {
+    for (let i = 0; i < totalFrames && !firstError; i++) {
+      const currentSlot = i % 2;
+      writeDone[currentSlot] = writeFrame(ffmpeg.stdin, rgbaBuffers[currentSlot]);
+
+      const nextFrameIdx = i + 1;
+      if (nextFrameIdx < totalFrames) {
+        const nextSlot = nextFrameIdx % 2;
+        await writeDone[nextSlot];
+        const nextFrame = renderFrameIntoSlot(nextFrameIdx, nextSlot);
+        if (!nextFrame.ok) {
+          firstError = nextFrame.error;
+          break;
+        }
+      }
+
+      renderedFrames++;
+      if (opts.onProgress && (renderedFrames % 30 === 0 || renderedFrames === totalFrames)) {
+        opts.onProgress(renderedFrames, totalFrames);
+      }
     }
+    await Promise.all(writeDone);
+  } catch (err) {
+    pipeError = err;
   }
 
   ffmpeg.stdin.end();
@@ -89,6 +190,16 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
 
   if (firstError) {
     return guarded("exportMP4", { ok: false, error: firstError, stderr });
+  }
+  if (pipeError) {
+    return guarded("exportMP4", {
+      ok: false,
+      error: {
+        code: "FFMPEG_PIPE",
+        message: pipeError.message,
+        hint: stderr.split("\n").slice(-5).join("\n"),
+      },
+    });
   }
   if (exitCode !== 0) {
     return guarded("exportMP4", {
