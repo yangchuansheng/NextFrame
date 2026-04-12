@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>NextFrame DOM Atoms Demo</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--bg2:#14141e;--bg3:#1e1e2a;
+  --ink:#f5ece0;--ink50:rgba(245,236,224,0.5);--ink25:rgba(245,236,224,0.25);
+  --ac:#da7756;--green:#7ec699;--blue:#8ab4cc;--gold:#d4b483;--purple:#a78bfa;--pink:#f472b6;
+  --mono:Menlo,'SF Mono',monospace;
+  --serif:'Songti SC',Georgia,serif;
+  --sans:-apple-system,'Helvetica Neue',sans-serif;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;height:100vh;display:flex;flex-direction:column}
+
+/* 控制条 */
+.controls{height:48px;background:var(--bg2);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.controls label{font-size:12px;color:var(--ink50)}
+.controls input[type=range]{width:300px;accent-color:var(--ac)}
+.controls .tc{font-family:var(--mono);font-size:13px;color:var(--ink);min-width:80px}
+.controls button{height:28px;padding:0 14px;background:transparent;border:1px solid rgba(218,119,86,0.4);color:var(--ac);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:0}
+.controls button:hover{background:rgba(218,119,86,0.1)}
+.controls button.active{background:rgba(218,119,86,0.2);border-color:var(--ac)}
+
+/* 舞台 */
+.stage{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+
+/* 轨道层 = absolute 定位的 div */
+.track{position:absolute;inset:0;pointer-events:none}
+
+/* ========== 原子组件 ========== */
+
+/* 1. 标题原子 */
+.atom-headline{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center}
+.atom-headline h1{font-family:var(--serif);font-size:clamp(48px,8vw,120px);font-weight:900;line-height:1;background:linear-gradient(135deg,var(--ac),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.atom-headline p{font-family:var(--mono);font-size:clamp(14px,2vw,20px);color:var(--ink50);margin-top:12px;letter-spacing:0.05em}
+
+/* 2. 卡片网格原子 */
+.atom-card-grid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:16px}
+.atom-card{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px 16px;width:160px;text-align:center;position:relative;overflow:hidden}
+.atom-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.atom-card:nth-child(1)::before{background:var(--green)}
+.atom-card:nth-child(2)::before{background:var(--blue)}
+.atom-card:nth-child(3)::before{background:var(--ac)}
+.atom-card:nth-child(4)::before{background:var(--gold)}
+.atom-card .card-icon{font-size:32px;margin-bottom:8px}
+.atom-card .card-name{font-family:var(--mono);font-size:14px;font-weight:700;margin-bottom:4px}
+.atom-card .card-desc{font-size:12px;color:var(--ink50)}
+
+/* 3. 代码块原子 */
+.atom-codeblock{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:680px;background:#111;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden}
+.cb-bar{background:#1a1a1a;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.cb-dot{width:10px;height:10px;border-radius:50%}
+.cb-title{flex:1;text-align:center;font-family:var(--mono);font-size:13px;color:rgba(255,255,255,0.25)}
+.cb-badge{font-family:var(--mono);font-size:12px;color:var(--ac);padding:2px 8px;background:rgba(218,119,86,0.1);border:1px solid rgba(218,119,86,0.2);border-radius:4px}
+.cb-body{padding:20px 24px;font-family:var(--mono);font-size:14px;line-height:1.8}
+.j-k{color:#ff7b72}.j-s{color:#7ee787}.j-n{color:#ffa657}.j-b{color:rgba(255,255,255,0.4)}
+
+/* 4. 条形图原子 */
+.atom-bars{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:700px}
+.bar-row{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.bar-label{width:120px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:700}
+.bar-track{flex:1;height:36px;background:var(--bg2);border-radius:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:8px;display:flex;align-items:center;padding-left:14px;font-family:var(--mono);font-size:13px;font-weight:700}
+
+/* 5. 大数字原子 */
+.atom-bignumber{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center}
+.atom-bignumber .big{font-family:var(--serif);font-size:clamp(80px,12vw,160px);font-weight:900;color:var(--ac);line-height:1}
+.atom-bignumber .label{font-size:18px;color:var(--ink50);margin-top:12px}
+
+/* 6. 引用原子 */
+.atom-quote{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:640px;text-align:center}
+.atom-quote blockquote{font-family:var(--serif);font-size:28px;font-style:italic;color:var(--gold);line-height:1.6;margin-bottom:16px}
+.atom-quote .explain{font-size:16px;color:var(--ink50);line-height:1.6}
+
+/* 7. 图片原子 */
+.atom-image{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
+.atom-image img{display:block;max-width:600px;max-height:400px;object-fit:cover}
+
+/* 8. 标签药丸原子 */
+.atom-pills{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.pill{font-family:var(--mono);font-size:13px;padding:6px 16px;border-radius:20px;border:1px solid}
+.pill-ac{color:var(--ac);border-color:rgba(218,119,86,0.3);background:rgba(218,119,86,0.08)}
+.pill-green{color:var(--green);border-color:rgba(126,198,153,0.3);background:rgba(126,198,153,0.08)}
+.pill-blue{color:var(--blue);border-color:rgba(138,180,204,0.3);background:rgba(138,180,204,0.08)}
+.pill-gold{color:var(--gold);border-color:rgba(212,180,131,0.3);background:rgba(212,180,131,0.08)}
+
+/* Canvas 背景层 */
+#bg-canvas{position:absolute;inset:0;width:100%;height:100%}
+</style>
+</head>
+<body>
+
+<!-- 控制条 -->
+<div class="controls">
+  <label>TIME</label>
+  <input type="range" id="slider" min="0" max="320" value="0">
+  <span class="tc" id="tc">00:00.000</span>
+  <button id="playBtn" onclick="togglePlay()">PLAY</button>
+  <button onclick="jumpTo(0)">P1 标题</button>
+  <button onclick="jumpTo(3)">P2 卡片</button>
+  <button onclick="jumpTo(8)">P3 代码</button>
+  <button onclick="jumpTo(14)">P4 条形图</button>
+  <button onclick="jumpTo(20)">P5 引用</button>
+  <button onclick="jumpTo(25)">P6 大数字</button>
+  <button onclick="jumpTo(28)">P7 药丸</button>
+</div>
+
+<!-- 舞台 -->
+<div class="stage" id="stage">
+
+  <!-- Track 1: Canvas 背景 -->
+  <div class="track" id="t-bg">
+    <canvas id="bg-canvas"></canvas>
+  </div>
+
+  <!-- Track 2: 标题 -->
+  <div class="track" id="t-headline">
+    <div class="atom-headline" id="a-headline">
+      <h1>NEXTFRAME</h1>
+      <p>AI-native video editor · f(t) → frame</p>
+    </div>
+  </div>
+
+  <!-- Track 3: 卡片网格 -->
+  <div class="track" id="t-cards">
+    <div class="atom-card-grid" id="a-cards">
+      <div class="atom-card" id="card-0"><div class="card-icon">$_</div><div class="card-name">Bash</div><div class="card-desc">执行命令</div></div>
+      <div class="atom-card" id="card-1"><div class="card-icon">📄</div><div class="card-name">Read</div><div class="card-desc">读文件</div></div>
+      <div class="atom-card" id="card-2"><div class="card-icon">✏️</div><div class="card-name">Edit</div><div class="card-desc">改文件</div></div>
+      <div class="atom-card" id="card-3"><div class="card-icon">🔍</div><div class="card-name">Grep</div><div class="card-desc">搜内容</div></div>
+    </div>
+  </div>
+
+  <!-- Track 4: 代码块 -->
+  <div class="track" id="t-code">
+    <div class="atom-codeblock" id="a-code">
+      <div class="cb-bar">
+        <span class="cb-dot" style="background:#ff5f57"></span>
+        <span class="cb-dot" style="background:#febc2e"></span>
+        <span class="cb-dot" style="background:#28c840"></span>
+        <span class="cb-title">tools[0] — Bash</span>
+        <span class="cb-badge">JSON Schema</span>
+      </div>
+      <div class="cb-body">
+        <div><span class="j-b">{</span></div>
+        <div>&nbsp;&nbsp;<span class="j-k">"name"</span>: <span class="j-s">"Bash"</span>,</div>
+        <div>&nbsp;&nbsp;<span class="j-k">"description"</span>: <span class="j-s">"Execute shell commands"</span>,</div>
+        <div>&nbsp;&nbsp;<span class="j-k">"input_schema"</span>: <span class="j-b">{</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="j-k">"type"</span>: <span class="j-s">"object"</span>,</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="j-k">"properties"</span>: <span class="j-b">{</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="j-k">"command"</span>: <span class="j-b">{</span> <span class="j-k">"type"</span>: <span class="j-s">"string"</span> <span class="j-b">}</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="j-b">}</span></div>
+        <div>&nbsp;&nbsp;<span class="j-b">}</span></div>
+        <div><span class="j-b">}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Track 5: 条形图 -->
+  <div class="track" id="t-bars">
+    <div class="atom-bars" id="a-bars">
+      <div class="bar-row" id="bar-0">
+        <span class="bar-label" style="color:var(--ac)">Built-in</span>
+        <div class="bar-track"><div class="bar-fill" style="background:rgba(218,119,86,0.25);color:var(--ac);width:30%">20+</div></div>
+      </div>
+      <div class="bar-row" id="bar-1">
+        <span class="bar-label" style="color:var(--green)">+ MCP</span>
+        <div class="bar-track"><div class="bar-fill" style="background:rgba(126,198,153,0.2);color:var(--green);width:55%">40+</div></div>
+      </div>
+      <div class="bar-row" id="bar-2">
+        <span class="bar-label" style="color:var(--gold)">+ Deferred</span>
+        <div class="bar-track"><div class="bar-fill" style="background:rgba(212,180,131,0.15);color:var(--gold);width:80%;border:1px dashed rgba(212,180,131,0.3)">80+</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Track 6: 引用 -->
+  <div class="track" id="t-quote">
+    <div class="atom-quote" id="a-quote">
+      <blockquote>"有些刀片你知道有但没打开过，<br>需要的时候再拽出来"</blockquote>
+      <div class="explain">Deferred 工具只注册名字，不发说明书。<br>用到了才临时查 Schema — 省 token，不占上下文。</div>
+    </div>
+  </div>
+
+  <!-- Track 7: 大数字 -->
+  <div class="track" id="t-bignumber">
+    <div class="atom-bignumber" id="a-bignumber">
+      <div class="big">100+</div>
+      <div class="label">接上五六个 MCP，工具数量能到一百多个</div>
+    </div>
+  </div>
+
+  <!-- Track 8: 药丸标签 -->
+  <div class="track" id="t-pills">
+    <div class="atom-pills" id="a-pills">
+      <span class="pill pill-ac">Bash</span>
+      <span class="pill pill-green">Read</span>
+      <span class="pill pill-blue">Edit</span>
+      <span class="pill pill-gold">Grep</span>
+      <span class="pill pill-ac">Agent</span>
+      <span class="pill pill-green">Skill</span>
+      <span class="pill pill-blue">WebSearch</span>
+      <span class="pill pill-gold">TodoCreate</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── 动画系统（与原子分离）───
+function easeOutCubic(x) { return 1 - (1 - x) ** 3; }
+function easeOutBack(x) { const c = 1.7; return 1 + (c + 1) * ((x - 1) ** 3) + c * ((x - 1) ** 2); }
+
+function tween(t, start, dur, ease) {
+  if (t < start) return 0;
+  if (t >= start + dur) return 1;
+  const raw = (t - start) / dur;
+  return ease ? ease(raw) : raw;
+}
+
+// ─── Effects（进出场动画，通用，不绑定原子）───
+function applyEffect(el, progress, type) {
+  if (type === 'fadeIn') {
+    el.style.opacity = progress;
+  } else if (type === 'fadeOut') {
+    el.style.opacity = 1 - progress;
+  } else if (type === 'slideUp') {
+    el.style.opacity = progress;
+    el.style.transform = el.dataset.baseTransform + ` translateY(${(1 - progress) * 40}px)`;
+  } else if (type === 'slideDown') {
+    el.style.opacity = progress;
+    el.style.transform = el.dataset.baseTransform + ` translateY(${(progress - 1) * 40}px)`;
+  } else if (type === 'scaleIn') {
+    const s = 0.6 + 0.4 * progress;
+    el.style.opacity = progress;
+    el.style.transform = el.dataset.baseTransform + ` scale(${s})`;
+  } else if (type === 'scaleOut') {
+    const s = 1 - 0.4 * progress;
+    el.style.opacity = 1 - progress;
+    el.style.transform = el.dataset.baseTransform + ` scale(${s})`;
+  } else if (type === 'blurIn') {
+    el.style.opacity = progress;
+    el.style.filter = `blur(${(1 - progress) * 12}px)`;
+  }
+}
+
+// ─── 场景时间表 ───
+const scenes = [
+  { id: 'a-headline', start: 0, dur: 5, enter: 'slideUp', enterDur: 0.8, exit: 'fadeOut', exitDur: 0.5 },
+  { id: 'a-cards', start: 3, dur: 7, enter: 'fadeIn', enterDur: 0.6, exit: 'fadeOut', exitDur: 0.5,
+    stagger: { ids: ['card-0','card-1','card-2','card-3'], start: 3.5, gap: 0.3, effect: 'scaleIn', dur: 0.35, ease: easeOutBack } },
+  { id: 'a-code', start: 8, dur: 7, enter: 'slideUp', enterDur: 0.7, exit: 'fadeOut', exitDur: 0.5 },
+  { id: 'a-bars', start: 14, dur: 8, enter: 'fadeIn', enterDur: 0.6, exit: 'fadeOut', exitDur: 0.5,
+    stagger: { ids: ['bar-0','bar-1','bar-2'], start: 14.3, gap: 0.8, effect: 'slideUp', dur: 0.5 } },
+  { id: 'a-quote', start: 20, dur: 7, enter: 'blurIn', enterDur: 0.8, exit: 'fadeOut', exitDur: 0.5 },
+  { id: 'a-bignumber', start: 25, dur: 5, enter: 'scaleIn', enterDur: 0.6, exit: 'fadeOut', exitDur: 0.5 },
+  { id: 'a-pills', start: 28, dur: 4, enter: 'fadeIn', enterDur: 0.5, exit: 'fadeOut', exitDur: 0.3,
+    stagger: { ids: Array.from({length:8}, (_,i) => null), start: 28.2, gap: 0.12, effect: 'scaleIn', dur: 0.3, ease: easeOutBack, selector: '.pill' } },
+];
+
+// 保存原始 transform
+document.querySelectorAll('.atom-headline,.atom-card-grid,.atom-codeblock,.atom-bars,.atom-quote,.atom-bignumber,.atom-pills').forEach(el => {
+  el.dataset.baseTransform = getComputedStyle(el).transform === 'none' ? 'translate(-50%,-50%)' : getComputedStyle(el).transform;
+});
+document.querySelectorAll('.atom-card,.bar-row,.pill').forEach(el => {
+  el.dataset.baseTransform = '';
+});
+
+// ─── Canvas 背景 ───
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+function resizeBg() { bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight - 48; }
+resizeBg(); window.addEventListener('resize', resizeBg);
+
+function drawBg(t) {
+  const W = bgCanvas.width, H = bgCanvas.height;
+  bgCtx.fillStyle = '#0a0a0f';
+  bgCtx.fillRect(0, 0, W, H);
+  // subtle radial glow that shifts with time
+  const cx = W * (0.4 + Math.sin(t * 0.2) * 0.1);
+  const cy = H * (0.5 + Math.cos(t * 0.15) * 0.1);
+  const g = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.6);
+  const hue = 260 + Math.sin(t * 0.3) * 30;
+  g.addColorStop(0, `hsla(${hue}, 60%, 20%, 0.15)`);
+  g.addColorStop(0.5, `hsla(${hue + 40}, 40%, 10%, 0.05)`);
+  g.addColorStop(1, 'transparent');
+  bgCtx.fillStyle = g;
+  bgCtx.fillRect(0, 0, W, H);
+}
+
+// ─── 主更新函数 ───
+const TOTAL = 32;
+
+function updateAt(t) {
+  // Canvas 背景
+  drawBg(t);
+
+  // 每个 scene 的进出场
+  for (const s of scenes) {
+    const el = document.getElementById(s.id);
+    if (!el) continue;
+
+    const end = s.start + s.dur;
+    const enterEnd = s.start + (s.enterDur || 0.5);
+    const exitStart = end - (s.exitDur || 0.5);
+
+    if (t < s.start || t > end) {
+      // 不在范围内：隐藏
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+      continue;
+    }
+
+    el.style.pointerEvents = '';
+
+    if (t < enterEnd) {
+      // 进入动画
+      const p = tween(t, s.start, s.enterDur || 0.5, easeOutCubic);
+      applyEffect(el, p, s.enter || 'fadeIn');
+    } else if (t > exitStart) {
+      // 退出动画
+      const p = tween(t, exitStart, s.exitDur || 0.5, easeOutCubic);
+      applyEffect(el, p, s.exit || 'fadeOut');
+    } else {
+      // 中间：完全显示
+      el.style.opacity = '1';
+      el.style.transform = el.dataset.baseTransform;
+      el.style.filter = '';
+    }
+
+    // Stagger 子元素动画
+    if (s.stagger) {
+      const st = s.stagger;
+      let children;
+      if (st.selector) {
+        children = Array.from(el.querySelectorAll(st.selector));
+      } else {
+        children = st.ids.map(id => document.getElementById(id)).filter(Boolean);
+      }
+      children.forEach((child, i) => {
+        const cp = tween(t, st.start + i * st.gap, st.dur || 0.3, st.ease || easeOutCubic);
+        if (t < st.start + i * st.gap) {
+          child.style.opacity = '0';
+        } else {
+          applyEffect(child, cp, st.effect || 'fadeIn');
+        }
+      });
+    }
+  }
+
+  // 更新时码
+  const m = Math.floor(t / 60);
+  const sec = Math.floor(t % 60);
+  const ms = Math.floor((t % 1) * 1000);
+  document.getElementById('tc').textContent =
+    String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0') + '.' + String(ms).padStart(3, '0');
+}
+
+// ─── 播放控制 ───
+const slider = document.getElementById('slider');
+let playing = false, playStart = null, playFrom = 0;
+
+slider.addEventListener('input', () => {
+  const t = parseFloat(slider.value) / 10;
+  playFrom = t;
+  updateAt(t);
+});
+
+function jumpTo(t) {
+  playFrom = t;
+  slider.value = t * 10;
+  if (!playing) updateAt(t);
+}
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('playBtn').classList.toggle('active', playing);
+  document.getElementById('playBtn').textContent = playing ? 'PAUSE' : 'PLAY';
+  if (playing) { playStart = performance.now(); requestAnimationFrame(playLoop); }
+}
+
+function playLoop(ts) {
+  if (!playing) return;
+  const elapsed = (ts - playStart) / 1000;
+  const t = playFrom + elapsed;
+  if (t >= TOTAL) { playing = false; document.getElementById('playBtn').textContent = 'PLAY'; document.getElementById('playBtn').classList.remove('active'); playFrom = 0; slider.value = 0; updateAt(0); return; }
+  slider.value = t * 10;
+  updateAt(t);
+  requestAnimationFrame(playLoop);
+}
+
+// 初始化
+updateAt(0);
+</script>
+</body>
+</html>
