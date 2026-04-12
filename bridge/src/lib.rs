@@ -169,6 +169,7 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "fs.dialogOpen" => handle_fs_dialog_open(&params),
         "fs.dialogSave" => handle_fs_dialog_save(&params),
         "fs.reveal" => handle_fs_reveal(&params),
+        "fs.writeBase64" => handle_fs_write_base64(&params),
         "export.start" => handle_export_start(&params),
         "export.status" => handle_export_status(&params),
         "export.cancel" => handle_export_cancel(&params),
@@ -288,6 +289,69 @@ fn handle_fs_reveal(params: &Value) -> Result<Value, String> {
         "path": path_buf.display().to_string(),
         "revealed": true,
     }))
+}
+
+fn handle_fs_write_base64(params: &Value) -> Result<Value, String> {
+    let path = require_string(params, "path")?;
+    let data_url = require_string(params, "data")?;
+
+    // Strip data URL prefix: "data:image/png;base64,..."
+    let b64_data = data_url
+        .find(",")
+        .map(|i| &data_url[i + 1..])
+        .unwrap_or(data_url);
+
+    let bytes = base64_decode(b64_data)?;
+    let path_buf = PathBuf::from(path);
+
+    if let Some(parent) = path_buf.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    fs::write(&path_buf, &bytes)
+        .map_err(|e| format!("failed to write '{}': {e}", path_buf.display()))?;
+
+    Ok(json!({
+        "path": path_buf.display().to_string(),
+        "bytesWritten": bytes.len(),
+    }))
+}
+
+fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
+    const DECODE: [u8; 256] = {
+        let mut table = [255u8; 256];
+        let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut i = 0;
+        while i < 64 {
+            table[chars[i] as usize] = i as u8;
+            i += 1;
+        }
+        table
+    };
+
+    let input = input.as_bytes();
+    let mut out = Vec::with_capacity(input.len() * 3 / 4);
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+
+    for &b in input {
+        if b == b'=' || b == b'\n' || b == b'\r' || b == b' ' {
+            continue;
+        }
+        let val = DECODE[b as usize];
+        if val == 255 {
+            return Err(format!("invalid base64 character: {}", b as char));
+        }
+        buf = (buf << 6) | val as u32;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+            buf &= (1 << bits) - 1;
+        }
+    }
+
+    Ok(out)
 }
 
 fn handle_export_start(params: &Value) -> Result<Value, String> {

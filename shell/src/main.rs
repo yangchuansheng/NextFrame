@@ -64,7 +64,10 @@ fn run() -> Result<(), Box<dyn Error>> {
             protocol_response(&projects_root_for_protocol, relative_path)
         })
         .with_ipc_handler(move |request| {
-            eprintln!("[ipc] {}", &request.body()[..request.body().len().min(300)]);
+            let body_preview = &request.body()[..request.body().len().min(300)];
+            if !body_preview.contains("fs.mtime") {
+                eprintln!("[ipc] {body_preview}");
+            }
             let response = parse_request(request.body())
                 .map(bridge::dispatch)
                 .unwrap_or_else(invalid_request_response);
