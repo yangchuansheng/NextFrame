@@ -335,24 +335,14 @@
         <div class="canvas-frame">
           <div class="canvas-inner" id="canvas-inner">
             <div class="canvas-bg"></div>
-
-            <div class="canvas-element selected" id="canvas-el"
-                 style="left:10%;top:15%;width:80%;height:70%"
-                 onmousedown="startDrag(event)">
-              <div class="sel-border">
-                <div class="sel-handle tl"></div>
-                <div class="sel-handle tr"></div>
-                <div class="sel-handle bl"></div>
-                <div class="sel-handle br"></div>
-                <div class="sel-handle rot"></div>
-              </div>
-              <div class="rot-line"></div>
+            <!-- Rendered frame preview (from CLI nextframe frame) -->
+            <img id="preview-frame-img" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none" alt="">
+            <div id="preview-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
               <div class="canvas-text">
                 <h1 id="canvas-title">CANVAS</h1>
-                <p id="canvas-sub">scene:canvas-intro &middot; 00:00.000</p>
+                <p id="canvas-sub">Drag playhead to preview frames</p>
               </div>
             </div>
-
             <div class="corner-badge">
               <span class="badge-dot"></span>
               <span class="badge-label" id="badge-type">CANVAS</span>

@@ -170,6 +170,7 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "episode.list" => handle_episode_list(&params),
         "episode.create" => handle_episode_create(&params),
         "segment.list" => handle_segment_list(&params),
+        "preview.frame" => handle_preview_frame(&params),
         _ => Err(format!("unknown method: {method}")),
     }
 }
@@ -895,6 +896,88 @@ fn handle_segment_list(params: &Value) -> Result<Value, String> {
     });
 
     Ok(json!({ "segments": segments }))
+}
+
+fn handle_preview_frame(params: &Value) -> Result<Value, String> {
+    use std::io::Read as _;
+
+    let timeline_path = require_string(params, "timelinePath")?;
+    let t = params
+        .get("t")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| "preview.frame requires numeric 't' parameter".to_string())?;
+    let width = params.get("width").and_then(Value::as_u64).unwrap_or(960);
+    let height = params.get("height").and_then(Value::as_u64).unwrap_or(540);
+
+    // render to temp file
+    let tmp_dir = env::temp_dir().join("nextframe-preview");
+    let _ = fs::create_dir_all(&tmp_dir);
+    let out_path = tmp_dir.join(format!("frame-{}.png", t));
+
+    // find nextframe CLI
+    let cli_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../nextframe-cli/bin/nextframe.js");
+
+    let status = Command::new("node")
+        .arg(&cli_path)
+        .arg("frame")
+        .arg(timeline_path)
+        .arg(format!("{t}"))
+        .arg(out_path.display().to_string())
+        .arg(format!("--width={width}"))
+        .arg(format!("--height={height}"))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| format!("failed to run nextframe frame: {e}"))?;
+
+    if !status.success() {
+        return Err(format!(
+            "nextframe frame exited with code {}",
+            status.code().unwrap_or(-1)
+        ));
+    }
+
+    // read PNG and encode as base64
+    let mut file = std::fs::File::open(&out_path)
+        .map_err(|e| format!("failed to open rendered frame: {e}"))?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|e| format!("failed to read rendered frame: {e}"))?;
+
+    // base64 encode (manual, no external crate)
+    let b64 = base64_encode(&bytes);
+
+    Ok(json!({
+        "dataUrl": format!("data:image/png;base64,{b64}"),
+        "width": width,
+        "height": height,
+        "t": t,
+    }))
+}
+
+fn base64_encode(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        result.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
+        result.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);
+        if chunk.len() > 1 {
+            result.push(CHARS[((triple >> 6) & 0x3F) as usize] as char);
+        } else {
+            result.push('=');
+        }
+        if chunk.len() > 2 {
+            result.push(CHARS[(triple & 0x3F) as usize] as char);
+        } else {
+            result.push('=');
+        }
+    }
+    result
 }
 
 fn iso_now() -> String {

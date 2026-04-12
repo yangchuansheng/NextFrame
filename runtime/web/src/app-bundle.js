@@ -517,6 +517,44 @@ function setTotalDuration(duration) {
   setPlayheadTime(TOTAL_DURATION > 0 ? Math.min(currentTime, TOTAL_DURATION) : 0);
 }
 
+/* === Preview frame rendering === */
+let _previewTimer = null;
+let _previewSeq = 0;
+let _previewRendering = false;
+
+function requestPreviewFrame(t) {
+  if (!currentSegment || !currentTimeline) return;
+  clearTimeout(_previewTimer);
+  // debounce 200ms to avoid flooding during playback
+  _previewTimer = setTimeout(function() { renderPreviewFrame(t); }, 200);
+}
+
+function renderPreviewFrame(t) {
+  if (_previewRendering || !currentSegment) return;
+  _previewRendering = true;
+  var seq = ++_previewSeq;
+
+  bridgeCall("preview.frame", {
+    timelinePath: currentSegment,
+    t: Math.round(t * 100) / 100,
+    width: 960,
+    height: 540,
+  }).then(function(result) {
+    if (seq !== _previewSeq) return; // stale
+    var img = document.getElementById("preview-frame-img");
+    var placeholder = document.getElementById("preview-placeholder");
+    if (img && result && result.dataUrl) {
+      img.src = result.dataUrl;
+      img.style.display = "block";
+      if (placeholder) placeholder.style.display = "none";
+    }
+  }).catch(function() {
+    // silently fail — keep showing placeholder or last frame
+  }).finally(function() {
+    _previewRendering = false;
+  });
+}
+
 function setPlayheadTime(time) {
   currentTime = TOTAL_DURATION > 0
     ? Math.min(Math.max(finiteNumber(time, 0), 0), TOTAL_DURATION)
@@ -535,6 +573,9 @@ function setPlayheadTime(time) {
   if (fill) {
     fill.style.width = (TOTAL_DURATION > 0 ? (currentTime / TOTAL_DURATION) * 100 : 0) + "%";
   }
+
+  // request frame render for preview
+  requestPreviewFrame(currentTime);
 }
 
 function playLoop(timestamp) {
