@@ -666,6 +666,314 @@ fn autosave_rejects_invalid_project_id() {
 }
 
 #[test]
+fn autosave_write_then_recover_round_trips_content() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "autosave-round-trip-explicit");
+    let autosave_dir = temp.join(".nextframe/autosave");
+    let _autosave_override = AutosaveStorageOverrideGuard::new(autosave_dir);
+
+    let project_id = "episode-42";
+    let timeline = json!({
+        "version": 2,
+        "metadata": {
+            "name": "Autosave Round Trip",
+            "fps": 24,
+            "durationMs": 2400
+        },
+        "tracks": [
+            {
+                "id": "video-1",
+                "clips": [
+                    {
+                        "id": "clip-1",
+                        "startMs": 0,
+                        "durationMs": 2400
+                    }
+                ]
+            }
+        ]
+    });
+
+    let write_response = dispatch(request(
+        "autosave.write",
+        json!({
+            "projectId": project_id,
+            "timeline": timeline.clone(),
+        }),
+    ));
+    assert!(write_response.ok);
+
+    let recover_response = dispatch(request(
+        "autosave.recover",
+        json!({ "projectId": project_id }),
+    ));
+    assert!(recover_response.ok);
+    assert_eq!(recover_response.result, timeline);
+}
+
+#[test]
+fn autosave_clear_removes_the_only_saved_entry() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "autosave-clear-only-entry");
+    let autosave_dir = temp.join(".nextframe/autosave");
+    let _autosave_override = AutosaveStorageOverrideGuard::new(autosave_dir);
+
+    let project_id = "clear-me";
+    let write_response = dispatch(request(
+        "autosave.write",
+        json!({
+            "projectId": project_id,
+            "timeline": minimal_timeline_json(),
+        }),
+    ));
+    assert!(write_response.ok);
+
+    let clear_response = dispatch(request(
+        "autosave.clear",
+        json!({ "projectId": project_id }),
+    ));
+    assert!(clear_response.ok);
+    assert_eq!(clear_response.result.get("cleared"), Some(&json!(true)));
+
+    let list_response = dispatch(request("autosave.list", json!({})));
+    assert!(list_response.ok);
+    assert_eq!(
+        list_response.result.as_array().expect("autosave entries").len(),
+        0
+    );
+
+    let recover_response = dispatch(request(
+        "autosave.recover",
+        json!({ "projectId": project_id }),
+    ));
+    assert!(!recover_response.ok);
+    assert_error_contains(&recover_response.error, "failed to read autosave");
+}
+
+#[test]
+fn autosave_list_returns_entries_sorted_by_modified_time() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "autosave-list-sort");
+    let autosave_dir = temp.join(".nextframe/autosave");
+    let _autosave_override = AutosaveStorageOverrideGuard::new(autosave_dir);
+
+    for (index, project_id) in ["oldest", "middle", "newest"].into_iter().enumerate() {
+        let response = dispatch(request(
+            "autosave.write",
+            json!({
+                "projectId": project_id,
+                "timeline": {
+                    "version": 1,
+                    "order": index,
+                    "tracks": []
+                },
+            }),
+        ));
+        assert!(response.ok);
+
+        if project_id != "newest" {
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    let list_response = dispatch(request("autosave.list", json!({})));
+    assert!(list_response.ok);
+
+    let entries = list_response
+        .result
+        .as_array()
+        .expect("autosave entries array");
+    assert_eq!(entries.len(), 3);
+    assert_eq!(entries[0].get("projectId"), Some(&json!("newest")));
+    assert_eq!(entries[1].get("projectId"), Some(&json!("middle")));
+    assert_eq!(entries[2].get("projectId"), Some(&json!("oldest")));
+
+    let modified = entries
+        .iter()
+        .map(|entry| {
+            entry
+                .get("modified")
+                .and_then(Value::as_u64)
+                .expect("modified timestamp")
+        })
+        .collect::<Vec<_>>();
+    assert!(modified[0] >= modified[1]);
+    assert!(modified[1] >= modified[2]);
+}
+
+#[test]
+fn autosave_rejects_project_ids_with_slashes_and_dot_segments() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "autosave-invalid-project-ids");
+    let autosave_dir = temp.join(".nextframe/autosave");
+    let _autosave_override = AutosaveStorageOverrideGuard::new(autosave_dir);
+
+    for project_id in ["folder/name", "folder\\name", ".", ".."] {
+        let write_response = dispatch(request(
+            "autosave.write",
+            json!({
+                "projectId": project_id,
+                "timeline": minimal_timeline_json(),
+            }),
+        ));
+        assert!(!write_response.ok, "expected write to reject '{project_id}'");
+        assert_error_contains(&write_response.error, "invalid autosave project id");
+
+        let clear_response = dispatch(request(
+            "autosave.clear",
+            json!({ "projectId": project_id }),
+        ));
+        assert!(!clear_response.ok, "expected clear to reject '{project_id}'");
+        assert_error_contains(&clear_response.error, "invalid autosave project id");
+
+        let recover_response = dispatch(request(
+            "autosave.recover",
+            json!({ "projectId": project_id }),
+        ));
+        assert!(
+            !recover_response.ok,
+            "expected recover to reject '{project_id}'"
+        );
+        assert_error_contains(&recover_response.error, "invalid autosave project id");
+    }
+}
+
+#[test]
+fn autosave_write_overwrites_existing_save_for_same_project() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "autosave-overwrite");
+    let autosave_dir = temp.join(".nextframe/autosave");
+    let _autosave_override = AutosaveStorageOverrideGuard::new(autosave_dir);
+
+    let project_id = "same-project";
+    let first_timeline = json!({
+        "version": 1,
+        "tracks": [
+            { "id": "audio-1" }
+        ]
+    });
+    let second_timeline = json!({
+        "version": 2,
+        "tracks": [
+            { "id": "audio-2" }
+        ],
+        "metadata": {
+            "name": "Overwritten"
+        }
+    });
+
+    let first_write = dispatch(request(
+        "autosave.write",
+        json!({
+            "projectId": project_id,
+            "timeline": first_timeline,
+        }),
+    ));
+    assert!(first_write.ok);
+
+    thread::sleep(Duration::from_millis(20));
+
+    let second_write = dispatch(request(
+        "autosave.write",
+        json!({
+            "projectId": project_id,
+            "timeline": second_timeline.clone(),
+        }),
+    ));
+    assert!(second_write.ok);
+
+    let list_response = dispatch(request("autosave.list", json!({})));
+    assert!(list_response.ok);
+    let entries = list_response.result.as_array().expect("autosave entries");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].get("projectId"), Some(&json!(project_id)));
+
+    let recover_response = dispatch(request(
+        "autosave.recover",
+        json!({ "projectId": project_id }),
+    ));
+    assert!(recover_response.ok);
+    assert_eq!(recover_response.result, second_timeline);
+}
+
+#[test]
+fn multiple_autosaves_for_different_projects_coexist() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "autosave-multiple-projects");
+    let autosave_dir = temp.join(".nextframe/autosave");
+    let _autosave_override = AutosaveStorageOverrideGuard::new(autosave_dir);
+
+    let first_project_id = "project-alpha";
+    let second_project_id = "project-beta";
+    let first_timeline = json!({
+        "version": 1,
+        "metadata": { "name": "Alpha" },
+        "tracks": []
+    });
+    let second_timeline = json!({
+        "version": 1,
+        "metadata": { "name": "Beta" },
+        "tracks": [
+            { "id": "track-1" }
+        ]
+    });
+
+    let first_write = dispatch(request(
+        "autosave.write",
+        json!({
+            "projectId": first_project_id,
+            "timeline": first_timeline.clone(),
+        }),
+    ));
+    assert!(first_write.ok);
+
+    let second_write = dispatch(request(
+        "autosave.write",
+        json!({
+            "projectId": second_project_id,
+            "timeline": second_timeline.clone(),
+        }),
+    ));
+    assert!(second_write.ok);
+
+    let list_response = dispatch(request("autosave.list", json!({})));
+    assert!(list_response.ok);
+    let entries = list_response.result.as_array().expect("autosave entries");
+    assert_eq!(entries.len(), 2);
+
+    let project_ids = entries
+        .iter()
+        .map(|entry| {
+            entry
+                .get("projectId")
+                .and_then(Value::as_str)
+                .expect("autosave project id")
+        })
+        .collect::<HashSet<_>>();
+    assert_eq!(project_ids, HashSet::from([first_project_id, second_project_id]));
+
+    let first_recover = dispatch(request(
+        "autosave.recover",
+        json!({ "projectId": first_project_id }),
+    ));
+    assert!(first_recover.ok);
+    assert_eq!(first_recover.result, first_timeline);
+
+    let second_recover = dispatch(request(
+        "autosave.recover",
+        json!({ "projectId": second_project_id }),
+    ));
+    assert!(second_recover.ok);
+    assert_eq!(second_recover.result, second_timeline);
+}
+
+#[test]
 fn resolve_write_path_expands_home_and_allows_missing_export_dirs() {
     let _home_lock = lock_home_env_for_test();
     let home = home_dir().expect("home dir");
@@ -925,6 +1233,172 @@ fn build_ffmpeg_filter_complex_formats_delays_and_mix() {
         filter,
         "[1:a]adelay=250:all=1,volume=1[a0];[2:a]adelay=1500:all=1,volume=0.4[a1];[a0][a1]amix=inputs=2:normalize=0[aout]"
     );
+}
+
+#[test]
+fn normalize_extension_strips_leading_dot() {
+    assert_eq!(normalize_extension(".nfproj"), Some("nfproj".to_string()));
+}
+
+#[test]
+fn normalize_extension_handles_empty() {
+    assert_eq!(normalize_extension(""), None);
+}
+
+#[test]
+fn with_default_extension_adds_nfp_when_missing() {
+    assert_eq!(
+        with_default_extension(PathBuf::from("project"), "default.nfp"),
+        PathBuf::from("project.nfp")
+    );
+}
+
+#[test]
+fn with_default_extension_preserves_existing_extension() {
+    let path = PathBuf::from("project.mov");
+    assert_eq!(
+        with_default_extension(path.clone(), "default.nfp"),
+        path
+    );
+}
+
+#[test]
+fn parse_dialog_filters_parses_valid_filter_array() {
+    let filters = parse_dialog_filters(&json!({
+        "filters": [
+            ".nfproj",
+            { "extensions": ["mp4", ".mov"] }
+        ]
+    }))
+    .expect("parse valid dialog filters");
+
+    assert_eq!(filters, vec!["nfproj", "mp4", "mov"]);
+}
+
+#[test]
+fn recent_add_then_recent_list_returns_added_project() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "recent-add-list");
+    let _recent_override = RecentStorageOverrideGuard::new(temp.join(".nextframe/recent.json"));
+    let project_path = temp.join("storyboard.nfproj");
+    fs::write(&project_path, "{}").expect("write project");
+
+    let add_response = dispatch(request(
+        "recent.add",
+        json!({ "path": project_path.display().to_string() }),
+    ));
+    assert!(add_response.ok);
+    assert_eq!(add_response.result.get("count"), Some(&json!(1)));
+
+    let list_response = dispatch(request("recent.list", json!({})));
+    assert!(list_response.ok);
+
+    let entries = list_response
+        .result
+        .as_array()
+        .expect("recent entries array");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].get("path"),
+        Some(&json!(project_path.display().to_string()))
+    );
+    assert_eq!(entries[0].get("name"), Some(&json!("storyboard.nfproj")));
+}
+
+#[test]
+fn recent_clear_empties_the_list() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "recent-clear");
+    let _recent_override = RecentStorageOverrideGuard::new(temp.join(".nextframe/recent.json"));
+    let project_path = temp.join("clear-me.nfproj");
+    fs::write(&project_path, "{}").expect("write project");
+
+    let add_response = dispatch(request(
+        "recent.add",
+        json!({ "path": project_path.display().to_string() }),
+    ));
+    assert!(add_response.ok);
+
+    let clear_response = dispatch(request("recent.clear", json!({})));
+    assert!(clear_response.ok);
+    assert_eq!(clear_response.result.get("cleared"), Some(&json!(true)));
+
+    let list_response = dispatch(request("recent.list", json!({})));
+    assert!(list_response.ok);
+    assert_eq!(
+        list_response
+            .result
+            .as_array()
+            .expect("recent entries array")
+            .len(),
+        0
+    );
+}
+
+#[test]
+fn recent_add_deduplicates_same_path() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "recent-dedupe");
+    let _recent_override = RecentStorageOverrideGuard::new(temp.join(".nextframe/recent.json"));
+    let project_path = temp.join("duplicate.nfproj");
+    fs::write(&project_path, "{}").expect("write project");
+
+    let first_response = dispatch(request(
+        "recent.add",
+        json!({ "path": project_path.display().to_string() }),
+    ));
+    assert!(first_response.ok);
+
+    let second_response = dispatch(request(
+        "recent.add",
+        json!({ "path": project_path.display().to_string() }),
+    ));
+    assert!(second_response.ok);
+    assert_eq!(second_response.result.get("count"), Some(&json!(1)));
+
+    let list_response = dispatch(request("recent.list", json!({})));
+    assert!(list_response.ok);
+
+    let entries = list_response
+        .result
+        .as_array()
+        .expect("recent entries array");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].get("path"),
+        Some(&json!(project_path.display().to_string()))
+    );
+}
+
+#[test]
+fn recent_project_name_extracts_file_name_from_path() {
+    let _home_lock = lock_home_env_for_test();
+    let home = home_dir().expect("home dir");
+    let temp = TestDir::new_in(&home, "recent-name");
+    let _recent_override = RecentStorageOverrideGuard::new(temp.join(".nextframe/recent.json"));
+    let project_dir = temp.join("projects");
+    fs::create_dir_all(&project_dir).expect("create project dir");
+    let project_path = project_dir.join("episode-1.nfproj");
+    fs::write(&project_path, "{}").expect("write project");
+
+    let add_response = dispatch(request(
+        "recent.add",
+        json!({ "path": project_path.display().to_string() }),
+    ));
+    assert!(add_response.ok);
+
+    let list_response = dispatch(request("recent.list", json!({})));
+    assert!(list_response.ok);
+
+    let entries = list_response
+        .result
+        .as_array()
+        .expect("recent entries array");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].get("name"), Some(&json!("episode-1.nfproj")));
 }
 
 struct MockFfmpegHarness {
@@ -1868,4 +2342,339 @@ fn decode_file_url_path_decodes_percent_encoded_segments() {
         decode_file_url_path("/tmp/encoded%20dir/Recorder%23One.html").expect("decode file url");
 
     assert_eq!(decoded, PathBuf::from("/tmp/encoded dir/Recorder#One.html"));
+}
+
+// ---------------------------------------------------------------------------
+// test-9: fs edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn handle_fs_write_base64_writes_decoded_bytes() {
+    let temp = TestDir::new("fs-write-base64");
+    let file_path = temp.join("nested/output.bin");
+    let expected_bytes = b"\0bridge\xffbytes\n";
+    let encoded = super::encoding::base64_encode(expected_bytes);
+
+    let response = super::fs::handle_fs_write_base64(&json!({
+        "path": file_path.display().to_string(),
+        "data": format!("data:application/octet-stream;base64,{encoded}"),
+    }))
+    .expect("base64 write should succeed");
+
+    assert_eq!(
+        response,
+        json!({
+            "path": file_path.display().to_string(),
+            "bytesWritten": expected_bytes.len(),
+        })
+    );
+    assert_eq!(fs::read(&file_path).expect("read written bytes"), expected_bytes);
+}
+
+#[test]
+fn handle_fs_write_base64_rejects_invalid_data() {
+    let temp = TestDir::new("fs-write-base64-invalid");
+    let file_path = temp.join("output.bin");
+
+    let error = super::fs::handle_fs_write_base64(&json!({
+        "path": file_path.display().to_string(),
+        "data": "%%%not-base64%%%",
+    }))
+    .expect_err("invalid base64 should fail");
+
+    assert!(error.contains("invalid base64 character"));
+    assert!(!file_path.exists());
+}
+
+#[test]
+fn validate_path_rejects_empty_string() {
+    let error = super::fs::validate_path("   ").expect_err("empty path should be rejected");
+
+    assert_eq!(error, "path must not be empty");
+}
+
+#[test]
+fn validate_path_rejects_null_bytes() {
+    let error =
+        super::fs::validate_path("bad\0path").expect_err("null bytes should be rejected");
+
+    assert_eq!(error, "path must not contain null bytes");
+}
+
+#[test]
+fn resolve_existing_path_errors_for_missing_file() {
+    let temp = TestDir::new("fs-resolve-missing");
+    let missing_path = temp.join("missing.txt");
+
+    let error = super::fs::resolve_existing_path(&missing_path.display().to_string())
+        .expect_err("missing path should fail to resolve");
+
+    assert!(error.contains("failed to resolve"));
+}
+
+#[test]
+fn is_allowed_path_rejects_paths_outside_allowed_roots() {
+    assert!(!super::fs::is_allowed_path(Path::new(&disallowed_absolute_path())));
+}
+
+#[test]
+fn nearest_existing_ancestor_returns_closest_existing_parent() {
+    let temp = TestDir::new("fs-nearest-ancestor");
+    let existing_parent = temp.join("existing");
+    fs::create_dir_all(&existing_parent).expect("create existing parent");
+    let missing_descendant = existing_parent.join("missing/child/file.txt");
+
+    let ancestor = super::fs::nearest_existing_ancestor(&missing_descendant)
+        .expect("existing ancestor should be found");
+
+    assert_eq!(ancestor, existing_parent);
+}
+
+#[test]
+fn handle_fs_mtime_returns_reasonable_value_for_existing_file() {
+    let temp = TestDir::new("fs-mtime");
+    let file_path = temp.join("mtime.txt");
+    fs::write(&file_path, "mtime").expect("write mtime fixture");
+
+    let expected_mtime = fs::metadata(&file_path)
+        .expect("read file metadata")
+        .modified()
+        .expect("read modified time")
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let response = super::fs::handle_fs_mtime(&json!({
+        "path": file_path.display().to_string(),
+    }))
+    .expect("mtime should succeed");
+    let mtime = response
+        .get("mtime")
+        .and_then(Value::as_u64)
+        .expect("mtime should be present");
+
+    assert!(mtime > 0);
+    assert!(mtime.abs_diff(expected_mtime) <= 2_000);
+}
+
+// ---------------------------------------------------------------------------
+// test-10: export helpers
+// ---------------------------------------------------------------------------
+
+static EXPORT_TEST_LOCK: OnceLock<std::sync::Mutex<()>> = OnceLock::new();
+
+#[test]
+fn build_export_request_creates_valid_recorder_request_with_expected_fields() {
+    let _lock = lock_export_test();
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("workspace root");
+    let temp = TestDir::new("export-request");
+    let output_path = temp.join("exports/final.mp4");
+
+    let request = build_export_request(workspace_root, &output_path, 1920, 1080, 60, 12.5, 18)
+        .expect("build export request");
+
+    assert_eq!(request.output_path, output_path);
+    assert_eq!(request.width, 1920);
+    assert_eq!(request.height, 1080);
+    assert_eq!(request.fps, 60);
+    assert_eq!(request.duration, 12.5);
+    assert_eq!(request.crf, 18);
+    assert!(request.url.starts_with("file://"));
+    assert!(request.url.ends_with("?record=true"));
+
+    let resolved = resolve_recorder_frame_path_from_url(&request.url, workspace_root)
+        .expect("resolve request url");
+    assert_eq!(
+        resolved,
+        workspace_root
+            .join("runtime/web/index.html")
+            .canonicalize()
+            .expect("canonicalize workspace recorder frame")
+    );
+}
+
+#[test]
+fn build_export_request_with_scene_library_path_resolves_correctly() {
+    let _lock = lock_export_test();
+    let temp = TestDir::new("scene-library #1");
+    let web_dir = temp.join("runtime/web");
+    fs::create_dir_all(&web_dir).expect("create runtime web dir");
+    let web_path = web_dir.join("index.html");
+    fs::write(&web_path, "<!doctype html>").expect("write recorder frame");
+    let output_path = temp.join("exports/scene-library.mp4");
+
+    let request = build_export_request(&temp.path, &output_path, 1280, 720, 30, 8.0, 20)
+        .expect("build scene-library export request");
+    let resolved = resolve_recorder_frame_path_from_url(&request.url, &temp.path)
+        .expect("resolve scene-library export url");
+
+    assert_eq!(
+        resolved,
+        web_path
+            .canonicalize()
+            .expect("canonicalize scene-library recorder frame")
+    );
+    assert!(request.url.contains("scene-library%20%231"));
+}
+
+#[test]
+fn export_runtime_initializes_and_can_run_tokio_work() {
+    let _lock = lock_export_test();
+    let runtime = export_runtime().expect("initialize export runtime");
+    let runtime_again = export_runtime().expect("reuse export runtime");
+
+    assert!(std::ptr::eq(runtime, runtime_again));
+    assert_eq!(runtime.block_on(async { 40 + 2 }), 42);
+}
+
+#[test]
+fn next_export_pid_increments_atomically() {
+    let _lock = lock_export_test();
+    let worker_count = 8usize;
+    let ids_per_worker = 16usize;
+    let first = next_export_pid();
+    let mut workers = Vec::with_capacity(worker_count);
+
+    for _ in 0..worker_count {
+        workers.push(thread::spawn(move || {
+            let mut ids = Vec::with_capacity(ids_per_worker);
+            for _ in 0..ids_per_worker {
+                ids.push(next_export_pid());
+            }
+            ids
+        }));
+    }
+
+    let mut ids = vec![first];
+    for worker in workers {
+        ids.extend(worker.join().expect("join pid worker"));
+    }
+    ids.sort_unstable();
+
+    let expected = (first..first + ids.len() as u32).collect::<Vec<_>>();
+    assert_eq!(ids, expected);
+}
+
+#[test]
+fn percent_complete_is_clamped_to_valid_range() {
+    let _lock = lock_export_test();
+
+    assert_eq!(percent_complete(-1.0, 10.0), 0.0);
+    assert_eq!(percent_complete(2.5, 10.0), 25.0);
+    assert_eq!(percent_complete(12.0, 10.0), 100.0);
+    assert_eq!(percent_complete(4.0, 0.0), 0.0);
+}
+
+#[test]
+fn remaining_secs_returns_reasonable_estimate() {
+    let _lock = lock_export_test();
+
+    assert!((remaining_secs(2.25, 10.0) - 7.75).abs() < f64::EPSILON);
+    assert_eq!(remaining_secs(12.0, 10.0), 0.0);
+    assert_eq!(remaining_secs(1.0, 0.0), 0.0);
+}
+
+#[test]
+fn export_status_json_formats_running_done_and_failed_states() {
+    let _lock = lock_export_test();
+    let temp = TestDir::new("export-status");
+
+    let running = test_process_handle(
+        temp.join("running.mp4"),
+        temp.join("running.log"),
+        10.0,
+        None,
+    );
+    let running_json = export_status_json(&running);
+    assert_eq!(running_json.get("state"), Some(&json!("running")));
+    assert_eq!(running_json.get("error"), Some(&Value::Null));
+    assert_eq!(
+        running_json.get("outputPath"),
+        Some(&json!(temp.join("running.mp4").display().to_string()))
+    );
+    assert_eq!(
+        running_json.get("logPath"),
+        Some(&json!(temp.join("running.log").display().to_string()))
+    );
+    let running_percent = running_json
+        .get("percent")
+        .and_then(Value::as_f64)
+        .expect("running percent");
+    let running_eta = running_json
+        .get("eta")
+        .and_then(Value::as_f64)
+        .expect("running eta");
+    assert!((0.0..=99.0).contains(&running_percent));
+    assert!((0.0..=10.0).contains(&running_eta));
+
+    let done = test_process_handle(
+        temp.join("done.mp4"),
+        temp.join("done.log"),
+        10.0,
+        Some(ProcessTerminal {
+            state: "done",
+            error: None,
+        }),
+    );
+    assert_eq!(
+        export_status_json(&done),
+        json!({
+            "state": "done",
+            "percent": 100.0,
+            "eta": 0.0,
+            "outputPath": temp.join("done.mp4").display().to_string(),
+            "logPath": temp.join("done.log").display().to_string(),
+            "error": Value::Null,
+        })
+    );
+
+    let failed = test_process_handle(
+        temp.join("failed.mp4"),
+        temp.join("failed.log"),
+        10.0,
+        Some(ProcessTerminal {
+            state: "failed",
+            error: Some("encode failed".to_string()),
+        }),
+    );
+    let failed_json = export_status_json(&failed);
+    assert_eq!(failed_json.get("state"), Some(&json!("failed")));
+    assert_eq!(failed_json.get("eta"), Some(&json!(0.0)));
+    assert_eq!(failed_json.get("error"), Some(&json!("encode failed")));
+    let failed_percent = failed_json
+        .get("percent")
+        .and_then(Value::as_f64)
+        .expect("failed percent");
+    assert!((0.0..=100.0).contains(&failed_percent));
+}
+
+fn lock_export_test() -> MutexGuard<'static, ()> {
+    EXPORT_TEST_LOCK
+        .get_or_init(|| std::sync::Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn test_process_handle(
+    output_path: PathBuf,
+    log_path: PathBuf,
+    duration_secs: f64,
+    terminal: Option<ProcessTerminal>,
+) -> ProcessHandle {
+    ProcessHandle {
+        export_task: ExportTask {
+            join_handle: export_runtime()
+                .expect("initialize export runtime")
+                .spawn(async {}),
+            completion: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            cancel_requested: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        },
+        output_path,
+        log_path,
+        duration_secs,
+        started_at: Instant::now(),
+        terminal,
+    }
 }
