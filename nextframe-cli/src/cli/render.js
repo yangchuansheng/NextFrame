@@ -1,6 +1,7 @@
 // nextframe render <timeline.json> <out.mp4>
 import { parseFlags, loadTimeline, emit } from "./_io.js";
 import { exportMP4 } from "../targets/ffmpeg-mp4.js";
+import { validateTimeline } from "../engine/validate.js";
 
 export async function run(argv) {
   const { positional, flags } = parseFlags(argv);
@@ -12,6 +13,12 @@ export async function run(argv) {
   const loaded = await loadTimeline(path);
   if (!loaded.ok) {
     emit(loaded, flags);
+    return 2;
+  }
+  // BDD cli-render-8 invariant: render must validate before touching ffmpeg.
+  const v = validateTimeline(loaded.value);
+  if (v.errors && v.errors.length > 0) {
+    emit({ ok: false, error: v.errors[0], errors: v.errors, hints: v.hints }, flags);
     return 2;
   }
   const opts = {};
