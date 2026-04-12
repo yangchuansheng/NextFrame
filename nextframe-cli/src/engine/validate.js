@@ -2,15 +2,18 @@
 // spec/architecture/05-safety.md.
 // Returns {ok, errors[], warnings[], hints[]} — never throws.
 
+/** @typedef {import("../types.d.ts").Timeline} Timeline */
+
 import { existsSync } from "node:fs";
 import { resolve as resolvePath, isAbsolute } from "node:path";
 import { resolveTimeline } from "./time.js";
+import { guarded } from "./_guard.js";
 import { REGISTRY } from "../scenes/index.js";
 
 const SUPPORTED_SCHEMAS = new Set(["nextframe/v0.1"]);
 
 /**
- * @param {object} timeline
+ * @param {Timeline} timeline
  * @param {{projectDir?: string}} [opts]
  * @returns {{ok: boolean, errors: object[], warnings: object[], hints: object[]}}
  */
@@ -24,7 +27,7 @@ export function validateTimeline(timeline, opts = {}) {
   const schemaErrs = gateSchema(timeline);
   errors.push(...schemaErrs);
   if (schemaErrs.length > 0) {
-    return { ok: false, errors, warnings, hints };
+    return guarded("validateTimeline", { ok: false, error: errors[0], errors, warnings, hints });
   }
 
   // Gate 2: symbolic time resolve
@@ -36,7 +39,7 @@ export function validateTimeline(timeline, opts = {}) {
       ref: r.error.ref,
       hint: r.error.hint,
     });
-    return { ok: false, errors, warnings, hints };
+    return guarded("validateTimeline", { ok: false, error: errors[0], errors, warnings, hints });
   }
   const resolved = r.value;
 
@@ -107,7 +110,8 @@ export function validateTimeline(timeline, opts = {}) {
     }
   }
 
-  return { ok: errors.length === 0, errors, warnings, hints, resolved };
+  if (errors.length > 0) return guarded("validateTimeline", { ok: false, error: errors[0], errors, warnings, hints, resolved });
+  return guarded("validateTimeline", { ok: true, value: resolved, errors, warnings, hints, resolved });
 }
 
 function gateSchema(t) {

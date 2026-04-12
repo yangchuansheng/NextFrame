@@ -3,6 +3,7 @@
 
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { guarded } from "../engine/_guard.js";
 import { renderAt } from "../engine/render.js";
 import { resolveTimeline } from "../engine/time.js";
 
@@ -15,7 +16,7 @@ import { resolveTimeline } from "../engine/time.js";
  */
 export async function exportMP4(timeline, outputPath, opts = {}) {
   const r = resolveTimeline(timeline);
-  if (!r.ok) return { ok: false, error: r.error };
+  if (!r.ok) return guarded("exportMP4", { ok: false, error: r.error });
   const resolved = r.value;
 
   const fps = opts.fps || resolved.project?.fps || 30;
@@ -43,7 +44,7 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
   try {
     ffmpeg = spawn(ffmpegPath, ffmpegArgs, { stdio: ["pipe", "ignore", "pipe"] });
   } catch (err) {
-    return { ok: false, error: { code: "FFMPEG_SPAWN", message: err.message } };
+    return guarded("exportMP4", { ok: false, error: { code: "FFMPEG_SPAWN", message: err.message } });
   }
 
   let stderr = "";
@@ -76,20 +77,20 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
   const [exitCode] = await once(ffmpeg, "close");
 
   if (firstError) {
-    return { ok: false, error: firstError, stderr };
+    return guarded("exportMP4", { ok: false, error: firstError, stderr });
   }
   if (exitCode !== 0) {
-    return {
+    return guarded("exportMP4", {
       ok: false,
       error: {
         code: "FFMPEG_FAILED",
         message: `ffmpeg exited ${exitCode}`,
         hint: stderr.split("\n").slice(-5).join("\n"),
       },
-    };
+    });
   }
 
-  return {
+  return guarded("exportMP4", {
     ok: true,
     value: {
       outputPath,
@@ -99,5 +100,5 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
       duration,
       framesRendered: renderedFrames,
     },
-  };
+  });
 }

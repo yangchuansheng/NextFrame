@@ -9,7 +9,7 @@ import { resolveTimeline } from "./time.js";
  * @param {number} t - global raw seconds
  * @returns {{ok: boolean, value?: object, error?: object}}
  */
-export function describeFrame(timeline, t) {
+export function describeAt(timeline, t) {
   const r = resolveTimeline(timeline);
   if (!r.ok) return { ok: false, error: r.error };
   const resolved = r.value;
@@ -60,3 +60,5 @@ export function describeFrame(timeline, t) {
     },
   };
 }
+
+export const describeFrame = describeAt;

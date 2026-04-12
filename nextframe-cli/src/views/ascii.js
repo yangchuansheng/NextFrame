@@ -1,11 +1,12 @@
 // PNG → ASCII art converter — adapted from POC W3.
 // Used for AI to "see" a frame at near-zero cost.
 
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { inflateSync } from "node:zlib";
 
 const RAMP = Array.from(" .:-=+*#%@▓█");
 const TARGET_WIDTH = 80;
 const TARGET_HEIGHT = 24;
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 /**
  * Convert a PNG buffer to grayscale ASCII art (80x24).
@@ -15,15 +16,9 @@ const TARGET_HEIGHT = 24;
  * @returns {Promise<string>}
  */
 export async function pngToAscii(pngBuffer, width = TARGET_WIDTH, height = TARGET_HEIGHT) {
-  const image = await loadImage(pngBuffer);
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, width, height);
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(image, 0, 0, width, height);
-  const data = ctx.getImageData(0, 0, width, height).data;
-  return rasterToAscii(data, width, height);
+  const decoded = decodePNG(pngBuffer);
+  const scaled = scaleRaster(decoded.data, decoded.width, decoded.height, width, height);
+  return rasterToAscii(scaled, width, height);
 }
 
 /**
@@ -59,4 +54,84 @@ export function rasterToAscii(data, width, height) {
     lines.push(line);
   }
   return lines.join("\n");
+}
+
+function decodePNG(pngBuffer) {
+  const bytes = Buffer.isBuffer(pngBuffer) ? pngBuffer : Buffer.from(pngBuffer);
+  if (!bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+    throw new Error("png signature mismatch");
+  }
+  let width = 0;
+  let height = 0;
+  const idat = [];
+  for (let offset = PNG_SIGNATURE.length; offset < bytes.length;) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.subarray(offset + 4, offset + 8).toString("ascii");
+    const data = bytes.subarray(offset + 8, offset + 8 + length);
+    offset += length + 12;
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      if (data[8] !== 8 || data[9] !== 6) throw new Error("unsupported png format");
+    } else if (type === "IDAT") {
+      idat.push(data);
+    } else if (type === "IEND") {
+      break;
+    }
+  }
+  const raw = inflateSync(Buffer.concat(idat));
+  const stride = width * 4;
+  const out = Buffer.alloc(width * height * 4);
+  let src = 0;
+  let dst = 0;
+  let prev = null;
+  for (let y = 0; y < height; y++) {
+    const filter = raw[src++];
+    const row = Buffer.from(raw.subarray(src, src + stride));
+    src += stride;
+    unfilterRow(row, prev, filter, 4);
+    row.copy(out, dst);
+    prev = row;
+    dst += stride;
+  }
+  return { width, height, data: out };
+}
+
+function unfilterRow(row, prev, filter, bpp) {
+  for (let i = 0; i < row.length; i++) {
+    const left = i >= bpp ? row[i - bpp] : 0;
+    const up = prev ? prev[i] : 0;
+    const upLeft = prev && i >= bpp ? prev[i - bpp] : 0;
+    if (filter === 1) row[i] = (row[i] + left) & 255;
+    else if (filter === 2) row[i] = (row[i] + up) & 255;
+    else if (filter === 3) row[i] = (row[i] + Math.floor((left + up) / 2)) & 255;
+    else if (filter === 4) row[i] = (row[i] + paeth(left, up, upLeft)) & 255;
+  }
+}
+
+function paeth(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+function scaleRaster(data, srcWidth, srcHeight, outWidth, outHeight) {
+  const out = Buffer.alloc(outWidth * outHeight * 4);
+  for (let y = 0; y < outHeight; y++) {
+    const srcY = Math.min(srcHeight - 1, Math.floor((y / outHeight) * srcHeight));
+    for (let x = 0; x < outWidth; x++) {
+      const srcX = Math.min(srcWidth - 1, Math.floor((x / outWidth) * srcWidth));
+      const srcIdx = (srcY * srcWidth + srcX) * 4;
+      const dstIdx = (y * outWidth + x) * 4;
+      out[dstIdx] = data[srcIdx];
+      out[dstIdx + 1] = data[srcIdx + 1];
+      out[dstIdx + 2] = data[srcIdx + 2];
+      out[dstIdx + 3] = data[srcIdx + 3];
+    }
+  }
+  return out;
 }
