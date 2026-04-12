@@ -64,15 +64,18 @@ pub(super) fn video_output_settings(
     let height_value = NSNumber::numberWithUnsignedInteger(frame_size.height);
     let bitrate_value =
         NSNumber::numberWithUnsignedInteger(target_video_bitrate(frame_size, fps, crf));
-    let max_keyframe_interval = NSNumber::numberWithUnsignedInteger(fps.saturating_mul(2));
+    let max_keyframe_interval =
+        NSNumber::numberWithUnsignedInteger(target_keyframe_interval(fps));
     let compression_keys = [
         unsafe { AVVideoAverageBitRateKey },
         unsafe { AVVideoMaxKeyFrameIntervalKey },
         unsafe { AVVideoProfileLevelKey },
     ];
-    let compression_values: [&NSObject; 3] = [&*bitrate_value, &*max_keyframe_interval, unsafe {
-        AVVideoProfileLevelH264HighAutoLevel
-    }];
+    let compression_values: [&NSObject; 3] = [
+        &*bitrate_value,
+        &*max_keyframe_interval,
+        profile_level_nsobject(frame_size, fps),
+    ];
     let compression_properties = NSDictionary::from_slices(&compression_keys, &compression_values);
 
     let keys = [
@@ -92,9 +95,47 @@ pub(super) fn video_output_settings(
 
 fn target_video_bitrate(frame_size: FrameSize, fps: usize, crf: u8) -> usize {
     let pixels = (frame_size.width * frame_size.height) as f64;
-    let quality_scale = 2f64.powf((18.0 - crf.min(51) as f64) / 8.0);
+    let quality_scale = crf_to_quality_scale(crf);
     let bits_per_pixel = (0.045 * quality_scale).clamp(0.03, 0.22);
     (pixels * fps as f64 * bits_per_pixel).round().max(1.0) as usize
+}
+
+fn crf_to_quality_scale(crf: u8) -> f64 {
+    2f64.powf((18.0 - crf.min(51) as f64) / 8.0)
+}
+
+fn target_keyframe_interval(fps: usize) -> usize {
+    fps.saturating_mul(2)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum H264ProfileLevel {
+    High31,
+    High40,
+    High51,
+}
+
+fn select_h264_profile_level(frame_size: FrameSize, fps: usize) -> H264ProfileLevel {
+    let macroblocks_per_row = frame_size.width.div_ceil(16);
+    let macroblocks_per_column = frame_size.height.div_ceil(16);
+    let macroblocks_per_frame = macroblocks_per_row.saturating_mul(macroblocks_per_column);
+    let macroblocks_per_second = macroblocks_per_frame.saturating_mul(fps);
+
+    if macroblocks_per_frame <= 3_600 && macroblocks_per_second <= 108_000 {
+        H264ProfileLevel::High31
+    } else if macroblocks_per_frame <= 8_192 && macroblocks_per_second <= 245_760 {
+        H264ProfileLevel::High40
+    } else {
+        H264ProfileLevel::High51
+    }
+}
+
+fn profile_level_nsobject(frame_size: FrameSize, fps: usize) -> &'static NSObject {
+    match select_h264_profile_level(frame_size, fps) {
+        H264ProfileLevel::High31
+        | H264ProfileLevel::High40
+        | H264ProfileLevel::High51 => unsafe { AVVideoProfileLevelH264HighAutoLevel },
+    }
 }
 
 pub(super) fn lookup_class(name: &'static std::ffi::CStr) -> Result<&'static AnyClass, String> {
@@ -131,4 +172,102 @@ pub(super) fn pump_main_run_loop(duration: Duration) {
     let run_loop = NSRunLoop::currentRunLoop();
     let date = NSDate::dateWithTimeIntervalSinceNow(duration.as_secs_f64());
     let _ = run_loop.runMode_beforeDate(unsafe { NSDefaultRunLoopMode }, &date);
+}
+
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[cfg(test)]
+mod tests {
+    use super::{
+        FrameSize, H264ProfileLevel, crf_to_quality_scale, select_h264_profile_level,
+        target_keyframe_interval, target_video_bitrate,
+    };
+
+    #[test]
+    fn calculates_bitrate_for_common_resolutions() {
+        let fps = 30;
+        let crf = 18;
+
+        assert_eq!(
+            target_video_bitrate(
+                FrameSize {
+                    width: 1920,
+                    height: 1080,
+                },
+                fps,
+                crf,
+            ),
+            2_799_360
+        );
+        assert_eq!(
+            target_video_bitrate(
+                FrameSize {
+                    width: 1280,
+                    height: 720,
+                },
+                fps,
+                crf,
+            ),
+            1_244_160
+        );
+        assert_eq!(
+            target_video_bitrate(
+                FrameSize {
+                    width: 3840,
+                    height: 2160,
+                },
+                fps,
+                crf,
+            ),
+            11_197_440
+        );
+    }
+
+    #[test]
+    fn calculates_keyframe_interval_from_fps() {
+        assert_eq!(target_keyframe_interval(30), 60);
+        assert_eq!(target_keyframe_interval(60), 120);
+        assert_eq!(target_keyframe_interval(usize::MAX), usize::MAX);
+    }
+
+    #[test]
+    fn selects_profile_level_from_frame_size_and_fps() {
+        assert_eq!(
+            select_h264_profile_level(FrameSize { width: 1280, height: 720 }, 30),
+            H264ProfileLevel::High31
+        );
+        assert_eq!(
+            select_h264_profile_level(
+                FrameSize {
+                    width: 1920,
+                    height: 1080,
+                },
+                30,
+            ),
+            H264ProfileLevel::High40
+        );
+        assert_eq!(
+            select_h264_profile_level(
+                FrameSize {
+                    width: 3840,
+                    height: 2160,
+                },
+                30,
+            ),
+            H264ProfileLevel::High51
+        );
+    }
+
+    #[test]
+    fn maps_crf_to_quality_scale() {
+        let losslessish = crf_to_quality_scale(0);
+        let visually_lossless = crf_to_quality_scale(18);
+        let medium = crf_to_quality_scale(23);
+        let clamped = crf_to_quality_scale(60);
+
+        assert!((visually_lossless - 1.0).abs() < f64::EPSILON);
+        assert!(losslessish > visually_lossless);
+        assert!(visually_lossless > medium);
+        assert!((clamped - crf_to_quality_scale(51)).abs() < f64::EPSILON);
+    }
 }

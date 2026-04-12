@@ -32,15 +32,7 @@ pub fn probe_audio_duration(audio_path: Option<&Path>) -> Result<f64, String> {
             output.status
         ));
     }
-    String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .parse::<f64>()
-        .map_err(|err| {
-            format!(
-                "failed to parse ffprobe duration for {}: {err}",
-                path.display()
-            )
-        })
+    parse_probe_audio_duration_output(path, &output.stdout)
 }
 
 /// Concatenates the finished segment files into the final output MP4.
@@ -53,6 +45,34 @@ pub fn concat_segments(segment_paths: &[PathBuf], output_path: &Path) -> Result<
         return Ok(());
     }
 
+    let args = build_concat_segments_args(segment_paths, output_path);
+
+    let output = Command::new("ffmpeg")
+        .args(&args)
+        .output()
+        .map_err(|err| format!("failed to launch concat ffmpeg: {err}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    Err(format!(
+        "ffmpeg concat failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    ))
+}
+
+fn parse_probe_audio_duration_output(path: &Path, stdout: &[u8]) -> Result<f64, String> {
+    String::from_utf8_lossy(stdout)
+        .trim()
+        .parse::<f64>()
+        .map_err(|err| {
+            format!(
+                "failed to parse ffprobe duration for {}: {err}",
+                path.display()
+            )
+        })
+}
+
+fn build_concat_segments_args(segment_paths: &[PathBuf], output_path: &Path) -> Vec<String> {
     // Use filter_complex concat (re-encodes) instead of demuxer concat (-c copy).
     // Demuxer concat breaks when segments have different time_base (e.g. after overlay
     // re-encodes some segments but not others), causing wrong total duration.
@@ -89,18 +109,17 @@ pub fn concat_segments(segment_paths: &[PathBuf], output_path: &Path) -> Result<
         "+faststart".into(),
         output_path.to_string_lossy().into_owned(),
     ]);
+    args
+}
 
-    let output = Command::new("ffmpeg")
-        .args(&args)
-        .output()
-        .map_err(|err| format!("failed to launch concat ffmpeg: {err}"))?;
-    if output.status.success() {
-        return Ok(());
-    }
-    Err(format!(
-        "ffmpeg concat failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    ))
+#[cfg_attr(not(test), allow(dead_code))]
+fn secs_to_hms(secs: f64) -> String {
+    let total_millis = (secs.max(0.0) * 1000.0).round() as u64;
+    let hours = total_millis / 3_600_000;
+    let minutes = (total_millis % 3_600_000) / 60_000;
+    let seconds = (total_millis % 60_000) / 1_000;
+    let millis = total_millis % 1_000;
+    format!("{hours:02}:{minutes:02}:{seconds:02}.{millis:03}")
 }
 
 pub(super) fn mux_audio_track(
