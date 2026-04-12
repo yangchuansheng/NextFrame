@@ -5,6 +5,7 @@ mod dialog;
 mod encoding;
 mod episode;
 mod export;
+mod export_runner;
 mod ffmpeg;
 mod fs;
 mod log;
