@@ -1220,6 +1220,12 @@ button { cursor: pointer; }
   position: relative;
 }
 
+#tl-tracks {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 .tl-tracks-header {
   width: 64px;
   flex-shrink: 0;
