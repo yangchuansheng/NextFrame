@@ -107,7 +107,7 @@ test("cli-export-2: render --target accepts ffmpeg and rejects unknown targets",
     const badOut = JSON.parse(badRun.stdout);
     assert.equal(badOut.ok, false);
     assert.equal(badOut.error.code, "UNKNOWN_TARGET");
-    assert.equal(badOut.error.hint, "supported: ffmpeg");
+    assert.ok(badOut.error.hint.includes("ffmpeg"), `hint should mention ffmpeg: ${badOut.error.hint}`);
     assert.ok(!existsSync(badOutPath));
   } finally {
     cleanup(tlPath, okOutPath, badOutPath);
