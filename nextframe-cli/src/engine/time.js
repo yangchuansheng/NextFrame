@@ -19,7 +19,7 @@ export function resolveTimeline(timeline) {
   try {
     const context = buildContext(timeline);
     buildDependencyGraph(context);
-    const order = topologicallySort(context.nodes);
+    const order = topologicallySort(context);
     const values = resolveValues(context.nodes, order);
     quantizeAll(values);
     rangeCheck(context.nodes, values, timeline.duration);
@@ -240,7 +240,8 @@ function listRefs(ctx) {
   return `available: ${[...ctx.refs.keys()].slice(0, 12).join(", ")}`;
 }
 
-function topologicallySort(nodes) {
+function topologicallySort(ctx) {
+  const { nodes } = ctx;
   const indeg = new Map();
   for (const node of nodes.values()) indeg.set(node.nodeId, node.deps.length);
   const ready = [];
@@ -257,7 +258,7 @@ function topologicallySort(nodes) {
   }
   if (order.length !== nodes.size) {
     const cyclic = [...nodes.keys()].filter((k) => !order.includes(k));
-    throw withCode("TIME_CYCLE", `cycle detected: ${cyclic.join(", ")}`);
+    throw withCode("TIME_CYCLE", `cycle detected: ${cyclic.join(", ")}`, cyclic[0], listRefs(ctx));
   }
   return order;
 }
