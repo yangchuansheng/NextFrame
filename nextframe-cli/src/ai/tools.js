@@ -38,7 +38,8 @@ export const TOOLS = {
     handler: ({ timeline, expr }) => {
       const r = resolveTimeline(timeline);
       if (!r.ok) return r;
-      return resolveExpression(expr, r.lookup || {}, timeline.duration);
+      const lookup = withShorthandRefs(r.lookup || {}, r.value);
+      return resolveExpression(expr, lookup, timeline.duration);
     },
   },
   describe_frame: {
@@ -86,3 +87,29 @@ export const TOOLS = {
 export const TOOL_DEFINITIONS = Object.fromEntries(
   Object.entries(TOOLS).map(([name, tool]) => [name, { description: tool.schema.description }])
 );
+
+function withShorthandRefs(lookup, timeline) {
+  const aliases = { ...lookup };
+
+  for (const marker of timeline.markers || []) {
+    if (marker?.id && aliases[marker.id] === undefined && lookup[`marker-${marker.id}`] !== undefined) {
+      aliases[marker.id] = lookup[`marker-${marker.id}`];
+    }
+  }
+
+  for (const chapter of timeline.chapters || []) {
+    if (chapter?.id && aliases[chapter.id] === undefined && lookup[`chapter-${chapter.id}`] !== undefined) {
+      aliases[chapter.id] = lookup[`chapter-${chapter.id}`];
+    }
+  }
+
+  for (const track of timeline.tracks || []) {
+    for (const clip of track.clips || []) {
+      if (clip?.id && aliases[clip.id] === undefined && lookup[`clip-${clip.id}`] !== undefined) {
+        aliases[clip.id] = lookup[`clip-${clip.id}`];
+      }
+    }
+  }
+
+  return aliases;
+}
