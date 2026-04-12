@@ -1,18 +1,26 @@
 (function(){
 // Bridge IPC client (inline for WKWebView file:// compatibility)
 const _ipcPending = new Map();
+const _ipcExpired = new Set();
 let _ipcNextId = 0;
 window.__ipc = window.__ipc || {};
 window.__ipc.resolve = function(response) {
   console.log("[bridge] resolve raw:", typeof response === "string" ? response.substring(0, 200) : response);
   const payload = typeof response === "string" ? JSON.parse(response) : response || {};
   const entry = _ipcPending.get(payload.id);
-  if (!entry) { console.warn("[bridge] no pending entry for id:", payload.id); return; }
+  if (!entry) {
+    if (_ipcExpired.has(payload.id)) {
+      _ipcExpired.delete(payload.id);
+      return;
+    }
+    console.warn("[bridge] no pending entry for id:", payload.id);
+    return;
+  }
   _ipcPending.delete(payload.id);
   if (payload.ok) { console.log("[bridge] resolved:", payload.id); entry.resolve(payload.result); }
   else { console.error("[bridge] rejected:", payload.error); entry.reject(new Error(payload.error || "IPC failed")); }
 };
-function bridgeCall(method, params) {
+function bridgeCall(method, params, timeoutMs) {
   // wry 0.55 injects window.ipc via webkit.messageHandlers — may also be directly on window.ipc
   var postFn = null;
   if (typeof window.ipc?.postMessage === "function") {
@@ -26,13 +34,52 @@ function bridgeCall(method, params) {
   }
   const id = "ipc-" + Date.now() + "-" + (++_ipcNextId);
   return new Promise((resolve, reject) => {
-    _ipcPending.set(id, { resolve, reject });
+    const safeTimeoutMs = Math.max(0, finiteNumber(timeoutMs, 0));
+    let timeoutId = null;
+    const pending = {
+      resolve: function(result) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        resolve(result);
+      },
+      reject: function(error) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        reject(error);
+      },
+    };
+    _ipcPending.set(id, pending);
+    if (safeTimeoutMs > 0) {
+      timeoutId = setTimeout(() => {
+        if (!_ipcPending.has(id)) {
+          return;
+        }
+        _ipcPending.delete(id);
+        _ipcExpired.add(id);
+        reject(new Error(method + " timed out after " + safeTimeoutMs + "ms"));
+      }, safeTimeoutMs);
+    }
     try { postFn(JSON.stringify({ id, method, params })); }
-    catch (e) { _ipcPending.delete(id); reject(e); }
+    catch (e) {
+      _ipcPending.delete(id);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      reject(e);
+    }
   });
 }
+window.bridgeCall = bridgeCall;
 
 const DESKTOP_CONNECT_MESSAGE = "Connect via desktop app to load projects";
+const NO_PROJECTS_MESSAGE = "No projects — create one with `nextframe project-new <name>`";
+const IPC_HOME_TIMEOUT_MS = 1500;
+const IPC_LOAD_TIMEOUT_MS = 4000;
+const IPC_POLL_TIMEOUT_MS = 1200;
+const HOME_RETRY_DELAY_MS = 500;
+const HOME_RETRY_COUNT = 3;
 const ACCENT_NAMES = ["accent", "warm", "blue"];
 const GLOW_NAMES = ["glow-accent", "glow-warm", "glow-blue"];
 
@@ -97,6 +144,10 @@ function buildNfdataUrl(parts) {
 
 function pluralize(count, singular, plural) {
   return count + " " + (count === 1 ? singular : plural);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function prettifyLabel(value) {
@@ -196,6 +247,17 @@ function formatRelativeUpdated(raw) {
   return "updated " + new Date(timestamp).toLocaleDateString();
 }
 
+function formatProjectUpdated(raw) {
+  const value = formatRelativeUpdated(raw);
+  if (value.indexOf("edited ") === 0) {
+    return "last updated " + value.slice("edited ".length);
+  }
+  if (value.indexOf("updated ") === 0) {
+    return "last updated " + value.slice("updated ".length);
+  }
+  return "last updated " + value;
+}
+
 function readProjectPath(projectName) {
   return projectsCache.find((entry) => entry?.name === projectName)?.path || "Bridge IPC project";
 }
@@ -246,12 +308,23 @@ function deriveTimelineDuration(timeline) {
   const derived = tracks.reduce((maxEnd, track) => {
     const clips = Array.isArray(track?.clips) ? track.clips : [];
     return clips.reduce((clipMax, clip) => {
-      const start = Math.max(0, finiteNumber(clip?.start, 0));
-      const duration = Math.max(0, finiteNumber(clip?.dur ?? clip?.duration, 0));
+      const timing = deriveClipTiming(clip);
+      const start = timing.start;
+      const duration = timing.duration;
       return Math.max(clipMax, start + duration);
     }, maxEnd);
   }, 0);
   return Math.max(direct, meta, derived);
+}
+
+function deriveClipTiming(clip) {
+  const start = Math.max(0, finiteNumber(clip?.start, 0));
+  const explicitDuration = finiteNumber(clip?.dur ?? clip?.duration, NaN);
+  const end = finiteNumber(clip?.end, NaN);
+  const duration = Number.isFinite(explicitDuration)
+    ? Math.max(0, explicitDuration)
+    : Math.max(0, end - start);
+  return { start, duration };
 }
 
 function deriveTrackLabel(track, index) {
@@ -352,10 +425,11 @@ function deriveClipPalette(clip, track) {
 }
 
 function deriveClipInlineStyle(clip, track, totalDuration) {
-  const start = Math.max(0, finiteNumber(clip?.start, 0));
-  const duration = Math.max(0, finiteNumber(clip?.dur ?? clip?.duration, 0));
-  const left = percentOfTotal(start, totalDuration);
-  const width = percentOfTotal(duration, totalDuration);
+  const timing = deriveClipTiming(clip);
+  const start = timing.start;
+  const duration = timing.duration;
+  const left = Math.max(0, Math.min(100, percentOfTotal(start, totalDuration)));
+  const width = Math.max(0, Math.min(100 - left, percentOfTotal(duration, totalDuration)));
   const palette = deriveClipPalette(clip, track);
   return (
     "left:" + left + "%;" +
@@ -478,7 +552,9 @@ function renderProjectDropdown() {
 
   const items = entries.map((project) => {
     const active = project?.name === currentProject;
-    const click = active ? "" : ` onclick="event.stopPropagation(); goProject(${jsLiteral(project?.name || "")})"`;
+    const click = project?.name
+      ? ` onclick="event.stopPropagation(); goProject(${jsLiteral(project?.name || "")})"`
+      : "";
     return (
       `<div class="bc-dropdown-item"${click}>` +
       `<span class="${active ? "dot-active" : "dot-inactive"}"></span>` +
@@ -503,7 +579,7 @@ function renderEpisodeDropdown() {
 
   const items = entries.map((episode) => {
     const active = episode?.name === currentEpisode;
-    const click = !active && currentProject
+    const click = currentProject
       ? ` onclick="event.stopPropagation(); goEditor(${jsLiteral(currentProject)}, ${jsLiteral(episode?.name || "")}, null)"`
       : "";
     return (
@@ -539,7 +615,7 @@ function renderSegmentDropdown() {
 
   dropdown.innerHTML = entries.map((segment) => {
     const active = segment?.name === currentSegment;
-    const click = !active && currentProject && currentEpisode
+    const click = currentProject && currentEpisode
       ? ` onclick="event.stopPropagation(); goEditor(${jsLiteral(currentProject)}, ${jsLiteral(currentEpisode)}, ${jsLiteral(segment?.name || "")})"`
       : "";
     return (
@@ -755,7 +831,7 @@ async function refreshExportsPanel(requestId) {
   }
 
   try {
-    const result = await bridgeCall("fs.listDir", { path: episodePath });
+    const result = await bridgeCall("fs.listDir", { path: episodePath }, IPC_LOAD_TIMEOUT_MS);
     if (requestId !== editorLoadSeq) {
       return;
     }
@@ -920,7 +996,7 @@ async function refreshSegmentPreviewVideo(requestId) {
       project: currentProject,
       episode: currentEpisode,
       segment: currentSegment,
-    });
+    }, IPC_LOAD_TIMEOUT_MS);
     if (requestId !== editorLoadSeq) {
       return;
     }
@@ -1277,8 +1353,9 @@ function renderTrackRow(track, trackIndex, totalDuration) {
 }
 
 function renderClipHtml(clip, track, trackIndex, clipIndex, totalDuration) {
-  const start = Math.max(0, finiteNumber(clip?.start, 0));
-  const duration = Math.max(0, finiteNumber(clip?.dur ?? clip?.duration, 0));
+  const timing = deriveClipTiming(clip);
+  const start = timing.start;
+  const duration = timing.duration;
   const label = deriveClipLabel(clip, clipIndex);
   const type = deriveClipType(clip, track);
   const scene = String(clip?.scene || clip?.type || label || "clip");
@@ -1490,15 +1567,15 @@ function renderHomeState(projects, message) {
   }
 
   if (!projects.length) {
-    const empty = "No projects yet";
-    grid.innerHTML = `<div class="project-card stagger-in" style="cursor:default"><div class="card-info"><div class="card-title">${empty}</div></div></div>`;
-    list.innerHTML = `<div class="project-list-item stagger-in"><span class="list-dot accent"></span><span class="list-title">${empty}</span></div>`;
+    const empty = NO_PROJECTS_MESSAGE;
+    grid.innerHTML = `<div class="project-card stagger-in" style="cursor:default"><div class="card-info"><div class="card-title">${escapeHtml(empty)}</div></div></div>`;
+    list.innerHTML = `<div class="project-list-item stagger-in"><span class="list-dot accent"></span><span class="list-title">${escapeHtml(empty)}</span></div>`;
     return;
   }
 
   grid.innerHTML = projects.map((project, index) => {
     const accent = GLOW_NAMES[index % GLOW_NAMES.length];
-    const updated = formatRelativeUpdated(project?.updated);
+    const updated = formatProjectUpdated(project?.updated);
     return (
       `<div class="project-card stagger-in" onclick='goProject(${jsLiteral(project?.name || "")})'>` +
       `<div class="card-thumb"><div class="card-thumb-inner ${accent}"><span class="card-thumb-label">${escapeHtml(project?.name || "Project")}</span></div></div>` +
@@ -1512,7 +1589,7 @@ function renderHomeState(projects, message) {
 
   list.innerHTML = projects.map((project, index) => {
     const accent = ACCENT_NAMES[index % ACCENT_NAMES.length];
-    const meta = pluralize(finiteNumber(project?.episodes, 0), "episode", "episodes") + " · " + formatRelativeUpdated(project?.updated);
+    const meta = pluralize(finiteNumber(project?.episodes, 0), "episode", "episodes") + " · " + formatProjectUpdated(project?.updated);
     return (
       `<div class="project-list-item stagger-in" onclick='goProject(${jsLiteral(project?.name || "")})'>` +
       `<span class="list-dot ${accent}"></span>` +
@@ -1523,12 +1600,31 @@ function renderHomeState(projects, message) {
   }).join("");
 }
 
+async function loadProjectsWithRetry(requestId) {
+  let lastError = new Error("IPC unavailable");
+  for (let attempt = 0; attempt <= HOME_RETRY_COUNT; attempt += 1) {
+    if (requestId !== homeLoadSeq) {
+      return null;
+    }
+    try {
+      return await bridgeCall("project.list", {}, IPC_HOME_TIMEOUT_MS);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= HOME_RETRY_COUNT) {
+        break;
+      }
+      await wait(HOME_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
+}
+
 async function initHome() {
   const requestId = ++homeLoadSeq;
   renderHomeState([], "Loading projects...");
 
   try {
-    const result = await bridgeCall("project.list", {});
+    const result = await loadProjectsWithRetry(requestId);
     if (requestId !== homeLoadSeq) {
       return;
     }
@@ -1640,7 +1736,7 @@ async function goProject(projectName) {
 
   const requestId = ++projectLoadSeq;
   try {
-    const result = await bridgeCall("episode.list", { project: currentProject });
+    const result = await bridgeCall("episode.list", { project: currentProject }, IPC_LOAD_TIMEOUT_MS);
     if (requestId !== projectLoadSeq) {
       return;
     }
@@ -1700,7 +1796,7 @@ async function goEditor(project, episode, segment) {
   const requestId = ++editorLoadSeq;
   try {
     if (episodesCacheProject !== currentProject || !findEpisodeEntry(currentEpisode)) {
-      const episodeResult = await bridgeCall("episode.list", { project: currentProject });
+      const episodeResult = await bridgeCall("episode.list", { project: currentProject }, IPC_LOAD_TIMEOUT_MS);
       if (requestId !== editorLoadSeq) {
         return;
       }
@@ -1713,7 +1809,7 @@ async function goEditor(project, episode, segment) {
     const segmentResult = await bridgeCall("segment.list", {
       project: currentProject,
       episode: currentEpisode,
-    });
+    }, IPC_LOAD_TIMEOUT_MS);
     if (requestId !== editorLoadSeq) {
       return;
     }
@@ -1734,7 +1830,7 @@ async function goEditor(project, episode, segment) {
       return;
     }
 
-    const timeline = await bridgeCall("timeline.load", { path: currentSegmentPath });
+    const timeline = await bridgeCall("timeline.load", { path: currentSegmentPath }, IPC_LOAD_TIMEOUT_MS);
     if (requestId !== editorLoadSeq) {
       return;
     }
@@ -1792,6 +1888,44 @@ function goHome() {
   switchView("view-home");
 }
 
+function initBreadcrumbNavigation() {
+  const projectLabel = document.getElementById("bc-show-label");
+  if (projectLabel) {
+    projectLabel.addEventListener("click", function(event) {
+      event.stopPropagation();
+      if (currentProject) {
+        void goProject(currentProject);
+      } else {
+        goHome();
+      }
+    });
+  }
+
+  const episodeLabel = document.getElementById("bc-ep-label");
+  if (episodeLabel) {
+    episodeLabel.addEventListener("click", function(event) {
+      event.stopPropagation();
+      if (currentProject && currentEpisode) {
+        void goEditor(currentProject, currentEpisode, null);
+      } else if (currentProject) {
+        void goProject(currentProject);
+      } else {
+        goHome();
+      }
+    });
+  }
+
+  const segmentLabel = document.getElementById("bc-scene-label");
+  if (segmentLabel) {
+    segmentLabel.addEventListener("click", function(event) {
+      event.stopPropagation();
+      if (currentProject && currentEpisode) {
+        void goEditor(currentProject, currentEpisode, currentSegment);
+      }
+    });
+  }
+}
+
 function handleKeydown(event) {
   if (event.code === "Space" && !event.target.matches("input,textarea")) {
     event.preventDefault();
@@ -1817,13 +1951,13 @@ function startWatching(path) {
   _watchPath = path;
   _watchMtime = 0;
   // get initial mtime
-  bridgeCall("fs.mtime", { path: path }).then(function(r) {
+  bridgeCall("fs.mtime", { path: path }, IPC_POLL_TIMEOUT_MS).then(function(r) {
     _watchMtime = (r && r.mtime) || 0;
   }).catch(function() {});
   // poll every 2 seconds
   _watchInterval = setInterval(function() {
     if (!_watchPath) return;
-    bridgeCall("fs.mtime", { path: _watchPath }).then(function(r) {
+    bridgeCall("fs.mtime", { path: _watchPath }, IPC_POLL_TIMEOUT_MS).then(function(r) {
       var newMtime = (r && r.mtime) || 0;
       if (newMtime > 0 && _watchMtime > 0 && newMtime !== _watchMtime) {
         _watchMtime = newMtime;
@@ -1846,7 +1980,7 @@ function reloadCurrentTimeline() {
   const timelinePath = getCurrentSegmentPath();
   if (!timelinePath) return;
   const selectedClipId = currentSelectedClipId;
-  bridgeCall("timeline.load", { path: timelinePath }).then(function(result) {
+  bridgeCall("timeline.load", { path: timelinePath }, IPC_LOAD_TIMEOUT_MS).then(function(result) {
     if (!result) return;
     currentTimeline = result;
     renderTimeline(result, selectedClipId);
@@ -1868,6 +2002,7 @@ function initPreviewVideo() {
 
 function initApp() {
   initBreadcrumbs();
+  initBreadcrumbNavigation();
   initCustomSelect();
   initCanvasDrag();
   initTimeline();
