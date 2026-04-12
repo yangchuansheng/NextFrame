@@ -7,6 +7,13 @@ import { guarded } from "../engine/_guard.js";
 import { renderAt } from "../engine/render.js";
 import { resolveTimeline } from "../engine/time.js";
 
+function normalizeCrf(value) {
+  if (value === undefined || value === null) return 20;
+  const crf = Number(value);
+  if (!Number.isInteger(crf) || crf < 0 || crf > 51) return null;
+  return crf;
+}
+
 /**
  * Export a timeline to an MP4 file.
  * @param {object} timeline
@@ -25,6 +32,10 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
   const duration = resolved.duration;
   const totalFrames = Math.round(duration * fps);
   const ffmpegPath = opts.ffmpegPath || "ffmpeg";
+  const crf = normalizeCrf(opts.crf);
+  if (crf === null) {
+    return guarded("exportMP4", { ok: false, error: { code: "BAD_CRF", hint: "0..51" } });
+  }
 
   const ffmpegArgs = [
     "-y",
@@ -35,7 +46,7 @@ export async function exportMP4(timeline, outputPath, opts = {}) {
     "-i", "-",
     "-c:v", "libx264",
     "-pix_fmt", "yuv420p",
-    "-crf", "20",
+    "-crf", String(crf),
     "-preset", "fast",
     outputPath,
   ];

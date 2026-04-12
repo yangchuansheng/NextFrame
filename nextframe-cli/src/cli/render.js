@@ -50,6 +50,22 @@ export async function run(argv) {
     }, flags);
     return 2;
   }
+  const target = flags.target || "ffmpeg";
+  if (target !== "ffmpeg") {
+    emit({
+      ok: false,
+      error: {
+        code: "UNKNOWN_TARGET",
+        hint: "supported: ffmpeg",
+      },
+    }, flags);
+    return 2;
+  }
+  const crf = parseCrfFlag(flags.crf);
+  if (!crf.ok) {
+    emit({ ok: false, error: crf.error }, flags);
+    return 2;
+  }
   const loaded = await loadTimeline(path);
   if (!loaded.ok) {
     emit(loaded, flags);
@@ -63,6 +79,7 @@ export async function run(argv) {
   }
   const opts = {};
   if (flags.fps) opts.fps = Number(flags.fps);
+  if (crf.value !== undefined) opts.crf = crf.value;
   opts.onProgress = (i, total) => {
     if (!flags.quiet) {
       process.stderr.write(`  rendered ${i}/${total} frames\r`);
