@@ -133,9 +133,9 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .src-expand:hover { background: rgba(124,106,239,0.4); color: #fff; }
 .src-pill { position: absolute; bottom: 5px; font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 3px; background: rgba(0,0,0,0.7); color: rgba(255,255,255,0.8); }
 .src-pill.l { left: 5px; } .src-pill.r { right: 5px; }
-.src-info { padding: 6px 8px; }
-.src-name { font-size: 13px; font-weight: 500; }
-.src-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-25); margin-top: 2px; }
+.src-info { padding: 8px 10px; }
+.src-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.src-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-55); margin-top: 2px; }
 .src-badge { display: inline-block; margin-top: 4px; font-size: 11px; padding: 2px 8px; border-radius: 3px; background: var(--accent-06); color: var(--accent); }
 
 /* ─── Main: Header ─── */
@@ -433,7 +433,7 @@ function renderSrc() {
         '<div class="src-grad" style="background:linear-gradient(135deg,hsla('+s.hue+',0.3),transparent)"></div>' +
         '<span class="src-pill l">'+s.res+'</span><span class="src-pill r">'+s.dur+'</span>' +
       '</div>' +
-      '<div class="src-info"><div class="src-name">'+s.n+'</div><div class="src-path">'+s.path+'</div><div class="src-meta">'+s.sz+' · '+s.cod+' · '+s.fps+'fps</div><span class="src-badge">'+cn+' clips</span></div></div>';
+      '<div class="src-info"><div class="src-name">'+s.n+'</div><div class="src-meta">'+s.dur+' · '+s.res+' · '+s.sz+'</div><span class="src-badge">'+cn+' clips</span></div></div>';
   });
   document.getElementById("srcList").innerHTML = h;
 }
@@ -494,32 +494,34 @@ function renderMain() {
     for (var zt = c.i; zt <= c.o; zt += zstep) ztks.push('<span>'+tc(zt)+'</span>');
     if (Math.abs(c.o - (c.i + Math.floor((c.o-c.i)/zstep)*zstep)) > 0.5) ztks.push('<span>'+tc(c.o)+'</span>');
 
-    det.innerHTML = '<div class="fade-in"><div class="cd-top">' +
-      '<div class="cd-preview" style="background:linear-gradient(135deg,hsla('+s.hue+',0.15) 0%,#050508 100%)">' +
-        '<div class="cd-play-big" onclick="openM(\''+c.id+' '+c.nm+'\',\''+tc(c.i)+' / '+tc(c.o)+'\',\''+s.res+' · '+s.fps+'fps\')">&#9654;</div>' +
-        '<div class="cd-transport"><button class="cd-btn">&#x23EE;</button><button class="cd-btn">&#x25C0;</button><button class="cd-btn play-sm">&#9654;</button><button class="cd-btn">&#x25B6;</button><button class="cd-btn">&#x23ED;</button><div class="cd-progress"><div class="cd-progress-fill"></div></div><span class="cd-tc">'+tc(c.i)+' / '+tc(c.o)+'</span></div>' +
-      '</div>' +
-      '<div class="cd-right">' +
-        '<div class="cd-zoom"><div class="cd-zoom-label"><span>PRECISION TIMELINE</span><span>'+dur+'s · '+Math.round(dur*s.fps)+' frames</span></div>' +
-          '<div class="cd-zoom-bar" id="zoomBar" onmousemove="showFrameTip(event)" onmouseleave="hideFrameTip()">' +
-            '<div class="cd-zoom-fill"></div>' +
-            '<div class="cd-zoom-handle in"></div><div class="cd-zoom-handle out"></div>' +
-            '<div class="cd-zoom-playhead"></div>' +
-            '<div class="cd-frame-tip" id="frameTip"><div class="cd-frame-img" id="frameTipImg">Frame</div><div class="cd-frame-tc" id="frameTipTc">00:00.0</div></div>' +
+    det.innerHTML = '<div class="fade-in">' +
+      '<div class="cd-path">' + c.path + '</div>' +
+      '<div class="cd-top">' +
+        '<div class="cd-preview" style="background:linear-gradient(135deg,hsla('+s.hue+',0.15) 0%,#050508 100%)">' +
+          '<div class="cd-play-big" onclick="openM(\''+c.id+' '+c.nm+'\',\''+tc(c.i)+' / '+tc(c.o)+'\',\''+s.res+' · '+s.fps+'fps\')">&#9654;</div>' +
+          '<div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,0.5)">'+tc(c.i)+' → '+tc(c.o)+' · '+dur+'s</div>' +
+        '</div>' +
+        '<div class="cd-right">' +
+          '<div class="cd-zoom"><div class="cd-zoom-label"><span>TIMELINE</span><span>'+dur+'s · '+Math.round(dur*s.fps)+' frames</span></div>' +
+            '<div class="cd-zoom-bar" id="zoomBar" onmousemove="showFrameTip(event)" onmouseleave="hideFrameTip()">' +
+              '<div class="cd-zoom-fill"></div>' +
+              '<div class="cd-zoom-handle in"></div><div class="cd-zoom-handle out"></div>' +
+              '<div class="cd-zoom-playhead"></div>' +
+              '<div class="cd-frame-tip" id="frameTip"><div class="cd-frame-img" id="frameTipImg">Frame</div><div class="cd-frame-tc" id="frameTipTc">00:00.0</div></div>' +
+            '</div>' +
+            '<div class="cd-zoom-ticks">'+ztks.join("")+'</div>' +
           '</div>' +
-          '<div class="cd-zoom-ticks">'+ztks.join("")+'</div>' +
-        '</div>' +
-        subHtml +
-        '<div class="cd-info">' +
-          '<div class="cd-info-item"><div class="cd-info-label">IN</div><div class="cd-info-value">'+tc(c.i)+'</div></div>' +
-          '<div class="cd-info-item"><div class="cd-info-label">OUT</div><div class="cd-info-value">'+tc(c.o)+'</div></div>' +
-          '<div class="cd-info-item"><div class="cd-info-label">DURATION</div><div class="cd-info-value">'+dur+'s</div></div>' +
-          '<div class="cd-info-item"><div class="cd-info-label">FRAMES</div><div class="cd-info-value">'+Math.round(dur*s.fps)+'</div></div>' +
-          (c.hasTl ? '<div class="cd-info-item"><div class="cd-info-label">TIMELINE</div><div class="cd-info-value" style="color:var(--accent)">&#10003; synced</div></div>' : '<div class="cd-info-item"><div class="cd-info-label">TIMELINE</div><div class="cd-info-value" style="color:var(--ink-25)">&#x2013;</div></div>') +
-          (c.seg ? '<div class="cd-info-item"><div class="cd-info-label">SEGMENT</div><div class="cd-info-value" style="color:var(--accent)">'+c.seg+'</div></div>' : '') +
+          subHtml +
+          '<div class="cd-info">' +
+            '<div class="cd-info-item"><div class="cd-info-label">IN</div><div class="cd-info-value">'+tc(c.i)+'</div></div>' +
+            '<div class="cd-info-item"><div class="cd-info-label">OUT</div><div class="cd-info-value">'+tc(c.o)+'</div></div>' +
+            '<div class="cd-info-item"><div class="cd-info-label">FRAMES</div><div class="cd-info-value">'+Math.round(dur*s.fps)+'</div></div>' +
+            (c.hasTl ? '<div class="cd-info-item"><div class="cd-info-label">时间轴</div><div class="cd-info-value" style="color:var(--accent)">&#10003; 已对齐</div></div>' : '<div class="cd-info-item"><div class="cd-info-label">时间轴</div><div class="cd-info-value" style="color:var(--ink-25)">未对齐</div></div>') +
+            (c.seg ? '<div class="cd-info-item"><div class="cd-info-label">段落</div><div class="cd-info-value" style="color:var(--accent)">'+c.seg+'</div></div>' : '') +
+          '</div>' +
         '</div>' +
       '</div>' +
-    '</div></div>';
+    '</div>';
     det.classList.add("show");
   } else {
     det.innerHTML = "";
@@ -538,7 +540,7 @@ function renderMain() {
 
     lh += '<div class="clip-row'+(aC===idx?' selected':'')+'" onclick="selClip('+idx+')">' +
       '<div class="cr-thumb"><div class="cr-grad" style="background:linear-gradient(135deg,hsla('+s.hue+',0.25),transparent)"></div><span class="cr-dur">'+dur+'s</span></div>' +
-      '<div class="cr-info"><div class="cr-name">'+c.nm+'</div><div class="cr-range">'+tc(c.i)+' → '+tc(c.o)+'</div><div class="src-path" style="margin-bottom:3px">'+c.path+'</div><div class="cr-tags">'+tags+'</div></div>' +
+      '<div class="cr-info"><div class="cr-name">'+c.nm+'</div><div class="cr-range">'+tc(c.i)+' → '+tc(c.o)+' · '+(c.o-c.i).toFixed(1)+'s</div><div class="cr-tags">'+tags+'</div></div>' +
       '<div class="cr-status-tags">'+statusTags+'</div>' +
     '</div>';
   });
