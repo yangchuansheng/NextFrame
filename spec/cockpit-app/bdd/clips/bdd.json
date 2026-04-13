@@ -21,9 +21,9 @@
       "given": "项目有 4 个原始视频文件",
       "when": "打开素材页",
       "then": [
-        "左侧显示 4 个源视频卡片",
-        "每个卡片显示：缩略图 + 文件名 + 时长/分辨率/大小 + clips 数量",
-        "第一个源默认选中（紫色边框）"
+        "左侧只显示 SOURCE 视频（file 以 sources/ 开头）",
+        "每个 source 卡片显示：缩略图 + ▶小窗 + ⛶放大 + 文件名 + 时长",
+        "第一个 source 默认选中"
       ],
       "critical": "缩略图必须 16:9 比例，信息不能溢出"
     },
@@ -33,15 +33,14 @@
       "type": "feature",
       "status": "todo",
       "verify": "pending",
-      "story": "用户切换查看不同源视频的 clips",
+      "story": "用户点击 source 查看其 clips",
       "given": "左侧有 4 个源视频",
       "when": "点击第二个源视频",
       "then": [
-        "第二个源高亮，第一个取消高亮",
-        "右侧 header 显示新源的文件名 + 绝对路径",
-        "spec 标签更新（分辨率紫、帧率绿、编码黄、时长白、大小灰）",
-        "时间轴条更新为新源的 clip 分布",
-        "clip 列表更新为新源的 clips"
+        "右侧显示该 source 的全部 clips（file 以 clips/ 开头，sourceId 匹配）",
+        "每个 clip 显示：缩略图 + 名称 + 时码范围(inSec→outSec) + 时长 + 状态标签",
+        "时间轴条显示 clips 在源视频中的位置",
+        "clip 的 inSec/outSec 对应源视频的绝对时间"
       ]
     },
     {
