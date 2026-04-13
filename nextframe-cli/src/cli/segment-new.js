@@ -53,22 +53,13 @@ export async function run(argv) {
 }
 
 function makeEmptyTimeline(flags) {
-  const width = finiteOr(flags.width, 1920);
-  const height = finiteOr(flags.height, 1080);
   return {
-    schema: "nextframe/v0.1",
+    width: finiteOr(flags.width, 1920),
+    height: finiteOr(flags.height, 1080),
+    fps: finiteOr(flags.fps, 30),
     duration: finiteOr(flags.duration, 10),
-    background: "#0b0b14",
-    project: {
-      width,
-      height,
-      aspectRatio: width / height,
-      fps: finiteOr(flags.fps, 30),
-    },
-    chapters: [],
-    markers: [],
-    tracks: [],
-    assets: [],
+    background: "#05050c",
+    layers: [],
   };
 }
 
