@@ -2021,6 +2021,13 @@ function renderPipelineStage() {
     case "output": container.innerHTML = renderPipelineOutput(pipelineData); break;
     default: container.innerHTML = '<div class="pipeline-empty">Unknown stage</div>';
   }
+  // Bind events (WKWebView strips inline onclick from innerHTML)
+  container.querySelectorAll("[data-audio-path]").forEach(function(btn) {
+    btn.addEventListener("click", function() { playPipelineAudio(btn, btn.dataset.audioPath); });
+  });
+  container.querySelectorAll("[data-video-path]").forEach(function(btn) {
+    btn.addEventListener("click", function(e) { e.stopPropagation(); playPipelineVideo(btn.dataset.videoPath); });
+  });
 }
 
 
@@ -2281,7 +2288,7 @@ function renderPipelineAudio(data) {
       // Play button
       var audioPath = seg.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + seg.file) : null;
       if (audioPath) {
-        html += '<button class="pl-play-btn" onclick="playPipelineAudio(this,\'' + escHtml(audioPath) + '\')">&#9654;</button>';
+        html += '<button class="pl-play-btn" data-audio-path="' + escHtml(audioPath) + '">&#9654;</button>';
       }
       html += '<span class="pl-tag-generated">\u5DF2\u751F\u6210</span>';
       html += '<span class="audio-duration">' + seg.duration.toFixed(1) + 's</span>';
@@ -2374,7 +2381,7 @@ function renderPipelineClips(data) {
 
     // --- thumbnail with play button ---
     var videoPath = a.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + a.file) : null;
-    var playBtn = videoPath ? '<button class="pl-play-btn" style="width:24px;height:24px;font-size:9px" onclick="event.stopPropagation();playPipelineVideo(\'' + escHtml(videoPath) + '\')">&#9654;</button>' : '<span style="font-size:11px;color:rgba(228,228,232,0.25)">16:9</span>';
+    var playBtn = videoPath ? '<button class="pl-play-btn" style="width:24px;height:24px;font-size:9px" data-video-path="' + escHtml(videoPath) + '">&#9654;</button>' : '<span style="font-size:11px;color:rgba(228,228,232,0.25)">16:9</span>';
     var thumb =
       '<div style="width:100px;height:56px;background:#111114;border-radius:4px;flex-shrink:0;' +
       'display:flex;align-items:center;justify-content:center">' +
