@@ -51,6 +51,9 @@ import shaderPlasma from './shaderPlasma.js';
 import shaderTunnel from './shaderTunnel.js';
 import shaderRipple from './shaderRipple.js';
 import shaderFirefly from './shaderFirefly.js';
+// Media + Audio
+import audioTrack from './audioTrack.js';
+import syncSubs from './syncSubs.js';
 
 const ALL_SCENES = [
   // Canvas — backgrounds & effects
@@ -66,8 +69,8 @@ const ALL_SCENES = [
   barChart, lineChart, pieChart, progressRing,
   svgRings, radarChart, horizontalBars, treeMap,
   timelineViz, flowChart, agentLoop,
-  // Media
-  imageHero, videoClip,
+  // Media + Audio
+  imageHero, videoClip, audioTrack, syncSubs,
   // WebGL — GPU shader effects
   shaderGradient, shaderNoise, shaderGlitch, shaderChromatic,
   shaderPlasma, shaderTunnel, shaderRipple, shaderFirefly,

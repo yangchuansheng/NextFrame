@@ -69,6 +69,7 @@ export function validateTimeline(timeline) {
     'shaderGradient','shaderNoise','shaderGlitch','shaderChromatic','shaderPlasma',
     'shaderTunnel','shaderRipple','shaderFirefly','svgRings',
     'subtitleBar','marquee','lowerThird','cornerBadge',
+    'audioTrack','syncSubs','videoClip',
   ]);
   const contentLayers = timeline.layers.filter(l => {
     if (BG_SCENES.has(l.scene)) return false;
