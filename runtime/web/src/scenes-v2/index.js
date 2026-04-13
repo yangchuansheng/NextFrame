@@ -61,6 +61,8 @@ import shaderFirefly from './shaderFirefly.js';
 // Media + Audio
 import audioTrack from './audioTrack.js';
 import syncSubs from './syncSubs.js';
+// Custom — Spectrum Waterfall
+import spectrumFall from './spectrumFall.js';
 
 const ALL_SCENES = [
   // Canvas — backgrounds & effects
@@ -83,6 +85,8 @@ const ALL_SCENES = [
   // WebGL — GPU shader effects
   shaderGradient, shaderNoise, shaderGlitch, shaderChromatic,
   shaderPlasma, shaderTunnel, shaderRipple, shaderFirefly,
+  // Custom scenes
+  spectrumFall,
 ];
 
 // Map: id → scene object
