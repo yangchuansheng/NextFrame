@@ -77,6 +77,17 @@ import textReveal from './textReveal.js';
 import timeline3D from './timeline3D.js';
 import colorPalette from './colorPalette.js';
 import iconGrid from './iconGrid.js';
+// New v2 scenes — batch 3
+import scatterPlot from './scatterPlot.js';
+import donutChart from './donutChart.js';
+import gaugeChart from './gaugeChart.js';
+import sankeyDiagram from './sankeyDiagram.js';
+import wordCloud from './wordCloud.js';
+import matrixRain from './matrixRain.js';
+import glowButton from './glowButton.js';
+import statsRow from './statsRow.js';
+import quoteCarousel from './quoteCarousel.js';
+import gridPattern from './gridPattern.js';
 
 const ALL_SCENES = [
   // Canvas — backgrounds & effects
@@ -105,6 +116,9 @@ const ALL_SCENES = [
   lucideIcon, handDraw, particleSystem, morphShape, gradientText, dataTable,
   // New v2 scenes — batch 2
   codeTyping, compareSlider, textReveal, timeline3D, colorPalette, iconGrid,
+  // New v2 scenes — batch 3
+  scatterPlot, donutChart, gaugeChart, sankeyDiagram, wordCloud,
+  matrixRain, glowButton, statsRow, quoteCarousel, gridPattern,
 ];
 
 // Map: id → scene object
