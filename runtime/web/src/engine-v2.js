@@ -104,6 +104,51 @@ function calcTransitionStyle(transition, progress) {
   }
 }
 
+// ─── Keyframe Interpolation ────────────────────────────────────
+// Format: { "keys": [[0, 0], [2, 100], [5, 50]], "ease": "linear" }
+// keys = [[time, value], ...] sorted by time. value can be number or string.
+function isKeyframed(v) {
+  return v && typeof v === 'object' && Array.isArray(v.keys) && v.keys.length > 0;
+}
+
+function evalKeyframe(kf, t) {
+  const keys = kf.keys;
+  if (keys.length === 0) return 0;
+  if (t <= keys[0][0]) return keys[0][1];
+  if (t >= keys[keys.length - 1][0]) return keys[keys.length - 1][1];
+  // Find segment
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [t0, v0] = keys[i];
+    const [t1, v1] = keys[i + 1];
+    if (t >= t0 && t <= t1) {
+      const p = t1 === t0 ? 1 : (t - t0) / (t1 - t0);
+      const eased = kf.ease === 'linear' ? p
+        : kf.ease === 'easeIn' ? easeInCubic(p)
+        : easeOutCubic(p); // default easeOut
+      // Interpolate numbers, return string endpoints as-is at threshold
+      if (typeof v0 === 'number' && typeof v1 === 'number') {
+        return v0 + (v1 - v0) * eased;
+      }
+      // String values (e.g. "10%" → "50%"): parse number prefix
+      const n0 = parseFloat(v0), n1 = parseFloat(v1);
+      if (Number.isFinite(n0) && Number.isFinite(n1)) {
+        const suffix = String(v0).replace(/^[-\d.]+/, '');
+        return (n0 + (n1 - n0) * eased).toFixed(2) + suffix;
+      }
+      return p < 0.5 ? v0 : v1; // snap for non-interpolable
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+
+// Resolve a layer property: if keyframed return interpolated value, else return static value
+function resolveLayerProp(layer, prop, localT, fallback) {
+  const v = layer[prop];
+  if (v == null) return fallback;
+  if (isKeyframed(v)) return evalKeyframe(v, localT);
+  return v;
+}
+
 // ─── Layer Style Resolver ──────────────────────────────────────
 // Converts layer properties to CSS on the container div
 function applyLayerStyle(el, layer) {
@@ -254,20 +299,44 @@ export function createEngine(stageEl, timeline, sceneRegistry) {
           if (ts.clipPath) transClipPath = ts.clipPath;
         }
 
-        const opacity = enter.opacity * exit.opacity * transOpacity * (layer.opacity != null ? layer.opacity : 1);
-        const transforms = [enter.transform, exit.transform, transTransform].filter(Boolean).join(' ');
+        // Resolve keyframe-animated properties
+        const kOpacity = resolveLayerProp(layer, 'opacity', localT, 1);
+        const kRotation = resolveLayerProp(layer, 'rotation', localT, 0);
+        const kScale = resolveLayerProp(layer, 'scale', localT, null);
+        const kX = resolveLayerProp(layer, 'x', localT, null);
+        const kY = resolveLayerProp(layer, 'y', localT, null);
+        const kW = resolveLayerProp(layer, 'w', localT, null);
+        const kH = resolveLayerProp(layer, 'h', localT, null);
+        const kFilter = resolveLayerProp(layer, 'filter', localT, null);
+        const kClipPath = resolveLayerProp(layer, 'clipPath', localT, null);
+
+        const opacity = enter.opacity * exit.opacity * transOpacity * kOpacity;
+        const userTransforms = [];
+        if (kRotation) userTransforms.push(`rotate(${kRotation}deg)`);
+        if (kScale) userTransforms.push(`scale(${kScale})`);
+        const allTransforms = [enter.transform, exit.transform, transTransform, ...userTransforms].filter(Boolean).join(' ');
 
         // Apply visual properties
         container.style.opacity = opacity;
+
+        // Position (keyframe-animated)
+        if (kX != null) container.style.left = typeof kX === 'number' ? kX + 'px' : kX;
+        if (kY != null) container.style.top = typeof kY === 'number' ? kY + 'px' : kY;
+        if (kW != null) container.style.width = typeof kW === 'number' ? kW + 'px' : kW;
+        if (kH != null) container.style.height = typeof kH === 'number' ? kH + 'px' : kH;
+
+        // ClipPath
         if (transClipPath) {
           container.style.clipPath = transClipPath;
-        } else if (layer.clipPath && layer.clipPath !== 'none') {
-          container.style.clipPath = layer.clipPath;
+        } else if (kClipPath && kClipPath !== 'none') {
+          container.style.clipPath = kClipPath;
         } else {
           container.style.clipPath = '';
         }
-        if (transforms) {
-          container.style.transform = transforms;
+
+        // Transform
+        if (allTransforms) {
+          container.style.transform = allTransforms;
         } else if (!layer.x && !layer.y) {
           container.style.transform = '';
         }
@@ -277,14 +346,11 @@ export function createEngine(stageEl, timeline, sceneRegistry) {
           container.style.mixBlendMode = layer.blend;
         }
 
-        // CSS filter
-        if (layer.filter && layer.filter !== 'none') {
-          container.style.filter = layer.filter;
-        }
-
-        // Rotation (if not handled by enter/exit transforms)
-        if (layer.rotation) {
-          container.style.transform += ` rotate(${layer.rotation}deg)`;
+        // CSS filter (keyframe-animated)
+        if (kFilter && kFilter !== 'none') {
+          container.style.filter = kFilter;
+        } else {
+          container.style.filter = '';
         }
 
         state.wasActive = true;
