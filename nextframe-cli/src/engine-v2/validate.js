@@ -53,6 +53,23 @@ export function validateTimeline(timeline) {
       });
     }
 
+    // Gate: ratio mismatch — scene must match timeline aspect ratio
+    if (layer.scene && REGISTRY.size > 0 && REGISTRY.has(layer.scene)) {
+      const sceneMeta = REGISTRY.get(layer.scene);
+      const sceneRatio = sceneMeta?.ratio;
+      if (sceneRatio && sceneRatio !== 'any') {
+        const isPortrait = timeline.height > timeline.width;
+        const isSquare = Math.abs(timeline.width - timeline.height) < 50;
+        const timelineRatio = isSquare ? '1:1' : isPortrait ? '9:16' : '16:9';
+        if (sceneRatio !== timelineRatio) {
+          errors.push({
+            code: 'RATIO_MISMATCH',
+            message: `layer "${layer.id}" uses scene "${layer.scene}" (ratio ${sceneRatio}) but timeline is ${timelineRatio} (${timeline.width}x${timeline.height}). Use the correct ratio variant.`,
+          });
+        }
+      }
+    }
+
     // Time sanity
     if (typeof layer.start === 'number' && layer.start < 0) {
       errors.push({ code: 'BAD_TIME', message: `layer "${layer.id}" start < 0` });

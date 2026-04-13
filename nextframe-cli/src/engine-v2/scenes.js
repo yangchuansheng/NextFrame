@@ -7,6 +7,7 @@ const SCENE_ENTRIES = Object.values(SCENE_REGISTRY)
     name: scene.name || scene.id,
     type: scene.type || "unknown",
     category: scene.category || "Other",
+    ratio: scene.ratio || null,
     params: Object.entries(scene.defaultParams || {}).map(([name, defaultValue]) => ({
       name,
       type: inferParamType(defaultValue),

@@ -7,7 +7,7 @@ export default {
   type: "canvas",
   name: "Aurora Gradient (16:9)",
   category: "Background",
-  ratio: "16:9",
+  ratio: "any",
   tags: ["aurora", "gradient", "background", "canvas"],
   description: "Canvas 极光渐变背景动画。1920x1080 专用",
   params: {

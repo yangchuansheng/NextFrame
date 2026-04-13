@@ -7,7 +7,7 @@ export default {
   type: "canvas",
   name: "Vignette (16:9)",
   category: "Background",
-  ratio: "16:9",
+  ratio: "any",
   tags: ["vignette", "overlay", "background", "canvas"],
   description: "全屏 canvas 暗角遮罩。1920x1080 专用",
   params: {

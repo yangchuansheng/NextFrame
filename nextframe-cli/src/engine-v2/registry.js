@@ -16,6 +16,7 @@ function parseSceneFile(filePath) {
   const type = code.match(/type:\s*["']([^"']+)["']/)?.[1];
   const name = code.match(/name:\s*["']([^"']+)["']/)?.[1];
   const category = code.match(/category:\s*["']([^"']+)["']/)?.[1];
+  const ratio = code.match(/ratio:\s*["']([^"']+)["']/)?.[1] || null;
   // Extract defaultParams object (simplified — handles single-level objects)
   const dpMatch = code.match(/defaultParams:\s*(\{[^}]+\})/s);
   let defaultParams = {};
@@ -31,7 +32,7 @@ function parseSceneFile(filePath) {
       // Complex defaultParams (arrays, nested) — leave empty, not critical for CLI
     }
   }
-  return id ? { id, type: type || 'unknown', name: name || id, category: category || 'Other', defaultParams, file: filePath } : null;
+  return id ? { id, type: type || 'unknown', name: name || id, category: category || 'Other', ratio, defaultParams, file: filePath } : null;
 }
 
 // Load all scenes at import time

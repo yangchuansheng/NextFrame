@@ -7,7 +7,7 @@ export default {
   type: "canvas",
   name: "Particle Flow (16:9)",
   category: "Background",
-  ratio: "16:9",
+  ratio: "any",
   tags: ["particle", "flow", "background", "canvas"],
   description: "Canvas 粒子流背景动画。1920x1080 专用",
   params: {
