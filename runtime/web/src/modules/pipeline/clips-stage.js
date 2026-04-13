@@ -41,6 +41,31 @@ function getPipelineClipSize(atom) {
   return atom.size || atom.fileSize || atom.filesize || "--";
 }
 
+function getPipelineClipSourceId(atom) {
+  if (!atom) return null;
+  var sourceId = atom.sourceId;
+  if (sourceId == null) sourceId = atom.source_id;
+  if (sourceId == null) sourceId = atom.parentSourceId;
+  if (sourceId == null) sourceId = atom.parent_source_id;
+  if (sourceId == null && atom.source != null && typeof atom.source !== "object") {
+    sourceId = atom.source;
+  }
+  var numeric = Number(sourceId);
+  return isFinite(numeric) ? numeric : null;
+}
+
+function pipelineClipMatchesSource(video, sourceVideo) {
+  if (!video || !sourceVideo) return false;
+  if (video.isSource) return false;
+  if (video.sourceId != null && sourceVideo.atom && sourceVideo.atom.id != null) {
+    return video.sourceId === Number(sourceVideo.atom.id);
+  }
+  if (/^clips\//.test(video.file) && /^sources\//.test(sourceVideo.file)) {
+    return video.file !== sourceVideo.file;
+  }
+  return false;
+}
+
 /* ─── Build absolute path ─── */
 function buildPipelineClipAbsolutePath(filePath) {
   var relativePath = String(filePath || "");
@@ -59,9 +84,22 @@ function getPipelineClipVideos(data) {
   }).map(function(atom, index) {
     var filePath = String(atom.file || "");
     var durationSeconds = Math.max(0, pipelineClipNumber(atom.duration, 0));
+    var isSource = atom.isSource === true || /^sources\//.test(filePath);
+    var inPoint = pipelineClipNumber(
+      atom.inSec != null ? atom.inSec : (atom.in_point != null ? atom.in_point : atom.inPoint),
+      0
+    );
+    var outPoint = pipelineClipNumber(
+      atom.outSec != null ? atom.outSec : (atom.out_point != null ? atom.out_point : atom.outPoint),
+      durationSeconds
+    );
+    if (!isSource && outPoint <= inPoint && durationSeconds > 0) {
+      outPoint = inPoint + durationSeconds;
+    }
     return {
       atom: atom,
       index: index,
+      id: pipelineClipNumber(atom.id, index),
       name: atom.name || filePath.split("/").pop() || ("Clip " + (index + 1)),
       file: filePath,
       absolutePath: buildPipelineClipAbsolutePath(filePath),
@@ -72,9 +110,10 @@ function getPipelineClipVideos(data) {
       fpsNum: getPipelineClipFpsNumber(atom),
       codec: getPipelineClipCodec(atom),
       size: getPipelineClipSize(atom),
-      isSource: /^sources\//.test(filePath),
-      inPoint: pipelineClipNumber(atom.in_point != null ? atom.in_point : atom.inPoint, 0),
-      outPoint: pipelineClipNumber(atom.out_point != null ? atom.out_point : atom.outPoint, durationSeconds),
+      isSource: isSource,
+      sourceId: getPipelineClipSourceId(atom),
+      inPoint: inPoint,
+      outPoint: outPoint,
       hasSubs: !!(atom.subtitles && atom.subtitles.length > 0),
       hasTimeline: !!(atom.timeline_aligned || atom.timelineAligned || atom.has_timeline),
       segment: atom.segment
@@ -235,16 +274,39 @@ function renderPipelineClips(data) {
     return '<div class="pipeline-empty">\u6682\u65E0\u7D20\u6750 \u2014 nextframe atom-add --type=video</div>';
   }
 
+  var sources = videos.filter(function(v) { return v.isSource; });
+  if (sources.length === 0) {
+    return (
+      '<div class="pipeline-clips">' +
+        '<div class="clips-sources">' +
+          '<div class="clips-sources-header">SOURCES · 0</div>' +
+          '<div class="clips-empty-note" style="padding:12px;">No source videos</div>' +
+        '</div>' +
+        '<div class="clips-main">' +
+          '<div class="pipeline-empty">No source videos found. Add atoms with <span style="font-family:\'SF Mono\', Menlo, monospace;">isSource: true</span>.</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   if (pipelineClipsSelectedIndex < 0 || pipelineClipsSelectedIndex >= videos.length) {
-    pipelineClipsSelectedIndex = 0;
+    pipelineClipsSelectedIndex = sources[0].index;
   }
 
   var selected = videos[pipelineClipsSelectedIndex];
+  if (!selected || !selected.isSource) {
+    selected = sources[0];
+    pipelineClipsSelectedIndex = selected.index;
+  }
 
-  // ─── Sidebar: only SOURCE videos ───
-  var sources = videos.filter(function(v) { return v.isSource; });
-  if (sources.length === 0) sources = videos; // fallback: show all if no sources
+  var selectedClips = videos.filter(function(video) {
+    return pipelineClipMatchesSource(video, selected);
+  });
+
   var sourceItemsHtml = sources.map(function(video) {
+    var clipCount = videos.filter(function(clip) {
+      return pipelineClipMatchesSource(clip, video);
+    }).length;
     var inlinePlayBtn = video.absolutePath
       ? '<button class="pl-play-btn clips-inline-play" data-video-path="' + escHtml(video.absolutePath) + '" title="Inline preview">&#9654;</button>'
       : '';
@@ -261,6 +323,7 @@ function renderPipelineClips(data) {
         '<div class="clips-src-info">' +
           '<div class="clips-src-name">' + escHtml(video.name) + '</div>' +
           '<div class="clips-src-meta">' + escHtml(video.durationLabel + ' \u00b7 ' + video.resolution + ' \u00b7 ' + video.size) + '</div>' +
+          '<div class="clips-src-count">' + escHtml(String(clipCount) + ' clips') + '</div>' +
         '</div>' +
       '</div>'
     );
@@ -283,11 +346,10 @@ function renderPipelineClips(data) {
     '</div>';
 
   // ─── Full timeline bar (all clips on source) ───
-  var relatedClips = videos.filter(function(v) { return !v.isSource || v.index === selected.index; });
+  var relatedClips = selectedClips;
   var timelineSpan = Math.max(selected.durationSeconds, 1);
 
   var timelineBlocksHtml = relatedClips.map(function(video) {
-    if (video.isSource) return "";
     var srcDur = timelineSpan;
     var left = srcDur > 0 ? (video.inPoint / srcDur * 100) : 0;
     var width = srcDur > 0 ? ((video.outPoint - video.inPoint) / srcDur * 100) : 10;
@@ -312,10 +374,7 @@ function renderPipelineClips(data) {
     '</div>';
 
   // ─── Clip rows: only clips from selected source ───
-  var allClips = videos.filter(function(v) { return !v.isSource && v.atom.sourceId === selected.atom.id; });
-  // Fallback: show all non-source clips
-  if (allClips.length === 0) allClips = videos.filter(function(v) { return !v.isSource; });
-  if (allClips.length === 0) allClips = videos;
+  var allClips = selectedClips;
 
   var clipRowsHtml = allClips.map(function(video) {
     var isExpanded = pipelineClipsExpandedClip === video.index;
