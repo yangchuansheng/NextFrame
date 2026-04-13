@@ -24,6 +24,8 @@ use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::WindowBuilder;
 #[cfg(target_os = "macos")]
 use wry::BackgroundThrottlingPolicy;
+#[cfg(target_os = "macos")]
+use wry::WebViewExtMacOS;
 use wry::{PageLoadEvent, WebViewBuilder};
 
 enum UserEvent {
@@ -522,15 +524,7 @@ fn handle_http_request(
                 .map(decode_query_component)
                 .transpose()?;
             let out_path = requested_path.unwrap_or_else(default_screenshot_path);
-            let screenshot_script = build_screenshot_script(&out_path)?;
-            queue_appctl_script(
-                webview,
-                &screenshot_script,
-                stream,
-                pending_appctl,
-                next_request_id,
-                "application/json; charset=utf-8",
-            )
+            native_screenshot(webview, &out_path, stream)
         }
         _ => write_http_response(
             stream,
@@ -651,74 +645,121 @@ fn build_navigate_script(payload: &Value) -> Result<String, String> {
     ))
 }
 
-fn build_screenshot_script(out_path: &str) -> Result<String, String> {
-    let out_path_json = serde_json::to_string(out_path)
-        .map_err(|error| format!("failed to encode screenshot path: {error}"))?;
-    Ok(format!(
-        r##"(async function() {{
-  var outPath = {out_path_json};
-  if (typeof bridgeCall !== "function") {{
-    throw new Error("bridgeCall is unavailable");
-  }}
+#[cfg(target_os = "macos")]
+fn native_screenshot(
+    webview: &wry::WebView,
+    out_path: &str,
+    stream: &mut TcpStream,
+) -> Result<(), String> {
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
-  // Capture from direct-render stage (preview-stage-host in main document)
-  var stageHost = document.getElementById("preview-stage-host");
-  if (stageHost && stageHost.childElementCount > 0) {{
-    try {{
-      var w = parseInt(stageHost.style.width) || 1920;
-      var h = parseInt(stageHost.style.height) || 1080;
-      var clone = stageHost.cloneNode(true);
-      clone.style.transform = "none";
-      clone.style.left = "0";
-      clone.style.top = "0";
-      clone.style.position = "absolute";
+    use block2::RcBlock;
+    use objc2::rc::{Retained, autoreleasepool};
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSBitmapImageRep, NSImage};
+    use objc2_foundation::{NSData, NSError};
+    use objc2_web_kit::WKSnapshotConfiguration;
 
-      var svgData = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
-        '<foreignObject width="100%" height="100%">' +
-        '<div xmlns="http://www.w3.org/1999/xhtml" style="width:' + w + 'px;height:' + h + 'px;overflow:hidden">' +
-        new XMLSerializer().serializeToString(clone) +
-        '</div></foreignObject></svg>';
+    let mtm = MainThreadMarker::new()
+        .ok_or("native_screenshot must run on the main thread")?;
 
-      var img = new Image();
-      var blob = new Blob([svgData], {{type: "image/svg+xml;charset=utf-8"}});
-      var url = URL.createObjectURL(blob);
+    let wk_webview = webview.webview();
+    let config = unsafe { WKSnapshotConfiguration::new(mtm) };
 
-      await new Promise(function(resolve, reject) {{
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = url;
-      }});
+    type Slot = Rc<RefCell<Option<Result<Retained<NSImage>, String>>>>;
+    let slot: Slot = Rc::new(RefCell::new(None));
+    let slot_clone = slot.clone();
 
-      var canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      var ctx = canvas.getContext("2d");
+    let block = RcBlock::new(move |image: *mut NSImage, error: *mut NSError| {
+        autoreleasepool(|_| {
+            let result = if let Some(error) = unsafe { error.as_ref() } {
+                Err(format!("WKWebView.takeSnapshot error: {}", error.localizedDescription()))
+            } else if let Some(image) = unsafe { Retained::retain(image) } {
+                Ok(image)
+            } else {
+                Err("WKWebView.takeSnapshot returned nil".into())
+            };
+            *slot_clone.borrow_mut() = Some(result);
+        });
+    });
 
-      // Draw canvas layers first
-      stageHost.querySelectorAll("canvas").forEach(function(srcCanvas) {{
-        try {{
-          var rect = srcCanvas.getBoundingClientRect();
-          var hostRect = stageHost.getBoundingClientRect();
-          var scale = w / hostRect.width;
-          ctx.drawImage(srcCanvas, (rect.left - hostRect.left) * scale, (rect.top - hostRect.top) * scale, rect.width * scale, rect.height * scale);
-        }} catch(e) {{}}
-      }});
+    unsafe {
+        wk_webview.takeSnapshotWithConfiguration_completionHandler(Some(&config), &block);
+    }
 
-      // Draw DOM layer on top
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
+    let started = Instant::now();
+    while slot.borrow().is_none() {
+        if started.elapsed() > Duration::from_secs(10) {
+            return write_http_response(
+                stream, 500, "Internal Server Error",
+                "text/plain; charset=utf-8",
+                b"timed out waiting for WKWebView.takeSnapshot",
+            ).map_err(|e| format!("failed to write timeout response: {e}"));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+        // Pump the run loop so the completion handler fires
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            use objc2_foundation::NSDate;
+            let run_loop: *mut objc2::runtime::AnyObject = objc2::msg_send![
+                objc2::class!(NSRunLoop),
+                currentRunLoop
+            ];
+            let until = NSDate::dateWithTimeIntervalSinceNow(0.01);
+            let _: () = objc2::msg_send![run_loop, runUntilDate: &*until];
+        }
+    }
 
-      var dataUrl = canvas.toDataURL("image/png");
-      await bridgeCall("fs.writeBase64", {{ path: outPath, data: dataUrl }}, 10000);
-      return {{ path: outPath, mode: "direct-composite", width: w, height: h }};
-    }} catch(domErr) {{
-      console.error("[screenshot] direct capture failed:", domErr.message);
-    }}
-  }}
+    let image = slot.borrow_mut().take()
+        .ok_or("snapshot slot empty")?
+        .map_err(|e| format!("snapshot failed: {e}"))?;
 
-  throw new Error("no capturable content found — is preview loaded?");
-}})()"##,
-    ))
+    // Convert NSImage → PNG data
+    let tiff_data = image.TIFFRepresentation()
+        .ok_or("failed to get TIFF data from NSImage")?;
+    let bitmap_rep = NSBitmapImageRep::imageRepWithData(&tiff_data)
+        .ok_or("failed to create NSBitmapImageRep")?;
+
+    // NSBitmapImageFileType.PNG = 4
+    let png_data: Option<Retained<NSData>> = unsafe {
+        objc2::msg_send![&bitmap_rep, representationUsingType: 4_usize, properties: std::ptr::null::<objc2::runtime::AnyObject>()]
+    };
+    let png_data = png_data.ok_or("failed to generate PNG data")?;
+
+    let png_len: usize = unsafe { objc2::msg_send![&*png_data, length] };
+    let png_ptr: *const u8 = unsafe { objc2::msg_send![&*png_data, bytes] };
+    let png_bytes = if png_ptr.is_null() || png_len == 0 {
+        return Err("PNG data is empty".into());
+    } else {
+        unsafe { std::slice::from_raw_parts(png_ptr, png_len) }
+    };
+    std::fs::write(out_path, png_bytes)
+        .map_err(|e| format!("failed to write PNG to {out_path}: {e}"))?;
+
+    let response_json = serde_json::json!({
+        "path": out_path,
+        "mode": "native-wkwebview",
+        "size": png_bytes.len(),
+    });
+    write_http_response(
+        stream, 200, "OK",
+        "application/json; charset=utf-8",
+        response_json.to_string().as_bytes(),
+    ).map_err(|e| format!("failed to write response: {e}"))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn native_screenshot(
+    _webview: &wry::WebView,
+    _out_path: &str,
+    stream: &mut TcpStream,
+) -> Result<(), String> {
+    write_http_response(
+        stream, 501, "Not Implemented",
+        "text/plain; charset=utf-8",
+        b"native screenshot only available on macOS",
+    ).map_err(|e| format!("failed to write response: {e}"))
 }
 
 fn split_path_and_query(path: &str) -> (&str, Option<&str>) {
