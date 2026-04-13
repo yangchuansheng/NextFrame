@@ -1,0 +1,290 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 25,
+  "background": "#05050c",
+  "layers": [
+    {
+      "id": "bg-shader",
+      "scene": "shaderGradient",
+      "start": 0,
+      "dur": 25,
+      "params": {
+        "color1": "#0a0518",
+        "color2": "#0d1a3a",
+        "color3": "#1a0530",
+        "speed": 0.2
+      },
+      "opacity": 1
+    },
+    {
+      "id": "vignette-global",
+      "scene": "vignette",
+      "start": 0,
+      "dur": 25,
+      "params": {
+        "intensity": 0.85,
+        "color": "#000000",
+        "radius": 0.45
+      }
+    },
+    {
+      "id": "cover-title",
+      "scene": "headline",
+      "start": 0,
+      "dur": 5,
+      "params": {
+        "text": "傅里叶变换",
+        "fontSize": 112,
+        "color": "#e8d5ff",
+        "align": "center"
+      },
+      "x": 0,
+      "y": -80,
+      "enter": "fadeIn 0.9s",
+      "exit": "fadeOut 0.6s"
+    },
+    {
+      "id": "cover-subtitle",
+      "scene": "splitText",
+      "start": 0.6,
+      "dur": 4.4,
+      "params": {
+        "text": "从时域到频域",
+        "fontSize": 48,
+        "color": "#7ec8e3",
+        "splitDelay": 0.07
+      },
+      "x": 0,
+      "y": 60,
+      "enter": "fadeIn 0.7s",
+      "exit": "fadeOut 0.5s"
+    },
+    {
+      "id": "cover-wave-bg",
+      "scene": "waveform",
+      "start": 0,
+      "dur": 5,
+      "params": {
+        "bars": 80,
+        "color": "#6b21a8",
+        "mirrorY": true,
+        "beatSpeed": 1.5
+      },
+      "opacity": 0.25,
+      "enter": "fadeIn 1.2s",
+      "exit": "fadeOut 0.6s"
+    },
+    {
+      "id": "overview-bullets",
+      "scene": "bulletList",
+      "start": 3,
+      "dur": 5,
+      "params": {
+        "items": [
+          "什么是傅里叶变换？将复杂信号分解为简单正弦波",
+          "为什么重要？揭示隐藏在时间信号中的频率成分",
+          "无处不在：音频、图像、量子力学、金融分析"
+        ],
+        "fontSize": 34,
+        "bulletColor": "#a78bfa",
+        "stagger": 0.12
+      },
+      "x": 0,
+      "y": 0,
+      "enter": "slideUp 0.7s",
+      "exit": "fadeOut 0.5s"
+    },
+    {
+      "id": "overview-label",
+      "scene": "lowerThird",
+      "start": 3.3,
+      "dur": 4.5,
+      "params": {
+        "title": "核心概念",
+        "subtitle": "Fourier Transform Overview",
+        "accentColor": "#a78bfa",
+        "position": "left"
+      },
+      "enter": "slideRight 0.5s",
+      "exit": "fadeOut 0.4s"
+    },
+    {
+      "id": "formula-code",
+      "scene": "codeBlock",
+      "start": 6,
+      "dur": 7,
+      "params": {
+        "code": "// 连续傅里叶变换 (Continuous Fourier Transform)\n// F(ω) = ∫₋∞^+∞  f(t) · e^(-iωt)  dt\n\n// 离散傅里叶变换 (DFT) — 计算机中实际使用的形式\n// X[k] = Σ_{n=0}^{N-1}  x[n] · e^(-i·2π·k·n/N)\n\n// 快速傅里叶变换 (FFT) — O(N log N) 的高效算法\nfunction fft(signal) {\n  const N = signal.length;\n  if (N <= 1) return signal;\n  const even = fft(signal.filter((_, i) => i % 2 === 0));\n  const odd  = fft(signal.filter((_, i) => i % 2 === 1));\n  return Array.from({ length: N }, (_, k) => {\n    const angle = -2 * Math.PI * k / N;\n    const w = { re: Math.cos(angle), im: Math.sin(angle) };\n    // 蝶形运算: X[k] = Even[k] + W·Odd[k]\n    return complexAdd(even[k % (N/2)], complexMul(w, odd[k % (N/2)]));\n  });\n}",
+        "language": "javascript",
+        "fontSize": 18,
+        "theme": "dark"
+      },
+      "enter": "fadeIn 0.8s",
+      "exit": "fadeOut 0.6s"
+    },
+    {
+      "id": "formula-label",
+      "scene": "lowerThird",
+      "start": 6.3,
+      "dur": 6.5,
+      "params": {
+        "title": "数学公式",
+        "subtitle": "DFT & Fast Fourier Transform",
+        "accentColor": "#6ee7ff",
+        "position": "left"
+      },
+      "enter": "slideRight 0.5s",
+      "exit": "fadeOut 0.4s"
+    },
+    {
+      "id": "waveform-decompose",
+      "scene": "pulseWave",
+      "start": 8,
+      "dur": 7,
+      "params": {
+        "bars": 64,
+        "color": "#38bdf8",
+        "minHeight": 0.04,
+        "maxHeight": 0.75,
+        "beatFreq": 1.8
+      },
+      "enter": "scaleIn 0.7s",
+      "exit": "fadeOut 0.5s"
+    },
+    {
+      "id": "waveform-overlay",
+      "scene": "waveform",
+      "start": 8,
+      "dur": 7,
+      "params": {
+        "bars": 48,
+        "color": "#f0abfc",
+        "mirrorY": false,
+        "beatSpeed": 2.5
+      },
+      "opacity": 0.5,
+      "y": -160,
+      "enter": "fadeIn 0.6s",
+      "exit": "fadeOut 0.5s"
+    },
+    {
+      "id": "waveform-label",
+      "scene": "lowerThird",
+      "start": 8.4,
+      "dur": 6.4,
+      "params": {
+        "title": "时域信号分解",
+        "subtitle": "Time-Domain Signal Decomposition",
+        "accentColor": "#38bdf8",
+        "position": "left"
+      },
+      "enter": "slideRight 0.5s",
+      "exit": "fadeOut 0.4s"
+    },
+    {
+      "id": "freq-chart",
+      "scene": "barChart",
+      "start": 12,
+      "dur": 6,
+      "params": {
+        "labels": ["基频 f₀", "2次谐波", "3次谐波", "4次谐波", "5次谐波", "6次谐波", "7次谐波", "噪声"],
+        "values": [100, 60, 38, 22, 14, 9, 5, 3],
+        "color": "#a78bfa",
+        "title": "频率分量强度 (Frequency Spectrum)"
+      },
+      "enter": "slideUp 0.8s",
+      "exit": "fadeOut 0.5s"
+    },
+    {
+      "id": "freq-label",
+      "scene": "lowerThird",
+      "start": 12.3,
+      "dur": 5.5,
+      "params": {
+        "title": "频域分析",
+        "subtitle": "Frequency Domain Analysis",
+        "accentColor": "#a78bfa",
+        "position": "left"
+      },
+      "enter": "slideRight 0.5s",
+      "exit": "fadeOut 0.4s"
+    },
+    {
+      "id": "applications-grid",
+      "scene": "featureGrid",
+      "start": 15,
+      "dur": 5,
+      "params": {
+        "items": [
+          { "title": "音频压缩", "desc": "MP3/AAC 通过丢弃人耳不敏感的高频分量实现 10:1 压缩比" },
+          { "title": "图像处理", "desc": "JPEG 利用 DCT（离散余弦变换）压缩图像，去除高频细节" },
+          { "title": "信号滤波", "desc": "低通/高通/带通滤波器在频域做乘法，等价于时域卷积" },
+          { "title": "无线通信", "desc": "OFDM 技术将数据调制到正交子载波，4G/5G/WiFi 的基础" }
+        ],
+        "columns": 2,
+        "accentColor": "#f0abfc"
+      },
+      "enter": "scaleIn 0.7s",
+      "exit": "fadeOut 0.5s"
+    },
+    {
+      "id": "applications-label",
+      "scene": "lowerThird",
+      "start": 15.3,
+      "dur": 4.5,
+      "params": {
+        "title": "应用场景",
+        "subtitle": "Real-World Applications",
+        "accentColor": "#f0abfc",
+        "position": "left"
+      },
+      "enter": "slideRight 0.5s",
+      "exit": "fadeOut 0.4s"
+    },
+    {
+      "id": "summary-quote",
+      "scene": "quoteBlock",
+      "start": 18,
+      "dur": 7,
+      "params": {
+        "text": "宇宙是用数学写成的，而傅里叶变换正是解读这段数学的密钥。",
+        "author": "— 致所有用信号思考的人",
+        "fontSize": 36,
+        "accentColor": "#fbbf24"
+      },
+      "enter": "fadeIn 1.0s",
+      "exit": "fadeOut 0.8s"
+    },
+    {
+      "id": "summary-ripple",
+      "scene": "particleFlow",
+      "start": 18,
+      "dur": 7,
+      "params": {
+        "count": 60,
+        "color": "#fbbf24",
+        "speed": 0.8
+      },
+      "opacity": 0.2,
+      "enter": "fadeIn 1.2s",
+      "exit": "fadeOut 0.8s"
+    },
+    {
+      "id": "end-title",
+      "scene": "headline",
+      "start": 21,
+      "dur": 4,
+      "params": {
+        "text": "NextFrame · 傅里叶变换",
+        "fontSize": 52,
+        "color": "#94a3b8",
+        "align": "center"
+      },
+      "y": 200,
+      "enter": "fadeIn 0.8s",
+      "exit": "fadeOut 0.5s"
+    }
+  ]
+}
