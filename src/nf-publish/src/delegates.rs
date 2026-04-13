@@ -1,0 +1,296 @@
+use std::panic::AssertUnwindSafe;
+
+use objc2::rc::Retained;
+use objc2::{MainThreadOnly, define_class, msg_send};
+use objc2_app_kit::{
+    NSButton, NSControl, NSControlTextEditingDelegate, NSTextFieldDelegate, NSTextView,
+};
+use objc2_foundation::{
+    MainThreadMarker, NSArray, NSError, NSNotification, NSObject, NSObjectProtocol, NSString, NSURL,
+};
+use objc2_web_kit::{
+    WKFrameInfo, WKNavigation, WKNavigationAction, WKNavigationActionPolicy, WKNavigationDelegate,
+    WKOpenPanelParameters, WKUIDelegate, WKWebView,
+};
+
+use crate::state::{
+    LEGACY_RESULT, LEGACY_UPLOAD, close_tab, go_back, go_forward, navigate_active_input,
+    open_bookmark, reload_tab, result_file, switch_tab, tab_index_for_webview,
+    update_tab_after_navigation_event, upload_file,
+};
+
+fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
+    let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) };
+    result.map_err(|e| format!("ObjC exception: {e:?}"))
+}
+
+define_class!(
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "PilotUIDelegate"]
+    #[ivars = ()]
+    pub(crate) struct PilotUIDelegate;
+    unsafe impl NSObjectProtocol for PilotUIDelegate {}
+    unsafe impl WKUIDelegate for PilotUIDelegate {
+        /// Handle target="_blank" links — open in new dynamic tab
+        #[unsafe(method(webView:createWebViewWithConfiguration:forNavigationAction:windowFeatures:))]
+        unsafe fn webView_createWebViewWithConfiguration_forNavigationAction_windowFeatures(
+            &self,
+            _wv: &WKWebView,
+            _config: &objc2_web_kit::WKWebViewConfiguration,
+            action: &WKNavigationAction,
+            _features: &objc2::runtime::AnyObject,
+        ) -> *mut WKWebView {
+            // Open target="_blank" in a new tab
+            if let Some(url) = action.request().URL() {
+                if let Some(url_str) = url.absoluteString() {
+                    let url_string = url_str.to_string();
+                    let _ = crate::state::create_dynamic_tab(Some(&url_string), true);
+                }
+            }
+            std::ptr::null_mut()
+        }
+
+        #[unsafe(method(webView:runOpenPanelWithParameters:initiatedByFrame:completionHandler:))]
+        unsafe fn webView_runOpenPanelWithParameters_initiatedByFrame_completionHandler(
+            &self,
+            wv: &WKWebView,
+            _p: &WKOpenPanelParameters,
+            _f: &WKFrameInfo,
+            ch: &block2::DynBlock<dyn Fn(*mut NSArray<NSURL>)>,
+        ) {
+            let tab = tab_index_for_webview(wv);
+
+            if let Some(tab_idx) = tab {
+                let up_path = upload_file(tab_idx);
+                if let Ok(path) = std::fs::read_to_string(&up_path) {
+                    let path = path.trim().to_owned();
+                    let _ = std::fs::remove_file(&up_path);
+                    let url = NSURL::fileURLWithPath(&NSString::from_str(&path));
+                    let array = NSArray::from_retained_slice(&[url]);
+                    ch.call((&*array as *const _ as *mut _,));
+                    let _ = std::fs::write(result_file(tab_idx), format!("ok: uploaded {path}"));
+                    return;
+                }
+            }
+
+            if let Ok(path) = std::fs::read_to_string(LEGACY_UPLOAD) {
+                let path = path.trim().to_owned();
+                let _ = std::fs::remove_file(LEGACY_UPLOAD);
+                let url = NSURL::fileURLWithPath(&NSString::from_str(&path));
+                let array = NSArray::from_retained_slice(&[url]);
+                ch.call((&*array as *const _ as *mut _,));
+                let _ = std::fs::write(LEGACY_RESULT, format!("ok: uploaded {path}"));
+                return;
+            }
+
+            ch.call((std::ptr::null_mut(),));
+        }
+    }
+);
+
+impl PilotUIDelegate {
+    pub(crate) fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        let this = mtm.alloc::<Self>().set_ivars(());
+        let mut ret = None;
+        if let Err(e) = catch_objc(|| {
+            ret = Some(unsafe { msg_send![super(this), init] });
+        }) {
+            panic!("PilotUIDelegate init failed: {e}");
+        }
+        ret.expect("PilotUIDelegate init returned no object")
+    }
+}
+
+define_class!(
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "PilotNavDelegate"]
+    #[ivars = ()]
+    pub(crate) struct PilotNavDelegate;
+    unsafe impl NSObjectProtocol for PilotNavDelegate {}
+    unsafe impl WKNavigationDelegate for PilotNavDelegate {
+        #[unsafe(method(webView:decidePolicyForNavigationAction:decisionHandler:))]
+        unsafe fn webView_decidePolicyForNavigationAction_decisionHandler(
+            &self,
+            _wv: &WKWebView,
+            _action: &WKNavigationAction,
+            handler: &block2::DynBlock<dyn Fn(WKNavigationActionPolicy)>,
+        ) {
+            handler.call((WKNavigationActionPolicy::Allow,));
+        }
+
+        #[unsafe(method(webView:didStartProvisionalNavigation:))]
+        unsafe fn webView_didStartProvisionalNavigation(
+            &self,
+            wv: &WKWebView,
+            _nav: Option<&WKNavigation>,
+        ) {
+            if let Some(tab_id) = tab_index_for_webview(wv) {
+                crate::state::set_tab_loading_state(tab_id, true);
+            }
+        }
+
+        #[unsafe(method(webView:didCommitNavigation:))]
+        unsafe fn webView_didCommitNavigation(&self, wv: &WKWebView, _nav: Option<&WKNavigation>) {
+            if let Some(tab_id) = tab_index_for_webview(wv) {
+                update_tab_after_navigation_event(tab_id);
+            }
+        }
+
+        #[unsafe(method(webView:didFinishNavigation:))]
+        unsafe fn webView_didFinishNavigation(&self, wv: &WKWebView, _nav: Option<&WKNavigation>) {
+            if let Some(tab_id) = tab_index_for_webview(wv) {
+                crate::state::set_tab_loading_state(tab_id, false);
+                update_tab_after_navigation_event(tab_id);
+            }
+        }
+
+        #[unsafe(method(webView:didFailProvisionalNavigation:withError:))]
+        unsafe fn webView_didFailProvisionalNavigation_withError(
+            &self,
+            wv: &WKWebView,
+            _nav: Option<&WKNavigation>,
+            error: &NSError,
+        ) {
+            if let Some(tab_id) = tab_index_for_webview(wv) {
+                crate::state::set_tab_loading_state(tab_id, false);
+                update_tab_after_navigation_event(tab_id);
+                crate::state::log_crash(
+                    "WARN",
+                    "navigation",
+                    &format!("tab {tab_id} provisional failure: {:?}", error),
+                );
+            }
+        }
+
+        #[unsafe(method(webView:didFailNavigation:withError:))]
+        unsafe fn webView_didFailNavigation_withError(
+            &self,
+            wv: &WKWebView,
+            _nav: Option<&WKNavigation>,
+            error: &NSError,
+        ) {
+            if let Some(tab_id) = tab_index_for_webview(wv) {
+                crate::state::set_tab_loading_state(tab_id, false);
+                update_tab_after_navigation_event(tab_id);
+                crate::state::log_crash(
+                    "WARN",
+                    "navigation",
+                    &format!("tab {tab_id} failure: {:?}", error),
+                );
+            }
+        }
+    }
+);
+
+impl PilotNavDelegate {
+    pub(crate) fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        let this = mtm.alloc::<Self>().set_ivars(());
+        let mut ret = None;
+        if let Err(e) = catch_objc(|| {
+            ret = Some(unsafe { msg_send![super(this), init] });
+        }) {
+            panic!("PilotNavDelegate init failed: {e}");
+        }
+        ret.expect("PilotNavDelegate init returned no object")
+    }
+}
+
+define_class!(
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "BrowserActionTarget"]
+    #[ivars = ()]
+    pub(crate) struct BrowserActionTarget;
+    unsafe impl NSObjectProtocol for BrowserActionTarget {}
+    unsafe impl NSTextFieldDelegate for BrowserActionTarget {}
+    unsafe impl NSControlTextEditingDelegate for BrowserActionTarget {
+        #[unsafe(method(control:textView:doCommandBySelector:))]
+        unsafe fn control_textView_doCommandBySelector(
+            &self,
+            _control: &NSControl,
+            text_view: &NSTextView,
+            command_selector: objc2::runtime::Sel,
+        ) -> bool {
+            if command_selector == objc2::sel!(insertNewline:) {
+                let input = text_view.string().to_string();
+                if let Err(err) = navigate_active_input(&input) {
+                    crate::state::log_crash("WARN", "address_bar", &err);
+                }
+                return true.into();
+            }
+            false
+        }
+    }
+    impl BrowserActionTarget {
+        #[unsafe(method(sidebarTabClicked:))]
+        fn sidebar_tab_clicked(&self, sender: &NSButton) {
+            open_bookmark(sender.tag() as usize);
+        }
+
+        #[unsafe(method(runtimeTabClicked:))]
+        fn runtime_tab_clicked(&self, sender: &NSButton) {
+            switch_tab(sender.tag() as usize);
+        }
+
+        #[unsafe(method(closeTabClicked:))]
+        fn close_tab_clicked(&self, sender: &NSButton) {
+            if let Err(err) = close_tab(sender.tag() as usize) {
+                crate::state::log_crash("WARN", "close_tab", &err);
+            }
+        }
+
+        #[unsafe(method(newTabClicked:))]
+        fn new_tab_clicked(&self, _sender: &NSButton) {
+            if let Err(err) = crate::state::create_dynamic_tab(Some("about:blank"), true) {
+                crate::state::log_crash("WARN", "new_tab", &err);
+            }
+        }
+
+        #[unsafe(method(toolbarBackClicked:))]
+        fn toolbar_back_clicked(&self, _sender: &NSButton) {
+            if let Err(err) = go_back(None) {
+                crate::state::log_crash("WARN", "toolbar_back", &err);
+            }
+        }
+
+        #[unsafe(method(toolbarForwardClicked:))]
+        fn toolbar_forward_clicked(&self, _sender: &NSButton) {
+            if let Err(err) = go_forward(None) {
+                crate::state::log_crash("WARN", "toolbar_forward", &err);
+            }
+        }
+
+        #[unsafe(method(toolbarReloadClicked:))]
+        fn toolbar_reload_clicked(&self, _sender: &NSButton) {
+            if let Err(err) = reload_tab(None) {
+                crate::state::log_crash("WARN", "toolbar_reload", &err);
+            }
+        }
+
+        #[unsafe(method(addressBarSubmitted:))]
+        fn address_bar_submitted(&self, sender: &NSControl) {
+            let input = sender.stringValue().to_string();
+            if let Err(err) = navigate_active_input(&input) {
+                crate::state::log_crash("WARN", "address_bar", &err);
+            }
+        }
+
+        #[unsafe(method(controlTextDidEndEditing:))]
+        fn control_text_did_end_editing(&self, _notification: &NSNotification) {}
+    }
+);
+
+impl BrowserActionTarget {
+    pub(crate) fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        let this = mtm.alloc::<Self>().set_ivars(());
+        let mut ret = None;
+        if let Err(e) = catch_objc(|| {
+            ret = Some(unsafe { msg_send![super(this), init] });
+        }) {
+            panic!("BrowserActionTarget init failed: {e}");
+        }
+        ret.expect("BrowserActionTarget init returned no object")
+    }
+}
