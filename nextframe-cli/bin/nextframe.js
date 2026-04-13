@@ -132,11 +132,15 @@ LAYOUT（同时多个内容层必须用 x/y/w/h 分区）
 SCENE TYPES
   dom=文字/布局  canvas=特效/背景  svg=图表  media=视频/音频
 
-CREATING SCENES（必须遵守 SCENE_SPEC.md 接口规范）
-  必填字段：id, type, name, category, tags[], description, params{}, create, update, destroy
-  params 格式：{ paramName: { type, default, desc, min?, max? } }
-  写到 runtime/web/src/scenes-v2/xxx.js → 注册到 index.js
-  规范详见：runtime/web/src/scenes-v2/SCENE_SPEC.md
+CREATING SCENES（必须遵守 SCENE_SPEC.md）
+  完整规范：runtime/web/src/scenes-v2/SCENE_SPEC.md（含模板、规则、检查清单）
+  核心规则：
+    1. id = 文件名
+    2. 字号用 resolveSize(params.fontSize, S, fallback) — S 基于 stage 短边
+    3. 不准硬编码 1920/1080
+    4. fontSize 参数用比例值（0.05 = 短边5%）— 也接受 px 和关键字("large")
+    5. 写完跑 nextframe lint-scenes 检查
+    6. 在 3 种比例下 preview 截图验证
 `;
 
 async function main() {
