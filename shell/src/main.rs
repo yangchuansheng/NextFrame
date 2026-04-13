@@ -7,9 +7,14 @@ macro_rules! trace_log {
     };
 }
 
+use std::collections::HashMap;
 use std::error::Error;
+use std::io::{ErrorKind, Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::Component;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use bridge::{Request, Response};
 use serde_json::Value;
@@ -24,6 +29,24 @@ use wry::{PageLoadEvent, WebViewBuilder};
 enum UserEvent {
     IpcResponse(String),
     WindowTitle(String),
+}
+
+struct HttpConnection {
+    stream: TcpStream,
+    buffer: Vec<u8>,
+    accepted_at: Instant,
+}
+
+struct HttpRequest {
+    method: String,
+    path: String,
+    body: Vec<u8>,
+}
+
+struct PendingAppCtlRequest {
+    stream: TcpStream,
+    success_content_type: &'static str,
+    started_at: Instant,
 }
 
 fn main() {
@@ -42,6 +65,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     let event_loop = event_loop_builder.build();
     let proxy = event_loop.create_proxy();
     let title_proxy = proxy.clone();
+    let pending_appctl = Arc::new(Mutex::new(HashMap::<String, PendingAppCtlRequest>::new()));
+    let pending_appctl_for_ipc = Arc::clone(&pending_appctl);
 
     let window = WindowBuilder::new()
         .with_title("NextFrame")
@@ -100,8 +125,10 @@ fn run() -> Result<(), Box<dyn Error>> {
             match parse_request(body) {
                 Ok(parsed_request) => {
                     let is_poll = parsed_request.method == "fs.mtime";
-                    let is_fire_and_forget =
-                        parsed_request.method == "log" || parsed_request.method == "shell.ready";
+                    let is_fire_and_forget = matches!(
+                        parsed_request.method.as_str(),
+                        "log" | "shell.ready" | "appctl.result"
+                    );
 
                     if !is_poll && !is_fire_and_forget {
                         trace_log!("[ipc] {body_preview}");
@@ -109,6 +136,11 @@ fn run() -> Result<(), Box<dyn Error>> {
 
                     if parsed_request.method == "shell.ready" {
                         trace_log!("[shell] ready");
+                        return;
+                    }
+
+                    if parsed_request.method == "appctl.result" {
+                        handle_appctl_ipc_result(&pending_appctl_for_ipc, &parsed_request.params);
                         return;
                     }
 
@@ -162,18 +194,18 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    // AI command queue file — CLI writes commands here, shell polls and executes
-    let cmd_path = std::env::temp_dir().join("nextframe-cmd.js");
-    let result_path = std::env::temp_dir().join("nextframe-cmd-result.txt");
-    // Clear any stale commands
-    let _ = std::fs::remove_file(&cmd_path);
-    let _ = std::fs::remove_file(&result_path);
-    trace_log!("[shell] AI command queue: {}", cmd_path.display());
+    let listener = TcpListener::bind("127.0.0.1:19820").ok();
+    if let Some(ref app_listener) = listener {
+        app_listener.set_nonblocking(true).ok();
+        trace_log!("[shell] app-control server on http://127.0.0.1:19820");
+    } else {
+        trace_log!("[shell] failed to bind app-control server on 127.0.0.1:19820");
+    }
+    let mut http_connections = Vec::new();
+    let mut next_appctl_request_id = 0_u64;
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::WaitUntil(
-            std::time::Instant::now() + std::time::Duration::from_millis(200)
-        );
+        *control_flow = ControlFlow::Poll;
 
         match event {
             Event::UserEvent(UserEvent::IpcResponse(response_json)) => {
@@ -191,22 +223,17 @@ fn run() -> Result<(), Box<dyn Error>> {
             } => {
                 *control_flow = ControlFlow::Exit;
             }
-            Event::NewEvents(tao::event::StartCause::ResumeTimeReached { .. }) => {
-                // Poll for AI commands
-                if let Ok(script) = std::fs::read_to_string(&cmd_path) {
-                    if !script.trim().is_empty() {
-                        trace_log!("[shell] executing AI command: {}...", &script[..script.len().min(100)]);
-                        let _ = std::fs::remove_file(&cmd_path);
-                        // Execute the JS and capture result via a callback
-                        let result_path_clone = result_path.clone();
-                        let capture_script = format!(
-                            r#"(function(){{ try {{ var r = (function(){{ {script} }})(); var s = typeof r === 'string' ? r : JSON.stringify(r); window.ipc.postMessage(JSON.stringify({{id:'_cmd_result',method:'log',params:{{level:'cmd_result',msg:s}}}})); }} catch(e) {{ window.ipc.postMessage(JSON.stringify({{id:'_cmd_result',method:'log',params:{{level:'cmd_error',msg:e.message}}}})); }} }})()"#
-                        );
-                        if let Err(error) = webview.evaluate_script(&capture_script) {
-                            trace_log!("[shell] AI command failed: {error}");
-                            let _ = std::fs::write(&result_path_clone, format!("ERROR: {error}"));
-                        }
-                    }
+            Event::MainEventsCleared => {
+                if let Some(ref app_listener) = listener {
+                    poll_app_control_server(
+                        app_listener,
+                        &mut http_connections,
+                        &webview,
+                        &pending_appctl,
+                        &mut next_appctl_request_id,
+                    );
+                } else {
+                    prune_expired_appctl_requests(&pending_appctl);
                 }
             }
             _ => {}
@@ -225,6 +252,582 @@ fn invalid_request_response(error: serde_json::Error) -> Response {
         result: Value::Null,
         error: Some(format!("invalid IPC request: {error}")),
     }
+}
+
+fn handle_appctl_ipc_result(
+    pending_appctl: &Arc<Mutex<HashMap<String, PendingAppCtlRequest>>>,
+    params: &Value,
+) {
+    let Some(req_id) = params.get("reqId").and_then(Value::as_str) else {
+        trace_log!("[appctl] missing reqId in IPC result");
+        return;
+    };
+    let ok = params.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let payload = if ok {
+        params
+            .get("result")
+            .and_then(Value::as_str)
+            .unwrap_or("null")
+            .to_string()
+    } else {
+        params
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("app control evaluation failed")
+            .to_string()
+    };
+
+    let pending_request = match pending_appctl.lock() {
+        Ok(mut requests) => requests.remove(req_id),
+        Err(error) => {
+            trace_log!("[appctl] pending request state poisoned: {error}");
+            None
+        }
+    };
+
+    let Some(mut pending_request) = pending_request else {
+        trace_log!("[appctl] no pending request for {req_id}");
+        return;
+    };
+
+    let status = if ok { 200 } else { 500 };
+    let status_text = if ok { "OK" } else { "Internal Server Error" };
+    if let Err(error) = write_http_response(
+        &mut pending_request.stream,
+        status,
+        status_text,
+        if ok {
+            pending_request.success_content_type
+        } else {
+            "text/plain; charset=utf-8"
+        },
+        payload.as_bytes(),
+    ) {
+        trace_log!("[appctl] failed to reply to {req_id}: {error}");
+    }
+}
+
+fn poll_app_control_server(
+    listener: &TcpListener,
+    connections: &mut Vec<HttpConnection>,
+    webview: &wry::WebView,
+    pending_appctl: &Arc<Mutex<HashMap<String, PendingAppCtlRequest>>>,
+    next_request_id: &mut u64,
+) {
+    loop {
+        match listener.accept() {
+            Ok((stream, addr)) => {
+                if let Err(error) = stream.set_nonblocking(true) {
+                    trace_log!("[appctl] failed to set non-blocking stream from {addr}: {error}");
+                    continue;
+                }
+                connections.push(HttpConnection {
+                    stream,
+                    buffer: Vec::new(),
+                    accepted_at: Instant::now(),
+                });
+            }
+            Err(error) if error.kind() == ErrorKind::WouldBlock => break,
+            Err(error) => {
+                trace_log!("[appctl] accept failed: {error}");
+                break;
+            }
+        }
+    }
+
+    let mut index = 0;
+    while index < connections.len() {
+        let parsed_request = {
+            let connection = &mut connections[index];
+            read_http_request(connection)
+        };
+
+        match parsed_request {
+            Ok(Some(request)) => {
+                let mut connection = connections.swap_remove(index);
+                if let Err(error) = handle_http_request(
+                    request,
+                    &mut connection.stream,
+                    webview,
+                    pending_appctl,
+                    next_request_id,
+                ) {
+                    trace_log!("[appctl] request handling failed: {error}");
+                    let _ = write_http_response(
+                        &mut connection.stream,
+                        500,
+                        "Internal Server Error",
+                        "text/plain; charset=utf-8",
+                        error.as_bytes(),
+                    );
+                }
+            }
+            Ok(None) => {
+                if connections[index].accepted_at.elapsed() > Duration::from_secs(10) {
+                    let mut connection = connections.swap_remove(index);
+                    let _ = write_http_response(
+                        &mut connection.stream,
+                        408,
+                        "Request Timeout",
+                        "text/plain; charset=utf-8",
+                        b"request timed out",
+                    );
+                } else {
+                    index += 1;
+                }
+            }
+            Err(error) => {
+                let mut connection = connections.swap_remove(index);
+                let _ = write_http_response(
+                    &mut connection.stream,
+                    400,
+                    "Bad Request",
+                    "text/plain; charset=utf-8",
+                    error.as_bytes(),
+                );
+            }
+        }
+    }
+
+    prune_expired_appctl_requests(pending_appctl);
+}
+
+fn read_http_request(connection: &mut HttpConnection) -> Result<Option<HttpRequest>, String> {
+    let mut chunk = [0_u8; 8192];
+    loop {
+        match connection.stream.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(read_len) => connection.buffer.extend_from_slice(&chunk[..read_len]),
+            Err(error) if error.kind() == ErrorKind::WouldBlock => break,
+            Err(error) => return Err(format!("failed to read request: {error}")),
+        }
+    }
+
+    let Some(header_end) = connection
+        .buffer
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+    else {
+        return Ok(None);
+    };
+
+    let header_bytes = &connection.buffer[..header_end];
+    let header_text =
+        std::str::from_utf8(header_bytes).map_err(|error| format!("invalid header utf-8: {error}"))?;
+    let mut lines = header_text.split("\r\n");
+    let request_line = lines
+        .next()
+        .ok_or_else(|| "missing HTTP request line".to_string())?;
+    let mut request_parts = request_line.split_whitespace();
+    let method = request_parts
+        .next()
+        .ok_or_else(|| "missing HTTP method".to_string())?
+        .to_string();
+    let path = request_parts
+        .next()
+        .ok_or_else(|| "missing HTTP path".to_string())?
+        .to_string();
+
+    let mut content_length = 0_usize;
+    for line in lines {
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        if name.trim().eq_ignore_ascii_case("content-length") {
+            content_length = value
+                .trim()
+                .parse::<usize>()
+                .map_err(|error| format!("invalid Content-Length: {error}"))?;
+        }
+    }
+
+    let body_offset = header_end + 4;
+    let total_len = body_offset + content_length;
+    if connection.buffer.len() < total_len {
+        return Ok(None);
+    }
+
+    Ok(Some(HttpRequest {
+        method,
+        path,
+        body: connection.buffer[body_offset..total_len].to_vec(),
+    }))
+}
+
+fn handle_http_request(
+    request: HttpRequest,
+    stream: &mut TcpStream,
+    webview: &wry::WebView,
+    pending_appctl: &Arc<Mutex<HashMap<String, PendingAppCtlRequest>>>,
+    next_request_id: &mut u64,
+) -> Result<(), String> {
+    let (path, query) = split_path_and_query(&request.path);
+    match (request.method.as_str(), path) {
+        ("GET", "/status") | ("GET", "/diagnose") => {
+            let script = r#"(function() {
+  if (typeof window.__diagnose === "function") {
+    try {
+      return JSON.parse(window.__diagnose());
+    } catch (_) {
+      return window.__diagnose();
+    }
+  }
+  return {
+    title: document.title || "NextFrame",
+    location: String(window.location),
+    viewActive: document.querySelector(".view.active")?.id || "none"
+  };
+})()"#;
+            queue_appctl_script(
+                webview,
+                script,
+                stream,
+                pending_appctl,
+                next_request_id,
+                "application/json; charset=utf-8",
+            )
+        }
+        ("POST", "/eval") => {
+            let script =
+                String::from_utf8(request.body).map_err(|error| format!("invalid UTF-8 body: {error}"))?;
+            queue_appctl_script(
+                webview,
+                &script,
+                stream,
+                pending_appctl,
+                next_request_id,
+                "text/plain; charset=utf-8",
+            )
+        }
+        ("POST", "/navigate") => {
+            let payload = if request.body.is_empty() {
+                Value::Null
+            } else {
+                serde_json::from_slice::<Value>(&request.body)
+                    .map_err(|error| format!("invalid JSON body: {error}"))?
+            };
+            let navigation_script = build_navigate_script(&payload)?;
+            queue_appctl_script(
+                webview,
+                &navigation_script,
+                stream,
+                pending_appctl,
+                next_request_id,
+                "application/json; charset=utf-8",
+            )
+        }
+        ("GET", "/screenshot") => {
+            let requested_path = query_value(query, "out")
+                .map(decode_query_component)
+                .transpose()?;
+            let out_path = requested_path.unwrap_or_else(default_screenshot_path);
+            let screenshot_script = build_screenshot_script(&out_path)?;
+            queue_appctl_script(
+                webview,
+                &screenshot_script,
+                stream,
+                pending_appctl,
+                next_request_id,
+                "application/json; charset=utf-8",
+            )
+        }
+        _ => write_http_response(
+            stream,
+            404,
+            "Not Found",
+            "text/plain; charset=utf-8",
+            b"unknown app-control endpoint",
+        )
+        .map_err(|error| format!("failed to write HTTP 404 response: {error}")),
+    }
+}
+
+fn queue_appctl_script(
+    webview: &wry::WebView,
+    source: &str,
+    stream: &mut TcpStream,
+    pending_appctl: &Arc<Mutex<HashMap<String, PendingAppCtlRequest>>>,
+    next_request_id: &mut u64,
+    success_content_type: &'static str,
+) -> Result<(), String> {
+    let req_id = next_appctl_request_id(next_request_id);
+    let script = appctl_eval_script(&req_id, source)?;
+    let owned_stream = stream
+        .try_clone()
+        .map_err(|error| format!("failed to clone response stream: {error}"))?;
+
+    match pending_appctl.lock() {
+        Ok(mut requests) => {
+            requests.insert(
+                req_id.clone(),
+                PendingAppCtlRequest {
+                    stream: owned_stream,
+                    success_content_type,
+                    started_at: Instant::now(),
+                },
+            );
+        }
+        Err(error) => {
+            return Err(format!("pending request state poisoned: {error}"));
+        }
+    }
+
+    if let Err(error) = webview.evaluate_script(&script) {
+        if let Ok(mut requests) = pending_appctl.lock() {
+            requests.remove(&req_id);
+        }
+        return Err(format!("failed to evaluate app control script: {error}"));
+    }
+
+    Ok(())
+}
+
+fn next_appctl_request_id(counter: &mut u64) -> String {
+    *counter += 1;
+    format!("nf-appctl-{}-{counter}", now_unix_millis())
+}
+
+fn appctl_eval_script(req_id: &str, source: &str) -> Result<String, String> {
+    let req_id_json =
+        serde_json::to_string(req_id).map_err(|error| format!("failed to encode reqId: {error}"))?;
+    let source_json = serde_json::to_string(source)
+        .map_err(|error| format!("failed to encode script source: {error}"))?;
+    Ok(format!(
+        r#"(function() {{
+  var __nfReqId = {req_id_json};
+  var __nfSource = {source_json};
+  function __nfReply(ok, value) {{
+    if (typeof window.__nfAppCtlRespond === "function") {{
+      window.__nfAppCtlRespond(__nfReqId, ok, value);
+      return;
+    }}
+    throw new Error("window.__nfAppCtlRespond is unavailable");
+  }}
+  try {{
+    Promise.resolve((0, eval)(__nfSource)).then(function(value) {{
+      __nfReply(true, value);
+    }}, function(error) {{
+      __nfReply(false, error);
+    }});
+  }} catch (error) {{
+    __nfReply(false, error);
+  }}
+}})();"#,
+    ))
+}
+
+fn build_navigate_script(payload: &Value) -> Result<String, String> {
+    let payload_json = serde_json::to_string(payload)
+        .map_err(|error| format!("failed to encode navigate payload: {error}"))?;
+    Ok(format!(
+        r#"(async function() {{
+  var payload = {payload_json};
+  var view = payload && typeof payload.view === "string" ? payload.view : null;
+  var hasSegment = payload && Object.prototype.hasOwnProperty.call(payload, "segment");
+  if (view === "project") {{
+    await goProject(payload.project || null);
+  }} else {{
+    await goEditor(
+      payload && typeof payload.project === "string" ? payload.project : null,
+      payload && typeof payload.episode === "string" ? payload.episode : null,
+      hasSegment && typeof payload.segment === "string" ? payload.segment : null
+    );
+  }}
+  if (typeof window.__diagnose === "function") {{
+    try {{
+      return JSON.parse(window.__diagnose());
+    }} catch (_) {{
+      return window.__diagnose();
+    }}
+  }}
+  return {{
+    view: view || "editor",
+    project: payload && payload.project ? payload.project : null,
+    episode: payload && payload.episode ? payload.episode : null,
+    segment: hasSegment ? payload.segment : null
+  }};
+}})()"#,
+    ))
+}
+
+fn build_screenshot_script(out_path: &str) -> Result<String, String> {
+    let out_path_json = serde_json::to_string(out_path)
+        .map_err(|error| format!("failed to encode screenshot path: {error}"))?;
+    Ok(format!(
+        r##"(async function() {{
+  var outPath = {out_path_json};
+  function findCanvas() {{
+    var direct = document.getElementById("render-canvas");
+    if (direct && direct.width > 0 && direct.height > 0) {{
+      return direct;
+    }}
+    var host = document.getElementById("preview-stage-host") || document.getElementById("canvas-inner");
+    if (host) {{
+      var nested = host.querySelector("canvas");
+      if (nested && nested.width > 0 && nested.height > 0) {{
+        return nested;
+      }}
+    }}
+    var playerCanvas = document.querySelector("#player-canvas-inner canvas");
+    if (playerCanvas && playerCanvas.width > 0 && playerCanvas.height > 0) {{
+      return playerCanvas;
+    }}
+    return null;
+  }}
+  var canvas = findCanvas();
+  if (!canvas) {{
+    if (typeof window.__captureViewport === "function") {{
+      var viewportResult = window.__captureViewport(outPath);
+      return {{ path: outPath, mode: "viewport", detail: viewportResult }};
+    }}
+    throw new Error("no canvas found for screenshot");
+  }}
+  if (typeof bridgeCall !== "function") {{
+    throw new Error("bridgeCall is unavailable");
+  }}
+  var dataUrl = canvas.toDataURL("image/png");
+  await bridgeCall("fs.writeBase64", {{ path: outPath, data: dataUrl }}, 10000);
+  return {{
+    path: outPath,
+    mode: "canvas",
+    width: canvas.width,
+    height: canvas.height
+  }};
+}})()"##,
+    ))
+}
+
+fn split_path_and_query(path: &str) -> (&str, Option<&str>) {
+    match path.split_once('?') {
+        Some((base, query)) => (base, Some(query)),
+        None => (path, None),
+    }
+}
+
+fn query_value<'a>(query: Option<&'a str>, key: &str) -> Option<&'a str> {
+    query.and_then(|query| {
+        query.split('&').find_map(|part| {
+            let (name, value) = part.split_once('=').unwrap_or((part, ""));
+            if name == key { Some(value) } else { None }
+        })
+    })
+}
+
+fn decode_query_component(input: &str) -> Result<String, String> {
+    let bytes = input.as_bytes();
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+
+    while index < bytes.len() {
+        match bytes[index] {
+            b'+' => {
+                output.push(b' ');
+                index += 1;
+            }
+            b'%' => {
+                if index + 2 >= bytes.len() {
+                    return Err("invalid percent-encoding in query string".to_string());
+                }
+                let hi = decode_hex_nibble(bytes[index + 1])?;
+                let lo = decode_hex_nibble(bytes[index + 2])?;
+                output.push((hi << 4) | lo);
+                index += 3;
+            }
+            byte => {
+                output.push(byte);
+                index += 1;
+            }
+        }
+    }
+
+    String::from_utf8(output).map_err(|error| format!("invalid UTF-8 in query string: {error}"))
+}
+
+fn decode_hex_nibble(byte: u8) -> Result<u8, String> {
+    match byte {
+        b'0'..=b'9' => Ok(byte - b'0'),
+        b'a'..=b'f' => Ok(byte - b'a' + 10),
+        b'A'..=b'F' => Ok(byte - b'A' + 10),
+        _ => Err("invalid percent-encoding in query string".to_string()),
+    }
+}
+
+fn default_screenshot_path() -> String {
+    std::env::temp_dir()
+        .join(format!("nf-screenshot-{}.png", now_unix_millis()))
+        .display()
+        .to_string()
+}
+
+fn now_unix_millis() -> u128 {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_millis(),
+        Err(_) => 0,
+    }
+}
+
+fn prune_expired_appctl_requests(
+    pending_appctl: &Arc<Mutex<HashMap<String, PendingAppCtlRequest>>>,
+) {
+    let expired_ids = match pending_appctl.lock() {
+        Ok(requests) => requests
+            .iter()
+            .filter_map(|(req_id, pending)| {
+                if pending.started_at.elapsed() > Duration::from_secs(10) {
+                    Some(req_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>(),
+        Err(error) => {
+            trace_log!("[appctl] pending request state poisoned: {error}");
+            return;
+        }
+    };
+
+    if expired_ids.is_empty() {
+        return;
+    }
+
+    let mut expired_requests = Vec::new();
+    if let Ok(mut requests) = pending_appctl.lock() {
+        for req_id in expired_ids {
+            if let Some(request) = requests.remove(&req_id) {
+                expired_requests.push((req_id, request));
+            }
+        }
+    }
+
+    for (req_id, mut request) in expired_requests {
+        trace_log!("[appctl] request timed out: {req_id}");
+        let _ = write_http_response(
+            &mut request.stream,
+            504,
+            "Gateway Timeout",
+            "text/plain; charset=utf-8",
+            b"desktop app evaluation timed out",
+        );
+    }
+}
+
+fn write_http_response(
+    stream: &mut TcpStream,
+    status: u16,
+    status_text: &str,
+    content_type: &str,
+    body: &[u8],
+) -> std::io::Result<()> {
+    let _ = stream.set_nonblocking(false);
+    let header = format!(
+        "HTTP/1.1 {status} {status_text}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    stream.write_all(header.as_bytes())?;
+    stream.write_all(body)?;
+    stream.flush()?;
+    let _ = stream.shutdown(Shutdown::Both);
+    Ok(())
 }
 
 fn web_root() -> Result<PathBuf, Box<dyn Error>> {
@@ -335,6 +938,17 @@ window.__ipc.resolve = window.__ipc.resolve || function() {};
       return false;
     }
   }
+
+  window.__nfShellPost = send;
+  window.__nfShellFormatValue = formatValue;
+  window.__nfAppCtlRespond = function(reqId, ok, value) {
+    return send("appctl.result", {
+      reqId: reqId,
+      ok: !!ok,
+      result: ok ? formatValue(value) : undefined,
+      error: ok ? undefined : formatValue(value)
+    });
+  };
 
   function setErrorTitle(message) {
     var summary = String(message || "Unknown error").slice(0, 120);
