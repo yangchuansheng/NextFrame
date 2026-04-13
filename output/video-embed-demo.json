@@ -20,11 +20,18 @@
       "params": { "intensity": 0.4 }
     },
     {
+      "id": "interview-audio",
+      "scene": "audioTrack",
+      "start": 0,
+      "dur": 15,
+      "params": { "src": "interview-clip.mp4", "volume": 0.9 }
+    },
+    {
       "id": "interview-video",
       "scene": "videoClip",
       "start": 0,
       "dur": 15,
-      "params": { "src": "interview-clip.mp4", "muted": false, "objectFit": "cover" },
+      "params": { "src": "interview-clip.mp4", "objectFit": "cover" },
       "x": "5%",
       "y": "5%",
       "w": "55%",
