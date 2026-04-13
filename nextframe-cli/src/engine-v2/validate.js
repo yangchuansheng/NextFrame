@@ -68,6 +68,7 @@ export function validateTimeline(timeline) {
     'circleRipple','meshGrid','radialBurst','confetti','waveform','pulseWave',
     'shaderGradient','shaderNoise','shaderGlitch','shaderChromatic','shaderPlasma',
     'shaderTunnel','shaderRipple','shaderFirefly','svgRings',
+    'subtitleBar','marquee','lowerThird','cornerBadge',
   ]);
   const contentLayers = timeline.layers.filter(l => {
     if (BG_SCENES.has(l.scene)) return false;
@@ -83,7 +84,7 @@ export function validateTimeline(timeline) {
       const b = contentLayers[j];
       const bEnd = b.start + b.dur;
       const overlap = Math.min(aEnd, bEnd) - Math.max(a.start, b.start);
-      if (overlap > 0.5) { // more than 0.5s overlap
+      if (overlap > 1.5) { // more than 1.5s overlap (short overlap OK for transitions)
         warnings.push({
           code: 'FULLSCREEN_OVERLAP',
           message: `"${a.id}" (${a.start}-${aEnd.toFixed(1)}s) and "${b.id}" (${b.start}-${bEnd.toFixed(1)}s) overlap ${overlap.toFixed(1)}s — both fullscreen content. Use x/y/w/h to position, or stagger times.`,
