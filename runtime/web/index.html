@@ -113,6 +113,44 @@ window.__ipc = window.__ipc || {};
 </div>
 
 <!-- ============================================================
+     VIEW 4: PIPELINE (v0.4 — Video Production Workflow)
+     ============================================================ -->
+<div class="view" id="view-pipeline">
+  <div class="topbar topbar-editor">
+    <div class="logo" onclick="goHome()" style="margin-right:12px">
+      <div class="logo-mark" style="width:18px;height:18px;border-radius:5px"></div>
+    </div>
+    <div class="breadcrumb">
+      <div class="bc-item" onclick="if(currentProject)goProject(currentProject)">
+        <span id="pl-bc-project">Project</span>
+      </div>
+      <span class="bc-sep">/</span>
+      <div class="bc-item">
+        <span id="pl-bc-episode">Episode</span>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="pipeline-tabs" id="pipeline-tabs">
+      <div class="pl-tab active" data-stage="script" onclick="switchPipelineStage('script')">脚本</div>
+      <div class="pl-tab" data-stage="audio" onclick="switchPipelineStage('audio')">音频</div>
+      <div class="pl-tab" data-stage="atoms" onclick="switchPipelineStage('atoms')">原子</div>
+      <div class="pl-tab" data-stage="assembly" onclick="switchPipelineStage('assembly')">拼装</div>
+      <div class="pl-tab" data-stage="output" onclick="switchPipelineStage('output')">产出</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="topbar-right">
+      <button class="btn-ghost-sm" onclick="if(currentProject&&currentEpisode)goEditor(currentProject,currentEpisode)">EDITOR</button>
+      <div class="avatar">Z</div>
+    </div>
+  </div>
+
+  <div class="pipeline-content" id="pipeline-content">
+    <!-- Rendered dynamically by JS based on active stage + pipeline.json data -->
+    <div class="pipeline-empty">Loading pipeline data...</div>
+  </div>
+</div>
+
+<!-- ============================================================
      VIEW 3: EDITOR
      ============================================================ -->
 <div class="view" id="view-editor">

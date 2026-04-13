@@ -683,7 +683,7 @@ function renderEpisodeDropdown() {
   const items = entries.map((episode) => {
     const active = episode?.name === currentEpisode;
     const click = currentProject
-      ? ` onclick="event.stopPropagation(); goEditor(${jsLiteral(currentProject)}, ${jsLiteral(episode?.name || "")}, null)"`
+      ? ` onclick="event.stopPropagation(); goPipeline(${jsLiteral(currentProject)}, ${jsLiteral(episode?.name || "")})"`
       : "";
     return (
       `<div class="bc-dropdown-item"${click}>` +
@@ -1730,7 +1730,7 @@ function renderProjectState(projectName, episodes, message) {
       : "bridge";
     const canOpen = Boolean(currentProject);
     const click = canOpen
-      ? ` onclick='goEditor(${jsLiteral(currentProject)}, ${jsLiteral(episode?.name || "")}, null)'`
+      ? ` onclick='goPipeline(${jsLiteral(currentProject)}, ${jsLiteral(episode?.name || "")})'`
       : "";
 
     return (
@@ -1931,6 +1931,228 @@ function switchView(id) {
 
 function goHome() {
   switchView("view-home");
+}
+
+/* === pipeline.js (v0.4) === */
+let pipelineData = null;
+let pipelineStage = "script";
+
+async function goPipeline(project, episode) {
+  if (typeof project === "string") currentProject = project;
+  if (typeof episode === "string") currentEpisode = episode;
+
+  stopWatching();
+  setPlaybackState(false);
+  switchView("view-pipeline");
+
+  var plProject = document.getElementById("pl-bc-project");
+  var plEpisode = document.getElementById("pl-bc-episode");
+  if (plProject) plProject.textContent = currentProject || "Project";
+  if (plEpisode) plEpisode.textContent = currentEpisode || "Episode";
+
+  pipelineData = null;
+  renderPipelineStage();
+
+  try {
+    var homePath = "~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/pipeline.json";
+    var result = await bridgeCall("fs.read", { path: homePath }, 3000);
+    pipelineData = JSON.parse(result.contents);
+  } catch (_e) {
+    pipelineData = { version: "0.4", script: { principles: {}, arc: [], segments: [] }, audio: { voice: null, speed: 1, segments: [] }, atoms: [], outputs: [] };
+  }
+  renderPipelineStage();
+}
+
+function switchPipelineStage(stage) {
+  pipelineStage = stage;
+  document.querySelectorAll(".pl-tab").forEach(function(tab) {
+    tab.classList.toggle("active", tab.dataset.stage === stage);
+  });
+  renderPipelineStage();
+}
+
+function renderPipelineStage() {
+  var container = document.getElementById("pipeline-content");
+  if (!container) return;
+
+  if (!pipelineData) {
+    container.innerHTML = '<div class="pipeline-empty">Loading...</div>';
+    return;
+  }
+
+  switch (pipelineStage) {
+    case "script": container.innerHTML = renderPipelineScript(pipelineData); break;
+    case "audio": container.innerHTML = renderPipelineAudio(pipelineData); break;
+    case "atoms": container.innerHTML = renderPipelineAtoms(pipelineData); break;
+    case "assembly": container.innerHTML = renderPipelineAssembly(); break;
+    case "output": container.innerHTML = renderPipelineOutput(pipelineData); break;
+    default: container.innerHTML = '<div class="pipeline-empty">Unknown stage</div>';
+  }
+}
+
+function renderPipelineScript(data) {
+  var s = data.script || {};
+  var segs = s.segments || [];
+  if (segs.length === 0) return '<div class="pipeline-empty">暂无脚本 — nextframe script-set</div>';
+
+  var principles = s.principles || {};
+  var arc = s.arc || [];
+
+  var tagsHtml = "";
+  for (var key in principles) {
+    if (principles[key]) tagsHtml += '<span class="pl-principle-tag">' + escHtml(key) + " " + escHtml(principles[key]) + "</span>";
+  }
+
+  var arcHtml = arc.map(function(node, i) {
+    return (i > 0 ? '<span class="pl-arc-arrow">→</span>' : "") + '<span class="pl-arc-node">' + escHtml(node) + "</span>";
+  }).join("");
+
+  var articleHtml = "";
+  var commentsHtml = "";
+
+  for (var i = 0; i < segs.length; i++) {
+    var seg = segs[i];
+    articleHtml += '<div class="pl-segment-marker">' + (seg.segment || seg.id || (i + 1)) + "</div>";
+    articleHtml += '<div class="pl-narration">' + escHtml(seg.narration || "") + "</div>";
+
+    commentsHtml += '<div class="pl-annotation-group">';
+    if (seg.role) commentsHtml += '<div class="pl-annotation role"><div class="pl-annotation-label">角色</div>' + escHtml(seg.role) + "</div>";
+    if (seg.visual) commentsHtml += '<div class="pl-annotation visual"><div class="pl-annotation-label">画面</div>' + escHtml(seg.visual) + "</div>";
+    if (seg.logic) commentsHtml += '<div class="pl-annotation logic"><div class="pl-annotation-label">逻辑</div>' + escHtml(seg.logic) + "</div>";
+    commentsHtml += "</div>";
+  }
+
+  return '<div class="pl-script">' +
+    '<div class="pl-script-article">' +
+      (tagsHtml ? '<div class="pl-principles">' + tagsHtml + "</div>" : "") +
+      (arcHtml ? '<div class="pl-arc">' + arcHtml + "</div>" : "") +
+      articleHtml +
+    "</div>" +
+    '<div class="pl-script-comments">' + commentsHtml + "</div>" +
+  "</div>";
+}
+
+function renderPipelineAudio(data) {
+  var a = data.audio || {};
+  var segs = a.segments || [];
+  if (segs.length === 0) return '<div class="pipeline-empty">暂无音频 — nextframe audio-set</div>';
+
+  var scriptSegs = (data.script || {}).segments || [];
+  var firstGenerated = segs.find(function(s) { return s.status === "generated"; });
+  var subtitleText = "";
+  if (firstGenerated) {
+    var matchScript = scriptSegs.find(function(ss) { return (ss.segment || ss.id) === firstGenerated.segment; });
+    var narration = matchScript ? matchScript.narration : "";
+    var chars = narration.split("");
+    subtitleText = chars.map(function(c, i) {
+      var cls = i < 10 ? "char-spoken" : (i === 10 ? "char-current" : "char-unspoken");
+      return '<span class="' + cls + '">' + escHtml(c) + "</span>";
+    }).join("");
+  }
+
+  var rowsHtml = segs.map(function(seg, i) {
+    var matchScript = scriptSegs.find(function(ss) { return (ss.segment || ss.id) === seg.segment; });
+    var text = matchScript ? matchScript.narration : ("Segment " + seg.segment);
+    var isGen = seg.status === "generated";
+    return '<div class="pl-audio-row">' +
+      '<span class="pl-audio-num">' + seg.segment + "</span>" +
+      '<span class="pl-audio-text">' + escHtml(text) + "</span>" +
+      '<span class="pl-audio-dur">' + (isGen ? seg.duration + "s" : "—") + "</span>" +
+      '<span class="pl-audio-status ' + seg.status + '"></span>' +
+    "</div>";
+  }).join("");
+
+  var totalDur = segs.reduce(function(sum, s) { return sum + (s.duration || 0); }, 0);
+
+  return '<div class="pl-audio-subtitle">' +
+    '<div class="pl-subtitle-text">' + (subtitleText || '<span class="char-unspoken">暂无生成的音频</span>') + "</div>" +
+  "</div>" +
+  '<div class="pl-audio-list">' + rowsHtml +
+    '<div style="padding:12px 0;font-size:11px;color:var(--ink-dim);font-family:var(--font-mono)">总时长 ' + totalDur.toFixed(1) + "s</div>" +
+  "</div>";
+}
+
+function renderPipelineAtoms(data) {
+  var atoms = data.atoms || [];
+  if (atoms.length === 0) return '<div class="pipeline-empty">暂无原子 — nextframe atom-add</div>';
+
+  var cardsHtml = atoms.map(function(atom) {
+    var typeCls = atom.type || "component";
+    var typeLabel = typeCls === "component" ? "组件" : (typeCls === "video" ? "视频" : "图片");
+    var desc = atom.scene ? atom.scene : (atom.file || "");
+    return '<div class="pl-atom-card">' +
+      '<div class="pl-atom-preview">' + escHtml(atom.scene || atom.file || atom.name) + "</div>" +
+      '<div class="pl-atom-info">' +
+        '<div class="pl-atom-name">' + escHtml(atom.name) + ' <span class="pl-type-pill ' + typeCls + '">' + typeLabel + "</span></div>" +
+        '<div class="pl-atom-desc">' + escHtml(desc) + (atom.duration ? " · " + atom.duration + "s" : "") + (atom.dimensions ? " · " + atom.dimensions : "") + "</div>" +
+      "</div>" +
+    "</div>";
+  }).join("");
+
+  var counts = { component: 0, video: 0, image: 0 };
+  atoms.forEach(function(a) { counts[a.type] = (counts[a.type] || 0) + 1; });
+
+  return '<div class="pl-atoms">' +
+    '<div class="pl-atoms-header">' +
+      '<span style="font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.06em">' + atoms.length + ' 个原子</span>' +
+      '<div class="pl-atoms-filters">' +
+        '<span class="pl-filter active">全部</span>' +
+        (counts.component ? '<span class="pl-filter">组件 ' + counts.component + "</span>" : "") +
+        (counts.video ? '<span class="pl-filter">视频 ' + counts.video + "</span>" : "") +
+        (counts.image ? '<span class="pl-filter">图片 ' + counts.image + "</span>" : "") +
+      "</div>" +
+    "</div>" +
+    '<div class="pl-atoms-grid">' + cardsHtml + "</div>" +
+  "</div>";
+}
+
+function renderPipelineAssembly() {
+  return '<div class="pl-assembly">' +
+    '<div style="font-size:14px;color:var(--ink-dim)">拼装视图在编辑器中查看</div>' +
+    '<div class="pl-assembly-link" onclick="if(currentProject&&currentEpisode)goEditor(currentProject,currentEpisode)">打开编辑器</div>' +
+  "</div>";
+}
+
+function renderPipelineOutput(data) {
+  var outputs = data.outputs || [];
+  if (outputs.length === 0) return '<div class="pipeline-empty">暂无导出 — nextframe output-add</div>';
+
+  var sorted = outputs.slice().sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
+  var cardsHtml = sorted.map(function(out) {
+    var specs = out.specs || {};
+    var specPills = [
+      specs.width ? specs.width + "×" + specs.height : null,
+      specs.fps ? specs.fps + "fps" : null,
+      specs.codec,
+      out.duration ? out.duration + "s" : null,
+      out.size || specs.size
+    ].filter(Boolean).map(function(s) { return '<span class="pl-spec-pill">' + escHtml(s) + "</span>"; }).join("");
+
+    var pubPills = (out.published || []).map(function(p) {
+      var name = typeof p === "string" ? p : p.platform;
+      return '<span class="pl-publish-pill published">' + escHtml(name) + " ✓</span>";
+    }).join("");
+    if (!pubPills) pubPills = '<span class="pl-publish-pill unpublished">未发布</span>';
+
+    var dateStr = out.date ? new Date(out.date).toLocaleString("zh-CN") : "";
+
+    return '<div class="pl-output-card">' +
+      '<div class="pl-output-thumb">▶</div>' +
+      '<div class="pl-output-info">' +
+        '<div class="pl-output-name">' + escHtml(out.name) + "</div>" +
+        '<div class="pl-output-date">' + escHtml(dateStr) + "</div>" +
+        '<div class="pl-output-specs">' + specPills + "</div>" +
+        (out.changes ? '<div class="pl-output-changes">' + escHtml(out.changes) + "</div>" : "") +
+      "</div>" +
+      '<div class="pl-output-status">' + pubPills + "</div>" +
+    "</div>";
+  }).join("");
+
+  return '<div class="pl-outputs">' + cardsHtml + "</div>";
+}
+
+function escHtml(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function initBreadcrumbNavigation() {
