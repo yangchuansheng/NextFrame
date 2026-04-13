@@ -49,25 +49,8 @@ import chipGroup from './chipGroup.js';
 import infoCard from './infoCard.js';
 import bigNumber from './bigNumber.js';
 import slideChrome from './slideChrome.js';
-// WebGL shader scenes
-import shaderGradient from './shaderGradient.js';
-import shaderNoise from './shaderNoise.js';
-import shaderGlitch from './shaderGlitch.js';
-import shaderChromatic from './shaderChromatic.js';
-import shaderPlasma from './shaderPlasma.js';
-import shaderTunnel from './shaderTunnel.js';
-import shaderRipple from './shaderRipple.js';
-import shaderFirefly from './shaderFirefly.js';
-// WebGL shader scenes — advanced
-import shaderFire from './shaderFire.js';
-import shaderOcean from './shaderOcean.js';
-import shaderClouds from './shaderClouds.js';
-import shaderFractal from './shaderFractal.js';
-// WebGL shader scenes — ShaderToy-grade
-import shaderNebula from './shaderNebula.js';
-import shaderAurora2 from './shaderAurora2.js';
-import shaderFluid from './shaderFluid.js';
-import shaderKaleidoscope from './shaderKaleidoscope.js';
+
+
 // Media + Audio
 import audioTrack from './audioTrack.js';
 import syncSubs from './syncSubs.js';
@@ -117,11 +100,6 @@ const ALL_SCENES = [
   timelineViz, flowChart, agentLoop,
   // Media + Audio
   imageHero, videoClip, audioTrack, syncSubs,
-  // WebGL — GPU shader effects
-  shaderGradient, shaderNoise, shaderGlitch, shaderChromatic,
-  shaderPlasma, shaderTunnel, shaderRipple, shaderFirefly,
-  shaderFire, shaderOcean, shaderClouds, shaderFractal,
-  shaderNebula, shaderAurora2, shaderFluid, shaderKaleidoscope,
   // Custom scenes
   spectrumFall,
   // New v2 scenes
@@ -130,7 +108,7 @@ const ALL_SCENES = [
   codeTyping, compareSlider, textReveal, timeline3D, colorPalette, iconGrid,
   // New v2 scenes — batch 3
   scatterPlot, donutChart, gaugeChart, sankeyDiagram, wordCloud,
-  matrixRain, glowButton, statsRow, quoteCarousel, gridPattern,
+  matrixRain, glowButton, statsRow, quoteCarousel, gridPattern
 ];
 
 // Map: id → scene object
