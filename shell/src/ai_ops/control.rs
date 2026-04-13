@@ -11,7 +11,7 @@ use super::{
     build_navigate_script, decode_query_component, default_screenshot_path, native_screenshot,
     query_value, queue_appctl_script, split_path_and_query,
 };
-use crate::http::{read_http_request, write_http_response, HttpConnection, HttpRequest};
+use crate::ipc::{HttpConnection, HttpRequest, read_http_request, write_http_response};
 
 pub(crate) type PendingAppCtlMap = Arc<Mutex<HashMap<String, PendingAppCtlRequest>>>;
 

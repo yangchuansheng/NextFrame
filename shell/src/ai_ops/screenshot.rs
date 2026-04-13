@@ -2,7 +2,7 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::http::write_http_response;
+use crate::ipc::write_http_response;
 
 #[cfg(target_os = "macos")]
 use wry::WebViewExtMacOS;

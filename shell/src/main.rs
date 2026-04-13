@@ -9,7 +9,6 @@ macro_rules! trace_log {
 
 mod window;
 mod ai_ops;
-mod http;
 mod ipc;
 mod protocol;
 
