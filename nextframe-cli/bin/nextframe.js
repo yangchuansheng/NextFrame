@@ -35,6 +35,7 @@ const SUBCOMMANDS = {
   "remove-asset": () => import("../src/cli/assets.js"),
   scenes: () => import("../src/cli/scenes.js"),
   build: () => import("../src/cli/build.js"),
+  preview: () => import("../src/cli/preview.js"),
   "app-eval": () => import("../src/cli/app-eval.js"),
   "app-screenshot": () => import("../src/cli/app-screenshot.js"),
   "debug-screenshot": () => import("../src/cli/debug-screenshot.js"),
@@ -63,6 +64,9 @@ COMMANDS — v0.3 (use these)
   scenes <id>                    show single scene: type, params, defaults
   validate <timeline.json>       run 6 safety gates (format, scenes, time, ids)
   build <timeline.json> -o X     bundle timeline + all scenes into single HTML
+  preview <timeline.json>        screenshot key frames (auto-detect) → AI self-check
+  preview <tl.json> --time 5     screenshot at specific time
+  preview <tl.json> --auto       auto-detect transition frames + check for issues
 
 TIMELINE FORMAT (v0.3 flat layers)
   {
