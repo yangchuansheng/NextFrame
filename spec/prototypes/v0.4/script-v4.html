@@ -65,8 +65,17 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .topbar-avatar:hover { border-color: var(--ink); }
 
 /* ─── Principles bar ─── */
-.principles { padding: 12px 20px; border-bottom: var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
-.p-tag { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--ink-08); color: var(--ink-55); }
+.principles { padding: 10px 20px; border-bottom: var(--border); display: flex; gap: 20px; align-items: center; }
+.p-item { display: flex; align-items: center; gap: 6px; }
+.p-key { font-size: 11px; color: var(--ink-25); }
+.p-val { font-size: 12px; color: var(--ink-55); font-weight: 500; }
+
+/* ─── Segment filter ─── */
+.seg-filter { padding: 8px 20px; border-bottom: var(--border); display: flex; gap: 6px; align-items: center; }
+.seg-filter-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-25); margin-right: 8px; }
+.seg-pill { font-size: 12px; padding: 4px 14px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--ink-55); cursor: pointer; transition: all 0.15s var(--ease); }
+.seg-pill:hover { background: var(--ink-08); color: var(--ink); }
+.seg-pill.active { background: var(--accent-15); color: var(--accent); border-color: rgba(124,106,239,0.2); }
 
 /* ─── Table layout ─── */
 .script-table {
@@ -163,10 +172,20 @@ td.col-meta {
 </div>
 
 <div class="principles">
-  <span class="p-tag">受众 25-35岁创作者</span>
-  <span class="p-tag">语气 专业友好</span>
-  <span class="p-tag">风格 数据驱动</span>
-  <span class="p-tag">节奏 快→慢→快</span>
+  <div class="p-item"><span class="p-key">受众</span><span class="p-val">25-35岁创作者</span></div>
+  <div class="p-item"><span class="p-key">语气</span><span class="p-val">专业友好</span></div>
+  <div class="p-item"><span class="p-key">风格</span><span class="p-val">数据驱动</span></div>
+  <div class="p-item"><span class="p-key">节奏</span><span class="p-val">快→慢→快</span></div>
+</div>
+
+<div class="seg-filter">
+  <span class="seg-filter-label">段落</span>
+  <span class="seg-pill active" onclick="filterSeg(-1)">全部</span>
+  <span class="seg-pill" onclick="filterSeg(0)">段 1</span>
+  <span class="seg-pill" onclick="filterSeg(1)">段 2</span>
+  <span class="seg-pill" onclick="filterSeg(2)">段 3</span>
+  <span class="seg-pill" onclick="filterSeg(3)">段 4</span>
+  <span class="seg-pill" onclick="filterSeg(4)">段 5</span>
 </div>
 
 <div class="script-table">
@@ -175,7 +194,7 @@ td.col-meta {
       <tr><th style="width:55%">文案</th><th style="width:45%">说明</th></tr>
     </thead>
     <tbody>
-      <tr>
+      <tr data-seg="0">
         <td class="col-text">每天，我们花 3 小时在重复性工作上。这些时间，本可以用来做更有价值的事。</td>
         <td class="col-meta">
           <div class="meta-item"><div class="meta-label">画面</div><div class="meta-value">大数字 "3" + 配文 "小时/天"，数字翻滚动画</div></div>
@@ -183,7 +202,7 @@ td.col-meta {
           <div class="meta-item"><div class="meta-label">逻辑</div><div class="meta-value logic">用具体数字制造共鸣，不讲道理，讲感受</div></div>
         </td>
       </tr>
-      <tr>
+      <tr data-seg="1">
         <td class="col-text">如果有一个工具，能把这些时间还给你？NextFrame，让视频制作像写文档一样简单。</td>
         <td class="col-meta">
           <div class="meta-item"><div class="meta-label">画面</div><div class="meta-value">产品 Logo 从模糊到清晰，渐显动画</div></div>
@@ -191,7 +210,7 @@ td.col-meta {
           <div class="meta-item"><div class="meta-label">逻辑</div><div class="meta-value logic">先问问题再给答案，制造期待感</div></div>
         </td>
       </tr>
-      <tr>
+      <tr data-seg="2">
         <td class="col-text">从脚本到音频，从画面到成片——AI 全自动编排，你只需要审核。</td>
         <td class="col-meta">
           <div class="meta-item"><div class="meta-label">画面</div><div class="meta-value">三步流程图：脚本 → 音频 → 成片，逐步高亮</div></div>
@@ -199,7 +218,7 @@ td.col-meta {
           <div class="meta-item"><div class="meta-label">逻辑</div><div class="meta-value logic">三步降低认知负担，"你只需要"是关键词</div></div>
         </td>
       </tr>
-      <tr>
+      <tr data-seg="3">
         <td class="col-text">传统流程 3 天，NextFrame 5 分钟。已有 2000+ 创作者在使用。</td>
         <td class="col-meta">
           <div class="meta-item"><div class="meta-label">画面</div><div class="meta-value">对比柱状图：传统 3天 vs NextFrame 5分钟</div></div>
@@ -207,7 +226,7 @@ td.col-meta {
           <div class="meta-item"><div class="meta-label">逻辑</div><div class="meta-value logic">对比 + 社会证明，两个说服力叠加</div></div>
         </td>
       </tr>
-      <tr>
+      <tr data-seg="4">
         <td class="col-text">现在就开始，免费创建你的第一个视频。</td>
         <td class="col-meta">
           <div class="meta-item"><div class="meta-label">画面</div><div class="meta-value">CTA 按钮 "开始试用" + 发光效果</div></div>
@@ -238,7 +257,15 @@ document.addEventListener("click", function(e) {
   }
 });
 
-// Row layout — no scroll sync needed, left and right are in the same row
+// Segment filter
+function filterSeg(idx) {
+  document.querySelectorAll(".seg-pill").forEach(function(p, i) {
+    p.classList.toggle("active", idx === -1 ? i === 0 : i === idx + 1);
+  });
+  document.querySelectorAll("tbody tr[data-seg]").forEach(function(row) {
+    row.style.display = (idx === -1 || row.dataset.seg == idx) ? "" : "none";
+  });
+}
 </script>
 </body>
 </html>
