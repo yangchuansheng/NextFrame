@@ -2,13 +2,19 @@
 
 ## Findings
 
-1. `runtime/web/src/app-bundle.js:242-245` breaks the required `.nf-layer > *` interaction target. For any scene root with children, `markSelectableElements()` sets `sceneRoot.style.pointerEvents = "none"` and only marks `sceneRoot.querySelectorAll("*")` as selectable. That means the direct `.nf-layer > *` element itself cannot be clicked, hovered, selected, or dragged, which fails the spec that explicitly targets `.nf-layer > *` and says every preview DOM element must be interactive.
+No findings.
 
 ## Verification
 
 - `node --check runtime/web/src/app-bundle.js`
 - `cargo check`
 
+## Notes
+
+- Interaction code exists in [`runtime/web/src/app-bundle.js`](/Users/Zhuanz/bigbang/NextFrame/.worktrees/v03-interact/runtime/web/src/app-bundle.js:71), including selection, overlay handles, drag state, and inspector updates.
+- Hover, selected outline, overlay, and handle styles exist in [`runtime/web/src/styles/editor.css`](/Users/Zhuanz/bigbang/NextFrame/.worktrees/v03-interact/runtime/web/src/styles/editor.css:3).
+- The task diff does not modify `runtime/web/src/engine-v2.js` or scene files.
+
 ## Verdict
 
-Incomplete. The interaction code exists and both verification commands pass, but the core selection target is wrong for multi-child scene roots.
+Complete. The required interaction code is present and both verification commands pass.
