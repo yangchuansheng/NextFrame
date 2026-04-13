@@ -63,6 +63,20 @@ import audioTrack from './audioTrack.js';
 import syncSubs from './syncSubs.js';
 // Custom — Spectrum Waterfall
 import spectrumFall from './spectrumFall.js';
+// New v2 scenes
+import lucideIcon from './lucideIcon.js';
+import handDraw from './handDraw.js';
+import particleSystem from './particleSystem.js';
+import morphShape from './morphShape.js';
+import gradientText from './gradientText.js';
+import dataTable from './dataTable.js';
+// New v2 scenes — batch 2
+import codeTyping from './codeTyping.js';
+import compareSlider from './compareSlider.js';
+import textReveal from './textReveal.js';
+import timeline3D from './timeline3D.js';
+import colorPalette from './colorPalette.js';
+import iconGrid from './iconGrid.js';
 
 const ALL_SCENES = [
   // Canvas — backgrounds & effects
@@ -87,6 +101,10 @@ const ALL_SCENES = [
   shaderPlasma, shaderTunnel, shaderRipple, shaderFirefly,
   // Custom scenes
   spectrumFall,
+  // New v2 scenes
+  lucideIcon, handDraw, particleSystem, morphShape, gradientText, dataTable,
+  // New v2 scenes — batch 2
+  codeTyping, compareSlider, textReveal, timeline3D, colorPalette, iconGrid,
 ];
 
 // Map: id → scene object
