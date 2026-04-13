@@ -65,6 +65,45 @@ function calcExitEffect(effect, localT, dur) {
   }
 }
 
+// ─── Transition Calculator ─────────────────────────────────────
+// Format: "dissolve 0.5s" or "wipeLeft 0.8s" or "wipeUp 0.6s" or "none"
+function parseTransition(str) {
+  if (!str || str === 'none') return null;
+  const parts = str.trim().split(/\s+/);
+  const type = parts[0];
+  const dur = parseFloat(parts[1]) || 0.5;
+  return { type, dur };
+}
+
+function calcTransitionStyle(transition, progress) {
+  if (!transition) return {};
+  const p = easeOutCubic(clamp01(progress));
+  switch (transition.type) {
+    case 'dissolve':
+      return { opacity: p };
+    case 'wipeLeft':
+      return { clipPath: `inset(0 ${(1 - p) * 100}% 0 0)` };
+    case 'wipeRight':
+      return { clipPath: `inset(0 0 0 ${(1 - p) * 100}%)` };
+    case 'wipeUp':
+      return { clipPath: `inset(0 0 ${(1 - p) * 100}% 0)` };
+    case 'wipeDown':
+      return { clipPath: `inset(${(1 - p) * 100}% 0 0 0)` };
+    case 'slideLeft':
+      return { transform: `translateX(${(1 - p) * 100}%)` };
+    case 'slideRight':
+      return { transform: `translateX(${(p - 1) * 100}%)` };
+    case 'slideUp':
+      return { transform: `translateY(${(1 - p) * 100}%)` };
+    case 'slideDown':
+      return { transform: `translateY(${(p - 1) * 100}%)` };
+    case 'zoomIn':
+      return { opacity: p, transform: `scale(${0.5 + 0.5 * p})` };
+    default:
+      return { opacity: p };
+  }
+}
+
 // ─── Layer Style Resolver ──────────────────────────────────────
 // Converts layer properties to CSS on the container div
 function applyLayerStyle(el, layer) {
@@ -127,6 +166,7 @@ export function createEngine(stageEl, timeline, sceneRegistry) {
       wasActive: false,
       enterEffect: parseEffect(layer.enter),
       exitEffect: parseEffect(layer.exit),
+      transition: parseTransition(layer.transition),
     };
     layerStates.push(state);
   }
@@ -159,11 +199,31 @@ export function createEngine(stageEl, timeline, sceneRegistry) {
         // Calculate effects
         const enter = calcEnterEffect(state.enterEffect, localT);
         const exit = calcExitEffect(state.exitEffect, localT, dur);
-        const opacity = enter.opacity * exit.opacity * (layer.opacity != null ? layer.opacity : 1);
-        const transforms = [enter.transform, exit.transform].filter(Boolean).join(' ');
+
+        // Calculate transition (applied at layer start)
+        let transOpacity = 1;
+        let transTransform = '';
+        let transClipPath = '';
+        if (state.transition && localT < state.transition.dur) {
+          const tp = clamp01(localT / state.transition.dur);
+          const ts = calcTransitionStyle(state.transition, tp);
+          if (ts.opacity != null) transOpacity = ts.opacity;
+          if (ts.transform) transTransform = ts.transform;
+          if (ts.clipPath) transClipPath = ts.clipPath;
+        }
+
+        const opacity = enter.opacity * exit.opacity * transOpacity * (layer.opacity != null ? layer.opacity : 1);
+        const transforms = [enter.transform, exit.transform, transTransform].filter(Boolean).join(' ');
 
         // Apply visual properties
         container.style.opacity = opacity;
+        if (transClipPath) {
+          container.style.clipPath = transClipPath;
+        } else if (layer.clipPath && layer.clipPath !== 'none') {
+          container.style.clipPath = layer.clipPath;
+        } else {
+          container.style.clipPath = '';
+        }
         if (transforms) {
           container.style.transform = transforms;
         } else if (!layer.x && !layer.y) {
