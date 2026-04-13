@@ -61,8 +61,12 @@ const SCENE_REGISTRY = {};
 
 ${sceneCodes.map(({ id, code }) => `
 // --- ${id} ---
-SCENE_REGISTRY["${id}"] = (function() {
+(function() {
+  const _scene = (function() {
   ${code}
+})();
+  if (_scene && _scene.id) { SCENE_REGISTRY[_scene.id] = _scene; }
+  else { SCENE_REGISTRY["${id}"] = _scene; }
 })();
 `).join('\n')}
 
