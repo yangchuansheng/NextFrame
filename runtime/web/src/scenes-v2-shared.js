@@ -83,6 +83,14 @@ function pickStageDimension(...values) {
 }
 
 export function getStageSize(container) {
+  // Prefer design dimensions stored by engine (not affected by CSS scaling)
+  const stage = container?.closest?.('[data-nf-width]');
+  if (stage) {
+    const w = Number(stage.dataset.nfWidth);
+    const h = Number(stage.dataset.nfHeight);
+    if (w > 0 && h > 0) return { width: w, height: h };
+  }
+
   const rect = typeof container?.getBoundingClientRect === "function"
     ? container.getBoundingClientRect()
     : null;

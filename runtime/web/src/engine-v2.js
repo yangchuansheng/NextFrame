@@ -225,8 +225,10 @@ export function createEngine(stageEl, timeline, sceneRegistry) {
   }
 
   // Setup stage
-  // Let CSS aspect-ratio handle sizing in preview; set px as fallback
-  stageEl.style.cssText = `position:relative;width:${width}px;height:${height}px;aspect-ratio:${width}/${height};overflow:hidden;background:${background}`;
+  // Fixed pixel stage — preview scaling handled by CSS zoom in bundle
+  stageEl.style.cssText = `position:relative;width:${width}px;height:${height}px;overflow:hidden;background:${background}`;
+  stageEl.dataset.nfWidth = width;
+  stageEl.dataset.nfHeight = height;
 
   // State for each layer
   const layerStates = [];

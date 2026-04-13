@@ -118,8 +118,8 @@ const html = `<!DOCTYPE html>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #111; height: 100vh; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
-  #preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 0; padding: 8px; }
-  #stage { aspect-ratio: ${width} / ${height}; max-width: 100%; max-height: 100%; width: auto; height: auto; position: relative; overflow: hidden; background: #05050c; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+  #preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; }
+  #stage { box-shadow: 0 0 40px rgba(0,0,0,0.5); }
   .nf-layer { will-change: opacity, transform; }
 </style>
 </head>
@@ -279,7 +279,20 @@ const TIMELINE = ${JSON.stringify(timeline, null, 2).replace(/<\//g, '<\\/')};
 const stage = document.getElementById('stage');
 const engine = createEngine(stage, TIMELINE, SCENE_REGISTRY);
 const player = createPlayer(engine, stage);
-window.__nfEngine = engine; // expose for parent frame control
+window.__nfEngine = engine;
+
+// ===== Preview zoom: scale stage to fit window =====
+function fitPreview() {
+  const wrap = document.getElementById('preview-wrap');
+  if (!wrap || !stage) return;
+  const pw = wrap.clientWidth || window.innerWidth;
+  const ph = wrap.clientHeight || window.innerHeight;
+  const sw = ${width}, sh = ${height};
+  const zoom = Math.min(pw / sw, ph / sh, 1);
+  stage.style.zoom = zoom;
+}
+fitPreview();
+window.addEventListener('resize', fitPreview);
 </script>
 </body>
 </html>
