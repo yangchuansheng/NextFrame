@@ -1,0 +1,84 @@
+@import url("../_archive-v01/styles/editor.css");
+
+.nf-layer > *,
+.nf-layer [data-nf-selectable] {
+  pointer-events: auto;
+}
+
+.nf-layer > *:hover,
+.nf-layer [data-nf-selectable]:hover {
+  outline: 1px solid rgba(138, 111, 174, 0.4);
+  outline-offset: 2px;
+}
+
+.nf-selected {
+  outline: 2px dashed var(--accent) !important;
+  outline-offset: 4px;
+  cursor: move !important;
+}
+
+.nf-selection-overlay {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px dashed var(--accent);
+  z-index: 9999;
+}
+
+.nf-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  pointer-events: all;
+  cursor: nwse-resize;
+}
+
+.nf-handle-tl { top: -5px; left: -5px; }
+.nf-handle-tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.nf-handle-bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.nf-handle-br { bottom: -5px; right: -5px; }
+
+.nf-param-meta {
+  margin-bottom: 10px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.nf-param-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink-mid);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nf-param-editor {
+  width: 100%;
+  min-height: 180px;
+  padding: 10px 12px;
+  border: 1px solid rgba(138, 111, 174, 0.18);
+  background: rgba(10, 10, 15, 0.8);
+  color: var(--ink);
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.nf-param-editor:focus {
+  border-color: rgba(138, 111, 174, 0.45);
+}
+
+.nf-param-status {
+  margin-top: 8px;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.nf-param-status.invalid {
+  color: #ff8a8a;
+}
