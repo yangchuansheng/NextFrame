@@ -26,23 +26,56 @@ export default {
     video.preload = "auto";
     if (params.poster) video.poster = params.poster;
     if (params.src) video.src = params.src;
-    container.appendChild(video);
-    return video;
+    // Expose for recorder audio muxing
+    if (params.src && !window.__audioSrc) {
+      window.__audioSrc = params.src;
+    }
+    return { video, playing: false, lastT: -1 };
   },
 
-  update(video, localT) {
+  update(state, localT, params) {
+    const { video } = state;
     const t = toNumber(localT, 0);
+    if (!video.src) return;
+
+    // Wait for video to be ready
     if (!video.duration || !Number.isFinite(video.duration)) return;
+
     const target = clamp(t, 0, video.duration);
-    if (Math.abs(video.currentTime - target) > 0.1) {
+    const drift = Math.abs(video.currentTime - target);
+
+    // In recording mode (__onFrame driven), just seek each frame
+    if (window.__recordingMode) {
+      if (drift > 0.05) video.currentTime = target;
+      return;
+    }
+
+    // Browser preview mode: let video play naturally, only seek on big jumps
+    if (drift > 0.5) {
+      // Big jump (slider drag, skip) — seek
       video.currentTime = target;
     }
+
+    // Play if not already playing and time is advancing
+    if (video.paused && t > 0 && t > state.lastT) {
+      video.muted = params.muted !== false;
+      video.play().catch(() => {});
+      state.playing = true;
+    }
+
+    // Pause if time stopped advancing (paused in player)
+    if (t === state.lastT && state.playing) {
+      video.pause();
+      state.playing = false;
+    }
+
+    state.lastT = t;
   },
 
-  destroy(video) {
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
-    video.remove();
+  destroy(state) {
+    state.video.pause();
+    state.video.removeAttribute("src");
+    state.video.load();
+    state.video.remove();
   },
 };
