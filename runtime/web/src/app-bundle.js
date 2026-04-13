@@ -2065,38 +2065,56 @@ function renderPipelineAudio(data) {
   if (segs.length === 0) return '<div class="pipeline-empty">暂无音频 — nextframe audio-set</div>';
 
   var scriptSegs = (data.script || {}).segments || [];
-  var firstGenerated = segs.find(function(s) { return s.status === "generated"; });
-  var subtitleText = "";
-  if (firstGenerated) {
-    var matchScript = scriptSegs.find(function(ss) { return (ss.segment || ss.id) === firstGenerated.segment; });
-    var narration = matchScript ? matchScript.narration : "";
-    var chars = narration.split("");
-    subtitleText = chars.map(function(c, i) {
-      var cls = i < 10 ? "char-spoken" : (i === 10 ? "char-current" : "char-unspoken");
-      return '<span class="' + cls + '">' + escHtml(c) + "</span>";
-    }).join("");
-  }
+  var genCount = segs.filter(function(s) { return s.status === "generated"; }).length;
+  var totalDur = segs.reduce(function(sum, s) { return sum + (s.duration || 0); }, 0);
 
-  var rowsHtml = segs.map(function(seg, i) {
+  // Toolbar chips
+  var toolbar = '<div style="padding:10px 20px;border-bottom:var(--border-a1);display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<div style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 12px;border-radius:5px;background:var(--bg-surface);border:var(--border-a1)"><span style="color:var(--ink-ghost)">声线</span><span style="color:var(--accent);font-weight:500">' + escHtml(a.voice || '未设置') + '</span></div>' +
+    '<div style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 12px;border-radius:5px;background:var(--bg-surface);border:var(--border-a1)"><span style="color:var(--ink-ghost)">语速</span><span style="color:var(--ink-mid);font-weight:500">' + (a.speed || 1.0) + 'x</span></div>' +
+    '<div style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 12px;border-radius:5px;background:rgba(62,179,112,0.08);border:1px solid rgba(62,179,112,0.12)"><span style="color:var(--ink-ghost)">已生成</span><span style="color:#3eb370;font-weight:500">' + genCount + '/' + segs.length + '</span></div>' +
+    '<div style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 12px;border-radius:5px;background:var(--bg-surface);border:var(--border-a1)"><span style="color:var(--ink-ghost)">总时长</span><span style="color:var(--ink-mid);font-weight:500">' + totalDur.toFixed(1) + 's</span></div>' +
+    '<div style="width:1px;height:18px;background:rgba(255,255,255,0.08);margin:0 4px"></div>';
+  var pills = '<span class="pl-seg-pill active" onclick="plFilterSeg(-1)">全部</span>';
+  for (var p = 0; p < segs.length; p++) pills += '<span class="pl-seg-pill" onclick="plFilterSeg(' + p + ')">段 ' + segs[p].segment + '</span>';
+  toolbar += pills + '</div>';
+
+  // Table rows
+  var rows = segs.map(function(seg, idx) {
     var matchScript = scriptSegs.find(function(ss) { return (ss.segment || ss.id) === seg.segment; });
     var text = matchScript ? matchScript.narration : ("Segment " + seg.segment);
     var isGen = seg.status === "generated";
-    return '<div class="pl-audio-row">' +
-      '<span class="pl-audio-num">' + seg.segment + "</span>" +
-      '<span class="pl-audio-text">' + escHtml(text) + "</span>" +
-      '<span class="pl-audio-dur">' + (isGen ? seg.duration + "s" : "—") + "</span>" +
-      '<span class="pl-audio-status ' + seg.status + '"></span>' +
-    "</div>";
-  }).join("");
 
-  var totalDur = segs.reduce(function(sum, s) { return sum + (s.duration || 0); }, 0);
+    var audioMeta = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
+      (isGen ? '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:rgba(62,179,112,0.12);color:#3eb370;font-weight:500">已生成</span>' : '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:var(--ink-08);color:var(--ink-ghost)">待生成</span>') +
+      (isGen ? '<span style="font-family:var(--font-mono);font-size:13px;color:var(--ink);font-weight:500">' + seg.duration + 's</span>' : '') +
+    '</div>';
 
-  return '<div class="pl-audio-subtitle">' +
-    '<div class="pl-subtitle-text">' + (subtitleText || '<span class="char-unspoken">暂无生成的音频</span>') + "</div>" +
-  "</div>" +
-  '<div class="pl-audio-list">' + rowsHtml +
-    '<div style="padding:12px 0;font-size:11px;color:var(--ink-dim);font-family:var(--font-mono)">总时长 ' + totalDur.toFixed(1) + "s</div>" +
-  "</div>";
+    // Karaoke sentences
+    var sentencesHtml = '';
+    if (seg.sentences && seg.sentences.length > 0) {
+      sentencesHtml = '<div style="display:flex;flex-direction:column;gap:2px">';
+      seg.sentences.forEach(function(sent) {
+        sentencesHtml += '<div style="display:grid;grid-template-columns:150px 1fr auto;align-items:baseline;padding:8px 10px;border-radius:4px;gap:12px;transition:background 0.15s">' +
+          '<span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);white-space:nowrap">' + sent.start.toFixed(1) + ' → ' + sent.end.toFixed(1) + '</span>' +
+          '<span style="font-size:13px;color:var(--ink-mid)">' + escHtml(sent.text) + '</span>' +
+          '<span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-ghost);white-space:nowrap">' + (sent.end - sent.start).toFixed(1) + 's</span>' +
+        '</div>';
+      });
+      sentencesHtml += '</div>';
+    }
+
+    return '<tr data-seg="' + idx + '">' +
+      '<td style="padding:28px;border-bottom:var(--border-a1);vertical-align:top;font-family:var(--font-display);font-size:17px;line-height:1.9;color:' + (isGen ? 'var(--ink)' : 'var(--ink-dim)') + ';width:45%">' + escHtml(text) + '</td>' +
+      '<td style="padding:28px;border-bottom:var(--border-a1);vertical-align:top;background:var(--bg-surface);width:55%">' + audioMeta + sentencesHtml + '</td>' +
+    '</tr>';
+  }).join('');
+
+  return toolbar +
+    '<div style="flex:1;overflow-y:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>' +
+    '<th style="padding:10px 28px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-ghost);text-align:left;font-weight:400;border-bottom:var(--border-a1);background:var(--bg-surface);position:sticky;top:0;z-index:2;width:45%">文案</th>' +
+    '<th style="padding:10px 28px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-ghost);text-align:left;font-weight:400;border-bottom:var(--border-a1);background:var(--bg-surface);position:sticky;top:0;z-index:2;width:55%">音频</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
 function renderPipelineClips(data) {
@@ -2132,14 +2150,17 @@ function renderPipelineAtoms(data) {
   if (atoms.length === 0) return '<div class="pipeline-empty">暂无原子 — nextframe atom-add</div>';
 
   var cardsHtml = atoms.map(function(atom) {
-    var typeCls = atom.type || "component";
-    var typeLabel = typeCls === "component" ? "组件" : (typeCls === "video" ? "视频" : "图片");
+    var typeColors = { component: "rgba(124,106,239,0.1);color:#7c6aef", video: "rgba(62,179,112,0.1);color:#3eb370", image: "rgba(224,160,64,0.1);color:#e0a040" };
+    var typeLabels = { component: "组件", video: "视频", image: "图片" };
+    var tc = typeColors[atom.type] || typeColors.component;
     var desc = atom.scene ? atom.scene : (atom.file || "");
-    return '<div class="pl-atom-card">' +
+    var segTag = atom.segment ? ' <span style="font-size:11px;padding:1px 8px;border-radius:3px;background:var(--accent-15);color:var(--accent);font-family:var(--font-mono)">段 ' + atom.segment + '</span>' : '';
+    return '<div class="pl-atom-card" data-type="' + (atom.type || 'component') + '">' +
       '<div class="pl-atom-preview">' + escHtml(atom.scene || atom.file || atom.name) + "</div>" +
       '<div class="pl-atom-info">' +
-        '<div class="pl-atom-name">' + escHtml(atom.name) + ' <span class="pl-type-pill ' + typeCls + '">' + typeLabel + "</span></div>" +
-        '<div class="pl-atom-desc">' + escHtml(desc) + (atom.duration ? " · " + atom.duration + "s" : "") + (atom.dimensions ? " · " + atom.dimensions : "") + "</div>" +
+        '<div class="pl-atom-name">' + escHtml(atom.name) + ' <span style="font-size:11px;padding:2px 8px;border-radius:3px;background:' + tc + '">' + (typeLabels[atom.type] || '组件') + '</span>' + segTag + '</div>' +
+        '<div class="pl-atom-desc">' + escHtml(desc) + (atom.duration ? " · " + atom.duration + "s" : "") + (atom.dimensions ? " · " + atom.dimensions : "") + (atom.size ? " · " + atom.size : "") + "</div>" +
+        (atom.file ? '<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);margin-top:2px">' + escHtml(atom.file) + '</div>' : '') +
       "</div>" +
     "</div>";
   }).join("");
@@ -2175,13 +2196,14 @@ function renderPipelineOutput(data) {
   var sorted = outputs.slice().sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
   var cardsHtml = sorted.map(function(out) {
     var specs = out.specs || {};
-    var specPills = [
-      specs.width ? specs.width + "×" + specs.height : null,
-      specs.fps ? specs.fps + "fps" : null,
-      specs.codec,
-      out.duration ? out.duration + "s" : null,
-      out.size || specs.size
-    ].filter(Boolean).map(function(s) { return '<span class="pl-spec-pill">' + escHtml(s) + "</span>"; }).join("");
+    var specItems = [];
+    if (specs.width) specItems.push({ v: specs.width + "×" + specs.height, c: "res" });
+    if (specs.fps) specItems.push({ v: specs.fps + "fps", c: "fps" });
+    if (specs.codec) specItems.push({ v: specs.codec, c: "codec" });
+    if (out.duration) specItems.push({ v: out.duration + "s", c: "dur" });
+    if (out.size || specs.size) specItems.push({ v: out.size || specs.size, c: "size" });
+    var specColors = { res: "rgba(124,106,239,0.1);color:#7c6aef", fps: "rgba(62,179,112,0.1);color:#3eb370", codec: "rgba(224,160,64,0.1);color:#e0a040", dur: "var(--ink-08);color:var(--ink)", size: "var(--ink-08);color:var(--ink-dim)" };
+    var specPills = specItems.map(function(s) { return '<span style="font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-radius:4px;background:' + specColors[s.c] + '">' + escHtml(s.v) + '</span>'; }).join("");
 
     var pubPills = (out.published || []).map(function(p) {
       var name = typeof p === "string" ? p : p.platform;
@@ -2198,6 +2220,7 @@ function renderPipelineOutput(data) {
         '<div class="pl-output-date">' + escHtml(dateStr) + "</div>" +
         '<div class="pl-output-specs">' + specPills + "</div>" +
         (out.changes ? '<div class="pl-output-changes">' + escHtml(out.changes) + "</div>" : "") +
+        (out.file ? '<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);margin-top:4px;user-select:all">' + escHtml(out.file) + '</div>' : '') +
       "</div>" +
       '<div class="pl-output-status">' + pubPills + "</div>" +
     "</div>";
