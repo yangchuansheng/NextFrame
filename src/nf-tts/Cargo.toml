@@ -1,5 +1,5 @@
 [package]
-name = "vox"
+name = "nf-tts"
 version = "0.1.0"
 edition = "2021"
 description = "Multi-backend TTS CLI, agent-friendly"

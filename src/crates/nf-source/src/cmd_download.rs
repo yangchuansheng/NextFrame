@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
-use videocut_download::{DownloadOptions, download};
+use nf_download::{DownloadOptions, download};
 
 use crate::cli::DownloadArgs;
 

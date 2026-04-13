@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
-use videocut_align::{AlignOptions, align};
+use nf_align::{AlignOptions, align};
 
 use crate::cli::AlignArgs;
 

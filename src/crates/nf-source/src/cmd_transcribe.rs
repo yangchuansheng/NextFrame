@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
-use videocut_transcribe::{TranscribeOptions, transcribe};
+use nf_transcribe::{TranscribeOptions, transcribe};
 
 use crate::cli::TranscribeArgs;
 

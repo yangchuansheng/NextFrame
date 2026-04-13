@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::to_string;
-use videocut_core::CutReport;
-use videocut_cut::{CutOptions, cut_plan};
+use nf_cut_core::CutReport;
+use nf_cut::{CutOptions, cut_plan};
 
 use crate::cli::CutArgs;
 

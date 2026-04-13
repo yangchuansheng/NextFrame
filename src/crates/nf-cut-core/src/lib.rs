@@ -1,4 +1,4 @@
-//! Shared schemas and filesystem helpers for the `videocut` pipeline.
+//! Shared schemas and filesystem helpers for the `nf` pipeline.
 
 pub mod cut_report;
 pub mod fs;

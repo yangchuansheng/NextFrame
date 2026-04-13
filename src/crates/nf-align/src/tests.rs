@@ -1,4 +1,4 @@
-//! Test coverage for `videocut-align`.
+//! Test coverage for `nf-align`.
 
 use anyhow::Result;
 

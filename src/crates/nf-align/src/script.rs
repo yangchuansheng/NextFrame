@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
-use videocut_core::python_bin;
+use nf_cut_core::python_bin;
 
 use crate::AlignOutput;
 

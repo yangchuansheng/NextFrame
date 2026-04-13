@@ -3,7 +3,7 @@
 use std::mem;
 
 use anyhow::{Context, Result, bail};
-use videocut_core::{Sentence, Word, millis_to_seconds, parse_srt, round2};
+use nf_cut_core::{Sentence, Word, millis_to_seconds, parse_srt, round2};
 
 use crate::AlignUnit;
 

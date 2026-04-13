@@ -1,4 +1,4 @@
-//! ffmpeg-based precise clip cutting for `videocut cut`.
+//! ffmpeg-based precise clip cutting for `nf cut`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +6,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
-use videocut_core::{
+use nf_cut_core::{
     ClipFailure, ClipResult, CutReport, Plan, PlanClip, Sentences, clamp_range, probe_duration,
     round2,
 };

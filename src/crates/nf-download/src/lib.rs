@@ -1,4 +1,4 @@
-//! `yt-dlp`-based source download support for `videocut download`.
+//! `yt-dlp`-based source download support for `nf download`.
 
 use std::fs;
 use std::path::PathBuf;
@@ -8,12 +8,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use videocut_core::{probe_duration, remove_existing_path};
+use nf_cut_core::{probe_duration, remove_existing_path};
 
 const SOURCE_FILE_NAME: &str = "source.mp4";
 const META_FILE_NAME: &str = "meta.json";
 
-/// CLI-facing configuration for `videocut download`.
+/// CLI-facing configuration for `nf download`.
 #[derive(Debug, Clone)]
 pub struct DownloadOptions {
     /// Video page URL to pass to `yt-dlp`.
