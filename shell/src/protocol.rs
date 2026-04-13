@@ -1,4 +1,6 @@
 use std::error::Error;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
 
 pub(crate) fn web_root() -> Result<PathBuf, Box<dyn Error>> {
@@ -17,13 +19,68 @@ pub(crate) fn protocol_response(
     root: &Path,
     relative_path: &str,
 ) -> wry::http::Response<std::borrow::Cow<'static, [u8]>> {
+    protocol_response_with_range(root, relative_path, None)
+}
+
+pub(crate) fn protocol_response_with_range(
+    root: &Path,
+    relative_path: &str,
+    range_header: Option<&str>,
+) -> wry::http::Response<std::borrow::Cow<'static, [u8]>> {
     let Some(safe_relative_path) = sanitize_relative_path(relative_path) else {
         return build_protocol_response(400, "text/plain", b"400".to_vec());
     };
 
     let file_path = root.join(safe_relative_path);
+    let mime = mime_for_path(&file_path);
+
+    // Try Range request for media files
+    if let Some(range) = range_header {
+        if let Ok(meta) = std::fs::metadata(&file_path) {
+            let file_size = meta.len();
+            if let Some((start, end)) = parse_range_header(range, file_size) {
+                let chunk_size = end - start + 1;
+                // Cap chunk at 2MB to avoid huge allocations
+                let capped = chunk_size.min(2 * 1024 * 1024);
+
+                if let Ok(mut file) = File::open(&file_path) {
+                    if file.seek(SeekFrom::Start(start)).is_ok() {
+                        let mut buf = vec![0u8; capped as usize];
+                        if let Ok(n) = file.read(&mut buf) {
+                            buf.truncate(n);
+                            let actual_end = start + n as u64 - 1;
+                            return wry::http::Response::builder()
+                                .status(206)
+                                .header("Content-Type", mime)
+                                .header("Accept-Ranges", "bytes")
+                                .header("Content-Length", n.to_string())
+                                .header(
+                                    "Content-Range",
+                                    format!("bytes {}-{}/{}", start, actual_end, file_size),
+                                )
+                                .body(std::borrow::Cow::Owned(buf))
+                                .unwrap_or_else(|_| {
+                                    wry::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                                });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Full file read (non-range or range parse failed)
     match std::fs::read(&file_path) {
-        Ok(content) => build_protocol_response(200, mime_for_path(&file_path), content),
+        Ok(content) => {
+            let len = content.len();
+            wry::http::Response::builder()
+                .status(200)
+                .header("Content-Type", mime)
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Length", len.to_string())
+                .body(std::borrow::Cow::Owned(content))
+                .unwrap_or_else(|_| wry::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
+        }
         Err(error) => {
             let html_request = matches!(
                 file_path
@@ -47,6 +104,31 @@ pub(crate) fn protocol_response(
             }
         }
     }
+}
+
+fn parse_range_header(header: &str, file_size: u64) -> Option<(u64, u64)> {
+    let bytes_prefix = header.strip_prefix("bytes=")?;
+    let mut parts = bytes_prefix.splitn(2, '-');
+    let start_str = parts.next()?.trim();
+    let end_str = parts.next().unwrap_or("").trim();
+
+    let start: u64 = if start_str.is_empty() {
+        0
+    } else {
+        start_str.parse().ok()?
+    };
+
+    let end: u64 = if end_str.is_empty() {
+        file_size.saturating_sub(1)
+    } else {
+        end_str.parse().ok()?
+    };
+
+    if start >= file_size {
+        return None;
+    }
+    let end = end.min(file_size - 1);
+    Some((start, end))
 }
 
 pub(crate) fn shell_init_script() -> &'static str {

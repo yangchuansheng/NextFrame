@@ -9,7 +9,14 @@ function renderPipelineAtoms(data) {
   });
 
   var typeLabels = { component: "组件", video: "视频", image: "图片" };
-  var html = '<div class="pl-toolbar">';
+  var html = '<div class="pl-toolbar pl-toolbar-stats">';
+  html += '<div class="pl-chip"><span class="pl-chip-label">总计</span><span class="pl-chip-val">' + counts.all + " 个原子</span></div>";
+  html += '<div class="pl-chip"><span class="pl-chip-label">组件</span><span class="pl-chip-val">' + counts.component + "</span></div>";
+  html += '<div class="pl-chip"><span class="pl-chip-label">视频</span><span class="pl-chip-val">' + counts.video + "</span></div>";
+  html += '<div class="pl-chip"><span class="pl-chip-label">图片</span><span class="pl-chip-val">' + counts.image + "</span></div>";
+  html += "</div>";
+
+  html += '<div class="pl-toolbar">';
   html += '<span class="pl-seg-pill active" data-filter-type="all">全部 ' + counts.all + "</span>";
   html += '<span class="pl-seg-pill" data-filter-type="component">' + typeLabels.component + " " + counts.component + "</span>";
   html += '<span class="pl-seg-pill" data-filter-type="video">' + typeLabels.video + " " + counts.video + "</span>";

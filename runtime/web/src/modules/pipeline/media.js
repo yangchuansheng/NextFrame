@@ -169,45 +169,71 @@ function playPipelineVideo(filePath) {
   if (!filePath) {
     return;
   }
+  removePipelineInlineVideo();
   var url = buildPipelineMediaUrl(filePath);
   var name = filePath.split("/").pop() || "clip.mp4";
   openPlayer(name, url, filePath);
 }
 
 var _inlineVideo = null;
-function playPipelineVideoInline(btn) {
-  // Stop any existing inline video
-  if (_inlineVideo) {
-    _inlineVideo.pause();
-    _inlineVideo.parentElement.removeChild(_inlineVideo);
-    _inlineVideo = null;
-  }
+var _inlineVideoBtn = null;
 
+function removePipelineInlineVideo() {
+  if (!_inlineVideo) {
+    _inlineVideoBtn = null;
+    return;
+  }
+  _inlineVideo.pause();
+  _inlineVideo.removeAttribute("src");
+  if (_inlineVideo.parentElement) {
+    _inlineVideo.parentElement.removeChild(_inlineVideo);
+  }
+  _inlineVideo = null;
+  _inlineVideoBtn = null;
+}
+
+function playPipelineVideoInline(btn) {
+  if (!btn) return;
   var filePath = btn.dataset.videoPath;
   if (!filePath) return;
   var url = buildPipelineMediaUrl(filePath);
+  if (!url) return;
+
+  if (_inlineVideo && _inlineVideoBtn === btn) {
+    removePipelineInlineVideo();
+    return;
+  }
+
+  removePipelineInlineVideo();
 
   // Find the thumbnail container (parent of the button)
-  var container = btn.closest(".clips-src-thumb") || btn.closest(".cd-preview-area") || btn.parentElement;
+  var container = btn.closest(".clips-src-thumb") || btn.closest(".clips-row-thumb-mini") || btn.closest(".cd-preview") || btn.parentElement;
   if (!container) return;
 
-  // Create video element inside the thumbnail
   var video = document.createElement("video");
+  video.className = "pipeline-inline-video";
   video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:2;border-radius:inherit";
+  video.preload = "metadata";
   video.playsInline = true;
+  video.setAttribute("playsinline", "playsinline");
   video.controls = true;
   video.autoplay = true;
   container.style.position = "relative";
   container.appendChild(video);
   _inlineVideo = video;
+  _inlineVideoBtn = btn;
 
   video.src = url;
   video.play().catch(function(e) {
     console.error("[pipeline] inline video play failed:", e.message);
+    removePipelineInlineVideo();
   });
 
+  video.onerror = function() {
+    console.error("[pipeline] inline video error:", video.error);
+    removePipelineInlineVideo();
+  };
   video.onended = function() {
-    if (video.parentElement) video.parentElement.removeChild(video);
-    _inlineVideo = null;
+    removePipelineInlineVideo();
   };
 }

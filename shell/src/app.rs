@@ -13,7 +13,7 @@ use crate::app_control::{
     new_pending_appctl, poll_app_control_server, prune_expired_appctl_requests,
 };
 use crate::ipc::{handle_appctl_ipc_result, invalid_request_response, parse_request};
-use crate::protocol::{projects_root, protocol_response, shell_init_script, web_root};
+use crate::protocol::{projects_root, protocol_response, protocol_response_with_range, shell_init_script, web_root};
 
 enum UserEvent {
     IpcResponse(String),
@@ -64,7 +64,16 @@ pub(crate) fn run() -> Result<(), Box<dyn Error>> {
                 .or_else(|| uri.strip_prefix("nfdata://localhost"))
                 .unwrap_or("");
             let relative_path = relative_path.split('?').next().unwrap_or(relative_path);
-            protocol_response(&projects_root_for_protocol, relative_path)
+            let range_header = request
+                .headers()
+                .get("Range")
+                .and_then(|v| v.to_str().ok())
+                .map(String::from);
+            protocol_response_with_range(
+                &projects_root_for_protocol,
+                relative_path,
+                range_header.as_deref(),
+            )
         })
         .with_document_title_changed_handler(move |title| {
             let next_title = if title.trim().is_empty() {
