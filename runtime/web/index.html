@@ -316,9 +316,9 @@ window.__ipc = window.__ipc || {};
     </div>
   </div>
 
-  <!-- Video Player Modal -->
-  <div class="player-overlay" id="player-overlay" onclick="closePlayer()"></div>
-  <div class="player-modal" id="player-modal">
+  <!-- Video Player Modal moved to global scope (outside view-editor) via JS on load -->
+  <div class="player-overlay" id="player-overlay" onclick="closePlayer()" style="position:fixed;z-index:10000"></div>
+  <div class="player-modal" id="player-modal" style="position:fixed;z-index:10001">
     <div class="player-header">
       <span class="player-title" id="player-title">content.mp4</span>
       <button class="player-close" onclick="closePlayer()">&times;</button>
