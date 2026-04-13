@@ -314,10 +314,8 @@ window.__ipc = window.__ipc || {};
       <div class="preview-canvas-wrap">
         <div class="canvas-frame">
           <div class="canvas-inner" id="canvas-inner">
-            <!-- Stage: DOM + Canvas 混合渲染舞台 -->
-            <div id="render-stage" style="position:absolute;inset:0;overflow:hidden">
-              <!-- 每个 track 的 DOM/Canvas 层会动态插入这里 -->
-            </div>
+            <!-- Preview iframe: loads generated HTML directly -->
+            <iframe id="preview-iframe" style="position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:#0a0a14"></iframe>
             <!-- Placeholder when no timeline loaded -->
             <div id="preview-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
               <div class="canvas-text">

@@ -358,7 +358,6 @@ var SCENE_ALIASES = {
   htmlSlide: "headline",
   svgOverlay: "headline",
   markdownSlide: "headline",
-  videoClip: "headline",
   cornerBadge: "lowerThird",
   orbitRings: "circleRipple",
   lowerThirdVelvet: "lowerThird",
@@ -1063,49 +1062,67 @@ function initDOMPreview(timeline) {
     destroyDOMPreview();
     return false;
   }
-  if (!window.__engineV2?.ready) {
-    setPreviewPlaceholder("PREVIEW", "Loading DOM preview engine...");
-    return false;
-  }
-  const stageRoot = document.getElementById("render-stage");
-  if (!stageRoot) {
-    return false;
-  }
-  const nextTimeline = buildPreviewTimeline(timeline);
-  if (!nextTimeline.layers.length) {
-    setPreviewPlaceholder("TIMELINE", "No previewable layers in timeline");
-    return false;
-  }
 
-  destroyDOMPreview();
-  stageRoot.style.display = "block";
-  stageRoot.style.overflow = "hidden";
-  stageRoot.style.pointerEvents = "auto";
+  var segPath = getCurrentSegmentPath();
+  if (!segPath) return false;
 
-  previewStageHost = document.createElement("div");
-  previewStageHost.id = "preview-stage-host";
-  previewStageHost.style.cssText = "position:absolute;left:50%;top:50%;transform-origin:0 0;pointer-events:auto";
-  stageRoot.appendChild(previewStageHost);
+  // Generate HTML via bridge, then load in iframe
+  var htmlPath = segPath.replace(/\.json$/, ".html");
+  setPreviewPlaceholder("PREVIEW", "Generating preview...");
 
-  previewTimeline = nextTimeline;
-  previewEngine = window.__engineV2.createEngine(
-    previewStageHost,
-    previewTimeline,
-    window.__engineV2.SCENE_REGISTRY
-  );
-  ensurePreviewInteractivity();
-  fitStageToContainer();
+  bridgeCall("compose.generate", { timelinePath: segPath, outputPath: htmlPath }).then(function(result) {
+    if (!result || !result.path) {
+      setPreviewPlaceholder("PREVIEW", "Failed to generate preview HTML");
+      return;
+    }
 
-  const placeholder = document.getElementById("preview-placeholder");
-  if (placeholder) {
-    placeholder.style.display = "none";
-  }
-  // Render initial frame — use a small t so enter animations have started
-  if (previewEngine && previewEngine.renderFrame) {
-    previewEngine.renderFrame(Math.max(0.5, currentTime || 0));
-    window.__previewEngine = previewEngine; // expose for CLI control
-  }
+    var iframe = document.getElementById("preview-iframe");
+    var placeholder = document.getElementById("preview-placeholder");
+    if (!iframe) return;
+
+    // Load via nfdata protocol
+    var relativePath = htmlPath.replace(/.*\/NextFrame\/projects\//, "");
+    iframe.src = "nfdata://localhost/" + relativePath + "?t=" + Date.now();
+    iframe.style.display = "block";
+    if (placeholder) placeholder.style.display = "none";
+
+    // Listen for click events from iframe (for element selection)
+    iframe.onload = function() {
+      try {
+        // Inject selection handler into iframe
+        iframe.contentWindow.postMessage({type: "nf-init-selection"}, "*");
+
+        // Add click listener to iframe content for element selection
+        iframe.contentDocument.addEventListener("click", function(e) {
+          var target = e.target.closest(".nf-layer > *") || e.target.closest(".nf-layer");
+          if (target) {
+            var layerId = target.dataset?.layerId || target.closest(".nf-layer")?.dataset?.layerId || "";
+            var scene = target.dataset?.scene || "";
+            updateInspectorFromIframe(layerId, scene, target);
+          }
+        });
+      } catch(err) {
+        console.log("[preview] iframe cross-origin, selection disabled");
+      }
+    };
+  }).catch(function(err) {
+    setPreviewPlaceholder("PREVIEW", "Preview error: " + (err.message || err));
+  });
   return true;
+}
+
+function updateInspectorFromIframe(layerId, scene, element) {
+  setText("insp-scene-name", scene || layerId || "Element");
+  setText("insp-clip-id", layerId || "--");
+  var paramsEl = document.getElementById("insp-params");
+  if (paramsEl) {
+    paramsEl.textContent = JSON.stringify({
+      tag: element.tagName,
+      text: (element.textContent || "").substring(0, 60),
+      width: element.offsetWidth,
+      height: element.offsetHeight,
+    }, null, 2);
+  }
 }
 
 function updateInspectorContext() {
@@ -1159,9 +1176,15 @@ function setPlayheadTime(time) {
     fill.style.width = (TOTAL_DURATION > 0 ? (currentTime / TOTAL_DURATION) * 100 : 0) + "%";
   }
 
-  // Update DOM preview engine
-  if (previewEngine && previewEngine.renderFrame) {
-    previewEngine.renderFrame(currentTime);
+  // Sync playhead with iframe preview
+  var iframe = document.getElementById("preview-iframe");
+  if (iframe && iframe.contentWindow) {
+    try {
+      var engine = iframe.contentWindow.__nfEngine;
+      if (engine && engine.renderFrame) {
+        engine.renderFrame(currentTime);
+      }
+    } catch(e) { /* cross-origin */ }
   }
 }
 

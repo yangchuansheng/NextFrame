@@ -273,6 +273,7 @@ const TIMELINE = ${JSON.stringify(timeline, null, 2)};
 const stage = document.getElementById('stage');
 const engine = createEngine(stage, TIMELINE, SCENE_REGISTRY);
 const player = createPlayer(engine, stage);
+window.__nfEngine = engine; // expose for parent frame control
 </script>
 </body>
 </html>
