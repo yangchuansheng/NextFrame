@@ -290,11 +290,7 @@ pub fn record_segment(
         None => (0, total_frames),
     };
     let no_timing_data = plan.metadata.total_cues == 0 && plan.metadata.subtitles.is_empty();
-    let batch_size = if cli.no_skip || no_timing_data {
-        1usize
-    } else {
-        5usize
-    };
+    let batch_size = if cli.no_skip || no_timing_data { 1usize } else { 5usize };
     let mut frame_index = range_start;
     while frame_index < range_end {
         let batch_end = (frame_index + batch_size).min(range_end);

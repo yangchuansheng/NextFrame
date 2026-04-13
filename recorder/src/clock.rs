@@ -103,8 +103,9 @@ impl SegmentClock {
                 .max(frame_index.saturating_add(self.transition_frames));
         }
 
-        // When there are no cues and no subtitles (v0.3 animated HTML), every
-        // frame is potentially different — always capture.
+        // For animated HTML without cues/subtitles, every frame must be captured
+        // because we can't predict visual changes from timing data alone.
+        // Smart-skip hash in record.rs provides a second-pass optimization.
         let no_timing_data = self.total_cues == 0 && self.subtitles.is_empty();
         let needs_capture = if self.no_skip || no_timing_data {
             true
