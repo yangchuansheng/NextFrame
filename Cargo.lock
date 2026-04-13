@@ -1697,17 +1697,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "nf-align"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nf-cut-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nf-cut"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nf-cut-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "nf-cut-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nf-download"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nf-cut-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nf-source"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "nf-align",
+ "nf-cut",
+ "nf-cut-core",
+ "nf-download",
+ "nf-transcribe",
  "serde_json",
- "videocut-align",
- "videocut-core",
- "videocut-cut",
- "videocut-download",
- "videocut-transcribe",
+]
+
+[[package]]
+name = "nf-transcribe"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nf-cut-core",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -3197,62 +3253,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "videocut-align"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "videocut-core",
-]
-
-[[package]]
-name = "videocut-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "videocut-cut"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "videocut-core",
-]
-
-[[package]]
-name = "videocut-download"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "videocut-core",
-]
-
-[[package]]
-name = "videocut-transcribe"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "rayon",
- "serde",
- "serde_json",
- "tempfile",
- "videocut-core",
-]
 
 [[package]]
 name = "walkdir"
