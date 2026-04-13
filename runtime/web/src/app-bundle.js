@@ -105,6 +105,7 @@ let currentTimeline = null;
 let currentSelectedClipId = null;
 let previewEngine = null;
 let previewStageHost = null;
+let previewStageEl = null;
 let previewTimeline = null;
 
 let projectsCache = [];
@@ -1004,10 +1005,12 @@ function destroyDOMPreview() {
   }
   previewEngine = null;
   previewTimeline = null;
+  previewStageEl = null;
   if (previewStageHost) {
     previewStageHost.remove();
     previewStageHost = null;
   }
+  window.__previewEngine = null;
   const stageRoot = document.getElementById("render-stage");
   if (stageRoot) {
     stageRoot.innerHTML = "";
@@ -1044,17 +1047,18 @@ function fitStageToContainer() {
   if (!(bounds.width > 0) || !(bounds.height > 0)) {
     return;
   }
-  const scale = Math.min(
+  var scale = Math.min(
     bounds.width / previewTimeline.width,
     bounds.height / previewTimeline.height
   );
+  if (!Number.isFinite(scale) || scale <= 0) scale = 1;
   previewStageHost.style.width = previewTimeline.width + "px";
   previewStageHost.style.height = previewTimeline.height + "px";
   previewStageHost.style.left = "50%";
   previewStageHost.style.top = "50%";
   previewStageHost.style.transformOrigin = "0 0";
   previewStageHost.style.transform =
-    "translate(-50%, -50%) scale(" + Math.max(scale, 0.001) + ")";
+    "scale(" + Math.max(scale, 0.001) + ") translate(-50%, -50%)";
 }
 
 function initDOMPreview(timeline) {
@@ -1084,17 +1088,22 @@ function initDOMPreview(timeline) {
   // Create stage host for direct rendering
   previewStageHost = document.createElement("div");
   previewStageHost.id = "preview-stage-host";
-  previewStageHost.style.cssText = "position:absolute;transform-origin:0 0;";
+  previewStageHost.style.cssText = "position:absolute;left:50%;top:50%;transform-origin:0 0;";
+  previewStageEl = document.createElement("div");
+  previewStageEl.style.cssText = "position:absolute;left:0;top:0;transform-origin:0 0;";
+  previewStageHost.appendChild(previewStageEl);
   canvasInner.appendChild(previewStageHost);
 
   previewTimeline = {
-    width: timeline.width || 1920,
-    height: timeline.height || 1080,
+    width: (timeline.project && timeline.project.width) || timeline.width || 1920,
+    height: (timeline.project && timeline.project.height) || timeline.height || 1080,
   };
 
   // Direct render: create engine in main document
   try {
-    previewEngine = ev2.createEngine(previewStageHost, timeline, ev2.SCENE_REGISTRY);
+    previewEngine = ev2.createEngine(previewStageEl, timeline, ev2.SCENE_REGISTRY);
+    // Expose engine for AI/appctl control
+    window.__previewEngine = previewEngine;
     previewEngine.renderFrame(0);
     fitStageToContainer();
     console.log("[preview] direct render ready, " + (timeline.layers ? timeline.layers.length : 0) + " layers");
