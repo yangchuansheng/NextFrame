@@ -100,6 +100,29 @@ function bindPipelineEvents(container) {
       });
     });
   });
+  // Clips source sidebar click
+  container.querySelectorAll("[data-clips-idx]").forEach(function(item) {
+    item.addEventListener("click", function() {
+      container.querySelectorAll("[data-clips-idx]").forEach(function(s) {
+        s.classList.remove("active");
+        s.style.borderColor = "transparent";
+        s.style.background = "";
+      });
+      item.classList.add("active");
+      item.style.borderColor = "rgba(124,106,239,0.25)";
+      item.style.background = "rgba(124,106,239,0.03)";
+      var idx = parseInt(item.dataset.clipsIdx);
+      var videos = (pipelineData.atoms || []).filter(function(a) { return a.type === "video"; });
+      var detail = document.getElementById("clips-detail");
+      if (detail && videos[idx]) {
+        detail.innerHTML = renderClipDetail(videos[idx], idx);
+        // Re-bind video play buttons in detail
+        detail.querySelectorAll("[data-video-path]").forEach(function(btn) {
+          btn.addEventListener("click", function(e) { e.stopPropagation(); playPipelineVideo(btn.dataset.videoPath); });
+        });
+      }
+    });
+  });
 }
 
 
@@ -520,82 +543,67 @@ function renderPipelineKaraokeSentence(sentence) {
 }
 
 function renderPipelineClips(data) {
-  var atoms = (data.atoms || []).filter(function (a) { return a.type === 'video'; });
+  var videos = (data.atoms || []).filter(function(a) { return a.type === 'video'; });
+  if (videos.length === 0) return '<div class="pipeline-empty">暂无素材 — nextframe atom-add --type=video</div>';
 
-  var header =
-    '<div class="clip-list-header" style="padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.06);' +
-    'font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(228,228,232,0.5)">' +
-    'VIDEO CLIPS &middot; ' + atoms.length +
+  // Left sidebar: source list
+  var sideItems = videos.map(function(v, i) {
+    var dur = typeof v.duration === 'number' ? v.duration.toFixed(1) + 's' : '';
+    var vPath = v.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + v.file) : null;
+    return '<div class="clips-src-item' + (i === 0 ? ' active' : '') + '" data-clips-idx="' + i + '" style="cursor:pointer;border:1px solid transparent;margin-bottom:4px;border-radius:6px;overflow:hidden">' +
+      '<div style="aspect-ratio:16/9;background:#0a0a0c;display:flex;align-items:center;justify-content:center">' +
+        (vPath ? '<button class="pl-play-btn" style="width:28px;height:28px;font-size:11px" data-video-path="' + escHtml(vPath) + '">&#9654;</button>' : '') +
+      '</div>' +
+      '<div style="padding:8px 10px">' +
+        '<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(v.name) + '</div>' +
+        '<div style="font-family:\'SF Mono\',Menlo,monospace;font-size:11px;color:rgba(228,228,232,0.5)">' + dur + '</div>' +
+      '</div>' +
     '</div>';
+  }).join('');
 
-  var rows = '';
-  atoms.forEach(function (a) {
-    var dur = (typeof a.duration === 'number') ? a.duration.toFixed(1) : '0.0';
+  // Right detail: first video by default
+  var detailHtml = renderClipDetail(videos[0], 0);
 
-    // --- status tags ---
-    var tags = '';
+  return '<div style="display:flex;height:100%">' +
+    '<div style="width:240px;flex-shrink:0;border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;background:#111114">' +
+      '<div style="padding:12px 14px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:rgba(228,228,232,0.25);border-bottom:1px solid rgba(255,255,255,0.06)">SOURCES &middot; ' + videos.length + '</div>' +
+      '<div style="padding:6px">' + sideItems + '</div>' +
+    '</div>' +
+    '<div id="clips-detail" style="flex:1;overflow-y:auto">' + detailHtml + '</div>' +
+  '</div>';
+}
 
-    // subtitle tag
-    if (a.subtitles && a.subtitles.length > 0) {
-      tags += '<span class="pl-tag-generated" style="font-size:11px;padding:2px 10px;border-radius:3px;' +
-        'font-weight:500;background:rgba(224,160,64,0.12);color:#e0a040">' +
-        escHtml('字幕✓') + '</span>';
-    } else {
-      tags += '<span class="pl-tag-pending" style="font-size:11px;padding:2px 10px;border-radius:3px;' +
-        'font-weight:500;background:rgba(228,228,232,0.05);color:rgba(228,228,232,0.25)">' +
-        escHtml('无字幕') + '</span>';
-    }
+function renderClipDetail(v, idx) {
+  if (!v) return '<div style="padding:40px;text-align:center;color:rgba(228,228,232,0.25)">选择一个素材查看详情</div>';
+  var dur = typeof v.duration === 'number' ? v.duration.toFixed(1) + 's' : '';
+  var vPath = v.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + v.file) : '';
+  var fullPath = v.file ? (currentProject + "/" + currentEpisode + "/" + v.file) : '';
 
-    // timeline tag
-    if (a.hasTl) {
-      tags += '<span class="pl-tag-generated" style="font-size:11px;padding:2px 10px;border-radius:3px;' +
-        'font-weight:500;background:rgba(124,106,239,0.06);color:#7c6aef">' +
-        escHtml('时间轴✓') + '</span>';
-    } else {
-      tags += '<span class="pl-tag-pending" style="font-size:11px;padding:2px 10px;border-radius:3px;' +
-        'font-weight:500;background:rgba(228,228,232,0.05);color:rgba(228,228,232,0.25)">' +
-        escHtml('无时间轴') + '</span>';
-    }
+  // Spec tags
+  var specs = '';
+  specs += '<span class="pl-spec-dur">' + dur + '</span> ';
+  if (v.segment) specs += '<span style="font-size:11px;padding:3px 10px;border-radius:4px;background:rgba(124,106,239,0.15);color:#7c6aef;font-family:\'SF Mono\',Menlo,monospace">段 ' + v.segment + '</span> ';
 
-    // segment tag
-    if (a.segment != null) {
-      tags += '<span class="pl-tag-generated" style="font-size:11px;padding:2px 10px;border-radius:3px;' +
-        'font-weight:500;font-family:\'SF Mono\',Menlo,monospace;background:rgba(124,106,239,0.15);color:#7c6aef">' +
-        escHtml('段' + a.segment) + '</span>';
-    }
+  // Status tags
+  var status = '';
+  status += (v.subtitles && v.subtitles.length) ? '<span class="pl-tag-generated" style="background:rgba(224,160,64,0.12);color:#e0a040">字幕 ✓</span> ' : '<span class="pl-tag-pending">无字幕</span> ';
+  status += v.hasTl ? '<span class="pl-tag-generated" style="background:rgba(124,106,239,0.1);color:#7c6aef">时间轴 ✓</span> ' : '<span class="pl-tag-pending">无时间轴</span> ';
 
-    // --- thumbnail with play button ---
-    var videoPath = a.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + a.file) : null;
-    var playBtn = videoPath ? '<button class="pl-play-btn" style="width:24px;height:24px;font-size:9px" data-video-path="' + escHtml(videoPath) + '">&#9654;</button>' : '<span style="font-size:11px;color:rgba(228,228,232,0.25)">16:9</span>';
-    var thumb =
-      '<div style="width:100px;height:56px;background:#111114;border-radius:4px;flex-shrink:0;' +
-      'display:flex;align-items:center;justify-content:center">' +
-      playBtn + '</div>';
-
-    // --- row ---
-    rows +=
-      '<div class="clip-row" style="display:flex;align-items:center;gap:12px;padding:7px 10px;' +
-      'border-radius:6px;border:1px solid transparent">' +
-        thumb +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
-          '<span style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-            escHtml(a.name) +
-          '</span>' +
-          '<span style="font-family:\'SF Mono\',Menlo,monospace;font-size:11px;color:rgba(228,228,232,0.5);' +
-          'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-            escHtml(a.file || '') +
-          '</span>' +
-        '</div>' +
-        '<span style="font-family:\'SF Mono\',Menlo,monospace;font-size:11px;color:#7c6aef;white-space:nowrap;flex-shrink:0">' +
-          escHtml(dur + 's') +
-        '</span>' +
-        '<div style="display:flex;gap:4px;flex-shrink:0;align-items:center">' +
-          tags +
-        '</div>' +
-      '</div>';
-  });
-
-  return header + '<div class="clip-list" style="padding:6px 20px">' + rows + '</div>';
+  return '<div style="padding:20px">' +
+    '<div style="font-size:16px;font-weight:500;margin-bottom:4px">' + escHtml(v.name) + '</div>' +
+    '<div style="font-family:\'SF Mono\',Menlo,monospace;font-size:12px;color:rgba(228,228,232,0.5);margin-bottom:12px;user-select:all">' + escHtml(vPath) + '</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">' + specs + status + '</div>' +
+    // Preview area
+    '<div style="aspect-ratio:16/9;max-width:640px;background:#050508;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;position:relative">' +
+      (vPath ? '<button class="pl-play-btn" style="width:48px;height:48px;font-size:18px" data-video-path="' + escHtml(vPath) + '">&#9654;</button>' : '') +
+    '</div>' +
+    // File info
+    '<div style="display:flex;gap:20px;flex-wrap:wrap">' +
+      '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(228,228,232,0.25);margin-bottom:2px">FILE</div><div style="font-family:\'SF Mono\',Menlo,monospace;font-size:12px;color:rgba(228,228,232,0.75)">' + escHtml(v.file || '') + '</div></div>' +
+      '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(228,228,232,0.25);margin-bottom:2px">DURATION</div><div style="font-family:\'SF Mono\',Menlo,monospace;font-size:12px;color:rgba(228,228,232,0.75)">' + dur + '</div></div>' +
+      (v.segment ? '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(228,228,232,0.25);margin-bottom:2px">SEGMENT</div><div style="font-size:12px;color:#7c6aef">段 ' + v.segment + '</div></div>' : '') +
+    '</div>' +
+  '</div>';
 }
 
 function renderPipelineAtoms(data) {
