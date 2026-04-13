@@ -16,6 +16,7 @@ import { readFile, writeFile, stat } from "node:fs/promises";
 import { resolve as resolvePath, dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import { homedir } from "node:os";
 import { renderAt } from "../src/engine/render.js";
 import { resolveTimeline } from "../src/engine/time.js";
 import { validateTimeline } from "../src/engine/validate.js";
@@ -275,6 +276,44 @@ const server = createServer(async (req, res) => {
       const job = aiJobs[jobId];
       if (!job) return err(res, 404, "unknown job");
       return ok(res, job);
+    }
+
+    // ─── Pipeline display page ───────────────────────────────────────────
+    if (method === "GET" && (path === "/pipeline" || path.startsWith("/pipeline/"))) {
+      return serveFile(res, join(HERE, "pipeline.html"), "html");
+    }
+
+    // ─── Pipeline API (read-only) ─────────────────────────────────────────
+    if (method === "GET" && path === "/api/pipeline") {
+      const project = q.project;
+      const episode = q.episode;
+      if (!project || !episode) return err(res, 400, "project and episode required");
+      const projectRoot = resolvePath(
+        process.env.NEXTFRAME_PROJECT_ROOT || join(homedir(), "NextFrame", "projects"),
+        project, episode
+      );
+      try {
+        const text = await readFile(join(projectRoot, "pipeline.json"), "utf8");
+        return ok(res, JSON.parse(text));
+      } catch (e) {
+        // Return empty pipeline if file doesn't exist
+        return ok(res, { version: "0.4", script: { principles: {}, arc: [], segments: [] }, audio: { voice: null, speed: 1.0, segments: [] }, atoms: [], outputs: [] });
+      }
+    }
+
+    if (method === "GET" && path === "/api/project-config") {
+      const project = q.project;
+      if (!project) return err(res, 400, "project required");
+      const projectFile = resolvePath(
+        process.env.NEXTFRAME_PROJECT_ROOT || join(homedir(), "NextFrame", "projects"),
+        project, "project.json"
+      );
+      try {
+        const text = await readFile(projectFile, "utf8");
+        return ok(res, JSON.parse(text));
+      } catch (e) {
+        return ok(res, { name: project, shared: {} });
+      }
     }
 
     return err(res, 404, `no route for ${method} ${path}`);
