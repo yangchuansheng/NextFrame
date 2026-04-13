@@ -491,41 +491,41 @@ window.__ipc = window.__ipc || {};
 </div>
 
 
-<script src="src/modules/state.js"></script>
-<script src="src/modules/util.js"></script>
-<script src="src/modules/custom-select.js"></script>
-<script src="src/modules/settings-panel.js"></script>
-<script src="src/modules/breadcrumbs.js"></script>
-<script src="src/modules/exports-panel.js"></script>
-<script src="src/modules/timeline-utils.js"></script>
-<script src="src/modules/preview/index.js"></script>
-<script src="src/modules/preview/dom-preview.js"></script>
-<script src="src/modules/preview/playback.js"></script>
-<script src="src/modules/preview/timeline.js"></script>
-<script src="src/modules/canvas-drag.js"></script>
-<script src="src/modules/fullscreen.js"></script>
-<script src="src/modules/home.js"></script>
-<script src="src/modules/project.js"></script>
-<script src="src/modules/editor.js"></script>
-<script src="src/modules/app-init.js"></script>
-<script src="src/modules/pipeline/index.js"></script>
-<script src="src/modules/pipeline/helpers.js"></script>
-<script src="src/modules/pipeline/script-stage.js"></script>
-<script src="src/modules/pipeline/media.js"></script>
-<script src="src/modules/pipeline/editor-sidebar.js"></script>
-<script src="src/modules/pipeline/audio-stage.js"></script>
-<script src="src/modules/pipeline/clips-stage.js"></script>
-<script src="src/modules/pipeline/atoms-stage.js"></script>
-<script src="src/modules/pipeline/output-stage.js"></script>
-<script src="src/modules/pipeline/navigation.js"></script>
-<script src="src/modules/file-watcher.js"></script>
-<script src="src/modules/export-log.js"></script>
-<script src="src/app-bundle.js"></script>
+<script src="src/editor/state.js"></script>
+<script src="src/ui/util.js"></script>
+<script src="src/ui/custom-select.js"></script>
+<script src="src/ui/settings-panel.js"></script>
+<script src="src/ui/breadcrumbs.js"></script>
+<script src="src/ui/exports-panel.js"></script>
+<script src="src/ui/timeline-utils.js"></script>
+<script src="src/preview/index.js"></script>
+<script src="src/preview/dom-preview.js"></script>
+<script src="src/preview/playback.js"></script>
+<script src="src/preview/timeline.js"></script>
+<script src="src/ui/canvas-drag.js"></script>
+<script src="src/ui/fullscreen.js"></script>
+<script src="src/editor/home.js"></script>
+<script src="src/editor/project.js"></script>
+<script src="src/editor/editor.js"></script>
+<script src="src/editor/app-init.js"></script>
+<script src="src/pipeline/index.js"></script>
+<script src="src/pipeline/helpers.js"></script>
+<script src="src/pipeline/script-stage.js"></script>
+<script src="src/pipeline/media.js"></script>
+<script src="src/pipeline/editor-sidebar.js"></script>
+<script src="src/pipeline/audio-stage.js"></script>
+<script src="src/pipeline/clips-stage.js"></script>
+<script src="src/pipeline/atoms-stage.js"></script>
+<script src="src/pipeline/output-stage.js"></script>
+<script src="src/pipeline/navigation.js"></script>
+<script src="src/ui/file-watcher.js"></script>
+<script src="src/editor/export-log.js"></script>
+<script src="src/core/app-bundle.js"></script>
 
 <!-- DOM preview engine — ES module, loaded after the split app scripts -->
 <script type="module">
-import { createEngine } from "./src/engine-v2.js";
-import { SCENE_REGISTRY } from "./src/scenes-v2/index.js";
+import { createEngine } from "./src/core/engine-v2.js";
+import { SCENE_REGISTRY } from "./src/components/index.js";
 
 window.__engineV2 = {
   createEngine,
