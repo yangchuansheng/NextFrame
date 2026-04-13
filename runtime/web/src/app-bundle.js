@@ -105,7 +105,6 @@ let currentTimeline = null;
 let currentSelectedClipId = null;
 let previewEngine = null;
 let previewStageHost = null;
-let previewStageEl = null;
 let previewTimeline = null;
 
 let projectsCache = [];
@@ -1005,16 +1004,12 @@ function destroyDOMPreview() {
   }
   previewEngine = null;
   previewTimeline = null;
-  previewStageEl = null;
   if (previewStageHost) {
-    previewStageHost.remove();
     previewStageHost = null;
   }
+  var wrapper = document.getElementById("preview-scale-wrapper");
+  if (wrapper) wrapper.remove();
   window.__previewEngine = null;
-  const stageRoot = document.getElementById("render-stage");
-  if (stageRoot) {
-    stageRoot.innerHTML = "";
-  }
 }
 
 function setPreviewPlaceholder(title, subtitle) {
@@ -1039,26 +1034,31 @@ function ensurePreviewInteractivity() {
 }
 
 function fitStageToContainer() {
-  const stageRoot = document.getElementById("canvas-inner");
-  if (!stageRoot || !previewStageHost || !previewTimeline) {
+  var wrapper = document.getElementById("preview-scale-wrapper");
+  var container = document.getElementById("canvas-inner");
+  if (!container || !wrapper || !previewStageHost || !previewTimeline) {
     return;
   }
-  const bounds = stageRoot.getBoundingClientRect();
+  var bounds = container.getBoundingClientRect();
   if (!(bounds.width > 0) || !(bounds.height > 0)) {
     return;
   }
-  var scale = Math.min(
-    bounds.width / previewTimeline.width,
-    bounds.height / previewTimeline.height
-  );
+  var stageW = previewTimeline.width;
+  var stageH = previewTimeline.height;
+  var scale = Math.min(bounds.width / stageW, bounds.height / stageH);
   if (!Number.isFinite(scale) || scale <= 0) scale = 1;
-  previewStageHost.style.width = previewTimeline.width + "px";
-  previewStageHost.style.height = previewTimeline.height + "px";
-  previewStageHost.style.left = "50%";
-  previewStageHost.style.top = "50%";
+  var scaledW = Math.round(stageW * scale);
+  var scaledH = Math.round(stageH * scale);
+  // Wrapper: clips to scaled dimensions, centered in container
+  wrapper.style.width = scaledW + "px";
+  wrapper.style.height = scaledH + "px";
+  wrapper.style.left = Math.round((bounds.width - scaledW) / 2) + "px";
+  wrapper.style.top = Math.round((bounds.height - scaledH) / 2) + "px";
+  // Stage: stays at native 1920x1080, CSS-scaled down inside wrapper
+  previewStageHost.style.width = stageW + "px";
+  previewStageHost.style.height = stageH + "px";
   previewStageHost.style.transformOrigin = "0 0";
-  previewStageHost.style.transform =
-    "scale(" + Math.max(scale, 0.001) + ") translate(-50%, -50%)";
+  previewStageHost.style.transform = "scale(" + scale + ")";
 }
 
 function initDOMPreview(timeline) {
@@ -1085,14 +1085,15 @@ function initDOMPreview(timeline) {
   var iframe = document.getElementById("preview-iframe");
   if (iframe) iframe.style.display = "none";
 
-  // Create stage host for direct rendering
+  // Create wrapper (clips to scaled size) + stage (stays at 1920x1080)
+  var wrapper = document.createElement("div");
+  wrapper.id = "preview-scale-wrapper";
+  wrapper.style.cssText = "position:absolute;overflow:hidden;";
   previewStageHost = document.createElement("div");
   previewStageHost.id = "preview-stage-host";
-  previewStageHost.style.cssText = "position:absolute;left:50%;top:50%;transform-origin:0 0;";
-  previewStageEl = document.createElement("div");
-  previewStageEl.style.cssText = "position:absolute;left:0;top:0;transform-origin:0 0;";
-  previewStageHost.appendChild(previewStageEl);
-  canvasInner.appendChild(previewStageHost);
+  previewStageHost.style.cssText = "position:absolute;left:0;top:0;";
+  wrapper.appendChild(previewStageHost);
+  canvasInner.appendChild(wrapper);
 
   previewTimeline = {
     width: (timeline.project && timeline.project.width) || timeline.width || 1920,
@@ -1101,7 +1102,7 @@ function initDOMPreview(timeline) {
 
   // Direct render: create engine in main document
   try {
-    previewEngine = ev2.createEngine(previewStageEl, timeline, ev2.SCENE_REGISTRY);
+    previewEngine = ev2.createEngine(previewStageHost, timeline, ev2.SCENE_REGISTRY);
     // Expose engine for AI/appctl control
     window.__previewEngine = previewEngine;
     previewEngine.renderFrame(0);
