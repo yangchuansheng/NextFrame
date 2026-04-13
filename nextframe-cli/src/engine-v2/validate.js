@@ -98,8 +98,10 @@ export function validateTimeline(timeline) {
   const isVertical = timeline.height > timeline.width;
   for (const layer of timeline.layers) {
     // Check fontSize in params
+    // v2 scenes use ratio values (0.0–0.15, relative to short edge) — skip px checks for those.
     const fontSize = layer.params?.fontSize;
-    if (typeof fontSize === 'number') {
+    if (typeof fontSize === 'number' && fontSize >= 1) {
+      // Legacy px-based fontSize
       const minFont = isVertical ? 24 : 18;
       const maxTitle = Math.floor(timeline.width / 20);
       if (fontSize < minFont) {
@@ -112,6 +114,15 @@ export function validateTimeline(timeline) {
         warnings.push({
           code: 'FONT_TOO_LARGE',
           message: `layer "${layer.id}" fontSize ${fontSize}px exceeds max ${maxTitle}px for ${timeline.width}px width — text will be clipped`,
+        });
+      }
+    } else if (typeof fontSize === 'number' && fontSize > 0 && fontSize < 1) {
+      // Ratio-based fontSize (v2 scenes) — validate ratio range
+      const maxRatio = 0.15;
+      if (fontSize > maxRatio) {
+        warnings.push({
+          code: 'FONT_TOO_LARGE',
+          message: `layer "${layer.id}" fontSize ratio ${fontSize} exceeds max ratio ${maxRatio} — text may overflow`,
         });
       }
     }
