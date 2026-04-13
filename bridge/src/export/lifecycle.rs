@@ -158,6 +158,7 @@ pub(crate) fn handle_export_start(params: &Value) -> Result<Value, String> {
     }))
 }
 
+#[allow(clippy::expect_used)]
 pub(crate) fn handle_export_status(params: &Value) -> Result<Value, String> {
     let pid = require_u32(params, "pid")?;
     let mut registry = lock_process_registry()?;

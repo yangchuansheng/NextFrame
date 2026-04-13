@@ -1,8 +1,8 @@
-mod episode;
-mod project;
-mod scene;
-mod segment;
-mod timeline;
+pub mod episode;
+pub mod project;
+pub mod scene;
+pub mod segment;
+pub mod timeline;
 
 pub(crate) use episode::{handle_episode_create, handle_episode_list};
 pub(crate) use project::{handle_project_create, handle_project_list};

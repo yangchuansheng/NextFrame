@@ -1,6 +1,6 @@
-mod autosave;
-pub(crate) mod fs;
-mod recent;
+pub mod autosave;
+pub mod fs;
+pub mod recent;
 
 pub(crate) use autosave::{
     handle_autosave_clear, handle_autosave_list, handle_autosave_recover, handle_autosave_write,

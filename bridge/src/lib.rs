@@ -3,22 +3,21 @@
 #[macro_use]
 mod util;
 
+mod codec;
 mod domain;
-mod encoding;
 mod export;
-mod ffmpeg;
 mod storage;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use codec::{ffmpeg_command_path, handle_export_mux_audio};
 use domain::{
     handle_episode_create, handle_episode_list, handle_project_create, handle_project_list,
     handle_scene_list, handle_segment_list, handle_segment_video_url, handle_timeline_load,
     handle_timeline_save,
 };
 use export::{handle_export_cancel, handle_export_start, handle_export_status, process_registry};
-use ffmpeg::{ffmpeg_command_path, handle_export_mux_audio};
 use storage::{
     handle_autosave_clear, handle_autosave_list, handle_autosave_recover, handle_autosave_write,
     handle_fs_list_dir, handle_fs_mtime, handle_fs_read, handle_fs_write, handle_fs_write_base64,
@@ -113,17 +112,19 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
 // Test-visible re-exports: tests use `super::*` so we pull in everything they need
 // ---------------------------------------------------------------------------
 #[cfg(test)]
+use codec::encoding;
+#[cfg(test)]
+use codec::{
+    build_ffmpeg_command, build_ffmpeg_filter_complex, mock_ffmpeg_state, parse_audio_sources,
+    reset_ffmpeg_path_cache_for_tests, secs_to_millis, AudioSource, CommandOutput,
+    FfmpegCommand, MockFfmpegState, MOCK_FFMPEG_TEST_LOCK,
+};
+#[cfg(test)]
 use export::{
     build_export_request, export_runtime, export_status_json, next_export_pid, percent_complete,
     remaining_secs, build_recording_url, cleanup_intermediate_video, copy_video_output,
     create_export_log_path, decode_file_url_path, resolve_recorder_frame_path_from_url,
     ExportTask, ProcessHandle, ProcessTerminal, RecorderRequest,
-};
-#[cfg(test)]
-use ffmpeg::{
-    build_ffmpeg_command, build_ffmpeg_filter_complex, mock_ffmpeg_state, parse_audio_sources,
-    reset_ffmpeg_path_cache_for_tests, secs_to_millis, AudioSource, CommandOutput,
-    FfmpegCommand, MockFfmpegState, MOCK_FFMPEG_TEST_LOCK,
 };
 #[cfg(test)]
 use path::home_dir;

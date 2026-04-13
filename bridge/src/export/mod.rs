@@ -1,6 +1,6 @@
-mod lifecycle;
-pub(crate) mod recorder_bridge;
-pub(crate) mod runner;
+pub mod lifecycle;
+pub mod recorder_bridge;
+pub mod runner;
 
 pub(crate) use lifecycle::{
     handle_export_cancel, handle_export_start, handle_export_status, process_registry,
