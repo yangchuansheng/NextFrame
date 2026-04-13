@@ -109,17 +109,24 @@ function openPlayer(name, url, detail) {
   document.getElementById("exports-overlay").classList.remove("show");
   document.getElementById("exports-panel").classList.remove("show");
   document.getElementById("player-title").textContent = name;
-  document.getElementById("player-detail").textContent = detail;
-  video.pause();
-  video.src = url;
-  video.load();
-  playerDur = 26;
-  document.getElementById("player-tc").textContent = "00:00 / " + formatTC(playerDur);
+  document.getElementById("player-detail").textContent = detail || "";
+  playerDur = 0;
+  document.getElementById("player-tc").textContent = "Loading...";
   document.getElementById("player-progress-fill").style.width = "0%";
   document.getElementById("player-big-play").classList.remove("playing");
   playerPlaying = false;
+
+  // Show modal FIRST (instant), load video AFTER (async)
   document.getElementById("player-overlay").classList.add("show");
   document.getElementById("player-modal").classList.add("show");
+
+  // Defer video loading to next frame so modal renders immediately
+  video.pause();
+  video.removeAttribute("src");
+  requestAnimationFrame(function() {
+    video.src = url;
+    video.load();
+  });
 
   video.onloadedmetadata = function() {
     playerDur = finiteNumber(video.duration, playerDur);
