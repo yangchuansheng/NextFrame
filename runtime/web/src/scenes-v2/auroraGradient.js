@@ -22,9 +22,9 @@ export default {
   },
 
   create(container, params) {
-    const { width: fallbackW, height: fallbackH } = getStageSize(container);
-    const W = Math.max(container.clientWidth || fallbackW, 1);
-    const H = Math.max(container.clientHeight || fallbackH, 1);
+    const stage = getStageSize(container);
+    const W = Math.max(container.clientWidth || stage.width, 1);
+    const H = Math.max(container.clientHeight || stage.height, 1);
 
     const canvas = document.createElement("canvas");
     canvas.width = W;
@@ -52,7 +52,7 @@ export default {
 
   update(els, localT, _params) {
     const { ctx, W, H, blobs, speed, intensity } = els;
-    const S = Math.min(W, H);
+    const S = Math.min(stage.width || W, stage.height || H); // stage-based for stable font size
     const t = localT * speed;
     const fadeIn = smoothstep(0, 0.6, localT);
 

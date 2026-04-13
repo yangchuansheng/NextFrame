@@ -32,10 +32,10 @@ export default {
   },
 
   create(container, params) {
-    const { width: fallbackW, height: fallbackH } = getStageSize(container);
-    const W = Math.max(container.clientWidth || fallbackW, 1);
-    const H = Math.max(container.clientHeight || fallbackH, 1);
-    const S = Math.min(W, H);
+    const stage = getStageSize(container);
+    const W = Math.max(container.clientWidth || stage.width, 1);
+    const H = Math.max(container.clientHeight || stage.height, 1);
+    const S = Math.min(stage.width, stage.height); // font size based on STAGE, not container
 
     const data    = normalizeArray(params.data,   this.params.data.default);
     const labels  = normalizeArray(params.labels, this.params.labels.default);
