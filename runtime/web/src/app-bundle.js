@@ -239,12 +239,9 @@ function markSelectableElements() {
   Array.prototype.forEach.call(state.previewStage.querySelectorAll(".nf-layer"), function(layerEl) {
     var sceneRoot = layerEl.firstElementChild;
     var candidates = [];
-    if (sceneRoot && sceneRoot.children.length) {
-      sceneRoot.style.pointerEvents = "none";
-      candidates = sceneRoot.querySelectorAll("*");
-    } else if (sceneRoot) {
+    if (sceneRoot) {
       sceneRoot.style.pointerEvents = "auto";
-      candidates = [sceneRoot];
+      candidates = [sceneRoot].concat(Array.prototype.slice.call(sceneRoot.querySelectorAll("*")));
     }
     Array.prototype.forEach.call(candidates, function(el) {
       el.setAttribute("data-nf-selectable", "true");
