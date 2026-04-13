@@ -1,0 +1,6 @@
+# Build artifacts
+target/
+.cache/
+node_modules/
+*.png
+*.mp4
