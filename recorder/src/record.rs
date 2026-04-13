@@ -15,6 +15,26 @@ use crate::progress::ProgressBar;
 use crate::server::HttpFileServer;
 use crate::webview::{WebViewHost, relative_http_url};
 
+/// Simple percent-decoding for file URLs.
+fn urlencoding_decode(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut chars = input.bytes();
+    while let Some(b) = chars.next() {
+        if b == b'%' {
+            let hi = chars.next().and_then(|c| (c as char).to_digit(16));
+            let lo = chars.next().and_then(|c| (c as char).to_digit(16));
+            if let (Some(h), Some(l)) = (hi, lo) {
+                result.push((h * 16 + l) as u8 as char);
+            } else {
+                result.push('%');
+            }
+        } else {
+            result.push(b as char);
+        }
+    }
+    result
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CaptureMethod {
     LayerRender,
@@ -77,6 +97,61 @@ pub fn record_segment(
         plan.effective_duration_sec
     };
 
+    // Trigger one __onFrame at t=0 so all scene components get created
+    // (audioTrack sets window.__audioSrc during create, videoClip initializes, etc.)
+    host.inject_state(
+        0, "", 0.0, index, total_segments, segment_titles, segment_durations, 0.0,
+    )?;
+    host.flush_render(Duration::from_millis(200))?;
+
+    // Query page audio source (v0.3 audioTrack component sets window.__audioSrc)
+    let audio_override = if plan.metadata.audio_path.is_none() {
+        let raw_src = host.query_page_audio_src();
+        println!("  segment {}: __audioSrc query = {:?}", index + 1, raw_src);
+        if let Some(src) = raw_src {
+            // Convert URL to local path (file:// or http:// relative)
+            let audio_path = if let Some(stripped) = src.strip_prefix("file://") {
+                let decoded = urlencoding_decode(stripped);
+                let p = std::path::PathBuf::from(decoded);
+                if p.exists() {
+                    println!("  segment {}: page audio: {}", index + 1, p.display());
+                    Some(p)
+                } else {
+                    None
+                }
+            } else if src.starts_with("http") {
+                // HTTP URL from local server — extract relative path
+                let root = plan.metadata.html_path.parent().unwrap_or(std::path::Path::new("."));
+                let filename = src.rsplit('/').next().unwrap_or("");
+                let decoded = urlencoding_decode(filename);
+                let p = root.join(&decoded);
+                if p.exists() {
+                    println!("  segment {}: page audio: {}", index + 1, p.display());
+                    Some(p)
+                } else {
+                    None
+                }
+            } else {
+                // Relative path — resolve against HTML file's directory
+                let root = plan.metadata.html_path.parent().unwrap_or(std::path::Path::new("."));
+                let decoded = urlencoding_decode(&src);
+                let p = root.join(&decoded);
+                if p.exists() {
+                    println!("  segment {}: page audio: {}", index + 1, p.display());
+                    Some(p)
+                } else {
+                    eprintln!("  segment {}: audio src '{}' not found at {}", index + 1, src, p.display());
+                    None
+                }
+            };
+            audio_path
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     // Query #sk-progress slot position for pixel-level progress bar overlay
     let progress_rect = if total_segments > 1 {
         let rect = host.query_progress_rect(cli.dpr);
@@ -99,9 +174,10 @@ pub fn record_segment(
     };
 
     let segment_path = temp_root.join(format!("seg{:03}.mp4", index));
+    let effective_audio = audio_override.as_deref().or(plan.metadata.audio_path.as_deref());
     let mut encoder = SegmentEncoder::spawn(
         &segment_path,
-        plan.metadata.audio_path.as_deref(),
+        effective_audio,
         effective_duration.max(0.1),
         cli.fps,
         cli.crf,

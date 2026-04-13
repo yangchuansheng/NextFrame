@@ -105,6 +105,20 @@ impl WebViewHost {
         result.parse::<f64>().ok().filter(|d| *d > 0.0 && d.is_finite())
     }
 
+    /// Queries the page for an audio source URL set by the audioTrack component.
+    /// Returns the resolved URL if found.
+    pub fn query_page_audio_src(&self) -> Option<String> {
+        let script = r#"
+        (() => {
+          if (typeof window.__audioSrc === 'string' && window.__audioSrc) return window.__audioSrc;
+          var audio = document.querySelector('audio[src]');
+          if (audio && audio.src) return audio.src;
+          return null;
+        })()
+        "#;
+        self.eval_string(script).ok()?.filter(|s| !s.is_empty())
+    }
+
     /// Queries the pixel-space rect of the slide progress slot and hides the DOM bar so the
     /// recorder can paint it directly into the output frames.
     pub fn query_progress_rect(&self, dpr: f64) -> Option<ProgressRect> {
