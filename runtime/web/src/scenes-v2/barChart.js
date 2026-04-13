@@ -44,19 +44,19 @@ export default {
     const svg = createSvg(W, H);
     container.appendChild(svg);
 
-    const padL = W * 0.1;
-    const padR = W * 0.06;
-    const padT = H * 0.12;
-    const padB = H * 0.16;
+    const padL = W * 0.08;
+    const padR = W * 0.08;
+    const padT = H * 0.08;
+    const padB = H * 0.22;  // more room for labels
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
     const chartBottom = padT + chartH;
     const maxVal = Math.max(1, ...data);
 
-    const barW = chartW / (data.length * 2);
-    const gap = barW;
-    const labelFs = resolveSize(params.labelSize, S, 0.022);
-    const valueFs = resolveSize(params.valueSize, S, 0.025);
+    const barW = chartW / (data.length * 1.6);  // wider bars
+    const gap = barW * 0.3;
+    const labelFs = resolveSize(params.labelSize, S, 0.035);
+    const valueFs = resolveSize(params.valueSize, S, 0.03);
 
     const bars = [];
 
