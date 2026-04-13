@@ -106,6 +106,8 @@ let currentSelectedClipId = null;
 let previewEngine = null;
 let previewStageHost = null;
 let previewTimeline = null;
+let previewStageClickHandler = null;
+let previewReloadSeq = 0;
 
 let projectsCache = [];
 let episodesCache = [];
@@ -995,6 +997,10 @@ function stringifyClipParams(params) {
 }
 
 function destroyDOMPreview() {
+  if (previewStageHost && previewStageClickHandler) {
+    previewStageHost.removeEventListener("click", previewStageClickHandler);
+  }
+  previewStageClickHandler = null;
   if (previewEngine && typeof previewEngine.destroy === "function") {
     try {
       previewEngine.destroy();
@@ -1009,6 +1015,7 @@ function destroyDOMPreview() {
   }
   var wrapper = document.getElementById("preview-scale-wrapper");
   if (wrapper) wrapper.remove();
+  window.__onFrame = null;
   window.__previewEngine = null;
 }
 
@@ -1081,6 +1088,10 @@ function initDOMPreview(timeline) {
   var placeholder = document.getElementById("preview-placeholder");
   if (placeholder) placeholder.style.display = "none";
 
+  // Hide iframe if present
+  var iframe = document.getElementById("preview-iframe");
+  if (iframe) iframe.style.display = "none";
+
   // Create wrapper (clips to scaled size) + stage (stays at 1920x1080)
   var wrapper = document.createElement("div");
   wrapper.id = "preview-scale-wrapper";
@@ -1091,9 +1102,11 @@ function initDOMPreview(timeline) {
   wrapper.appendChild(previewStageHost);
   canvasInner.appendChild(wrapper);
 
+  var previewWidth = finiteNumber((timeline.project && timeline.project.width) || timeline.width, 1920);
+  var previewHeight = finiteNumber((timeline.project && timeline.project.height) || timeline.height, 1080);
   previewTimeline = {
-    width: (timeline.project && timeline.project.width) || timeline.width || 1920,
-    height: (timeline.project && timeline.project.height) || timeline.height || 1080,
+    width: previewWidth > 0 ? previewWidth : 1920,
+    height: previewHeight > 0 ? previewHeight : 1080,
   };
 
   // Direct render: create engine in main document
@@ -1101,7 +1114,8 @@ function initDOMPreview(timeline) {
     previewEngine = ev2.createEngine(previewStageHost, timeline, ev2.SCENE_REGISTRY);
     // Expose engine for AI/appctl control
     window.__previewEngine = previewEngine;
-    previewEngine.renderFrame(0);
+    previewEngine.renderFrame(Math.max(0, finiteNumber(currentTime, 0)));
+    ensurePreviewInteractivity();
     fitStageToContainer();
     console.log("[preview] direct render ready, " + (timeline.layers ? timeline.layers.length : 0) + " layers");
   } catch (err) {
@@ -1111,14 +1125,15 @@ function initDOMPreview(timeline) {
   }
 
   // Click on stage for element selection
-  previewStageHost.addEventListener("click", function(e) {
+  previewStageClickHandler = function(e) {
     var target = e.target.closest(".nf-layer > *") || e.target.closest(".nf-layer");
     if (target) {
       var layerId = target.dataset?.layerId || target.closest(".nf-layer")?.dataset?.layerId || "";
       var scene = target.dataset?.scene || "";
       updateInspectorFromIframe(layerId, scene, target);
     }
-  });
+  };
+  previewStageHost.addEventListener("click", previewStageClickHandler);
 
   return true;
 }
@@ -1147,11 +1162,7 @@ function requestPreviewFrame(t) {
   if (!currentTimeline) {
     return;
   }
-  if (!previewEngine && !initDOMPreview(currentTimeline)) {
-    return;
-  }
-  // Guard: previewEngine may have been destroyed between init check and here
-  if (!previewEngine) {
+  if ((!previewEngine || !previewStageHost || !previewTimeline) && !initDOMPreview(currentTimeline)) {
     return;
   }
   try {
@@ -1192,8 +1203,15 @@ function setPlayheadTime(time) {
     fill.style.width = (TOTAL_DURATION > 0 ? (currentTime / TOTAL_DURATION) * 100 : 0) + "%";
   }
 
-  // Render frame via unified entry point (avoids double-render during playback)
-  requestPreviewFrame(currentTime);
+  // Sync playhead with direct-render engine
+  if (previewEngine && typeof previewEngine.renderFrame === "function") {
+    try {
+      previewEngine.renderFrame(currentTime);
+      ensurePreviewInteractivity();
+    } catch(e) {
+      console.warn("[preview] renderFrame error", e);
+    }
+  }
 }
 
 function playLoop(timestamp) {
@@ -1219,6 +1237,7 @@ function playLoop(timestamp) {
   }
 
   setPlayheadTime(currentTime);
+  // previewEngine.renderFrame already called inside setPlayheadTime
   if (isPlaying) {
     playRAF = requestAnimationFrame(playLoop);
   }
@@ -1748,6 +1767,7 @@ async function goProject(projectName) {
   }
 
   stopWatching();
+  previewReloadSeq += 1;
   setPlaybackState(false);
   currentEpisode = null;
   currentSegment = null;
@@ -1809,6 +1829,7 @@ async function goEditor(project, episode, segment) {
   }
 
   stopWatching();
+  previewReloadSeq += 1;
   setPlaybackState(false);
   currentSegmentPath = null;
   currentTimeline = null;
@@ -2241,8 +2262,11 @@ function reloadCurrentTimeline() {
   const timelinePath = getCurrentSegmentPath();
   if (!timelinePath) return;
   const selectedClipId = currentSelectedClipId;
+  const reloadSeq = ++previewReloadSeq;
   bridgeCall("timeline.load", { path: timelinePath }, IPC_LOAD_TIMEOUT_MS).then(function(result) {
     if (!result) return;
+    if (reloadSeq !== previewReloadSeq) return;
+    if (timelinePath !== getCurrentSegmentPath()) return;
     currentTimeline = result;
     renderTimeline(result, selectedClipId);
     initDOMPreview(result);
@@ -2251,11 +2275,6 @@ function reloadCurrentTimeline() {
 
 function initPreviewSurface() {
   window.addEventListener("resize", fitStageToContainer);
-  // ResizeObserver catches panel toggles / layout shifts within the same window size
-  var canvasInnerForObserver = document.getElementById("canvas-inner");
-  if (canvasInnerForObserver && typeof ResizeObserver !== "undefined") {
-    new ResizeObserver(fitStageToContainer).observe(canvasInnerForObserver);
-  }
 }
 
 async function previewComposed() {

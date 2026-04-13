@@ -520,10 +520,37 @@ fn handle_http_request(
             )
         }
         ("GET", "/screenshot") => {
-            let requested_path = query_value(query, "out")
-                .map(decode_query_component)
-                .transpose()?;
+            let requested_path = match query_value(query, "out") {
+                Some(raw_path) => Some(match decode_query_component(raw_path) {
+                    Ok(path) => path,
+                    Err(error) => {
+                        return write_http_response(
+                            stream,
+                            400,
+                            "Bad Request",
+                            "text/plain; charset=utf-8",
+                            error.as_bytes(),
+                        )
+                        .map_err(|write_error| {
+                            format!("failed to write screenshot query error response: {write_error}")
+                        });
+                    }
+                }),
+                None => None,
+            };
             let out_path = requested_path.unwrap_or_else(default_screenshot_path);
+            if out_path.trim().is_empty() {
+                return write_http_response(
+                    stream,
+                    400,
+                    "Bad Request",
+                    "text/plain; charset=utf-8",
+                    b"missing screenshot output path",
+                )
+                .map_err(|error| {
+                    format!("failed to write screenshot output path error response: {error}")
+                });
+            }
             native_screenshot(webview, &out_path, stream)
         }
         _ => write_http_response(
@@ -734,11 +761,16 @@ fn native_screenshot(
     } else {
         unsafe { std::slice::from_raw_parts(png_ptr, png_len) }
     };
-    std::fs::write(out_path, png_bytes)
-        .map_err(|e| format!("failed to write PNG to {out_path}: {e}"))?;
+    let out_path_buf = PathBuf::from(out_path);
+    if let Some(parent) = out_path_buf.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("failed to create screenshot directory {}: {e}", parent.display()))?;
+    }
+    std::fs::write(&out_path_buf, png_bytes)
+        .map_err(|e| format!("failed to write PNG to {}: {e}", out_path_buf.display()))?;
 
     let response_json = serde_json::json!({
-        "path": out_path,
+        "path": out_path_buf.display().to_string(),
         "mode": "native-wkwebview",
         "size": png_bytes.len(),
     });

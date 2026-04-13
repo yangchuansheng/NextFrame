@@ -8,7 +8,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const CLI = resolve(ROOT, "bin/nextframe.js");
 const FIXTURE = resolve(HERE, "fixtures", "minimal-v3.json");
+const APP_BUNDLE = resolve(ROOT, "..", "runtime", "web", "src", "app-bundle.js");
+const SHELL_MAIN = resolve(ROOT, "..", "shell", "src", "main.rs");
 
 function runCli(args) {
   const r = spawnSync("node", [CLI, ...args], { cwd: ROOT, encoding: "utf8", timeout: 120_000 });
@@ -132,6 +134,50 @@ test("nfdata query string stripped before file lookup", () => {
   assert.equal(strip("x?a=1&b=2"), "x");
   assert.equal(strip(""), "");
   assert.equal(strip("path/to/file.json?cache=bust&v=2"), "path/to/file.json");
+});
+
+// ── Desktop preview lifecycle regressions ──
+
+test("preview source preserves current playhead and clears direct-render globals on destroy", () => {
+  const source = readFileSync(APP_BUNDLE, "utf8");
+
+  assert.match(
+    source,
+    /previewEngine\.renderFrame\(Math\.max\(0,\s*finiteNumber\(currentTime,\s*0\)\)\);/,
+    "preview init should render the current playhead instead of resetting to 0",
+  );
+  assert.match(
+    source,
+    /previewEngine\.renderFrame\(Math\.max\(0,\s*finiteNumber\(currentTime,\s*0\)\)\);\s*ensurePreviewInteractivity\(\);/,
+    "preview init should restore layer interactivity on the first rendered frame",
+  );
+  assert.match(
+    source,
+    /previewStageHost && previewStageClickHandler[\s\S]*removeEventListener\("click", previewStageClickHandler\);/,
+    "destroy should detach the stage click handler before dropping the DOM node",
+  );
+  assert.match(
+    source,
+    /window\.__onFrame = null;/,
+    "destroy should clear the engine frame hook so old closures can be collected",
+  );
+});
+
+test("timeline reload source ignores stale async responses", () => {
+  const source = readFileSync(APP_BUNDLE, "utf8");
+
+  assert.match(source, /let previewReloadSeq = 0;/);
+  assert.match(source, /const reloadSeq = \+\+previewReloadSeq;/);
+  assert.match(source, /if \(reloadSeq !== previewReloadSeq\) return;/);
+  assert.match(source, /if \(timelinePath !== getCurrentSegmentPath\(\)\) return;/);
+});
+
+test("screenshot endpoint validates output paths and creates destination directories", () => {
+  const source = readFileSync(SHELL_MAIN, "utf8");
+
+  assert.match(source, /missing screenshot output path/);
+  assert.match(source, /failed to write screenshot query error response/);
+  assert.match(source, /create_dir_all\(parent\)/);
 });
 
 // ── Build output sanity check ──
