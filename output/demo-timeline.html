@@ -337,6 +337,315 @@ function markdownToHtml(markdown) {
 const SCENE_REGISTRY = {};
 
 
+// --- agentLoop ---
+SCENE_REGISTRY["agentLoop"] = (function() {
+  
+const DEFAULT_STEPS = [
+  { label: "THINK", icon: "🧠", color: "#a78bfa" },
+  { label: "ACT", icon: "⚡", color: "#6ee7ff" },
+  { label: "OBSERVE", icon: "👁", color: "#34d399" },
+  { label: "REPEAT", icon: "🔄", color: "#f9a8d4" },
+];
+
+return {
+  id: "agentLoop",
+  type: "dom",
+  name: "Agent Loop",
+  category: "Data Viz",
+  defaultParams: {
+    steps: DEFAULT_STEPS,
+    title: "Tool Use Loop",
+    accentColor: "#a78bfa",
+    ringColor: "rgba(167,139,250,0.25)",
+  },
+
+  create(container, params) {
+    const root = createRoot(
+      container,
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:40px"
+    );
+
+    const steps = (params.steps || DEFAULT_STEPS);
+    const accentColor = params.accentColor || "#a78bfa";
+    const title = params.title || "Tool Use Loop";
+
+    // Title
+    const titleEl = createNode("div", [
+      `font-family:${SANS_FONT_STACK}`,
+      "font-size:22px",
+      "font-weight:700",
+      `color:${accentColor}`,
+      "letter-spacing:0.12em",
+      "text-transform:uppercase",
+      "opacity:0",
+      "will-change:opacity,transform",
+    ].join(";"), title);
+    root.appendChild(titleEl);
+
+    // Loop container — circular layout
+    const loopWrap = createNode("div", [
+      "position:relative",
+      "width:420px",
+      "height:420px",
+      "flex-shrink:0",
+    ].join(";"));
+
+    // Center circle
+    const center = createNode("div", [
+      "position:absolute",
+      "left:50%",
+      "top:50%",
+      "transform:translate(-50%,-50%)",
+      "width:90px",
+      "height:90px",
+      "border-radius:50%",
+      `border:2px solid ${accentColor}`,
+      "background:rgba(167,139,250,0.08)",
+      "display:flex",
+      "align-items:center",
+      "justify-content:center",
+      `font-family:${SANS_FONT_STACK}`,
+      "font-size:11px",
+      "font-weight:700",
+      "color:#fff",
+      "letter-spacing:0.1em",
+      "text-align:center",
+      "opacity:0",
+      "will-change:opacity,transform",
+    ].join(";"), "AGENT");
+    loopWrap.appendChild(center);
+
+    // SVG for arrows
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 420 420");
+    svg.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none";
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    steps.forEach((s, i) => {
+      const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+      marker.setAttribute("id", `al-arrow-${i}`);
+      marker.setAttribute("viewBox", "0 0 10 10");
+      marker.setAttribute("refX", "8");
+      marker.setAttribute("refY", "5");
+      marker.setAttribute("markerWidth", "6");
+      marker.setAttribute("markerHeight", "6");
+      marker.setAttribute("orient", "auto");
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", "M0,0 L10,5 L0,10 z");
+      p.setAttribute("fill", s.color || accentColor);
+      marker.appendChild(p);
+      defs.appendChild(marker);
+    });
+    svg.appendChild(defs);
+
+    const cx = 210, cy = 210, r = 150;
+    const count = steps.length;
+    const arrows = [];
+    for (let i = 0; i < count; i++) {
+      const a0 = ((i / count) * Math.PI * 2) - Math.PI / 2;
+      const a1 = (((i + 1) / count) * Math.PI * 2) - Math.PI / 2;
+      const mx = cx + r * Math.cos((a0 + a1) / 2);
+      const my = cy + r * Math.sin((a0 + a1) / 2);
+
+      const arcPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      // Small arc from one step midpoint toward next
+      const fromX = cx + r * Math.cos(a0 + 0.35);
+      const fromY = cy + r * Math.sin(a0 + 0.35);
+      const toX = cx + r * Math.cos(a1 - 0.35);
+      const toY = cy + r * Math.sin(a1 - 0.35);
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      arcPath.setAttribute("d", `M${fromX},${fromY} A${r},${r} 0 ${large} 1 ${toX},${toY}`);
+      arcPath.setAttribute("fill", "none");
+      arcPath.setAttribute("stroke", steps[i].color || accentColor);
+      arcPath.setAttribute("stroke-width", "2");
+      arcPath.setAttribute("opacity", "0");
+      arcPath.setAttribute("marker-end", `url(#al-arrow-${i})`);
+      svg.appendChild(arcPath);
+      arrows.push(arcPath);
+    }
+    loopWrap.appendChild(svg);
+
+    // Step nodes
+    const nodeEls = steps.map((s, i) => {
+      const angle = ((i / count) * Math.PI * 2) - Math.PI / 2;
+      const nx = cx + r * Math.cos(angle);
+      const ny = cy + r * Math.sin(angle);
+
+      const nodeWrap = createNode("div", [
+        "position:absolute",
+        "display:flex",
+        "flex-direction:column",
+        "align-items:center",
+        "gap:6px",
+        "opacity:0",
+        "will-change:opacity,transform",
+      ].join(";"));
+      nodeWrap.style.left = `${nx}px`;
+      nodeWrap.style.top = `${ny}px`;
+      nodeWrap.style.transform = "translate(-50%, -50%) scale(0.5)";
+
+      const dot = createNode("div", [
+        "width:64px",
+        "height:64px",
+        "border-radius:50%",
+        `background:rgba(255,255,255,0.04)`,
+        `border:2px solid ${s.color || accentColor}`,
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "font-size:22px",
+        `box-shadow:0 0 20px ${s.color || accentColor}44`,
+      ].join(";"), s.icon || "");
+      nodeWrap.appendChild(dot);
+
+      const lbl = createNode("div", [
+        `font-family:${SANS_FONT_STACK}`,
+        "font-size:12px",
+        "font-weight:700",
+        `color:${s.color || accentColor}`,
+        "letter-spacing:0.1em",
+        "text-align:center",
+        "white-space:nowrap",
+      ].join(";"), s.label || "");
+      nodeWrap.appendChild(lbl);
+
+      loopWrap.appendChild(nodeWrap);
+      return nodeWrap;
+    });
+
+    root.appendChild(loopWrap);
+
+    return { root, titleEl, center, nodeEls, arrows };
+  },
+
+  update(els, localT, params) {
+    const fadeOut = 1 - smoothstep(0.88, 1, localT);
+    const count = els.nodeEls.length;
+
+    // Title
+    const titleT = smoothstep(0, 0.1, localT);
+    els.titleEl.style.opacity = titleT * fadeOut;
+    els.titleEl.style.transform = `translateY(${(1 - titleT) * 12}px)`;
+
+    // Center
+    const centerT = smoothstep(0.05, 0.18, localT);
+    els.center.style.opacity = centerT * fadeOut;
+    els.center.style.transform = `translate(-50%, -50%) scale(${0.6 + centerT * 0.4})`;
+
+    // Nodes staggered
+    els.nodeEls.forEach((node, i) => {
+      const start = 0.1 + i * 0.12;
+      const t = smoothstep(start, start + 0.14, localT);
+      const ease = easeOutCubic(t);
+      node.style.opacity = ease * fadeOut;
+      node.style.transform = `translate(-50%, -50%) scale(${0.5 + ease * 0.5})`;
+    });
+
+    // Arrows after nodes
+    els.arrows.forEach((arrow, i) => {
+      const start = 0.2 + i * 0.12;
+      const t = smoothstep(start, start + 0.1, localT);
+      arrow.setAttribute("opacity", t * fadeOut);
+    });
+  },
+
+  destroy(els) { els.root.remove(); },
+};
+
+})();
+
+
+// --- audioTrack ---
+SCENE_REGISTRY["audioTrack"] = (function() {
+  /**
+ * audioTrack — plays audio synced to engine timeline.
+ *
+ * Engine calls update(state, localT) every frame.
+ * - Time advancing → play + sync
+ * - Time stopped → pause
+ * - Time jumped → seek
+ *
+ * In recording mode, audio is muxed by ffmpeg separately.
+ */
+return {
+  id: "audioTrack",
+  type: "media",
+  name: "Audio Track",
+  category: "Media",
+  defaultParams: {
+    src: "",
+    volume: 1,
+    offset: 0,
+  },
+
+  create(container, params) {
+    const audio = document.createElement("audio");
+    audio.preload = "auto";
+    audio.style.display = "none";
+    if (params.src) audio.src = params.src;
+    audio.volume = Math.max(0, Math.min(1, params.volume ?? 1));
+    container.appendChild(audio);
+    if (params.src && !window.__audioSrc) {
+      window.__audioSrc = params.src;
+    }
+    return { audio, prevT: -999, prevWall: 0, wasPlaying: false };
+  },
+
+  update(state, localT, params) {
+    const { audio } = state;
+    if (!audio.src) return;
+
+    // Recording mode — don't play, recorder handles audio
+    if (window.__recordingMode) return;
+
+    const offset = params.offset || 0;
+    const target = offset + localT;
+    const now = performance.now();
+    const dt = now - state.prevWall;
+    const timeDelta = localT - state.prevT;
+
+    // Detect: is time advancing? (player is playing)
+    const isAdvancing = timeDelta > 0.001 && timeDelta < 0.2 && dt < 200;
+    // Detect: big jump (slider drag, seek)
+    const isJump = Math.abs(timeDelta) > 0.5;
+
+    if (isJump || (!state.wasPlaying && isAdvancing)) {
+      // Seek to correct position
+      audio.currentTime = target;
+    }
+
+    if (isAdvancing) {
+      // Playing — keep audio playing, correct drift
+      if (audio.paused) {
+        audio.currentTime = target;
+        audio.play().catch(() => {});
+      } else if (Math.abs(audio.currentTime - target) > 0.3) {
+        // Drifted too far, re-sync
+        audio.currentTime = target;
+      }
+      state.wasPlaying = true;
+    } else if (dt > 100) {
+      // Time stopped advancing for >100ms — pause
+      if (!audio.paused) {
+        audio.pause();
+      }
+      state.wasPlaying = false;
+    }
+
+    audio.volume = Math.max(0, Math.min(1, params.volume ?? 1));
+    state.prevT = localT;
+    state.prevWall = now;
+  },
+
+  destroy(state) {
+    state.audio.pause();
+    state.audio.removeAttribute("src");
+    state.audio.remove();
+  },
+};
+
+})();
+
+
 // --- auroraGradient ---
 SCENE_REGISTRY["auroraGradient"] = (function() {
   
@@ -3268,6 +3577,918 @@ return {
 })();
 
 
+// --- shaderChromatic ---
+SCENE_REGISTRY["shaderChromatic"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_intensity, u_angle;
+  uniform bool u_pulse;
+
+  void main() {
+    float inten = u_intensity;
+    if (u_pulse) {
+      inten *= 0.5 + 0.5 * sin(u_time * 2.0);
+    }
+    float a = u_angle;
+    vec2 dir = vec2(cos(a), sin(a)) * inten;
+
+    // Chromatic offset — shift R forward, B backward, G stays
+    vec2 uvR = v_uv + dir;
+    vec2 uvB = v_uv - dir;
+
+    // Radial vignette intensity — stronger at edges
+    float dist = length(v_uv - 0.5) * 2.0;
+    float edge = smoothstep(0.2, 1.4, dist);
+    float strength = edge * 0.6;
+
+    // Color fringes visible as semi-transparent overlay
+    float r = strength * smoothstep(0.0, 0.5, fract(uvR.x * 20.0 + uvR.y * 10.0 + u_time));
+    float b = strength * smoothstep(0.0, 0.5, fract(uvB.x * 20.0 + uvB.y * 10.0 - u_time));
+
+    float alpha = max(r, b) * 0.4;
+    gl_FragColor = vec4(r * 0.8, 0.0, b * 0.8, alpha);
+  }
+`;
+
+return {
+  id: "shaderChromatic",
+  type: "webgl",
+  name: "Chromatic Aberration",
+  category: "Shader",
+  defaultParams: { intensity: 0.01, angle: 0, pulse: true },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl", { premultipliedAlpha: false }) || canvas.getContext("experimental-webgl", { premultipliedAlpha: false });
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_intensity"), toNumber(params.intensity, 0.01));
+    gl.uniform1f(gl.getUniformLocation(program, "u_angle"), toNumber(params.angle, 0));
+    gl.uniform1i(gl.getUniformLocation(program, "u_pulse"), params.pulse !== false ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderFirefly ---
+SCENE_REGISTRY["shaderFirefly"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+function hexToVec3(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+}
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_count, u_glowSize, u_speed;
+  uniform vec3 u_color;
+  uniform vec2 u_res;
+
+  // Hash functions for pseudo-random per-particle values
+  float hash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
+  vec2 hash2(float n) {
+    return vec2(hash(n), hash(n + 57.0));
+  }
+
+  void main() {
+    vec2 aspect = vec2(u_res.x / u_res.y, 1.0);
+    vec2 p = v_uv * aspect;
+    float t = u_time * u_speed;
+
+    vec3 col = vec3(0.02, 0.02, 0.04); // Dark background
+    float maxN = u_count;
+
+    for (float i = 0.0; i < 300.0; i++) {
+      if (i >= maxN) break;
+
+      // Per-particle random base position and motion
+      vec2 base = hash2(i * 13.7);
+      float phase = hash(i * 7.3) * 6.2832;
+      float spd = 0.3 + hash(i * 3.1) * 0.7;
+
+      vec2 pos = base * aspect;
+      pos.x += sin(t * spd * 0.6 + phase) * 0.15;
+      pos.y += cos(t * spd * 0.4 + phase * 1.3) * 0.12;
+      pos.x = mod(pos.x, aspect.x);
+      pos.y = mod(pos.y, 1.0);
+
+      float dist = length(p - pos);
+      // Glow falloff
+      float glow = u_glowSize / (dist * dist + u_glowSize * 0.5);
+      // Flicker
+      float flicker = 0.5 + 0.5 * sin(t * 3.0 + phase * 2.0);
+      glow *= flicker;
+      glow = min(glow, 3.0);
+
+      col += u_color * glow * 0.008;
+    }
+
+    col = min(col, vec3(1.0));
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+return {
+  id: "shaderFirefly",
+  type: "webgl",
+  name: "GPU Fireflies",
+  category: "Shader",
+  defaultParams: { count: 200, color: "#ffd93d", glowSize: 0.02, speed: 0.5 },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_count"), Math.min(toNumber(params.count, 200), 300));
+    gl.uniform1f(gl.getUniformLocation(program, "u_glowSize"), toNumber(params.glowSize, 0.02));
+    gl.uniform1f(gl.getUniformLocation(program, "u_speed"), toNumber(params.speed, 0.5));
+    gl.uniform2f(gl.getUniformLocation(program, "u_res"), canvas.width, canvas.height);
+    const c = hexToVec3(params.color || "#ffd93d");
+    gl.uniform3f(gl.getUniformLocation(program, "u_color"), c[0], c[1], c[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderGlitch ---
+SCENE_REGISTRY["shaderGlitch"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_intensity, u_blockSize, u_colorSplit;
+  uniform vec2 u_res;
+  uniform bool u_scanlines;
+
+  float hash(float n) { return fract(sin(n) * 43758.5453); }
+  float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+  void main() {
+    vec2 uv = v_uv;
+    float t = floor(u_time * 8.0);
+
+    // Block displacement — random rows shift horizontally
+    float blockY = floor(uv.y * u_res.y / u_blockSize);
+    float shift = (hash(blockY + t * 37.0) - 0.5) * u_intensity * 0.15;
+    float trigger = step(0.7 - u_intensity * 0.3, hash(blockY * 3.0 + t));
+    uv.x += shift * trigger;
+
+    // RGB channel separation
+    float r = hash2(vec2(t, 1.0)) * u_colorSplit * u_intensity;
+    float g = hash2(vec2(t, 2.0)) * u_colorSplit * u_intensity;
+
+    // Sample as transparent overlay — use luminance stripes
+    float lum = 0.0;
+    float stripe = mod(uv.x * u_res.x * 0.5 + uv.y * u_res.y * 0.3, 80.0) / 80.0;
+    lum = smoothstep(0.3, 0.7, stripe) * 0.15 * u_intensity;
+
+    float cr = lum + hash2(vec2(floor((uv + vec2(r, 0.0)) * u_res / 4.0))) * 0.05 * u_intensity;
+    float cg = lum * 0.6;
+    float cb = lum + hash2(vec2(floor((uv - vec2(g, 0.0)) * u_res / 4.0))) * 0.05 * u_intensity;
+
+    // Scanlines
+    float scan = 1.0;
+    if (u_scanlines) {
+      scan = 0.85 + 0.15 * sin(uv.y * u_res.y * 3.14159);
+    }
+
+    float alpha = clamp((cr + cg + cb) * 3.0 * scan, 0.0, 0.6);
+    gl_FragColor = vec4(cr * scan, cg * scan, cb * scan, alpha);
+  }
+`;
+
+return {
+  id: "shaderGlitch",
+  type: "webgl",
+  name: "Glitch Effect",
+  category: "Shader",
+  defaultParams: { intensity: 0.5, blockSize: 16, colorSplit: 0.02, scanlines: true },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl", { premultipliedAlpha: false }) || canvas.getContext("experimental-webgl", { premultipliedAlpha: false });
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_intensity"), toNumber(params.intensity, 0.5));
+    gl.uniform1f(gl.getUniformLocation(program, "u_blockSize"), toNumber(params.blockSize, 16));
+    gl.uniform1f(gl.getUniformLocation(program, "u_colorSplit"), toNumber(params.colorSplit, 0.02));
+    gl.uniform2f(gl.getUniformLocation(program, "u_res"), canvas.width, canvas.height);
+    gl.uniform1i(gl.getUniformLocation(program, "u_scanlines"), params.scanlines !== false ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderGradient ---
+SCENE_REGISTRY["shaderGradient"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() {
+    v_uv = a_pos * 0.5 + 0.5;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+  }
+`;
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time;
+  uniform vec3 u_c1, u_c2, u_c3;
+  uniform float u_speed;
+
+  void main() {
+    float t = u_time * u_speed;
+    vec2 p1 = vec2(0.3 + 0.2 * sin(t * 0.7), 0.4 + 0.15 * cos(t * 0.5));
+    vec2 p2 = vec2(0.7 + 0.15 * cos(t * 0.6), 0.3 + 0.2 * sin(t * 0.8));
+    vec2 p3 = vec2(0.5 + 0.25 * sin(t * 0.4), 0.7 + 0.1 * cos(t * 0.9));
+    vec2 p4 = vec2(0.4 + 0.1 * cos(t * 1.1), 0.55 + 0.15 * sin(t * 0.3));
+
+    float d1 = 1.0 - smoothstep(0.0, 0.5, length(v_uv - p1));
+    float d2 = 1.0 - smoothstep(0.0, 0.55, length(v_uv - p2));
+    float d3 = 1.0 - smoothstep(0.0, 0.45, length(v_uv - p3));
+    float d4 = 1.0 - smoothstep(0.0, 0.4, length(v_uv - p4));
+
+    vec3 col = vec3(0.04, 0.03, 0.06);
+    col += u_c1 * d1 * 0.6;
+    col += u_c2 * d2 * 0.6;
+    col += u_c3 * d3 * 0.5;
+    col += mix(u_c1, u_c2, 0.5) * d4 * 0.4;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+function hexToVec3(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+}
+
+return {
+  id: "shaderGradient",
+  type: "webgl",
+  name: "GPU Gradient",
+  category: "Shader",
+  defaultParams: { color1: "#1a0a3e", color2: "#0a2a4e", color3: "#2a0a2e", speed: 0.3 },
+
+  create(container, params) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program, buf, loc };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_speed"), toNumber(params.speed, 0.3));
+    const c1 = hexToVec3(params.color1 || "#1a0a3e");
+    const c2 = hexToVec3(params.color2 || "#0a2a4e");
+    const c3 = hexToVec3(params.color3 || "#2a0a2e");
+    gl.uniform3f(gl.getUniformLocation(program, "u_c1"), c1[0], c1[1], c1[2]);
+    gl.uniform3f(gl.getUniformLocation(program, "u_c2"), c2[0], c2[1], c2[2]);
+    gl.uniform3f(gl.getUniformLocation(program, "u_c3"), c3[0], c3[1], c3[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderNoise ---
+SCENE_REGISTRY["shaderNoise"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_scale, u_speed;
+  uniform int u_octaves;
+  uniform vec3 u_c1, u_c2;
+
+  vec3 mod289(vec3 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
+  vec2 mod289v2(vec2 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
+  vec3 permute(vec3 x) { return mod289((x * 34.0 + 1.0) * x); }
+
+  float snoise(vec2 v) {
+    const vec4 C = vec4(0.211324865, 0.366025404, -0.577350269, 0.024390244);
+    vec2 i = floor(v + dot(v, C.yy));
+    vec2 x0 = v - i + dot(i, C.xx);
+    vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec4 x12 = x0.xyxy + C.xxzz;
+    x12.xy -= i1;
+    i = mod289v2(i);
+    vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+    m = m * m; m = m * m;
+    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+    vec3 h = abs(x) - 0.5;
+    vec3 ox = floor(x + 0.5);
+    vec3 a0 = x - ox;
+    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+    vec3 g;
+    g.x = a0.x * x0.x + h.x * x0.y;
+    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+    return 130.0 * dot(m, g);
+  }
+
+  void main() {
+    vec2 p = v_uv * u_scale;
+    float t = u_time * u_speed;
+    float val = 0.0; float amp = 0.5; float freq = 1.0;
+    for (int i = 0; i < 8; i++) {
+      if (i >= u_octaves) break;
+      val += amp * snoise(p * freq + t * 0.3 * float(i + 1));
+      freq *= 2.0; amp *= 0.5;
+    }
+    val = val * 0.5 + 0.5;
+    vec3 col = mix(u_c1 * 0.15, u_c2 * 0.8, val);
+    col += vec3(0.03, 0.02, 0.05);
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+function hexToVec3(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+}
+
+return {
+  id: "shaderNoise",
+  type: "webgl",
+  name: "Simplex Noise",
+  category: "Shader",
+  defaultParams: { scale: 3.0, speed: 0.5, color1: "#6ee7ff", color2: "#a78bfa", octaves: 4 },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_scale"), toNumber(params.scale, 3.0));
+    gl.uniform1f(gl.getUniformLocation(program, "u_speed"), toNumber(params.speed, 0.5));
+    gl.uniform1i(gl.getUniformLocation(program, "u_octaves"), toNumber(params.octaves, 4));
+    const c1 = hexToVec3(params.color1 || "#6ee7ff");
+    const c2 = hexToVec3(params.color2 || "#a78bfa");
+    gl.uniform3f(gl.getUniformLocation(program, "u_c1"), c1[0], c1[1], c1[2]);
+    gl.uniform3f(gl.getUniformLocation(program, "u_c2"), c2[0], c2[1], c2[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderPlasma ---
+SCENE_REGISTRY["shaderPlasma"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_speed, u_scale;
+  uniform int u_colors;
+
+  vec3 palette(float t, int mode) {
+    if (mode == 1) {
+      return vec3(0.5 + 0.5 * cos(6.2832 * t),
+                   0.5 + 0.5 * cos(6.2832 * (t + 0.33)),
+                   0.5 + 0.5 * cos(6.2832 * (t + 0.67)));
+    }
+    if (mode == 2) {
+      return vec3(0.5 + 0.5 * sin(6.2832 * t + 0.0),
+                   0.5 + 0.5 * sin(6.2832 * t + 2.094),
+                   0.5 + 0.5 * sin(6.2832 * t + 4.189));
+    }
+    // mode 3+: deeper tones
+    return vec3(0.4 + 0.4 * cos(6.2832 * (t + 0.0)),
+                 0.3 + 0.3 * cos(6.2832 * (t + 0.15)),
+                 0.5 + 0.5 * cos(6.2832 * (t + 0.6)));
+  }
+
+  void main() {
+    vec2 p = (v_uv - 0.5) * u_scale;
+    float t = u_time * u_speed;
+    float v = sin(p.x * 10.0 + t);
+    v += sin(p.y * 10.0 + t * 0.7);
+    v += sin((p.x + p.y) * 7.0 + t * 1.3);
+    v += sin(length(p) * 12.0 - t * 0.9);
+    v *= 0.25;
+    v = v * 0.5 + 0.5;
+
+    vec3 col = palette(v + t * 0.05, u_colors);
+    col *= 0.75;
+    col += vec3(0.03, 0.02, 0.05);
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+return {
+  id: "shaderPlasma",
+  type: "webgl",
+  name: "Plasma Effect",
+  category: "Shader",
+  defaultParams: { speed: 1.0, scale: 4.0, colors: 3 },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_speed"), toNumber(params.speed, 1.0));
+    gl.uniform1f(gl.getUniformLocation(program, "u_scale"), toNumber(params.scale, 4.0));
+    gl.uniform1i(gl.getUniformLocation(program, "u_colors"), toNumber(params.colors, 3));
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderRipple ---
+SCENE_REGISTRY["shaderRipple"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_freq, u_amp, u_speed;
+  uniform vec2 u_center, u_res;
+
+  void main() {
+    vec2 aspect = vec2(u_res.x / u_res.y, 1.0);
+    vec2 p = (v_uv - u_center) * aspect;
+    float dist = length(p);
+    float t = u_time * u_speed;
+
+    // Expanding ripple rings
+    float wave = sin(dist * u_freq * 6.2832 - t * 6.2832) * u_amp;
+    wave *= smoothstep(0.8, 0.0, dist); // Fade at edges
+
+    // Distort UV
+    vec2 offset = normalize(p + 0.001) * wave;
+    vec2 uv = v_uv + offset;
+
+    // Dark water-like background with ripple highlights
+    float ring = abs(sin(dist * u_freq * 6.2832 - t * 6.2832));
+    ring = pow(ring, 4.0) * smoothstep(0.8, 0.0, dist);
+
+    vec3 deepColor = vec3(0.03, 0.05, 0.1);
+    vec3 rippleColor = vec3(0.15, 0.35, 0.55);
+    vec3 highlight = vec3(0.3, 0.6, 0.9);
+
+    vec3 col = deepColor;
+    col += rippleColor * ring * 0.6;
+    col += highlight * pow(ring, 8.0) * 0.4;
+
+    // Secondary ripple layer
+    float wave2 = sin(dist * u_freq * 3.14 - t * 4.0 + 1.5);
+    col += vec3(0.08, 0.15, 0.25) * max(wave2, 0.0) * 0.3 * smoothstep(0.6, 0.0, dist);
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+return {
+  id: "shaderRipple",
+  type: "webgl",
+  name: "Water Ripple",
+  category: "Shader",
+  defaultParams: { frequency: 10, amplitude: 0.02, speed: 2.0, center: [0.5, 0.5] },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_freq"), toNumber(params.frequency, 10));
+    gl.uniform1f(gl.getUniformLocation(program, "u_amp"), toNumber(params.amplitude, 0.02));
+    gl.uniform1f(gl.getUniformLocation(program, "u_speed"), toNumber(params.speed, 2.0));
+    gl.uniform2f(gl.getUniformLocation(program, "u_res"), canvas.width, canvas.height);
+    const c = Array.isArray(params.center) ? params.center : [0.5, 0.5];
+    gl.uniform2f(gl.getUniformLocation(program, "u_center"), toNumber(c[0], 0.5), toNumber(c[1], 0.5));
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
+// --- shaderTunnel ---
+SCENE_REGISTRY["shaderTunnel"] = (function() {
+  
+function compileShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  return s;
+}
+
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+
+const VS = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+function hexToVec3(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+}
+
+const FS = `
+  precision mediump float;
+  varying vec2 v_uv;
+  uniform float u_time, u_speed, u_rings, u_twist;
+  uniform vec3 u_color;
+  uniform vec2 u_res;
+
+  void main() {
+    vec2 p = (v_uv - 0.5) * vec2(u_res.x / u_res.y, 1.0);
+    float r = length(p);
+    float a = atan(p.y, p.x);
+
+    float t = u_time * u_speed;
+    // Tunnel: map radius to depth, angle to horizontal
+    float depth = 0.3 / (r + 0.001);
+    float tex_u = a / 3.14159 + t * u_twist * 0.1;
+    float tex_v = depth + t * 2.0;
+
+    // Ring pattern
+    float rings = sin(tex_v * u_rings) * 0.5 + 0.5;
+    float spiral = sin(tex_u * 6.0 + tex_v * 2.0) * 0.5 + 0.5;
+    float pattern = rings * 0.7 + spiral * 0.3;
+
+    // Fade to center (bright) and edges (dark)
+    float fade = smoothstep(0.0, 0.15, r) * (1.0 - smoothstep(0.5, 1.2, r));
+
+    vec3 col = u_color * pattern * fade;
+    // Add glow near center
+    col += u_color * 0.3 * smoothstep(0.15, 0.0, r);
+    col += vec3(0.02);
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+return {
+  id: "shaderTunnel",
+  type: "webgl",
+  name: "Tunnel / Wormhole",
+  category: "Shader",
+  defaultParams: { speed: 0.5, rings: 8, color: "#6ee7ff", twist: 2.0 },
+
+  create(container) {
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+    canvas.width = container.clientWidth || 1920;
+    canvas.height = container.clientHeight || 1080;
+    container.appendChild(canvas);
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const program = createProgram(gl, VS, FS);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    return { canvas, gl, program };
+  },
+
+  update(state, localT, params) {
+    const { canvas, gl, program } = state;
+    const cw = canvas.parentElement?.clientWidth || canvas.width;
+    const ch = canvas.parentElement?.clientHeight || canvas.height;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), localT);
+    gl.uniform1f(gl.getUniformLocation(program, "u_speed"), toNumber(params.speed, 0.5));
+    gl.uniform1f(gl.getUniformLocation(program, "u_rings"), toNumber(params.rings, 8));
+    gl.uniform1f(gl.getUniformLocation(program, "u_twist"), toNumber(params.twist, 2.0));
+    gl.uniform2f(gl.getUniformLocation(program, "u_res"), canvas.width, canvas.height);
+    const c = hexToVec3(params.color || "#6ee7ff");
+    gl.uniform3f(gl.getUniformLocation(program, "u_color"), c[0], c[1], c[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+
+  destroy(state) { state.canvas.remove(); }
+};
+
+})();
+
+
 // --- splitText ---
 SCENE_REGISTRY["splitText"] = (function() {
   
@@ -3590,6 +4811,103 @@ return {
   },
 
   destroy(els) { els.svg.remove(); },
+};
+
+})();
+
+
+// --- syncSubs ---
+SCENE_REGISTRY["syncSubs"] = (function() {
+  /**
+ * syncSubs — synchronized subtitles driven by TTS timeline
+ *
+ * params:
+ *   segments: [{ text, start_ms, end_ms }]  — from vox .timeline.json
+ *   fontSize: 24
+ *   color: "#ffffff"
+ *   bgColor: "rgba(0,0,0,0.6)"
+ *   position: "bottom" | "top" | "center"
+ *   highlightColor: "#6ee7ff"
+ */
+
+return {
+  id: "syncSubs",
+  type: "dom",
+  name: "Synced Subtitles",
+  category: "Overlay",
+  defaultParams: {
+    segments: [],
+    fontSize: 24,
+    color: "#ffffff",
+    bgColor: "rgba(0,0,0,0.6)",
+    position: "bottom",
+    highlightColor: "#6ee7ff",
+  },
+
+  create(container, params) {
+    const pos = params.position || "bottom";
+    const alignCSS = pos === "top" ? "top:5%;bottom:auto"
+      : pos === "center" ? "top:50%;transform:translateY(-50%)"
+      : "bottom:8%";
+    const root = createRoot(container, `display:flex;justify-content:center;align-items:flex-end;${alignCSS}`);
+    const box = createNode("div", [
+      `font-family:${SANS_FONT_STACK}`,
+      `font-size:${toNumber(params.fontSize, 24)}px`,
+      "font-weight:500",
+      "line-height:1.6",
+      `color:${params.color || "#ffffff"}`,
+      `background:${params.bgColor || "rgba(0,0,0,0.6)"}`,
+      "padding:10px 24px",
+      "border-radius:8px",
+      "max-width:80%",
+      "text-align:center",
+      "will-change:opacity",
+      "opacity:0",
+    ].join(";"));
+    root.appendChild(box);
+    return { root, box, currentIdx: -1 };
+  },
+
+  // localT is normalized 0~1 (DOM type)
+  update(els, localT, params) {
+    const segments = params.segments || [];
+    if (!segments.length) { els.box.style.opacity = "0"; return; }
+
+    // Convert normalT back to approximate seconds using total duration
+    // We need actual seconds — estimate from last segment end
+    const totalMs = segments[segments.length - 1].end_ms || 10000;
+    const tMs = localT * totalMs; // localT is 0~1, map to ms range
+
+    // Find active segment
+    let activeIdx = -1;
+    for (let i = 0; i < segments.length; i++) {
+      if (tMs >= segments[i].start_ms && tMs <= segments[i].end_ms) {
+        activeIdx = i;
+        break;
+      }
+    }
+
+    if (activeIdx < 0) {
+      els.box.style.opacity = "0";
+      els.currentIdx = -1;
+      return;
+    }
+
+    if (activeIdx !== els.currentIdx) {
+      els.box.textContent = segments[activeIdx].text;
+      els.currentIdx = activeIdx;
+    }
+
+    // Fade in/out
+    const seg = segments[activeIdx];
+    const segDur = seg.end_ms - seg.start_ms;
+    const segProgress = (tMs - seg.start_ms) / segDur;
+    const fadeIn = smoothstep(0, 0.15, segProgress);
+    const fadeOut = smoothstep(1, 0.85, segProgress);
+    els.box.style.opacity = String(fadeIn * fadeOut);
+  },
+
+  destroy(els) { els.root.remove(); },
 };
 
 })();
@@ -3951,6 +5269,15 @@ return {
 // --- videoClip ---
 SCENE_REGISTRY["videoClip"] = (function() {
   
+/**
+ * videoClip — embeds a video, frame-synced to timeline time.
+ *
+ * Video is ALWAYS muted in this component — audio comes from a separate
+ * audioTrack layer pointing to the same file. This avoids play/seek conflicts.
+ *
+ * In browser preview: seeks each frame via currentTime.
+ * In recording mode: same, recorder captures via screenshot.
+ */
 return {
   id: "videoClip",
   type: "media",
@@ -3959,8 +5286,6 @@ return {
   defaultParams: {
     src: "",
     poster: "",
-    muted: true,
-    loop: false,
     objectFit: "cover",
   },
 
@@ -3972,8 +5297,7 @@ return {
       "display:block;background:#000",
     ].join(";");
     video.playsInline = true;
-    video.muted = params.muted !== false;
-    video.loop = params.loop === true;
+    video.muted = true; // always muted — audio via audioTrack
     video.preload = "auto";
     if (params.poster) video.poster = params.poster;
     if (params.src) video.src = params.src;
@@ -3984,8 +5308,9 @@ return {
   update(video, localT) {
     const t = toNumber(localT, 0);
     if (!video.duration || !Number.isFinite(video.duration)) return;
-    const target = clamp(t, 0, video.duration);
-    if (Math.abs(video.currentTime - target) > 0.1) {
+    const target = clamp(t, 0, video.duration - 0.05);
+    // Seek every frame — video is muted so no audio stutter
+    if (Math.abs(video.currentTime - target) > 0.04) {
       video.currentTime = target;
     }
   },
@@ -4282,6 +5607,51 @@ function calcTransitionStyle(transition, progress) {
   }
 }
 
+// ─── Keyframe Interpolation ────────────────────────────────────
+// Format: { "keys": [[0, 0], [2, 100], [5, 50]], "ease": "linear" }
+// keys = [[time, value], ...] sorted by time. value can be number or string.
+function isKeyframed(v) {
+  return v && typeof v === 'object' && Array.isArray(v.keys) && v.keys.length > 0;
+}
+
+function evalKeyframe(kf, t) {
+  const keys = kf.keys;
+  if (keys.length === 0) return 0;
+  if (t <= keys[0][0]) return keys[0][1];
+  if (t >= keys[keys.length - 1][0]) return keys[keys.length - 1][1];
+  // Find segment
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [t0, v0] = keys[i];
+    const [t1, v1] = keys[i + 1];
+    if (t >= t0 && t <= t1) {
+      const p = t1 === t0 ? 1 : (t - t0) / (t1 - t0);
+      const eased = kf.ease === 'linear' ? p
+        : kf.ease === 'easeIn' ? easeInCubic(p)
+        : easeOutCubic(p); // default easeOut
+      // Interpolate numbers, return string endpoints as-is at threshold
+      if (typeof v0 === 'number' && typeof v1 === 'number') {
+        return v0 + (v1 - v0) * eased;
+      }
+      // String values (e.g. "10%" → "50%"): parse number prefix
+      const n0 = parseFloat(v0), n1 = parseFloat(v1);
+      if (Number.isFinite(n0) && Number.isFinite(n1)) {
+        const suffix = String(v0).replace(/^[-\d.]+/, '');
+        return (n0 + (n1 - n0) * eased).toFixed(2) + suffix;
+      }
+      return p < 0.5 ? v0 : v1; // snap for non-interpolable
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+
+// Resolve a layer property: if keyframed return interpolated value, else return static value
+function resolveLayerProp(layer, prop, localT, fallback) {
+  const v = layer[prop];
+  if (v == null) return fallback;
+  if (isKeyframed(v)) return evalKeyframe(v, localT);
+  return v;
+}
+
 // ─── Layer Style Resolver ──────────────────────────────────────
 // Converts layer properties to CSS on the container div
 function applyLayerStyle(el, layer) {
@@ -4303,12 +5673,54 @@ function applyLayerStyle(el, layer) {
   if (layer.borderRadius) s.borderRadius = layer.borderRadius;
   if (layer.shadow && layer.shadow !== 'none') s.boxShadow = layer.shadow;
   if (layer.clipPath && layer.clipPath !== 'none') s.clipPath = layer.clipPath;
+  if (layer.scale) s.transform = (s.transform || '') + ` scale(${layer.scale})`;
+  if (layer.skew) s.transform = (s.transform || '') + ` skew(${layer.skew})`;
+  if (layer.transformOrigin) s.transformOrigin = layer.transformOrigin;
+  if (layer.backdropFilter) s.backdropFilter = layer.backdropFilter;
+  if (layer.border) s.border = layer.border;
+  if (layer.padding) s.padding = layer.padding;
+  if (layer.zIndex != null) s.zIndex = layer.zIndex;
+  if (layer.overflow) s.overflow = layer.overflow;
+  if (layer.perspective) s.perspective = layer.perspective;
+}
+
+function timelineMetrics(timeline) {
+  const project = timeline && typeof timeline.project === 'object' ? timeline.project : {};
+  return {
+    width: project.width || timeline.width || 1920,
+    height: project.height || timeline.height || 1080,
+    fps: project.fps || timeline.fps || 30,
+    duration: timeline.duration || 10,
+    background: timeline.background || '#05050c',
+  };
+}
+
+function normalizeLayers(timeline) {
+  if (Array.isArray(timeline.layers)) {
+    return timeline.layers;
+  }
+  const tracks = Array.isArray(timeline && timeline.tracks) ? timeline.tracks : [];
+  const layers = [];
+  for (let trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
+    const track = tracks[trackIndex];
+    const clips = Array.isArray(track && track.clips) ? track.clips : [];
+    for (let clipIndex = 0; clipIndex < clips.length; clipIndex++) {
+      const clip = clips[clipIndex];
+      layers.push({
+        ...clip,
+        id: clip && clip.id ? clip.id : `track-${trackIndex + 1}-clip-${clipIndex + 1}`,
+        kind: clip && clip.kind ? clip.kind : (track && track.kind ? track.kind : 'video'),
+        trackId: track && track.id ? track.id : `track-${trackIndex + 1}`,
+      });
+    }
+  }
+  return layers;
 }
 
 // ─── Engine ────────────────────────────────────────────────────
 function createEngine(stageEl, timeline, sceneRegistry) {
-  const { width = 1920, height = 1080, fps = 30, duration = 10, background = '#05050c' } = timeline;
-  const layers = timeline.layers || [];
+  const { width, height, fps, duration, background } = timelineMetrics(timeline);
+  const layers = normalizeLayers(timeline);
 
   // Setup stage
   stageEl.style.cssText = `position:relative;width:${width}px;height:${height}px;overflow:hidden;background:${background}`;
@@ -4351,6 +5763,7 @@ function createEngine(stageEl, timeline, sceneRegistry) {
 
   // ─── renderFrame(t) ───
   function renderFrame(t) {
+    resetMediaStallTimer();
     for (const state of layerStates) {
       const { layer, scene, container, sceneContainer } = state;
       const start = layer.start || 0;
@@ -4370,7 +5783,7 @@ function createEngine(stageEl, timeline, sceneRegistry) {
         // Update scene content
         // DOM scenes use normalized time (0~1), Canvas/SVG scenes use seconds
         if (scene && state.sceneEls != null) {
-          const sceneT = scene.type === 'dom' ? (localT / dur) : localT;
+          const sceneT = scene.type === 'dom' ? (dur > 0 ? (localT / dur) : 0) : localT;
           scene.update(state.sceneEls, sceneT, layer.params || {});
         }
 
@@ -4390,20 +5803,44 @@ function createEngine(stageEl, timeline, sceneRegistry) {
           if (ts.clipPath) transClipPath = ts.clipPath;
         }
 
-        const opacity = enter.opacity * exit.opacity * transOpacity * (layer.opacity != null ? layer.opacity : 1);
-        const transforms = [enter.transform, exit.transform, transTransform].filter(Boolean).join(' ');
+        // Resolve keyframe-animated properties
+        const kOpacity = resolveLayerProp(layer, 'opacity', localT, 1);
+        const kRotation = resolveLayerProp(layer, 'rotation', localT, 0);
+        const kScale = resolveLayerProp(layer, 'scale', localT, null);
+        const kX = resolveLayerProp(layer, 'x', localT, null);
+        const kY = resolveLayerProp(layer, 'y', localT, null);
+        const kW = resolveLayerProp(layer, 'w', localT, null);
+        const kH = resolveLayerProp(layer, 'h', localT, null);
+        const kFilter = resolveLayerProp(layer, 'filter', localT, null);
+        const kClipPath = resolveLayerProp(layer, 'clipPath', localT, null);
+
+        const opacity = enter.opacity * exit.opacity * transOpacity * kOpacity;
+        const userTransforms = [];
+        if (kRotation) userTransforms.push(`rotate(${kRotation}deg)`);
+        if (kScale) userTransforms.push(`scale(${kScale})`);
+        const allTransforms = [enter.transform, exit.transform, transTransform, ...userTransforms].filter(Boolean).join(' ');
 
         // Apply visual properties
         container.style.opacity = opacity;
+
+        // Position (keyframe-animated)
+        if (kX != null) container.style.left = typeof kX === 'number' ? kX + 'px' : kX;
+        if (kY != null) container.style.top = typeof kY === 'number' ? kY + 'px' : kY;
+        if (kW != null) container.style.width = typeof kW === 'number' ? kW + 'px' : kW;
+        if (kH != null) container.style.height = typeof kH === 'number' ? kH + 'px' : kH;
+
+        // ClipPath
         if (transClipPath) {
           container.style.clipPath = transClipPath;
-        } else if (layer.clipPath && layer.clipPath !== 'none') {
-          container.style.clipPath = layer.clipPath;
+        } else if (kClipPath && kClipPath !== 'none') {
+          container.style.clipPath = kClipPath;
         } else {
           container.style.clipPath = '';
         }
-        if (transforms) {
-          container.style.transform = transforms;
+
+        // Transform
+        if (allTransforms) {
+          container.style.transform = allTransforms;
         } else if (!layer.x && !layer.y) {
           container.style.transform = '';
         }
@@ -4413,14 +5850,11 @@ function createEngine(stageEl, timeline, sceneRegistry) {
           container.style.mixBlendMode = layer.blend;
         }
 
-        // CSS filter
-        if (layer.filter && layer.filter !== 'none') {
-          container.style.filter = layer.filter;
-        }
-
-        // Rotation (if not handled by enter/exit transforms)
-        if (layer.rotation) {
-          container.style.transform += ` rotate(${layer.rotation}deg)`;
+        // CSS filter (keyframe-animated)
+        if (kFilter && kFilter !== 'none') {
+          container.style.filter = kFilter;
+        } else {
+          container.style.filter = '';
         }
 
         state.wasActive = true;
@@ -4437,8 +5871,23 @@ function createEngine(stageEl, timeline, sceneRegistry) {
     }
   }
 
+  // ─── Media stall detector ───
+  // If renderFrame stops being called for >150ms, pause all media elements.
+  // This catches the case where the caller (recorder, external driver) simply
+  // stops calling __onFrame — without this, <audio> keeps playing forever.
+  let mediaStallTimer = 0;
+  function resetMediaStallTimer() {
+    if (mediaStallTimer) clearTimeout(mediaStallTimer);
+    mediaStallTimer = setTimeout(() => {
+      stageEl.querySelectorAll('audio, video').forEach(m => {
+        if (!m.paused) m.pause();
+      });
+    }, 150);
+  }
+
   // ─── Destroy ───
   function destroy() {
+    if (mediaStallTimer) clearTimeout(mediaStallTimer);
     for (const state of layerStates) {
       if (state.created && state.scene) {
         try { state.scene.destroy(state.sceneEls); } catch (_) {}
@@ -4469,9 +5918,33 @@ function createEngine(stageEl, timeline, sceneRegistry) {
 function createPlayer(engine, stageEl) {
   const { duration, fps, width, height } = engine;
   let playing = false;
-  let startWall = 0;
-  let startTime = 0;
   let currentTime = 0;
+  let playbackRate = 1;
+  let tickRaf = 0;
+  let lastTickWall = 0;
+  let scaleMode = 'fit';
+
+  document.documentElement.style.background = '#111';
+  document.body.style.margin = '0';
+  document.body.style.minHeight = '100vh';
+  document.body.style.overflow = 'hidden';
+  document.body.style.background = '#111';
+
+  const viewport = document.createElement('div');
+  viewport.style.cssText = 'position:fixed;inset:0 0 64px 0;padding:24px;overflow:hidden;background:#111;display:flex;align-items:center;justify-content:center';
+
+  const stageShell = document.createElement('div');
+  stageShell.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:center;min-width:100%;min-height:100%;box-sizing:border-box';
+
+  const originalParent = stageEl.parentNode;
+  if (originalParent) {
+    originalParent.insertBefore(viewport, stageEl);
+  } else {
+    document.body.appendChild(viewport);
+  }
+  viewport.appendChild(stageShell);
+  stageShell.appendChild(stageEl);
+  stageEl.style.boxShadow = '0 0 80px rgba(100,80,200,0.15)';
 
   const bar = document.createElement('div');
   bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:10px 20px;background:rgba(0,0,0,0.92);display:flex;align-items:center;gap:12px;font:13px -apple-system,sans-serif;color:#aaa;z-index:9999';
@@ -4488,26 +5961,121 @@ function createPlayer(engine, stageEl) {
   slider.style.cssText = 'flex:1;accent-color:#a78bfa';
 
   const timeLabel = document.createElement('span');
-  timeLabel.style.cssText = 'min-width:90px;text-align:right;font-family:"SF Mono",monospace;font-size:12px';
+  timeLabel.style.cssText = 'min-width:120px;text-align:right;font-family:"SF Mono",monospace;font-size:12px;color:#ddd';
 
   const info = document.createElement('span');
   info.style.cssText = 'font-size:11px;color:#666';
   info.textContent = `| ${duration}s @ ${fps}fps | ${width}\u00d7${height} | layers:${engine.layerCount}`;
 
-  bar.append(playBtn, slider, timeLabel, info);
+  const speedWrap = document.createElement('div');
+  speedWrap.style.cssText = 'display:flex;align-items:center;gap:6px';
+  const speedButtons = [0.5, 1, 2].map((rate) => {
+    const button = document.createElement('button');
+    button.textContent = `${rate}x`;
+    button.style.cssText = 'background:#141414;border:1px solid #333;color:#bbb;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px';
+    button.addEventListener('click', () => {
+      playbackRate = rate;
+      if (playing) {
+        lastTickWall = performance.now();
+      }
+      syncButtons();
+    });
+    speedWrap.appendChild(button);
+    return button;
+  });
+
+  const scaleBtn = document.createElement('button');
+  scaleBtn.style.cssText = 'background:#141414;border:1px solid #333;color:#fff;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px';
+  scaleBtn.addEventListener('click', () => {
+    scaleMode = scaleMode === 'fit' ? 'native' : 'fit';
+    applyScaleMode();
+    syncButtons();
+  });
+
+  const fullscreenBtn = document.createElement('button');
+  fullscreenBtn.style.cssText = 'background:#141414;border:1px solid #333;color:#fff;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px';
+  fullscreenBtn.addEventListener('click', async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
+  });
+
+  bar.append(playBtn, slider, timeLabel, speedWrap, scaleBtn, fullscreenBtn, info);
   document.body.appendChild(bar);
+
+  function formatTime(seconds) {
+    const safe = Math.max(0, Number(seconds) || 0);
+    const minutes = Math.floor(safe / 60);
+    const remainder = safe - minutes * 60;
+    return `${String(minutes).padStart(2, '0')}:${remainder.toFixed(2).padStart(5, '0')}`;
+  }
+
+  function pauseAllMedia() {
+    const stage = stageEl;
+    stage.querySelectorAll('audio, video').forEach(m => {
+      if (!m.paused) m.pause();
+    });
+  }
+
+  function stopPlayback() {
+    playing = false;
+    lastTickWall = 0;
+    if (tickRaf) {
+      cancelAnimationFrame(tickRaf);
+      tickRaf = 0;
+    }
+    pauseAllMedia();
+    syncButtons();
+  }
+
+  function syncButtons() {
+    playBtn.textContent = playing ? '\u23F8' : '\u25B6';
+    scaleBtn.textContent = scaleMode === 'fit' ? 'Fit' : '1:1';
+    fullscreenBtn.textContent = document.fullscreenElement ? 'Exit Fullscreen' : 'Fullscreen';
+    for (const button of speedButtons) {
+      const active = button.textContent === `${playbackRate}x`;
+      button.style.borderColor = active ? '#7c5cff' : '#333';
+      button.style.color = active ? '#fff' : '#bbb';
+      button.style.background = active ? '#2b1f5f' : '#141414';
+    }
+  }
+
+  function applyScaleMode() {
+    if (scaleMode === 'fit') {
+      const availableWidth = Math.max(1, viewport.clientWidth - 48);
+      const availableHeight = Math.max(1, viewport.clientHeight - 48);
+      const scale = Math.min(availableWidth / width, availableHeight / height);
+      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      stageEl.style.width = `${Math.round(width * safeScale)}px`;
+      stageEl.style.height = `${Math.round(height * safeScale)}px`;
+      viewport.style.overflow = 'hidden';
+      stageShell.style.padding = '0';
+      stageShell.style.minWidth = '100%';
+      stageShell.style.minHeight = '100%';
+    } else {
+      stageEl.style.width = `${width}px`;
+      stageEl.style.height = `${height}px`;
+      viewport.style.overflow = 'auto';
+      stageShell.style.padding = '24px';
+      stageShell.style.minWidth = 'max-content';
+      stageShell.style.minHeight = 'max-content';
+    }
+  }
 
   function seek(t) {
     t = Math.max(0, Math.min(duration, t));
     currentTime = t;
     slider.value = String(t * 1000);
-    timeLabel.textContent = t.toFixed(3) + 's';
+    timeLabel.textContent = `${formatTime(t)} / ${formatTime(duration)}`;
     engine.renderFrame(t);
   }
 
   slider.addEventListener('input', () => {
-    playing = false;
-    playBtn.textContent = '\u25B6';
+    stopPlayback();
     seek(Number(slider.value) / 1000);
   });
 
@@ -4515,46 +6083,76 @@ function createPlayer(engine, stageEl) {
 
   function togglePlay() {
     if (playing) {
-      playing = false;
-      playBtn.textContent = '\u25B6';
+      stopPlayback();
       return;
+    }
+    if (currentTime >= duration) {
+      currentTime = 0;
     }
     playing = true;
-    playBtn.textContent = '\u23F8';
-    startWall = performance.now();
-    startTime = currentTime >= duration ? 0 : currentTime;
-    tick();
+    lastTickWall = 0;
+    syncButtons();
+    tickRaf = requestAnimationFrame(tick);
   }
 
-  function tick() {
+  function tick(now) {
     if (!playing) return;
-    const t = startTime + (performance.now() - startWall) / 1000;
-    if (t >= duration) {
+    if (!lastTickWall) {
+      lastTickWall = now;
+    }
+    const delta = (now - lastTickWall) / 1000;
+    lastTickWall = now;
+    const nextTime = currentTime + delta * playbackRate;
+    if (nextTime >= duration) {
       seek(duration);
-      playing = false;
-      playBtn.textContent = '\u25B6';
+      stopPlayback();
       return;
     }
-    seek(t);
-    requestAnimationFrame(tick);
+    seek(nextTime);
+    tickRaf = requestAnimationFrame(tick);
+  }
+
+  function handleResize() {
+    applyScaleMode();
+  }
+
+  function handleFullscreenChange() {
+    applyScaleMode();
+    syncButtons();
   }
 
   // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
+  const handleKeydown = (e) => {
+    const tagName = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+    if (tagName === 'input' || tagName === 'textarea' || (e.target && e.target.isContentEditable)) {
+      return;
+    }
     if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
     if (e.code === 'ArrowLeft') { e.preventDefault(); seek(currentTime - 1); }
     if (e.code === 'ArrowRight') { e.preventDefault(); seek(currentTime + 1); }
     if (e.code === 'Home') { e.preventDefault(); seek(0); }
     if (e.code === 'End') { e.preventDefault(); seek(duration); }
-  });
+  };
+  document.addEventListener('keydown', handleKeydown);
+  window.addEventListener('resize', handleResize);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
 
+  applyScaleMode();
+  syncButtons();
   seek(0);
 
   return {
     seek,
     play: togglePlay,
     get currentTime() { return currentTime; },
-    destroy() { bar.remove(); },
+    destroy() {
+      stopPlayback();
+      document.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      bar.remove();
+      viewport.remove();
+    },
   };
 }
 
@@ -4564,201 +6162,154 @@ const TIMELINE = {
   "width": 1920,
   "height": 1080,
   "fps": 30,
-  "duration": 25,
-  "background": "#0a0a14",
+  "duration": 20,
+  "background": "#05050c",
   "layers": [
     {
       "id": "bg",
-      "scene": "fluidBackground",
+      "scene": "auroraGradient",
       "start": 0,
-      "dur": 25,
+      "dur": 20,
       "params": {
-        "colors": [
-          "#1a0a2e",
-          "#0a1a2e",
-          "#0a0a1e"
-        ],
-        "speed": 0.3,
-        "blur": 80
+        "hueA": 265,
+        "hueB": 200,
+        "hueC": 330,
+        "intensity": 0.9,
+        "grain": 0.04
       }
     },
     {
-      "id": "stars",
-      "scene": "starfield",
+      "id": "dark-overlay",
+      "scene": "vignette",
       "start": 0,
-      "dur": 25,
+      "dur": 20,
       "params": {
-        "count": 150,
-        "speed": 15,
-        "depth": 3,
-        "color": "#ffffff"
-      },
-      "blend": "screen",
-      "opacity": 0.4
+        "intensity": 0.6,
+        "color": "#000000",
+        "radius": 0.7
+      }
     },
     {
-      "id": "cover-title",
-      "scene": "headline",
+      "id": "rings",
+      "scene": "svgRings",
       "start": 0,
-      "dur": 5,
+      "dur": 20,
       "params": {
-        "text": "Product Launch",
-        "subtitle": "2026 Roadmap",
-        "fontSize": 120,
-        "gradient": [
-          "#ff6b6b",
-          "#ffd93d",
-          "#6bcb77"
-        ]
+        "count": 4,
+        "speed": 0.8,
+        "strokeWidth": 1.2
       },
-      "enter": "fadeIn 1s",
+      "blend": "screen",
+      "opacity": 0.35
+    },
+    {
+      "id": "title",
+      "scene": "headline",
+      "start": 0.5,
+      "dur": 6,
+      "params": {
+        "text": "NextFrame",
+        "subtitle": "AI-Native Video Editor",
+        "fontSize": 110,
+        "gradient": [
+          "#6ee7ff",
+          "#a78bfa",
+          "#f472b6"
+        ],
+        "stagger": 0.15
+      },
+      "enter": "fadeIn 0.8s",
       "exit": "fadeOut 0.5s"
     },
     {
-      "id": "agenda",
+      "id": "bullets",
       "scene": "bulletList",
-      "start": 5,
+      "start": 3,
       "dur": 5,
       "params": {
         "items": [
-          "Market Analysis",
-          "Product Strategy",
-          "Engineering Timeline",
-          "Budget Allocation",
-          "Q&A"
+          "28 Scene Components",
+          "Canvas + DOM + SVG",
+          "Frame-Pure Rendering",
+          "4K GPU Accelerated"
         ],
-        "fontSize": 32,
-        "bulletColor": "#ffd93d",
-        "stagger": 0.25
+        "fontSize": 28,
+        "bulletColor": "#a78bfa",
+        "stagger": 0.2
       },
       "enter": "slideUp 0.6s",
       "exit": "fadeOut 0.4s"
     },
     {
-      "id": "code-demo",
-      "scene": "codeBlock",
-      "start": 10,
-      "dur": 5,
-      "params": {
-        "code": "const timeline = loadJSON('project.json');\nconst html = engine.render(timeline);\nawait browser.open(html);\n// → Video plays in browser!",
-        "language": "javascript",
-        "fontSize": 20,
-        "theme": "dark"
-      },
-      "enter": "fadeIn 0.8s",
-      "exit": "fadeOut 0.4s"
-    },
-    {
-      "id": "radar",
-      "scene": "radarChart",
-      "start": 12,
-      "dur": 5,
+      "id": "chart",
+      "scene": "barChart",
+      "start": 7,
+      "dur": 6,
       "params": {
         "data": [
-          85,
+          28,
+          45,
           72,
           90,
-          65,
-          78
+          65
         ],
         "labels": [
-          "Speed",
-          "Quality",
-          "Scale",
-          "Cost",
-          "UX"
+          "v0.1",
+          "v0.2",
+          "v0.3",
+          "v0.4",
+          "v0.5"
         ],
-        "color": "#6ee7ff",
-        "fillOpacity": 0.3,
-        "maxValue": 100
+        "colors": [
+          "#6ee7ff",
+          "#a78bfa",
+          "#f472b6",
+          "#fb923c",
+          "#4ade80"
+        ]
       },
-      "enter": "scaleIn 0.6s",
-      "exit": "fadeOut 0.4s"
+      "enter": "slideUp 0.8s",
+      "exit": "fadeOut 0.5s"
     },
     {
-      "id": "callout",
-      "scene": "calloutCard",
-      "start": 15,
-      "dur": 4,
+      "id": "counter",
+      "scene": "numberCounter",
+      "start": 8,
+      "dur": 5,
       "params": {
-        "icon": "🚀",
-        "title": "Launch Date",
-        "description": "June 15, 2026 — Public Beta",
-        "bgColor": "rgba(106,139,250,0.1)",
-        "borderColor": "#a78bfa"
+        "value": 28,
+        "suffix": "",
+        "label": "Scene Components",
+        "color": "#6ee7ff"
       },
       "enter": "scaleIn 0.5s",
       "exit": "fadeOut 0.3s"
     },
     {
-      "id": "h-bars",
-      "scene": "horizontalBars",
-      "start": 17,
-      "dur": 5,
-      "params": {
-        "data": [
-          95,
-          82,
-          68,
-          45
-        ],
-        "labels": [
-          "Backend",
-          "Frontend",
-          "Mobile",
-          "DevOps"
-        ],
-        "colors": [
-          "#4ade80",
-          "#6ee7ff",
-          "#a78bfa",
-          "#f472b6"
-        ],
-        "height": 40,
-        "gap": 20
-      },
-      "enter": "slideLeft 0.8s",
-      "exit": "fadeOut 0.4s"
-    },
-    {
-      "id": "end-quote",
+      "id": "quote",
       "scene": "quoteBlock",
-      "start": 20,
+      "start": 13,
       "dur": 5,
       "params": {
-        "text": "The best way to predict the future is to create it.",
-        "author": "Alan Kay",
-        "fontSize": 40,
-        "accentColor": "#ffd93d"
+        "text": "Every frame is a pure function of time.",
+        "author": "NextFrame Architecture",
+        "fontSize": 36,
+        "accentColor": "#a78bfa"
       },
       "enter": "fadeIn 1s",
       "exit": "fadeOut 0.5s"
     },
     {
-      "id": "ripple",
-      "scene": "circleRipple",
-      "start": 0,
-      "dur": 25,
+      "id": "subtitle",
+      "scene": "subtitleBar",
+      "start": 1,
+      "dur": 18,
       "params": {
-        "count": 4,
-        "speed": 0.5,
-        "color": "#a78bfa",
-        "strokeWidth": 1,
-        "maxRadius": 500
+        "text": "Timeline JSON → HTML → Browser Playback",
+        "fontSize": 16
       },
-      "blend": "screen",
-      "opacity": 0.15
-    },
-    {
-      "id": "vignette",
-      "scene": "vignette",
-      "start": 0,
-      "dur": 25,
-      "params": {
-        "intensity": 0.5,
-        "color": "#000000",
-        "radius": 0.7
-      }
+      "enter": "fadeIn 0.6s",
+      "exit": "fadeOut 0.4s"
     }
   ]
 };
