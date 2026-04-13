@@ -1,0 +1,173 @@
+{
+  "schema": "nextframe/v0.3",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 32,
+  "background": "#1a1510",
+  "assets": [],
+  "chapters": [],
+  "markers": [],
+  "layers": [
+    {
+      "id": "chrome",
+      "scene": "slideChrome",
+      "start": 0,
+      "dur": 32,
+      "params": {
+        "brand": "OPC · 王宇轩",
+        "series": "《深入浅出 Claude Code 源代码》",
+        "ep": "E01",
+        "tag": "tools[]",
+        "title": "工具箱",
+        "tagExtra": "20+ built-in",
+        "dimNum": 6,
+        "totalDims": 15,
+        "bgColor": "#1a1510",
+        "accentColor": "#da7756",
+        "textColor": "#f5ece0",
+        "subtitles": [
+          { "start": 0.00, "end": 0.12, "text": "第六个，工具箱。放在 tools 这个槽位里。" },
+          { "start": 0.12, "end": 0.26, "text": "内置 20 多个——Bash、Read、Edit、Grep、Agent、Skill——" },
+          { "start": 0.26, "end": 0.38, "text": "每个工具是一份完整的 JSON Schema 说明书。" },
+          { "start": 0.39, "end": 0.52, "text": "如果你接了 MCP 服务器，MCP 提供的工具也会加进来。" },
+          { "start": 0.52, "end": 0.70, "text": "还有一类叫 Deferred 工具——只发个名字，不发说明书，用的时候才临时查。" },
+          { "start": 0.85, "end": 1.00, "text": "接上五六个 MCP，工具数量能到一百多个。" }
+        ]
+      }
+    },
+    {
+      "id": "code-win",
+      "scene": "terminalCode",
+      "start": 1,
+      "dur": 13,
+      "x": "60px",
+      "y": "108px",
+      "w": "calc(100% - 120px)",
+      "h": "calc(100% - 300px)",
+      "params": {
+        "title": "tools[0] — bash.schema.json",
+        "lineHeight": 1.75,
+        "lines": [
+          {
+            "tokens": [
+              { "text": "{", "color": "rgba(245,236,224,0.50)" }
+            ]
+          },
+          {
+            "tokens": [
+              { "text": "  \"name\"", "color": "#ff7b72" },
+              { "text": ": ", "color": "rgba(245,236,224,0.50)" },
+              { "text": "\"Bash\"", "color": "#7ee787" },
+              { "text": ",", "color": "rgba(245,236,224,0.50)" }
+            ]
+          },
+          {
+            "tokens": [
+              { "text": "  \"description\"", "color": "#ff7b72" },
+              { "text": ": ", "color": "rgba(245,236,224,0.50)" },
+              { "text": "\"Execute shell commands\"", "color": "#7ee787" },
+              { "text": ",", "color": "rgba(245,236,224,0.50)" }
+            ]
+          },
+          {
+            "tokens": [
+              { "text": "  \"input_schema\"", "color": "#ff7b72" },
+              { "text": ": {", "color": "rgba(245,236,224,0.50)" }
+            ]
+          },
+          {
+            "tokens": [
+              { "text": "    \"type\"", "color": "#ff7b72" },
+              { "text": ": ", "color": "rgba(245,236,224,0.50)" },
+              { "text": "\"object\"", "color": "#7ee787" }
+            ]
+          },
+          {
+            "tokens": [
+              { "text": "  }", "color": "rgba(245,236,224,0.50)" }
+            ]
+          },
+          {
+            "tokens": [
+              { "text": "}", "color": "rgba(245,236,224,0.50)" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tool-chips",
+      "scene": "chipGroup",
+      "start": 4,
+      "dur": 10,
+      "x": "60px",
+      "y": "calc(100% - 196px)",
+      "w": "calc(100% - 120px)",
+      "h": "60px",
+      "params": {
+        "chips": ["Bash", "Read", "Edit", "Grep", "Agent", "Skill", "...20+"],
+        "color": "#7ee787",
+        "bgColor": "rgba(126,231,135,0.08)",
+        "stagger": 0.08
+      }
+    },
+    {
+      "id": "mcp-card",
+      "scene": "infoCard",
+      "start": 15,
+      "dur": 12,
+      "x": "60px",
+      "y": "108px",
+      "w": "calc(50% - 80px)",
+      "h": "calc(100% - 300px)",
+      "params": {
+        "topColor": "#7ec699",
+        "borderStyle": "solid",
+        "label": "MCP TOOLS",
+        "title": "MCP 服务器工具",
+        "desc": "接了 MCP 服务器，服务器提供的工具也会加进 tools[]",
+        "chips": ["github", "slack", "gmail", "postgres", "jira"],
+        "chipColor": "#7ec699",
+        "slideDir": "left"
+      }
+    },
+    {
+      "id": "defer-card",
+      "scene": "infoCard",
+      "start": 16,
+      "dur": 11,
+      "x": "calc(50% + 20px)",
+      "y": "108px",
+      "w": "calc(50% - 80px)",
+      "h": "calc(100% - 300px)",
+      "params": {
+        "topColor": "#d4b483",
+        "borderStyle": "dashed",
+        "label": "DEFERRED TOOLS",
+        "title": "按需加载工具",
+        "desc": "只发个名字，不发说明书\n用的时候才临时查\n省 token，不占上下文",
+        "chips": [],
+        "chipColor": "#d4b483",
+        "slideDir": "up"
+      }
+    },
+    {
+      "id": "big-100",
+      "scene": "bigNumber",
+      "start": 25,
+      "dur": 7,
+      "x": "60px",
+      "y": "calc(100% - 196px)",
+      "w": "calc(100% - 120px)",
+      "h": "80px",
+      "params": {
+        "number": "100+",
+        "label": "接上五六个 MCP，工具数量能到一百多个",
+        "numColor": "#da7756",
+        "numSize": 64,
+        "fontFamily": "serif"
+      }
+    }
+  ]
+}

@@ -44,6 +44,11 @@ import videoClip from './videoClip.js';
 import vignette from './vignette.js';
 import waveform from './waveform.js';
 import dimToolsSlide from './dimToolsSlide.js';
+import terminalCode from './terminalCode.js';
+import chipGroup from './chipGroup.js';
+import infoCard from './infoCard.js';
+import bigNumber from './bigNumber.js';
+import slideChrome from './slideChrome.js';
 // WebGL shader scenes
 import shaderGradient from './shaderGradient.js';
 import shaderNoise from './shaderNoise.js';
@@ -68,6 +73,7 @@ const ALL_SCENES = [
   progressBar, calloutCard, typewriter, marquee,
   featureGrid, card3d, parallaxStack, logoReveal,
   slideFrame, dimToolsSlide,
+  terminalCode, chipGroup, infoCard, bigNumber, slideChrome,
   // SVG — data viz & decoration
   barChart, lineChart, pieChart, progressRing,
   svgRings, radarChart, horizontalBars, treeMap,
