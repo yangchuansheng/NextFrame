@@ -30,7 +30,8 @@ pub(crate) fn handle_compose_generate(params: &Value) -> Result<Value, String> {
         })?;
     }
 
-    let bundle_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../runtime/web/src/bundle.cjs");
+    let bundle_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../runtime/web/src/bundle.cjs");
 
     let output = Command::new("node")
         .arg(&bundle_path)
@@ -49,13 +50,20 @@ pub(crate) fn handle_compose_generate(params: &Value) -> Result<Value, String> {
         } else if !stdout.is_empty() {
             stdout
         } else {
-            format!("bundle exited with code {}", output.status.code().unwrap_or(-1))
+            format!(
+                "bundle exited with code {}",
+                output.status.code().unwrap_or(-1)
+            )
         };
         return Err(details);
     }
 
-    let meta = fs::metadata(&output_path)
-        .map_err(|error| format!("failed to stat composed html {}: {error}", output_path.display()))?;
+    let meta = fs::metadata(&output_path).map_err(|error| {
+        format!(
+            "failed to stat composed html {}: {error}",
+            output_path.display()
+        )
+    })?;
 
     if params.get("open").and_then(Value::as_bool).unwrap_or(false) {
         open_in_browser(&output_path)?;

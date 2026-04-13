@@ -8,16 +8,18 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, dirname, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { parseFlags, emit } from "./_io.js";
+import { resolveTimeline, timelineUsage } from "./_resolve.js";
 import { buildHTML } from "../engine-v2/build.js";
 
 export async function run(argv) {
   const { positional, flags } = parseFlags(argv);
-  if (!positional[0]) {
-    emit({ ok: false, error: { code: "USAGE", message: "usage: nextframe preview <timeline.json> [--time 3] [--times 0,5,10] [--auto] [--out /tmp/frames]" } }, flags);
-    return 3;
+  const resolved = resolveTimeline(positional, { usage: timelineUsage("preview", " [--times=0,5,10]") });
+  if (!resolved.ok) {
+    emit(resolved, flags);
+    return resolved.error?.code === "USAGE" ? 3 : 2;
   }
 
-  const jsonPath = resolve(positional[0]);
+  const jsonPath = resolved.jsonPath;
   let timeline;
   try {
     timeline = JSON.parse(await readFile(jsonPath, "utf-8"));

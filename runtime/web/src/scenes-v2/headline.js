@@ -129,7 +129,7 @@ export default {
       const enterEnd = charStart + 0.3;
       const exitStart = 0.8;
 
-      const enterProgress = easeOutCubic(smoothstep(charStart, Math.min(enterEnd, 0.3), t));
+      const enterProgress = easeOutCubic(smoothstep(charStart, enterEnd, t));
       const exitProgress = smoothstep(exitStart, 1, t);
       const opacity = enterProgress * (1 - exitProgress);
       const translateY = (1 - enterProgress) * 20 + exitProgress * -20;

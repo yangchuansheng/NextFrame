@@ -1,27 +1,54 @@
 use super::{
-    autosave_storage_test_lock, build_ffmpeg_command, build_ffmpeg_filter_complex, dispatch,
-    handle_export_mux_audio, home_dir, initialize, mock_ffmpeg_state, parse_audio_sources,
-    recent_storage_test_lock, reset_ffmpeg_path_cache_for_tests, secs_to_millis,
-    resolve_write_path, set_autosave_storage_path_override_for_tests,
-    set_recent_storage_path_override_for_tests, AudioSource, CommandOutput, FfmpegCommand,
-    MockFfmpegState, Request, cleanup_intermediate_video, copy_video_output,
-    create_export_log_path, MOCK_FFMPEG_TEST_LOCK,
+    autosave_storage_test_lock,
+    // test-8: export helpers
+    build_export_request,
+    build_ffmpeg_command,
+    build_ffmpeg_filter_complex,
+    // test-7: recorder_bridge types
+    build_recording_url,
+    cleanup_intermediate_video,
+    copy_video_output,
+    create_export_log_path,
+    decode_file_url_path,
     // test-6: dialog helpers
     dialog::{normalize_extension, parse_dialog_filters, with_default_extension},
-    // test-7: recorder_bridge types
-    build_recording_url, decode_file_url_path, resolve_recorder_frame_path_from_url,
-    RecorderRequest,
-    // test-8: export helpers
-    build_export_request, export_runtime, export_status_json, next_export_pid,
-    percent_complete, remaining_secs, ExportTask, ProcessHandle, ProcessTerminal,
+    dispatch,
+    export_runtime,
+    export_status_json,
+    handle_export_mux_audio,
+    home_dir,
+    initialize,
+    mock_ffmpeg_state,
+    next_export_pid,
+    parse_audio_sources,
+    // test-3: path + time modules (accessed via super::path / super::time)
+    path,
+    percent_complete,
+    recent_storage_test_lock,
+    remaining_secs,
+    reset_ffmpeg_path_cache_for_tests,
+    resolve_recorder_frame_path_from_url,
+    resolve_write_path,
+    secs_to_millis,
+    set_autosave_storage_path_override_for_tests,
+    set_recent_storage_path_override_for_tests,
+    time,
     // test-2: validation helpers
     validation::{
         read_optional_u8_in_range, require_array, require_object, require_positive_f64,
         require_positive_u32, require_string, require_u32, require_value_alias,
         validate_project_component,
     },
-    // test-3: path + time modules (accessed via super::path / super::time)
-    path, time,
+    AudioSource,
+    CommandOutput,
+    ExportTask,
+    FfmpegCommand,
+    MockFfmpegState,
+    ProcessHandle,
+    ProcessTerminal,
+    RecorderRequest,
+    Request,
+    MOCK_FFMPEG_TEST_LOCK,
 };
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -742,7 +769,11 @@ fn autosave_clear_removes_the_only_saved_entry() {
     let list_response = dispatch(request("autosave.list", json!({})));
     assert!(list_response.ok);
     assert_eq!(
-        list_response.result.as_array().expect("autosave entries").len(),
+        list_response
+            .result
+            .as_array()
+            .expect("autosave entries")
+            .len(),
         0
     );
 
@@ -822,14 +853,20 @@ fn autosave_rejects_project_ids_with_slashes_and_dot_segments() {
                 "timeline": minimal_timeline_json(),
             }),
         ));
-        assert!(!write_response.ok, "expected write to reject '{project_id}'");
+        assert!(
+            !write_response.ok,
+            "expected write to reject '{project_id}'"
+        );
         assert_error_contains(&write_response.error, "invalid autosave project id");
 
         let clear_response = dispatch(request(
             "autosave.clear",
             json!({ "projectId": project_id }),
         ));
-        assert!(!clear_response.ok, "expected clear to reject '{project_id}'");
+        assert!(
+            !clear_response.ok,
+            "expected clear to reject '{project_id}'"
+        );
         assert_error_contains(&clear_response.error, "invalid autosave project id");
 
         let recover_response = dispatch(request(
@@ -958,7 +995,10 @@ fn multiple_autosaves_for_different_projects_coexist() {
                 .expect("autosave project id")
         })
         .collect::<HashSet<_>>();
-    assert_eq!(project_ids, HashSet::from([first_project_id, second_project_id]));
+    assert_eq!(
+        project_ids,
+        HashSet::from([first_project_id, second_project_id])
+    );
 
     let first_recover = dispatch(request(
         "autosave.recover",
@@ -1258,10 +1298,7 @@ fn with_default_extension_adds_nfp_when_missing() {
 #[test]
 fn with_default_extension_preserves_existing_extension() {
     let path = PathBuf::from("project.mov");
-    assert_eq!(
-        with_default_extension(path.clone(), "default.nfp"),
-        path
-    );
+    assert_eq!(with_default_extension(path.clone(), "default.nfp"), path);
 }
 
 #[test]
@@ -1829,7 +1866,10 @@ fn require_u32_handles_valid_negative_float_and_missing() {
     let negative_error = require_u32(&params, "negative")
         .err()
         .expect("negative number should return an error");
-    assert_eq!(negative_error, "params.negative must be an unsigned integer");
+    assert_eq!(
+        negative_error,
+        "params.negative must be an unsigned integer"
+    );
 
     let float_error = require_u32(&params, "ratio")
         .err()
@@ -1924,7 +1964,10 @@ fn require_value_alias_returns_first_second_or_missing_error() {
     let missing_error = require_value_alias(&missing_params, &["primary", "secondary"])
         .err()
         .expect("missing aliases should return an error");
-    assert_eq!(missing_error, "missing one of params.primary, params.secondary");
+    assert_eq!(
+        missing_error,
+        "missing one of params.primary, params.secondary"
+    );
 }
 
 #[test]
@@ -2040,7 +2083,10 @@ fn time_epoch_days_to_date_matches_known_values() {
 #[test]
 fn time_unix_timestamp_secs_returns_reasonable_value() {
     let timestamp = time::unix_timestamp_secs().expect("unix timestamp should be available");
-    assert!(timestamp > 1_700_000_000, "unexpected unix timestamp: {timestamp}");
+    assert!(
+        timestamp > 1_700_000_000,
+        "unexpected unix timestamp: {timestamp}"
+    );
 }
 
 #[test]
@@ -2263,7 +2309,10 @@ fn recorder_request_construction_preserves_fields() {
         crf: 18,
     };
 
-    assert_eq!(request.url, "file:///tmp/runtime/web/index.html?record=true");
+    assert_eq!(
+        request.url,
+        "file:///tmp/runtime/web/index.html?record=true"
+    );
     assert_eq!(request.output_path, output_path);
     assert_eq!(request.width, 1920);
     assert_eq!(request.height, 1080);
@@ -2370,7 +2419,10 @@ fn handle_fs_write_base64_writes_decoded_bytes() {
             "bytesWritten": expected_bytes.len(),
         })
     );
-    assert_eq!(fs::read(&file_path).expect("read written bytes"), expected_bytes);
+    assert_eq!(
+        fs::read(&file_path).expect("read written bytes"),
+        expected_bytes
+    );
 }
 
 #[test]
@@ -2397,8 +2449,7 @@ fn validate_path_rejects_empty_string() {
 
 #[test]
 fn validate_path_rejects_null_bytes() {
-    let error =
-        super::fs::validate_path("bad\0path").expect_err("null bytes should be rejected");
+    let error = super::fs::validate_path("bad\0path").expect_err("null bytes should be rejected");
 
     assert_eq!(error, "path must not contain null bytes");
 }
@@ -2416,7 +2467,9 @@ fn resolve_existing_path_errors_for_missing_file() {
 
 #[test]
 fn is_allowed_path_rejects_paths_outside_allowed_roots() {
-    assert!(!super::fs::is_allowed_path(Path::new(&disallowed_absolute_path())));
+    assert!(!super::fs::is_allowed_path(Path::new(
+        &disallowed_absolute_path()
+    )));
 }
 
 #[test]
@@ -2661,7 +2714,10 @@ fn create_export_log_path_returns_valid_path_in_temp_dir() {
 
     assert!(log_path.is_absolute());
     assert_eq!(log_path.parent(), Some(temp_dir.as_path()));
-    assert_eq!(log_path.extension().and_then(|ext| ext.to_str()), Some("log"));
+    assert_eq!(
+        log_path.extension().and_then(|ext| ext.to_str()),
+        Some("log")
+    );
 }
 
 #[test]
@@ -2699,7 +2755,10 @@ fn copy_video_output_copies_file_contents() {
 
     copy_video_output(&video_path, &output_path).expect("copy video output");
 
-    assert_eq!(fs::read(&output_path).expect("read copied output"), expected);
+    assert_eq!(
+        fs::read(&output_path).expect("read copied output"),
+        expected
+    );
 }
 
 #[test]
@@ -2757,7 +2816,8 @@ fn encoding_percent_decode_url_path_decodes_consecutive_percent_sequences() {
 
 #[test]
 fn encoding_percent_encode_path_handles_spaces_and_unicode_segments() {
-    let encoded = super::encoding::percent_encode_path("folder name/\u{4f60}\u{597d} \u{4e16}\u{754c}.txt");
+    let encoded =
+        super::encoding::percent_encode_path("folder name/\u{4f60}\u{597d} \u{4e16}\u{754c}.txt");
 
     assert_eq!(
         encoded,

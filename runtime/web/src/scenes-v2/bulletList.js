@@ -108,7 +108,7 @@ export default {
       const enterEnd = itemStart + 0.3;
       const exitStart = 0.8;
 
-      const enterProgress = easeOutCubic(smoothstep(itemStart, Math.min(enterEnd, 0.3), t));
+      const enterProgress = easeOutCubic(smoothstep(itemStart, enterEnd, t));
       const exitProgress = smoothstep(exitStart, 1, t);
       const opacity = enterProgress * (1 - exitProgress);
       const translateX = (1 - enterProgress) * -30 + exitProgress * -30;

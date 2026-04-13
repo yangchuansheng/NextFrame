@@ -415,8 +415,8 @@ fn read_http_request(connection: &mut HttpConnection) -> Result<Option<HttpReque
     };
 
     let header_bytes = &connection.buffer[..header_end];
-    let header_text =
-        std::str::from_utf8(header_bytes).map_err(|error| format!("invalid header utf-8: {error}"))?;
+    let header_text = std::str::from_utf8(header_bytes)
+        .map_err(|error| format!("invalid header utf-8: {error}"))?;
     let mut lines = header_text.split("\r\n");
     let request_line = lines
         .next()
@@ -491,8 +491,8 @@ fn handle_http_request(
             )
         }
         ("POST", "/eval") => {
-            let script =
-                String::from_utf8(request.body).map_err(|error| format!("invalid UTF-8 body: {error}"))?;
+            let script = String::from_utf8(request.body)
+                .map_err(|error| format!("invalid UTF-8 body: {error}"))?;
             queue_appctl_script(
                 webview,
                 &script,
@@ -521,10 +521,11 @@ fn handle_http_request(
         }
         ("GET", "/screenshot") => {
             let requested_path = match query_value(query, "out") {
-                Some(raw_path) => Some(match decode_query_component(raw_path) {
-                    Ok(path) => path,
-                    Err(error) => {
-                        return write_http_response(
+                Some(raw_path) => {
+                    Some(match decode_query_component(raw_path) {
+                        Ok(path) => path,
+                        Err(error) => {
+                            return write_http_response(
                             stream,
                             400,
                             "Bad Request",
@@ -534,8 +535,9 @@ fn handle_http_request(
                         .map_err(|write_error| {
                             format!("failed to write screenshot query error response: {write_error}")
                         });
-                    }
-                }),
+                        }
+                    })
+                }
                 None => None,
             };
             let out_path = requested_path.unwrap_or_else(default_screenshot_path);
@@ -610,8 +612,8 @@ fn next_appctl_request_id(counter: &mut u64) -> String {
 }
 
 fn appctl_eval_script(req_id: &str, source: &str) -> Result<String, String> {
-    let req_id_json =
-        serde_json::to_string(req_id).map_err(|error| format!("failed to encode reqId: {error}"))?;
+    let req_id_json = serde_json::to_string(req_id)
+        .map_err(|error| format!("failed to encode reqId: {error}"))?;
     let source_json = serde_json::to_string(source)
         .map_err(|error| format!("failed to encode script source: {error}"))?;
     Ok(format!(
@@ -682,14 +684,13 @@ fn native_screenshot(
     use std::rc::Rc;
 
     use block2::RcBlock;
-    use objc2::rc::{Retained, autoreleasepool};
+    use objc2::rc::{autoreleasepool, Retained};
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSBitmapImageRep, NSImage};
     use objc2_foundation::{NSData, NSError};
     use objc2_web_kit::WKSnapshotConfiguration;
 
-    let mtm = MainThreadMarker::new()
-        .ok_or("native_screenshot must run on the main thread")?;
+    let mtm = MainThreadMarker::new().ok_or("native_screenshot must run on the main thread")?;
 
     let wk_webview = webview.webview();
     let config = unsafe { WKSnapshotConfiguration::new(mtm) };
@@ -701,7 +702,10 @@ fn native_screenshot(
     let block = RcBlock::new(move |image: *mut NSImage, error: *mut NSError| {
         autoreleasepool(|_| {
             let result = if let Some(error) = unsafe { error.as_ref() } {
-                Err(format!("WKWebView.takeSnapshot error: {}", error.localizedDescription()))
+                Err(format!(
+                    "WKWebView.takeSnapshot error: {}",
+                    error.localizedDescription()
+                ))
             } else if let Some(image) = unsafe { Retained::retain(image) } {
                 Ok(image)
             } else {
@@ -719,31 +723,35 @@ fn native_screenshot(
     while slot.borrow().is_none() {
         if started.elapsed() > Duration::from_secs(10) {
             return write_http_response(
-                stream, 500, "Internal Server Error",
+                stream,
+                500,
+                "Internal Server Error",
                 "text/plain; charset=utf-8",
                 b"timed out waiting for WKWebView.takeSnapshot",
-            ).map_err(|e| format!("failed to write timeout response: {e}"));
+            )
+            .map_err(|e| format!("failed to write timeout response: {e}"));
         }
         std::thread::sleep(Duration::from_millis(10));
         // Pump the run loop so the completion handler fires
         #[allow(clippy::undocumented_unsafe_blocks)]
         unsafe {
             use objc2_foundation::NSDate;
-            let run_loop: *mut objc2::runtime::AnyObject = objc2::msg_send![
-                objc2::class!(NSRunLoop),
-                currentRunLoop
-            ];
+            let run_loop: *mut objc2::runtime::AnyObject =
+                objc2::msg_send![objc2::class!(NSRunLoop), currentRunLoop];
             let until = NSDate::dateWithTimeIntervalSinceNow(0.01);
             let _: () = objc2::msg_send![run_loop, runUntilDate: &*until];
         }
     }
 
-    let image = slot.borrow_mut().take()
+    let image = slot
+        .borrow_mut()
+        .take()
         .ok_or("snapshot slot empty")?
         .map_err(|e| format!("snapshot failed: {e}"))?;
 
     // Convert NSImage → PNG data
-    let tiff_data = image.TIFFRepresentation()
+    let tiff_data = image
+        .TIFFRepresentation()
         .ok_or("failed to get TIFF data from NSImage")?;
     let bitmap_rep = NSBitmapImageRep::imageRepWithData(&tiff_data)
         .ok_or("failed to create NSBitmapImageRep")?;
@@ -762,9 +770,16 @@ fn native_screenshot(
         unsafe { std::slice::from_raw_parts(png_ptr, png_len) }
     };
     let out_path_buf = PathBuf::from(out_path);
-    if let Some(parent) = out_path_buf.parent().filter(|parent| !parent.as_os_str().is_empty()) {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("failed to create screenshot directory {}: {e}", parent.display()))?;
+    if let Some(parent) = out_path_buf
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "failed to create screenshot directory {}: {e}",
+                parent.display()
+            )
+        })?;
     }
     std::fs::write(&out_path_buf, png_bytes)
         .map_err(|e| format!("failed to write PNG to {}: {e}", out_path_buf.display()))?;
@@ -775,10 +790,13 @@ fn native_screenshot(
         "size": png_bytes.len(),
     });
     write_http_response(
-        stream, 200, "OK",
+        stream,
+        200,
+        "OK",
         "application/json; charset=utf-8",
         response_json.to_string().as_bytes(),
-    ).map_err(|e| format!("failed to write response: {e}"))
+    )
+    .map_err(|e| format!("failed to write response: {e}"))
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -788,10 +806,13 @@ fn native_screenshot(
     stream: &mut TcpStream,
 ) -> Result<(), String> {
     write_http_response(
-        stream, 501, "Not Implemented",
+        stream,
+        501,
+        "Not Implemented",
         "text/plain; charset=utf-8",
         b"native screenshot only available on macOS",
-    ).map_err(|e| format!("failed to write response: {e}"))
+    )
+    .map_err(|e| format!("failed to write response: {e}"))
 }
 
 fn split_path_and_query(path: &str) -> (&str, Option<&str>) {
@@ -805,7 +826,11 @@ fn query_value<'a>(query: Option<&'a str>, key: &str) -> Option<&'a str> {
     query.and_then(|query| {
         query.split('&').find_map(|part| {
             let (name, value) = part.split_once('=').unwrap_or((part, ""));
-            if name == key { Some(value) } else { None }
+            if name == key {
+                Some(value)
+            } else {
+                None
+            }
         })
     })
 }

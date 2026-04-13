@@ -19,7 +19,10 @@ fn dispatch_unknown_method_returns_error() {
     assert!(!response.ok);
     assert_eq!(response.id, "req-missing.method");
     assert_eq!(response.result, Value::Null);
-    assert_eq!(response.error.as_deref(), Some("unknown method: missing.method"));
+    assert_eq!(
+        response.error.as_deref(),
+        Some("unknown method: missing.method")
+    );
 }
 
 #[test]
@@ -28,10 +31,7 @@ fn dispatch_fs_read_with_valid_temp_file_returns_contents() {
     let path = temp.join("note.txt");
     fs::write(&path, "hello from integration test").expect("write temp file");
 
-    let response = dispatch_request(
-        "fs.read",
-        json!({ "path": path.display().to_string() }),
-    );
+    let response = dispatch_request("fs.read", json!({ "path": path.display().to_string() }));
 
     assert!(response.ok);
     assert_eq!(response.id, "req-fs.read");
@@ -318,7 +318,10 @@ fn dispatch_autosave_write_list_and_clear_round_trip() {
 
     let list_response = dispatch_request("autosave.list", json!({}));
     assert!(list_response.ok);
-    let entries = list_response.result.as_array().expect("autosave entries array");
+    let entries = list_response
+        .result
+        .as_array()
+        .expect("autosave entries array");
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].get("projectId"), Some(&json!("alpha")));
     assert_eq!(
@@ -359,7 +362,10 @@ fn dispatch_recent_add_list_and_clear_round_trip() {
 
     let list_response = dispatch_request("recent.list", json!({}));
     assert!(list_response.ok);
-    let entries = list_response.result.as_array().expect("recent entries array");
+    let entries = list_response
+        .result
+        .as_array()
+        .expect("recent entries array");
     assert_eq!(entries.len(), 1);
     assert_eq!(
         entries[0].get("path"),
@@ -404,10 +410,7 @@ fn dispatch_fs_write_then_read_round_trips() {
         })
     );
 
-    let read_response = dispatch_request(
-        "fs.read",
-        json!({ "path": path.display().to_string() }),
-    );
+    let read_response = dispatch_request("fs.read", json!({ "path": path.display().to_string() }));
     assert!(read_response.ok);
     assert_eq!(
         read_response.result,
@@ -575,7 +578,10 @@ fn dispatch_multiple_methods_support_a_real_user_session() {
     assert!(autosave_clear.ok);
     let recent_clear = dispatch_request("recent.clear", json!({}));
     assert!(recent_clear.ok);
-    assert_eq!(dispatch_request("autosave.list", json!({})).result, json!([]));
+    assert_eq!(
+        dispatch_request("autosave.list", json!({})).result,
+        json!([])
+    );
     assert_eq!(dispatch_request("recent.list", json!({})).result, json!([]));
 }
 
@@ -629,10 +635,7 @@ fn dispatch_fs_read_with_nonexistent_path_returns_error() {
     let temp = TestDir::new("integration-fs-read-missing");
     let path = temp.join("missing.txt");
 
-    let response = dispatch_request(
-        "fs.read",
-        json!({ "path": path.display().to_string() }),
-    );
+    let response = dispatch_request("fs.read", json!({ "path": path.display().to_string() }));
 
     assert!(!response.ok);
     assert_eq!(response.id, "req-fs.read");
@@ -790,14 +793,22 @@ fn dispatch_fs_write_and_read_20_times_without_cross_contamination() {
                         "contents": content,
                     }),
                 );
-                assert!(write_response.ok, "fs.write failed: {:?}", write_response.error);
+                assert!(
+                    write_response.ok,
+                    "fs.write failed: {:?}",
+                    write_response.error
+                );
 
                 let read_response = dispatch_request_with_id(
                     format!("req-fs.read-{iteration}"),
                     "fs.read",
                     json!({ "path": path.display().to_string() }),
                 );
-                assert!(read_response.ok, "fs.read failed: {:?}", read_response.error);
+                assert!(
+                    read_response.ok,
+                    "fs.read failed: {:?}",
+                    read_response.error
+                );
 
                 let read_back = read_response
                     .result
@@ -814,7 +825,10 @@ fn dispatch_fs_write_and_read_20_times_without_cross_contamination() {
             let (path, read_back) = handle.join().expect("join fs request");
             let expected = format!("payload-{iteration}-{}", "x".repeat(2048 + iteration));
             assert_eq!(read_back, expected);
-            assert_eq!(fs::read_to_string(&path).expect("read file from disk"), expected);
+            assert_eq!(
+                fs::read_to_string(&path).expect("read file from disk"),
+                expected
+            );
         }
     });
 }
@@ -860,7 +874,11 @@ fn dispatch_project_create_then_list_returns_all_created_projects() {
 
     let list_response =
         dispatch_request_with_id("req-project.list-stress", "project.list", json!({}));
-    assert!(list_response.ok, "project.list failed: {:?}", list_response.error);
+    assert!(
+        list_response.ok,
+        "project.list failed: {:?}",
+        list_response.error
+    );
 
     let projects = list_response
         .result
@@ -884,7 +902,10 @@ fn dispatch_timeline_save_and_load_round_trips_large_json_payload() {
     let temp = TestDir::new("integration-timeline-large");
     let path = temp.join("timeline-large.json");
     let large_payload = "timeline-payload-".repeat(70_000);
-    assert!(large_payload.len() > 1_000_000, "expected payload above 1MB");
+    assert!(
+        large_payload.len() > 1_000_000,
+        "expected payload above 1MB"
+    );
 
     let timeline = json!({
         "version": "1",
@@ -918,7 +939,11 @@ fn dispatch_timeline_save_and_load_round_trips_large_json_payload() {
             "json": timeline.clone(),
         }),
     );
-    assert!(save_response.ok, "timeline.save failed: {:?}", save_response.error);
+    assert!(
+        save_response.ok,
+        "timeline.save failed: {:?}",
+        save_response.error
+    );
     assert!(
         save_response
             .result
@@ -933,7 +958,11 @@ fn dispatch_timeline_save_and_load_round_trips_large_json_payload() {
         "timeline.load",
         json!({ "path": path.display().to_string() }),
     );
-    assert!(load_response.ok, "timeline.load failed: {:?}", load_response.error);
+    assert!(
+        load_response.ok,
+        "timeline.load failed: {:?}",
+        load_response.error
+    );
     assert_eq!(load_response.result, timeline);
 }
 
