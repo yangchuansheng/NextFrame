@@ -1,5 +1,5 @@
 [workspace]
-members = ["src/shell", "src/bridge", "src/recorder", "src/crates/videocut-core", "src/crates/videocut-download", "src/crates/videocut-transcribe", "src/crates/videocut-align", "src/crates/videocut-cut", "src/crates/nf-source"]
+members = ["src/shell", "src/bridge", "src/recorder", "src/crates/nf-cut-core", "src/crates/nf-download", "src/crates/nf-transcribe", "src/crates/nf-align", "src/crates/nf-cut", "src/crates/nf-source"]
 resolver = "2"
 
 [workspace.package]
