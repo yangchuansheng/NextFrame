@@ -71,8 +71,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .dd-dot.off { background: var(--ink-25); }
 .dd-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0; }
 
+/* Divider */
+.topbar-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 12px; flex-shrink: 0; }
+
 /* Pipeline tabs */
-.topbar-tabs { display: flex; align-items: center; height: 100%; margin-left: auto; gap: 0; }
+.topbar-tabs { display: flex; align-items: center; height: 100%; margin-left: 0; gap: 0; }
 .topbar-tab {
   height: 100%; display: flex; align-items: center;
   padding: 0 14px; font-size: 13px; color: var(--ink-55);
@@ -84,7 +87,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .topbar-tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 500; }
 
 /* Right section */
-.topbar-right { display: flex; align-items: center; gap: 8px; margin-left: 16px; flex-shrink: 0; }
+.topbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
 .topbar-icon-btn {
   width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer;
   background: transparent; color: var(--ink-55); font-size: 14px;
@@ -303,6 +306,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
       <div class="dd-item" style="color:var(--ink-25)">+ New Episode</div>
     </div>
   </div>
+
+  <div class="topbar-divider"></div>
 
   <!-- Pipeline tabs -->
   <div class="topbar-tabs">
