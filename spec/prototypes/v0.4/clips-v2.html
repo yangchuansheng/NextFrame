@@ -139,9 +139,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .src-badge { display: inline-block; margin-top: 4px; font-size: 11px; padding: 2px 8px; border-radius: 3px; background: var(--accent-06); color: var(--accent); }
 
 /* ─── Main: Header ─── */
-.main-head { padding: 12px 20px; border-bottom: var(--border); display: flex; align-items: baseline; gap: 10px; }
+.main-head { padding: 12px 20px; border-bottom: var(--border); }
+.main-head-row { display: flex; align-items: baseline; gap: 10px; }
 .main-name { font-size: 16px; font-weight: 500; }
-.main-specs { font-family: var(--mono); font-size: 12px; color: var(--ink-25); }
+.main-specs { font-family: var(--mono); font-size: 12px; color: var(--ink-55); }
+.main-path { font-family: var(--mono); font-size: 12px; color: var(--ink-55); margin-top: 3px; user-select: all; }
 
 /* ─── Full timeline ─── */
 .tl-full { padding: 12px 20px; border-bottom: var(--border); }
@@ -341,8 +343,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   </div>
   <div class="main">
     <div class="main-head">
-      <span class="main-name" id="mName">interview-raw.mp4</span>
-      <span class="main-specs" id="mSpecs"></span>
+      <div class="main-head-row">
+        <span class="main-name" id="mName">interview-raw.mp4</span>
+        <span class="main-specs" id="mSpecs"></span>
+      </div>
+      <div class="main-path" id="mPath"></div>
     </div>
     <div class="tl-full">
       <div class="tl-bar" id="tlBar"></div>
@@ -390,19 +395,27 @@ var S = [
 
 var C = [
   { id:"C1", nm:"用户介绍自己", si:0, i:12.4, o:28.8, tags:["intro","talking-head"], seg:"段2",
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C1-用户介绍自己.mp4",
     subs:[{t:"大家好，我是一名内容创作者",s:12.4,e:16.2},{t:"每天要做三到四条短视频",s:16.2,e:20.5},{t:"剪辑是最花时间的环节",s:20.5,e:24.8},{t:"经常要花一整天",s:24.8,e:28.8}],
     hasTl:true },
   { id:"C2", nm:"使用痛点描述", si:0, i:45, o:75.2, tags:["pain-point"], seg:"段1",
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C2-使用痛点描述.mp4",
     subs:[{t:"传统的视频制作流程太长了",s:45,e:50},{t:"从写脚本到最终成片",s:50,e:55},{t:"中间要经过至少五六个工具",s:55,e:62},{t:"每个工具之间还不互通",s:62,e:68},{t:"效率实在太低",s:68,e:75.2}],
     hasTl:true },
   { id:"C3", nm:"使用感受", si:0, i:130, o:158.5, tags:["testimonial"], seg:null,
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C3-使用感受.mp4",
     subs:[{t:"用了 NextFrame 之后",s:130,e:135},{t:"整个流程缩短到了半小时以内",s:135,e:142},{t:"最关键的是质量没有下降",s:142,e:150},{t:"反而因为 AI 辅助还更好了",s:150,e:158.5}],
     hasTl:false },
-  { id:"C4", nm:"创建项目流程", si:1, i:8, o:45, tags:["tutorial","screen"], seg:"段3", subs:[], hasTl:true },
-  { id:"C5", nm:"导出成品", si:1, i:200, o:245, tags:["tutorial","export"], seg:"段4", subs:[], hasTl:true },
-  { id:"C6", nm:"办公室全景", si:2, i:0, o:22, tags:["broll"], seg:null, subs:[], hasTl:false },
-  { id:"C7", nm:"团队协作", si:2, i:45, o:72, tags:["broll","team"], seg:"段3", subs:[], hasTl:false },
+  { id:"C4", nm:"创建项目流程", si:1, i:8, o:45, tags:["tutorial","screen"], seg:"段3",
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C4-创建项目流程.mp4", subs:[], hasTl:true },
+  { id:"C5", nm:"导出成品", si:1, i:200, o:245, tags:["tutorial","export"], seg:"段4",
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C5-导出成品.mp4", subs:[], hasTl:true },
+  { id:"C6", nm:"办公室全景", si:2, i:0, o:22, tags:["broll"], seg:null,
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C6-办公室全景.mp4", subs:[], hasTl:false },
+  { id:"C7", nm:"团队协作", si:2, i:45, o:72, tags:["broll","team"], seg:"段3",
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C7-团队协作.mp4", subs:[], hasTl:false },
   { id:"C8", nm:"创业初心", si:3, i:80, o:165, tags:["interview","founder"], seg:"段5",
+    path:"/Users/Zhuanz/NextFrame/projects/Show/EP01/clips/C8-创业初心.mp4",
     subs:[{t:"创业的初衷很简单",s:80,e:88},{t:"我们自己就是视频创作者",s:88,e:100},{t:"深知这个行业的痛",s:100,e:110},{t:"所以决定自己做一个工具",s:110,e:125},{t:"让每个创作者都能高效产出",s:125,e:140},{t:"这就是 NextFrame 的由来",s:140,e:165}],
     hasTl:true }
 ];
@@ -435,6 +448,7 @@ function selClip(idx) {
 function renderMain() {
   var s = S[aS], clips = C.filter(function(c){return c.si===aS;});
   document.getElementById("mName").textContent = s.n;
+  document.getElementById("mPath").textContent = s.path;
   document.getElementById("mSpecs").innerHTML = s.w+"&times;"+s.h+" &middot; "+s.fps+"fps &middot; "+s.cod+" &middot; "+s.dur+" &middot; "+s.sz;
 
   // Full timeline
@@ -480,10 +494,12 @@ function renderMain() {
     for (var zt = c.i; zt <= c.o; zt += zstep) ztks.push('<span>'+tc(zt)+'</span>');
     if (Math.abs(c.o - (c.i + Math.floor((c.o-c.i)/zstep)*zstep)) > 0.5) ztks.push('<span>'+tc(c.o)+'</span>');
 
-    var clipPath = s.path.replace(s.n, 'clips/' + c.id + '-' + c.nm.replace(/\s/g,'_') + '.mp4');
-
-    det.innerHTML = '<div class="fade-in">' +
-      '<div class="cd-right" style="display:flex;flex-direction:column">' +
+    det.innerHTML = '<div class="fade-in"><div class="cd-top">' +
+      '<div class="cd-preview" style="background:linear-gradient(135deg,hsla('+s.hue+',0.15) 0%,#050508 100%)">' +
+        '<div class="cd-play-big" onclick="openM(\''+c.id+' '+c.nm+'\',\''+tc(c.i)+' / '+tc(c.o)+'\',\''+s.res+' · '+s.fps+'fps\')">&#9654;</div>' +
+        '<div class="cd-transport"><button class="cd-btn">&#x23EE;</button><button class="cd-btn">&#x25C0;</button><button class="cd-btn play-sm">&#9654;</button><button class="cd-btn">&#x25B6;</button><button class="cd-btn">&#x23ED;</button><div class="cd-progress"><div class="cd-progress-fill"></div></div><span class="cd-tc">'+tc(c.i)+' / '+tc(c.o)+'</span></div>' +
+      '</div>' +
+      '<div class="cd-right">' +
         '<div class="cd-zoom"><div class="cd-zoom-label"><span>PRECISION TIMELINE</span><span>'+dur+'s · '+Math.round(dur*s.fps)+' frames</span></div>' +
           '<div class="cd-zoom-bar" id="zoomBar" onmousemove="showFrameTip(event)" onmouseleave="hideFrameTip()">' +
             '<div class="cd-zoom-fill"></div>' +
@@ -502,10 +518,8 @@ function renderMain() {
           (c.hasTl ? '<div class="cd-info-item"><div class="cd-info-label">TIMELINE</div><div class="cd-info-value" style="color:var(--accent)">&#10003; synced</div></div>' : '<div class="cd-info-item"><div class="cd-info-label">TIMELINE</div><div class="cd-info-value" style="color:var(--ink-25)">&#x2013;</div></div>') +
           (c.seg ? '<div class="cd-info-item"><div class="cd-info-label">SEGMENT</div><div class="cd-info-value" style="color:var(--accent)">'+c.seg+'</div></div>' : '') +
         '</div>' +
-        '<div class="cd-path">SOURCE: '+s.path+'</div>' +
-        '<div class="cd-path">CLIP: '+clipPath+'</div>' +
       '</div>' +
-    '</div>';
+    '</div></div>';
     det.classList.add("show");
   } else {
     det.innerHTML = "";
@@ -524,7 +538,7 @@ function renderMain() {
 
     lh += '<div class="clip-row'+(aC===idx?' selected':'')+'" onclick="selClip('+idx+')">' +
       '<div class="cr-thumb"><div class="cr-grad" style="background:linear-gradient(135deg,hsla('+s.hue+',0.25),transparent)"></div><span class="cr-dur">'+dur+'s</span></div>' +
-      '<div class="cr-info"><div class="cr-name">'+c.nm+'</div><div class="cr-range">'+tc(c.i)+' → '+tc(c.o)+'</div><div class="cr-tags">'+tags+'</div></div>' +
+      '<div class="cr-info"><div class="cr-name">'+c.nm+'</div><div class="cr-range">'+tc(c.i)+' → '+tc(c.o)+'</div><div class="src-path" style="margin-bottom:3px">'+c.path+'</div><div class="cr-tags">'+tags+'</div></div>' +
       '<div class="cr-status-tags">'+statusTags+'</div>' +
     '</div>';
   });
