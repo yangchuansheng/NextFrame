@@ -3,7 +3,7 @@ import { toNumber, clamp, normalizeArray, createRoot, SANS_FONT_STACK } from "..
 const DEFAULT_COLORS = ["#ff6b6b", "#ffd93d", "#6ee7ff"];
 
 export default {
-  id: "gradient-text",
+  id: "gradientText",
   type: "dom",
   name: "Gradient Text",
   category: "Typography",

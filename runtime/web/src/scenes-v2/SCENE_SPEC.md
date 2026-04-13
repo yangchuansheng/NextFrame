@@ -7,7 +7,7 @@
 ```js
 export default {
   // ── 身份（必填）──
-  id: "headline",                      // 唯一 ID，kebab-case
+  id: "headline",                      // 唯一 ID，必须等于文件名（不含 .js）
   type: "dom",                         // dom | canvas | svg | webgl | media
   name: "Kinetic Headline",            // 人类可读名
   
@@ -80,7 +80,7 @@ export default {
 
 ## Lint 检查（validate 时自动执行）
 
-1. id: string, 非空
+1. id: string, 非空，**必须等于文件名**（headline.js → id:"headline"）
 2. type: 必须是 dom/canvas/svg/webgl/media 之一
 3. name: string, 非空
 4. category: 必须在分类表里

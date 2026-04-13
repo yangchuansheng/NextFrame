@@ -1,7 +1,7 @@
 import { toNumber, clamp, normalizeArray } from "../scenes-v2-shared.js";
 
 export default {
-  id: "particle-system",
+  id: "particleSystem",
   type: "canvas",
   name: "Particle System",
   category: "Effects",

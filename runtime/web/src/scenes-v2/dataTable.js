@@ -11,7 +11,7 @@ function statusColor(val) {
 }
 
 export default {
-  id: "data-table",
+  id: "dataTable",
   type: "dom",
   name: "Data Table",
   category: "Data Viz",

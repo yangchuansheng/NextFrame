@@ -99,7 +99,7 @@ function svgEl(tag, attrs) {
 }
 
 export default {
-  id: "morph-shape",
+  id: "morphShape",
   type: "svg",
   name: "Morph Shape",
   category: "Effects",

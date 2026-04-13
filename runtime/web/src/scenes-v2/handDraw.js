@@ -19,7 +19,7 @@ function svgEl(tag, attrs) {
 }
 
 export default {
-  id: "hand-draw",
+  id: "handDraw",
   type: "svg",
   name: "Hand Draw",
   category: "Effects",
