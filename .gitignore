@@ -3,6 +3,7 @@ target/
 *.log
 .worktrees/
 .ally/
+projects/
 node_modules/
 test-results/
 output/
