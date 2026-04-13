@@ -1,4 +1,4 @@
-// engine-v2/registry.js — parse scene metadata from runtime/web/src/scenes-v2/*.js
+// engine-v2/registry.js — parse scene metadata from runtime/web/src/components/*.js
 // CLI runs in Node.js, cannot execute DOM scene code. Regex extraction only.
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -6,7 +6,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SCENES_DIR = resolve(HERE, '../../../runtime/web/src/scenes-v2');
+const SCENES_DIR = resolve(HERE, '../../../runtime/web/src/components');
 
 const REGISTRY = new Map();
 

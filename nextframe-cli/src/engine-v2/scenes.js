@@ -1,4 +1,4 @@
-import SCENE_REGISTRY from "../../../runtime/web/src/scenes-v2/index.js";
+import SCENE_REGISTRY from "../../../runtime/web/src/components/index.js";
 
 const SCENE_ENTRIES = Object.values(SCENE_REGISTRY)
   .filter((scene) => scene && typeof scene === "object" && typeof scene.id === "string")
