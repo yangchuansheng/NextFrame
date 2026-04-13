@@ -8,16 +8,16 @@ function renderPipelineOutput(data) {
   html += '<div class="count-bar"><span>' + escHtml(String(outputs.length)) + " 个版本</span></div>";
 
   for (let i = 0; i < outputs.length; i++) {
-    let output = outputs[i];
-    let specs = output.specs || {};
-    let published = output.published || [];
+    const output = outputs[i];
+    const specs = output.specs || {};
+    const published = output.published || [];
     let dateStr = "";
     if (output.date) {
-      let date = new Date(output.date);
-      let mm = String(date.getMonth() + 1).padStart(2, "0");
-      let dd = String(date.getDate()).padStart(2, "0");
-      let hh = String(date.getHours()).padStart(2, "0");
-      let mi = String(date.getMinutes()).padStart(2, "0");
+      const date = new Date(output.date);
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const hh = String(date.getHours()).padStart(2, "0");
+      const mi = String(date.getMinutes()).padStart(2, "0");
       dateStr = date.getFullYear() + "-" + mm + "-" + dd + " " + hh + ":" + mi;
     }
 

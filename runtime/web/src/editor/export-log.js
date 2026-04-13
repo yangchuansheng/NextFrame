@@ -43,7 +43,7 @@ async function loadExportLog() {
 
   for (let i = 0; i < paths.length; i++) {
     try {
-      let result = await bridgeCall("fs.read", { path: paths[i] }, 2000);
+      const result = await bridgeCall("fs.read", { path: paths[i] }, 2000);
       if (result && result.contents) {
         exportLogCache = parseJsonl(result.contents);
         renderExportLog(root);
@@ -123,7 +123,7 @@ function renderExportLog(root) {
   let totalContentS = 0, totalWallS = 0, totalSizeMb = 0, totalFrames = 0;
   const count = entries.length;
   for (let i = 0; i < entries.length; i++) {
-    let e = entries[i];
+    const e = entries[i];
     totalContentS += (typeof e.content_s === "number" ? e.content_s : 0);
     totalWallS += (typeof e.total_s === "number" ? e.total_s : 0);
     totalSizeMb += (typeof e.size_mb === "number" ? e.size_mb : 0);
@@ -167,15 +167,15 @@ function renderExportLog(root) {
   html += '<tbody>';
 
   for (let j = 0; j < entries.length; j++) {
-    let entry = entries[j];
-    let status = entry.status || "done";
-    let contentS = typeof entry.content_s === "number" ? entry.content_s : 0;
-    let recordS = typeof entry.record_s === "number" ? entry.record_s : 0;
-    let overlayS = typeof entry.overlay_s === "number" ? entry.overlay_s : 0;
-    let totalS = typeof entry.total_s === "number" ? entry.total_s : 0;
-    let realtimeX = typeof entry.realtime_x === "number" ? entry.realtime_x : 0;
-    let capturePct = totalS > 0 ? (recordS / totalS * 100) : 0;
-    let encodePct = totalS > 0 ? (overlayS / totalS * 100) : 0;
+    const entry = entries[j];
+    const status = entry.status || "done";
+    const contentS = typeof entry.content_s === "number" ? entry.content_s : 0;
+    const recordS = typeof entry.record_s === "number" ? entry.record_s : 0;
+    const overlayS = typeof entry.overlay_s === "number" ? entry.overlay_s : 0;
+    const totalS = typeof entry.total_s === "number" ? entry.total_s : 0;
+    const realtimeX = typeof entry.realtime_x === "number" ? entry.realtime_x : 0;
+    const capturePct = totalS > 0 ? (recordS / totalS * 100) : 0;
+    const encodePct = totalS > 0 ? (overlayS / totalS * 100) : 0;
     let muxPct = 100 - capturePct - encodePct;
     if (muxPct < 0) muxPct = 0;
 

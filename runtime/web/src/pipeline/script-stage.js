@@ -12,7 +12,7 @@ function renderPipelineScript(data) {
   html += '<div class="pl-toolbar" style="padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;flex-wrap:wrap;gap:20px;align-items:center;">';
   const pKeys = Object.keys(principles);
   for (let p = 0; p < pKeys.length; p++) {
-    let key = pKeys[p];
+    const key = pKeys[p];
     html += '<div class="pl-chip" style="display:flex;align-items:center;gap:6px;">';
     html += '<span class="pl-chip-label" style="font-size:11px;color:rgba(228,228,232,0.5);">' + escHtml(key) + '</span>';
     html += '<span class="pl-chip-val" style="font-size:12px;color:rgba(228,228,232,0.5);font-weight:500;">' + escHtml(principles[key]) + "</span>";
@@ -39,7 +39,7 @@ function renderPipelineScript(data) {
   html += "<tbody>";
 
   for (let i = 0; i < segments.length; i++) {
-    let seg = segments[i];
+    const seg = segments[i];
     html += '<tr data-seg="' + i + '">';
     html += '<td style="font-family:Georgia,\'Times New Roman\',serif;font-size:17px;line-height:1.9;color:#e4e4e8;width:55%;padding:28px 24px;border-bottom:1px solid rgba(255,255,255,0.06);vertical-align:top;">';
     html += escHtml(seg.narration || "");
@@ -79,7 +79,7 @@ function renderPipelineScript(data) {
 function plFilterSeg(idx) {
   const pills = document.querySelectorAll(".pl-seg-pill");
   for (let i = 0; i < pills.length; i++) {
-    let isActive = (idx === -1) ? (i === 0) : (parseInt(pills[i].getAttribute("data-seg"), 10) === idx);
+    const isActive = (idx === -1) ? (i === 0) : (parseInt(pills[i].getAttribute("data-seg"), 10) === idx);
     if (isActive) {
       pills[i].style.background = "rgba(124,106,239,0.15)";
       pills[i].style.color = "#7c6aef";

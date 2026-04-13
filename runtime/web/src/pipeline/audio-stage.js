@@ -30,10 +30,10 @@ function renderPipelineAudio(data) {
   html += "</tr></thead><tbody>";
 
   for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-    let seg = segments[segmentIndex];
-    let script = scriptSegments[segmentIndex];
-    let isGenerated = seg.status === "generated";
-    let trClass = isGenerated ? "" : ' class="seg-pending"';
+    const seg = segments[segmentIndex];
+    const script = scriptSegments[segmentIndex];
+    const isGenerated = seg.status === "generated";
+    const trClass = isGenerated ? "" : ' class="seg-pending"';
 
     html += '<tr data-seg="' + segmentIndex + '"' + trClass + ">";
     html += '<td class="col-text">' + escHtml(script.narration) + "</td>";
@@ -41,7 +41,7 @@ function renderPipelineAudio(data) {
     html += '<div class="audio-head">';
 
     if (isGenerated) {
-      let audioPath = seg.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + seg.file) : null;
+      const audioPath = seg.file ? ("~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/" + seg.file) : null;
       if (audioPath) {
         html += '<button class="pl-play-btn" data-audio-path="' + escHtml(audioPath) + '">&#9654;</button>';
       }
@@ -56,10 +56,10 @@ function renderPipelineAudio(data) {
     if (isGenerated && seg.sentences && seg.sentences.length > 0) {
       html += '<div class="sentence-list">';
       for (let sentenceIndex = 0; sentenceIndex < seg.sentences.length; sentenceIndex++) {
-        let sentence = seg.sentences[sentenceIndex];
-        let startFmt = fmtTime(sentence.start);
-        let endFmt = fmtTime(sentence.end);
-        let duration = (sentence.end - sentence.start).toFixed(1);
+        const sentence = seg.sentences[sentenceIndex];
+        const startFmt = fmtTime(sentence.start);
+        const endFmt = fmtTime(sentence.end);
+        const duration = (sentence.end - sentence.start).toFixed(1);
 
         html += '<div class="sentence-row">';
         html += '<span class="s-timecode">' + startFmt + ' <span class="s-arrow">&rarr;</span> ' + endFmt + "</span>";
@@ -94,8 +94,8 @@ function renderPipelineKaraokeSentence(sentence) {
 
   let html = "";
   for (let i = 0; i < sentence.words.length; i++) {
-    let word = sentence.words[i] || {};
-    let charText = word.char == null ? "" : String(word.char);
+    const word = sentence.words[i] || {};
+    const charText = word.char == null ? "" : String(word.char);
     if (!charText) {
       continue;
     }

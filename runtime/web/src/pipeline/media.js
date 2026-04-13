@@ -61,9 +61,9 @@ function stopPipelineKaraokeLoop() {
 
 function updatePipelineKaraokeChars(currentAudioTime) {
   for (let i = 0; i < _plAudioChars.length; i++) {
-    let span = _plAudioChars[i];
-    let start = parseFloat(span.dataset.start);
-    let end = parseFloat(span.dataset.end);
+    const span = _plAudioChars[i];
+    const start = parseFloat(span.dataset.start);
+    const end = parseFloat(span.dataset.end);
     if (currentAudioTime >= end) {
       setPipelineKaraokeCharState(span, "spoken");
     } else if (currentAudioTime >= start) {
