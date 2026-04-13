@@ -103,7 +103,10 @@ impl SegmentClock {
                 .max(frame_index.saturating_add(self.transition_frames));
         }
 
-        let needs_capture = if self.no_skip {
+        // When there are no cues and no subtitles (v0.3 animated HTML), every
+        // frame is potentially different — always capture.
+        let no_timing_data = self.total_cues == 0 && self.subtitles.is_empty();
+        let needs_capture = if self.no_skip || no_timing_data {
             true
         } else {
             frame_index == 0 || cue_changed || subtitle_changed || frame_index < self.capture_until

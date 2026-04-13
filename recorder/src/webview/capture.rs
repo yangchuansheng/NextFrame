@@ -73,6 +73,23 @@ impl WebViewHost {
         capture::layer_render_cgimage(&layer, width, height)
     }
 
+    /// Queries the page-declared video duration from the v0.3 engine.
+    ///
+    /// Checks `window.__duration`, `engine.duration`, and the timeline JSON's
+    /// `duration` field. Returns `None` if the page does not expose a duration.
+    pub fn query_page_duration(&self) -> Option<f64> {
+        let script = r#"
+        (() => {
+          if (typeof window.__duration === 'number') return String(window.__duration);
+          if (typeof engine !== 'undefined' && typeof engine.duration === 'number') return String(engine.duration);
+          if (typeof TIMELINE !== 'undefined' && typeof TIMELINE.duration === 'number') return String(TIMELINE.duration);
+          return null;
+        })()
+        "#;
+        let result = self.eval_string(script).ok()??;
+        result.parse::<f64>().ok().filter(|d| *d > 0.0 && d.is_finite())
+    }
+
     /// Queries the pixel-space rect of the slide progress slot and hides the DOM bar so the
     /// recorder can paint it directly into the output frames.
     pub fn query_progress_rect(&self, dpr: f64) -> Option<ProgressRect> {

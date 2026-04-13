@@ -59,6 +59,24 @@ pub fn record_segment(
     std::thread::sleep(Duration::from_millis(100));
     host.flush_render(Duration::from_millis(50))?;
 
+    // Query page-declared duration (v0.3 engine exposes this via JS)
+    let page_duration = host.query_page_duration();
+    let effective_duration = if let Some(dur) = page_duration {
+        if dur > 0.0 && dur.is_finite() {
+            println!(
+                "  segment {}: page reports duration={:.1}s (plan had {:.1}s)",
+                index + 1,
+                dur,
+                plan.effective_duration_sec
+            );
+            dur
+        } else {
+            plan.effective_duration_sec
+        }
+    } else {
+        plan.effective_duration_sec
+    };
+
     // Query #sk-progress slot position for pixel-level progress bar overlay
     let progress_rect = if total_segments > 1 {
         let rect = host.query_progress_rect(cli.dpr);
@@ -84,7 +102,7 @@ pub fn record_segment(
     let mut encoder = SegmentEncoder::spawn(
         &segment_path,
         plan.metadata.audio_path.as_deref(),
-        plan.effective_duration_sec.max(0.1),
+        effective_duration.max(0.1),
         cli.fps,
         cli.crf,
         backend,
@@ -94,7 +112,7 @@ pub fn record_segment(
         cli.fps,
         offset_sec,
         total_duration_sec,
-        plan.effective_duration_sec,
+        effective_duration,
         cli.no_skip,
         cli.skip_aggressive,
     );
@@ -226,7 +244,7 @@ pub fn record_segment(
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("segment"),
-        plan.audio_duration_sec.max(plan.effective_duration_sec),
+        plan.audio_duration_sec.max(effective_duration),
         clock.skipped_frames(),
         backend.label()
     );
