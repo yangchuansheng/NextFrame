@@ -661,14 +661,13 @@ fn build_screenshot_script(out_path: &str) -> Result<String, String> {
     throw new Error("bridgeCall is unavailable");
   }}
 
-  // Try DOM screenshot via SVG foreignObject
+  // Capture from direct-render stage (preview-stage-host in main document)
   var stageHost = document.getElementById("preview-stage-host");
   if (stageHost && stageHost.childElementCount > 0) {{
     try {{
       var w = parseInt(stageHost.style.width) || 1920;
       var h = parseInt(stageHost.style.height) || 1080;
       var clone = stageHost.cloneNode(true);
-      // Reset transform for clean capture
       clone.style.transform = "none";
       clone.style.left = "0";
       clone.style.top = "0";
@@ -695,7 +694,7 @@ fn build_screenshot_script(out_path: &str) -> Result<String, String> {
       canvas.height = h;
       var ctx = canvas.getContext("2d");
 
-      // Draw all canvas layers first
+      // Draw canvas layers first
       stageHost.querySelectorAll("canvas").forEach(function(srcCanvas) {{
         try {{
           var rect = srcCanvas.getBoundingClientRect();
@@ -711,23 +710,13 @@ fn build_screenshot_script(out_path: &str) -> Result<String, String> {
 
       var dataUrl = canvas.toDataURL("image/png");
       await bridgeCall("fs.writeBase64", {{ path: outPath, data: dataUrl }}, 10000);
-      return {{ path: outPath, mode: "dom-composite", width: w, height: h }};
+      return {{ path: outPath, mode: "direct-composite", width: w, height: h }};
     }} catch(domErr) {{
-      console.error("[screenshot] DOM capture failed:", domErr.message);
+      console.error("[screenshot] direct capture failed:", domErr.message);
     }}
   }}
 
-  // Fallback: plain canvas capture
-  var renderCanvas = document.getElementById("render-canvas") ||
-    (stageHost && stageHost.querySelector("canvas")) ||
-    document.querySelector("#canvas-inner canvas");
-  if (renderCanvas && renderCanvas.width > 0) {{
-    var dataUrl = renderCanvas.toDataURL("image/png");
-    await bridgeCall("fs.writeBase64", {{ path: outPath, data: dataUrl }}, 10000);
-    return {{ path: outPath, mode: "canvas", width: renderCanvas.width, height: renderCanvas.height }};
-  }}
-
-  throw new Error("no capturable content found");
+  throw new Error("no capturable content found — is preview loaded?");
 }})()"##,
     ))
 }

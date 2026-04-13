@@ -1063,51 +1063,57 @@ function initDOMPreview(timeline) {
     return false;
   }
 
-  var segPath = getCurrentSegmentPath();
-  if (!segPath) return false;
+  var ev2 = window.__engineV2;
+  if (!ev2 || !ev2.createEngine || !ev2.SCENE_REGISTRY) {
+    console.warn("[preview] engine-v2 not loaded yet");
+    return false;
+  }
 
-  // Generate HTML via bridge, then load in iframe
-  var htmlPath = segPath.replace(/\.json$/, ".html");
-  setPreviewPlaceholder("PREVIEW", "Generating preview...");
+  destroyDOMPreview();
 
-  bridgeCall("compose.generate", { timelinePath: segPath, outputPath: htmlPath }).then(function(result) {
-    if (!result || !result.path) {
-      setPreviewPlaceholder("PREVIEW", "Failed to generate preview HTML");
-      return;
+  var canvasInner = document.getElementById("canvas-inner");
+  if (!canvasInner) return false;
+
+  var placeholder = document.getElementById("preview-placeholder");
+  if (placeholder) placeholder.style.display = "none";
+
+  // Hide iframe if present
+  var iframe = document.getElementById("preview-iframe");
+  if (iframe) iframe.style.display = "none";
+
+  // Create stage host for direct rendering
+  previewStageHost = document.createElement("div");
+  previewStageHost.id = "preview-stage-host";
+  previewStageHost.style.cssText = "position:absolute;transform-origin:0 0;";
+  canvasInner.appendChild(previewStageHost);
+
+  previewTimeline = {
+    width: timeline.width || 1920,
+    height: timeline.height || 1080,
+  };
+
+  // Direct render: create engine in main document
+  try {
+    previewEngine = ev2.createEngine(previewStageHost, timeline, ev2.SCENE_REGISTRY);
+    previewEngine.renderFrame(0);
+    fitStageToContainer();
+    console.log("[preview] direct render ready, " + (timeline.layers ? timeline.layers.length : 0) + " layers");
+  } catch (err) {
+    console.error("[preview] createEngine failed", err);
+    setPreviewPlaceholder("PREVIEW", "Engine error: " + (err.message || err));
+    return false;
+  }
+
+  // Click on stage for element selection
+  previewStageHost.addEventListener("click", function(e) {
+    var target = e.target.closest(".nf-layer > *") || e.target.closest(".nf-layer");
+    if (target) {
+      var layerId = target.dataset?.layerId || target.closest(".nf-layer")?.dataset?.layerId || "";
+      var scene = target.dataset?.scene || "";
+      updateInspectorFromIframe(layerId, scene, target);
     }
-
-    var iframe = document.getElementById("preview-iframe");
-    var placeholder = document.getElementById("preview-placeholder");
-    if (!iframe) return;
-
-    // Load via nfdata protocol
-    var relativePath = htmlPath.replace(/.*\/NextFrame\/projects\//, "");
-    iframe.src = "nfdata://localhost/" + relativePath + "?t=" + Date.now();
-    iframe.style.display = "block";
-    if (placeholder) placeholder.style.display = "none";
-
-    // Listen for click events from iframe (for element selection)
-    iframe.onload = function() {
-      try {
-        // Inject selection handler into iframe
-        iframe.contentWindow.postMessage({type: "nf-init-selection"}, "*");
-
-        // Add click listener to iframe content for element selection
-        iframe.contentDocument.addEventListener("click", function(e) {
-          var target = e.target.closest(".nf-layer > *") || e.target.closest(".nf-layer");
-          if (target) {
-            var layerId = target.dataset?.layerId || target.closest(".nf-layer")?.dataset?.layerId || "";
-            var scene = target.dataset?.scene || "";
-            updateInspectorFromIframe(layerId, scene, target);
-          }
-        });
-      } catch(err) {
-        console.log("[preview] iframe cross-origin, selection disabled");
-      }
-    };
-  }).catch(function(err) {
-    setPreviewPlaceholder("PREVIEW", "Preview error: " + (err.message || err));
   });
+
   return true;
 }
 
@@ -1176,15 +1182,13 @@ function setPlayheadTime(time) {
     fill.style.width = (TOTAL_DURATION > 0 ? (currentTime / TOTAL_DURATION) * 100 : 0) + "%";
   }
 
-  // Sync playhead with iframe preview
-  var iframe = document.getElementById("preview-iframe");
-  if (iframe && iframe.contentWindow) {
+  // Sync playhead with direct-render engine
+  if (previewEngine && typeof previewEngine.renderFrame === "function") {
     try {
-      var engine = iframe.contentWindow.__nfEngine;
-      if (engine && engine.renderFrame) {
-        engine.renderFrame(currentTime);
-      }
-    } catch(e) { /* cross-origin */ }
+      previewEngine.renderFrame(currentTime);
+    } catch(e) {
+      console.warn("[preview] renderFrame error", e);
+    }
   }
 }
 
