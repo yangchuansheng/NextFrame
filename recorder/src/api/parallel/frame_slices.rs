@@ -218,6 +218,9 @@ pub(super) fn record_parallel_single(
             has_audio: final_audio.is_some(),
             video_layers_count: page_probe.video_layers_count,
             audio_src: final_audio.as_deref(),
+            crf: args.crf,
+            no_skip: args.no_skip,
+            skip_aggressive: args.skip_aggressive,
         },
     );
 

@@ -191,6 +191,9 @@ fn format_perf_log_line_formats_clip_mode_metrics() {
         has_audio: true,
         video_layers_count: 2,
         audio_src: Some(Path::new("/tmp/audio.m4a")),
+        crf: 14,
+        no_skip: false,
+        skip_aggressive: false,
     };
     let line = format_perf_log_line(
         123,
@@ -253,6 +256,9 @@ fn format_perf_log_line_handles_slide_mode_with_zero_totals() {
         has_audio: false,
         video_layers_count: 0,
         audio_src: None,
+        crf: 23,
+        no_skip: true,
+        skip_aggressive: false,
     };
     let line = format_perf_log_line(
         456,

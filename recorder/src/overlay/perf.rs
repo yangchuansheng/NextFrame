@@ -20,6 +20,9 @@ pub struct PerfLogContext<'a> {
     pub has_audio: bool,
     pub video_layers_count: usize,
     pub audio_src: Option<&'a Path>,
+    pub crf: u8,
+    pub no_skip: bool,
+    pub skip_aggressive: bool,
 }
 
 fn round_tenths(value: f64) -> f64 {
@@ -106,6 +109,11 @@ pub(super) fn format_perf_log_line(
         "has_video_overlay": context.video_layers_count > 0,
         "video_layers_count": context.video_layers_count,
         "audio_src": context.audio_src.map(path_display_string),
+        "output_path": context.output_path.map(path_display_string),
+        "crf": context.crf,
+        "no_skip": context.no_skip,
+        "skip_aggressive": context.skip_aggressive,
+        "status": "done",
         "command_args": command_args,
         "encoder": encoder,
     })

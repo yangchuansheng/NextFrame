@@ -449,3 +449,18 @@ pub(crate) fn export_runtime() -> Result<&'static Runtime, String> {
 pub(crate) fn next_export_pid() -> u32 {
     NEXT_EXPORT_PID.fetch_add(1, Ordering::Relaxed)
 }
+
+pub(crate) fn handle_export_log(params: &Value) -> Result<Value, String> {
+    let path_str = crate::validation::require_string(params, "path")?;
+    let path = crate::fs::resolve_existing_path(path_str)?;
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read '{}': {e}", path.display()))?;
+
+    let entries: Vec<Value> = content
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+
+    Ok(json!({ "entries": entries, "count": entries.len() }))
+}
