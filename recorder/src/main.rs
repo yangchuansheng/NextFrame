@@ -58,7 +58,23 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Record pure HTML slides (bridge, cover, toc, outro, etc.)
+    /// Record HTML → MP4. Auto-detects duration, audio, and embedded video.
+    #[command(after_help = r#"RECOMMENDED:
+  Vertical 1080p 60fps (best speed):
+    recorder slide video.html -o out.mp4 --width 540 --height 960 --dpr 2 --fps 60
+
+  Landscape 1080p 60fps:
+    recorder slide video.html -o out.mp4 --width 1920 --height 1080 --dpr 1 --fps 60
+
+  4K 60fps (use --parallel for speed):
+    recorder slide video.html -o out.mp4 --width 1920 --height 1080 --dpr 2 --fps 60 --parallel 4
+
+PARAMETER GUIDE:
+  --fps 60      Smooth animation (recommended). Use 30 for simpler content.
+  --crf 14      Visually lossless. Use 18-23 for smaller files.
+  --dpr 2       Retina quality. Use 1 for 1080p, 2 for 4K.
+  --parallel 4  4x speed for single HTML. Use 2-8 based on CPU cores.
+  --headed      Debug mode: shows the recording window."#)]
     Slide(SlideArgs),
     /// Record HTML template + overlay source video into the video area
     Clip(ClipArgs),
@@ -66,7 +82,7 @@ enum Command {
 
 #[derive(Parser, Debug, Clone)]
 struct CommonArgs {
-    /// HTML slide files to record (one or more)
+    /// HTML files to record. Duration auto-detected from page JS.
     #[arg(value_name = "HTML")]
     pub frames: Vec<PathBuf>,
 
@@ -74,19 +90,19 @@ struct CommonArgs {
     #[arg(long, value_name = "DIR")]
     pub dir: Option<PathBuf>,
 
-    /// Output MP4 path
-    #[arg(long, value_name = "FILE", default_value = "output.mp4")]
+    /// Output MP4 path [alias: -o]
+    #[arg(long, short = 'o', value_name = "FILE", default_value = "output.mp4")]
     pub out: PathBuf,
 
-    /// Target frame rate
+    /// Frame rate. 60=smooth animation, 30=standard [recommended: 60]
     #[arg(long, value_name = "N", default_value_t = 30)]
     pub fps: usize,
 
-    /// H.264 quality (lower = better, 14 is visually lossless)
+    /// H.264 quality. 14=lossless, 18=good, 23=small file [recommended: 14]
     #[arg(long, value_name = "N", default_value_t = 14)]
     pub crf: u8,
 
-    /// Device pixel ratio (2.0 = Retina, output is width*dpr x height*dpr)
+    /// Pixel ratio. 1=1080p, 2=4K/Retina. Output = width*dpr × height*dpr
     #[arg(long, value_name = "N", default_value_t = 2.0)]
     pub dpr: f64,
 
@@ -106,24 +122,24 @@ struct CommonArgs {
     #[arg(long)]
     pub headed: bool,
 
-    /// CSS viewport width. Use 540 for vertical 9:16
+    /// CSS viewport width. 540=vertical, 1920=landscape
     #[arg(long, value_name = "N", default_value_t = 540.0)]
     pub width: f64,
 
-    /// CSS viewport height. Use 960 for vertical 9:16
+    /// CSS viewport height. 960=vertical, 1080=landscape
     #[arg(long, value_name = "N", default_value_t = 960.0)]
     pub height: f64,
 
-    /// Record slides in parallel using N processes (default: 4)
+    /// Parallel recording. Splits frames across N processes [recommended: 4]
     #[arg(long, value_name = "N", default_missing_value = "4", num_args = 0..=1)]
     pub parallel: Option<usize>,
 
-    /// Frame range for intra-segment parallel: only record frames START..END
-    #[arg(long, value_name = "START END", num_args = 2)]
+    /// [internal] Frame range for parallel subprocess
+    #[arg(long, value_name = "START END", num_args = 2, hide = true)]
     pub frame_range: Option<Vec<usize>>,
 
-    /// Render at a fraction of output resolution, then upscale (0.25-1.0, default: 1.0)
-    #[arg(long, value_name = "N", default_value_t = 1.0)]
+    /// [experimental] Render at lower resolution then upscale (not recommended)
+    #[arg(long, value_name = "N", default_value_t = 1.0, hide = true)]
     pub render_scale: f64,
 }
 
