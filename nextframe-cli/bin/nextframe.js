@@ -87,9 +87,11 @@ LAYOUT（同时多个内容层必须用 x/y/w/h 分区）
 SCENE TYPES
   dom=文字/布局  canvas=特效/背景  svg=图表  webgl=GPU着色器  media=视频/音频
 
-CREATING SCENES
-  export default { id, type, name, category, defaultParams, create, update, destroy }
+CREATING SCENES（必须遵守 SCENE_SPEC.md 接口规范）
+  必填字段：id, type, name, category, tags[], description, params{}, create, update, destroy
+  params 格式：{ paramName: { type, default, desc, min?, max? } }
   写到 runtime/web/src/scenes-v2/xxx.js → 注册到 index.js
+  规范详见：runtime/web/src/scenes-v2/SCENE_SPEC.md
 `;
 
 async function main() {
