@@ -1,68 +1,21 @@
-import headline from "./headline.js";
-import bodyText from "./bodyText.js";
-import bulletList from "./bulletList.js";
-import codeBlock from "./codeBlock.js";
-import quoteBlock from "./quoteBlock.js";
-import calloutCard from "./calloutCard.js";
-import numberCounter from "./numberCounter.js";
-import subtitleBar from "./subtitleBar.js";
-import vignette from "./vignette.js";
-import videoClip from "./videoClip.js";
-import audioTrack from "./audioTrack.js";
-import barChart from "./barChart.js";
-import lineChart from "./lineChart.js";
-import progressRing from "./progressRing.js";
-import auroraGradient from "./auroraGradient.js";
-import particleFlow from "./particleFlow.js";
-import statsRow from "./statsRow.js";
-import featureGrid from "./featureGrid.js";
+// 16:9 横屏
+export { default as headline } from './headline.js';
+export { default as bulletList } from './bulletList.js';
+export { default as codeBlock } from './codeBlock.js';
+export { default as barChart } from './barChart.js';
+export { default as calloutCard } from './calloutCard.js';
+export { default as numberCounter } from './numberCounter.js';
+export { default as subtitleBar } from './subtitleBar.js';
+export { default as vignette } from './vignette.js';
+export { default as auroraGradient } from './auroraGradient.js';
+export { default as particleFlow } from './particleFlow.js';
 
-const SCENES_V2 = [
-  headline,
-  bodyText,
-  bulletList,
-  codeBlock,
-  quoteBlock,
-  calloutCard,
-  numberCounter,
-  subtitleBar,
-  vignette,
-  videoClip,
-  audioTrack,
-  barChart,
-  lineChart,
-  progressRing,
-  auroraGradient,
-  particleFlow,
-  statsRow,
-  featureGrid,
-];
-
-export { headline, bodyText, bulletList, codeBlock, quoteBlock, calloutCard, numberCounter, subtitleBar, vignette, videoClip, audioTrack, barChart, lineChart, progressRing, auroraGradient, particleFlow, statsRow, featureGrid };
-
-export const SCENE_V2_MANIFEST = SCENES_V2.map((scene) => ({
-  id: scene.id,
-  type: scene.type,
-  name: scene.name,
-  category: scene.category,
-  tags: scene.tags,
-  description: scene.description,
-  params: scene.params,
-  default_params: scene.defaultParams,
-}));
-
-export const SCENE_V2_BY_ID = new Map(SCENES_V2.map((scene) => [scene.id, scene]));
-
-/**
- * Register all v2 scenes on the provided engine.
- * @param {{registerScene: (id: string, scene: object) => unknown}} engine
- */
-export function registerAllScenesV2(engine) {
-  if (!engine || typeof engine.registerScene !== "function") {
-    throw new TypeError("registerAllScenesV2(engine) requires engine.registerScene");
-  }
-
-  for (const scene of SCENES_V2) {
-    engine.registerScene(scene.id, scene);
-  }
-}
+// 9:16 竖屏
+export { default as headline_portrait } from './headline_portrait.js';
+export { default as bulletList_portrait } from './bulletList_portrait.js';
+export { default as codeBlock_portrait } from './codeBlock_portrait.js';
+export { default as barChart_portrait } from './barChart_portrait.js';
+export { default as calloutCard_portrait } from './calloutCard_portrait.js';
+export { default as numberCounter_portrait } from './numberCounter_portrait.js';
+export { default as subtitleBar_portrait } from './subtitleBar_portrait.js';
+export { default as featureGrid_portrait } from './featureGrid_portrait.js';

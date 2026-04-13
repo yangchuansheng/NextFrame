@@ -1,101 +1,84 @@
-import { clamp, toNumber, smoothstep, getStageSize } from "../scenes-v2-shared.js";
+import {
+  createRoot, toNumber, normalizeArray, clamp,
+} from '../scenes-v2-shared.js';
 
 export default {
   id: "auroraGradient",
   type: "canvas",
-  name: "Aurora Gradient",
-  category: "Backgrounds",
-  tags: ["aurora", "gradient", "background", "glow", "animated", "canvas"],
-  description: "Flowing aurora gradient background with multiple radial color orbs using additive blending",
-
+  name: "Aurora Gradient (16:9)",
+  category: "Background",
+  ratio: "16:9",
+  tags: ["aurora", "gradient", "background", "canvas"],
+  description: "Canvas 极光渐变背景动画。1920x1080 专用",
   params: {
-    hueA:      { type: "number", default: 265, min: 0, max: 360,   desc: "Primary hue" },
-    hueB:      { type: "number", default: 200, min: 0, max: 360,   desc: "Secondary hue" },
-    hueC:      { type: "number", default: 330, min: 0, max: 360,   desc: "Tertiary hue" },
-    speed:     { type: "number", default: 0.3, min: 0.05, max: 2,  desc: "Drift speed multiplier" },
-    intensity: { type: "number", default: 0.8, min: 0, max: 1.5,   desc: "Color intensity" },
+    colors: { type: "array",  default: ["#0f0c29", "#302b63", "#24243e", "#0f0c29"], desc: "渐变色数组" },
+    speed:  { type: "number", default: 0.3,  desc: "动画速度" },
+    layers: { type: "number", default: 3,    desc: "光带层数" },
   },
+
   get defaultParams() {
-    const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
-    return p;
+    const d = {};
+    for (const [k, v] of Object.entries(this.params)) d[k] = v.default;
+    return d;
   },
 
   create(container, params) {
-    const stage = getStageSize(container);
-    const W = Math.max(container.clientWidth || stage.width, 1);
-    const H = Math.max(container.clientHeight || stage.height, 1);
+    const p = { ...this.defaultParams, ...params };
+    const root = createRoot(container, "width:1920px;height:1080px");
 
     const canvas = document.createElement("canvas");
-    canvas.width = W;
-    canvas.height = H;
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-    container.appendChild(canvas);
+    canvas.width = 1920;
+    canvas.height = 1080;
+    canvas.style.cssText = "width:100%;height:100%;";
+    root.appendChild(canvas);
 
     const ctx = canvas.getContext("2d");
+    const colors = normalizeArray(p.colors, ["#0f0c29", "#302b63", "#24243e", "#0f0c29"]);
+    const speed = toNumber(p.speed, 0.3);
+    const layerCount = clamp(Math.round(toNumber(p.layers, 3)), 1, 6);
 
-    const hueA      = toNumber(params.hueA, 265);
-    const hueB      = toNumber(params.hueB, 200);
-    const hueC      = toNumber(params.hueC, 330);
-    const speed     = toNumber(params.speed, 0.3);
-    const intensity = toNumber(params.intensity, 0.8);
-
-    const blobs = [
-      { hue: hueA, phase: 0,   sx: 0.11, sy: 0.07, amp: 0.28, size: 0.55 },
-      { hue: hueB, phase: 1.7, sx: 0.09, sy: 0.13, amp: 0.34, size: 0.68 },
-      { hue: hueC, phase: 3.2, sx: 0.13, sy: 0.05, amp: 0.22, size: 0.42 },
-      { hue: (hueA + hueB) / 2, phase: 4.9, sx: 0.07, sy: 0.11, amp: 0.3, size: 0.6 },
-    ];
-
-    return { canvas, ctx, W, H, blobs, speed, intensity };
+    return { root, canvas, ctx, colors, speed, layerCount };
   },
 
-  update(els, localT, _params) {
-    const { ctx, W, H, blobs, speed, intensity } = els;
-    const S = Math.min(stage.width || W, stage.height || H); // stage-based for stable font size
+  update(els, localT) {
+    const { ctx, canvas, colors, speed, layerCount } = els;
+    const W = canvas.width;
+    const H = canvas.height;
     const t = localT * speed;
-    const fadeIn = smoothstep(0, 0.6, localT);
 
-    // Dark background
-    const base = ctx.createLinearGradient(0, 0, 0, H);
-    base.addColorStop(0, "#05050c");
-    base.addColorStop(0.5, "#0a0714");
-    base.addColorStop(1, "#03020a");
-    ctx.fillStyle = base;
+    // base fill
+    ctx.fillStyle = colors[0] || "#0f0c29";
     ctx.fillRect(0, 0, W, H);
 
-    // Additive blending for aurora orbs
-    ctx.globalCompositeOperation = "lighter";
+    // aurora layers
+    for (let layer = 0; layer < layerCount; layer++) {
+      const phase = layer * 1.2 + t;
+      const yBase = H * (0.3 + layer * 0.15);
+      const amplitude = H * 0.12;
+      const colorIdx = (layer + 1) % colors.length;
+      const color = colors[colorIdx] || "#302b63";
 
-    for (let i = 0; i < blobs.length; i++) {
-      const b = blobs[i];
-      const cx = W * (0.5 + Math.sin(t * b.sx + b.phase) * b.amp);
-      const cy = H * (0.5 + Math.cos(t * b.sy + b.phase * 1.3) * b.amp * 0.7);
-      const breath = 0.88 + 0.12 * Math.sin(t * 0.35 + i);
-      const radius = S * b.size * breath;
-      const alpha = clamp(0.45 * intensity * fadeIn, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = 0.4 - layer * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(0, H);
 
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      grad.addColorStop(0, `hsla(${b.hue}, 90%, 65%, ${alpha})`);
-      grad.addColorStop(0.35, `hsla(${b.hue}, 85%, 55%, ${alpha * 0.55})`);
-      grad.addColorStop(1, `hsla(${b.hue}, 80%, 40%, 0)`);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
+      for (let x = 0; x <= W; x += 4) {
+        const y = yBase +
+          Math.sin((x / W) * Math.PI * 2 + phase) * amplitude +
+          Math.sin((x / W) * Math.PI * 3.7 + phase * 1.3) * amplitude * 0.5;
+        ctx.lineTo(x, y);
+      }
+
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
     }
-
-    // Restore and add vignette
-    ctx.globalCompositeOperation = "source-over";
-    const band = ctx.createLinearGradient(0, 0, 0, H);
-    band.addColorStop(0, "rgba(0,0,0,0.55)");
-    band.addColorStop(0.5, "rgba(0,0,0,0)");
-    band.addColorStop(1, "rgba(0,0,0,0.65)");
-    ctx.fillStyle = band;
-    ctx.fillRect(0, 0, W, H);
   },
 
   destroy(els) {
-    if (els.canvas && els.canvas.parentNode) {
-      els.canvas.parentNode.removeChild(els.canvas);
-    }
+    els.root.remove();
   },
 };

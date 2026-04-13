@@ -1,137 +1,70 @@
 import {
-  SANS_FONT_STACK,
-  createRoot,
-  createNode,
-  smoothstep,
-  easeOutCubic,
-  clamp,
-  normalizeArray,
-  getSafeZone,
-  getStageSize,
-  resolveSize,
-} from "../scenes-v2-shared.js";
+  createRoot, createNode, smoothstep, easeOutCubic,
+  toNumber, normalizeArray, SANS_FONT_STACK,
+} from '../scenes-v2-shared.js';
 
 export default {
   id: "bulletList",
   type: "dom",
-  name: "Bullet List",
+  name: "Bullet List (16:9)",
   category: "Typography",
-  tags: ["text", "list", "bullets", "stagger", "slide-in", "points"],
-  description: "Adaptive bullet point list with colored dots and per-item slide-in entrance from the left",
-
+  ratio: "16:9",
+  tags: ["list", "bullet", "text"],
+  description: "左对齐要点列表，逐条滑入。1920x1080 专用",
   params: {
-    items: { type: "array", default: ["Item 1", "Item 2", "Item 3"], desc: "List of bullet point strings" },
-    fontSize: { type: "number", default: 0.028, desc: "Font size as a ratio of the short edge", min: 0.015, max: 0.06 },
-    bulletColor: { type: "string", default: "#a78bfa", desc: "Bullet dot color" },
-    stagger: { type: "number", default: 0.1, desc: "Stagger delay per item (in localT units)", min: 0.02, max: 0.4 },
+    items:       { type: "array",  default: ["Point one", "Point two", "Point three"], desc: "列表项数组" },
+    fontSize:    { type: "number", default: 28,       desc: "字号(px)" },
+    bulletColor: { type: "string", default: "#60a5fa", desc: "圆点颜色" },
+    stagger:     { type: "number", default: 0.1,      desc: "逐条延迟(秒)" },
   },
 
   get defaultParams() {
-    const p = {};
-    for (const [k, v] of Object.entries(this.params)) {
-      p[k] = v.default;
-    }
-    return p;
+    const d = {};
+    for (const [k, v] of Object.entries(this.params)) d[k] = v.default;
+    return d;
   },
 
   create(container, params) {
-    const stage = getStageSize(container);
-    const W = Math.max(container.clientWidth || stage.width, 1);
-    const H = Math.max(container.clientHeight || stage.height, 1);
-    const S = Math.min(stage.width || W, stage.height || H); // stage-based for stable font size
-    const safeZone = getSafeZone(stage.width || W, stage.height || H);
+    const p = { ...this.defaultParams, ...params };
+    const root = createRoot(container, "display:flex;flex-direction:column;justify-content:center;width:1920px;height:1080px;padding-left:200px");
 
-    const items = normalizeArray(params.items, ["Item 1", "Item 2", "Item 3"]);
-    const fontSize = resolveSize(params.fontSize, S, 0.028);
-    const bulletColor = params.bulletColor || "#a78bfa";
-    const bulletSize = S * 0.008;
-    const gap = S * 0.018;
-    const root = createRoot(container, [
-      "display:flex",
-      "flex-direction:column",
-      "justify-content:center",
-      `padding:${Math.round(safeZone.top)}px ${Math.round(safeZone.right)}px ${Math.round(safeZone.bottom)}px ${Math.round(safeZone.left)}px`,
-      "box-sizing:border-box",
-    ].join(";"));
+    const items = normalizeArray(p.items, ["Point one", "Point two", "Point three"]);
+    const fontSize = toNumber(p.fontSize, 28);
+    const bulletColor = p.bulletColor || "#60a5fa";
+    const rows = [];
 
-    const listWrap = createNode("div", [
-      "display:flex",
-      "flex-direction:column",
-      `gap:${Math.round(gap)}px`,
-      "width:100%",
-      "max-width:100%",
-      "overflow:hidden",
-    ].join(";"));
-
-    const itemEls = [];
-    for (let i = 0; i < items.length; i += 1) {
-      const row = createNode("div", [
-        "display:flex",
-        "align-items:flex-start",
-        `gap:${Math.round(S * 0.012)}px`,
-        "max-width:100%",
-        "min-width:0",
-        "overflow:hidden",
-        "opacity:0",
-        "transform:translateX(-30px)",
-        "will-change:transform,opacity",
-      ].join(";"));
-
-      const dot = createNode("span", [
-        `width:${Math.round(bulletSize)}px`,
-        `height:${Math.round(bulletSize)}px`,
-        "border-radius:50%",
-        `background:${bulletColor}`,
-        "flex-shrink:0",
-        `margin-top:${Math.round(fontSize * 0.35)}px`,
-      ].join(";"));
-
-      const textEl = createNode("span", [
-        `font-size:${Math.round(fontSize)}px`,
-        `font-family:${SANS_FONT_STACK}`,
-        "font-weight:400",
-        "color:#f0f0f0",
-        "line-height:1.5",
-        "flex:1",
-        "max-width:100%",
-        "overflow:hidden",
-        "word-break:break-word",
-        "overflow-wrap:break-word",
-      ].join(";"), String(items[i]));
-
+    for (const text of items) {
+      const row = createNode("div", `
+        display:flex;align-items:center;gap:16px;
+        margin-bottom:24px;opacity:0;transform:translateX(-40px);
+      `);
+      const dot = createNode("span", `
+        width:12px;height:12px;border-radius:50%;flex-shrink:0;
+        background:${bulletColor};
+      `);
+      const label = createNode("span", `
+        font-family:${SANS_FONT_STACK};font-size:${fontSize}px;
+        color:rgba(255,255,255,0.9);line-height:1.5;
+      `, text);
       row.appendChild(dot);
-      row.appendChild(textEl);
-      listWrap.appendChild(row);
-      itemEls.push(row);
+      row.appendChild(label);
+      root.appendChild(row);
+      rows.push(row);
     }
 
-    root.appendChild(listWrap);
-    return { root, itemEls, S };
+    return { root, rows, stagger: toNumber(p.stagger, 0.1) };
   },
 
-  update(els, localT, params) {
-    const t = clamp(localT);
-    const staggerDelay = params.stagger || 0.1;
-    const itemCount = els.itemEls.length;
-
-    for (let i = 0; i < itemCount; i += 1) {
-      const itemStart = i * staggerDelay * 0.3;
-      const enterEnd = itemStart + 0.3;
-      const exitStart = 0.8;
-
-      const enterProgress = easeOutCubic(smoothstep(itemStart, enterEnd, t));
-      const exitProgress = smoothstep(exitStart, 1, t);
-      const opacity = enterProgress * (1 - exitProgress);
-      const translateX = (1 - enterProgress) * -30 + exitProgress * -30;
-
-      els.itemEls[i].style.opacity = String(opacity);
-      els.itemEls[i].style.transform = `translateX(${translateX}px)`;
+  update(els, localT) {
+    const { rows, stagger } = els;
+    for (let i = 0; i < rows.length; i++) {
+      const t = smoothstep(i * stagger, i * stagger + 0.4, localT);
+      rows[i].style.opacity = t;
+      rows[i].style.transform = `translateX(${(1 - t) * -40}px)`;
     }
   },
 
   destroy(els) {
-    if (els.root && els.root.parentNode) {
-      els.root.parentNode.removeChild(els.root);
-    }
+    els.root.remove();
   },
 };

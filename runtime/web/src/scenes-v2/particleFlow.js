@@ -1,127 +1,85 @@
-import { clamp, toNumber, smoothstep, hashFloat, getStageSize } from "../scenes-v2-shared.js";
+import {
+  createRoot, toNumber, clamp, hashFloat,
+} from '../scenes-v2-shared.js';
 
 export default {
   id: "particleFlow",
   type: "canvas",
-  name: "Particle Flow",
-  category: "Effects",
-  tags: ["particles", "flow", "glow", "canvas", "animated", "effects"],
-  description: "Glowing particles flowing across the canvas with configurable direction and speed",
-
+  name: "Particle Flow (16:9)",
+  category: "Background",
+  ratio: "16:9",
+  tags: ["particle", "flow", "background", "canvas"],
+  description: "Canvas 粒子流背景动画。1920x1080 专用",
   params: {
-    count:     { type: "number", default: 150, min: 20, max: 800,   desc: "Number of particles" },
-    speed:     { type: "number", default: 30,  min: 5,  max: 200,   desc: "Particle speed (px/s)" },
-    color:     { type: "color",  default: "#6ee7ff",                 desc: "Particle color" },
-    direction: { type: "number", default: 45,  min: 0,  max: 360,   desc: "Flow direction (degrees)" },
+    count:    { type: "number", default: 80,        desc: "粒子数量" },
+    color:    { type: "string", default: "#ffffff", desc: "粒子颜色" },
+    maxSize:  { type: "number", default: 3,         desc: "最大粒子半径(px)" },
+    speed:    { type: "number", default: 0.5,       desc: "流动速度" },
+    opacity:  { type: "number", default: 0.4,       desc: "整体不透明度" },
   },
+
   get defaultParams() {
-    const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
-    return p;
+    const d = {};
+    for (const [k, v] of Object.entries(this.params)) d[k] = v.default;
+    return d;
   },
 
   create(container, params) {
-    const stage = getStageSize(container);
-    const W = Math.max(container.clientWidth || stage.width, 1);
-    const H = Math.max(container.clientHeight || stage.height, 1);
-    const S = Math.min(stage.width || W, stage.height || H); // stage-based for stable font size
+    const p = { ...this.defaultParams, ...params };
+    const root = createRoot(container, "width:1920px;height:1080px");
 
     const canvas = document.createElement("canvas");
-    canvas.width = W;
-    canvas.height = H;
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-    container.appendChild(canvas);
+    canvas.width = 1920;
+    canvas.height = 1080;
+    canvas.style.cssText = "width:100%;height:100%;";
+    root.appendChild(canvas);
 
     const ctx = canvas.getContext("2d");
+    const count = clamp(Math.round(toNumber(p.count, 80)), 1, 500);
+    const color = p.color || "#ffffff";
+    const maxSize = toNumber(p.maxSize, 3);
+    const speed = toNumber(p.speed, 0.5);
+    const opacity = clamp(toNumber(p.opacity, 0.4), 0, 1);
 
-    const count = Math.round(toNumber(params.count, 150));
-    const speed = toNumber(params.speed, 30);
-    const color = params.color || this.params.color.default;
-    const dirDeg = toNumber(params.direction, 45);
-    const dirRad = (dirDeg * Math.PI) / 180;
-    const dx = Math.cos(dirRad);
-    const dy = Math.sin(dirRad);
-
-    const sizeMin = S * 0.002;
-    const sizeMax = S * 0.005;
-
-    // Pre-compute particles
+    // pre-generate particles with deterministic randomness
     const particles = [];
     for (let i = 0; i < count; i++) {
-      const h = hashFloat(i, "px");
-      const h2 = hashFloat(i, "py");
-      const h3 = hashFloat(i, "sz");
-      const h4 = hashFloat(i, "sp");
-      const h5 = hashFloat(i, "al");
-
       particles.push({
-        x: h * W,
-        y: h2 * H,
-        size: sizeMin + h3 * (sizeMax - sizeMin),
-        speedMul: 0.5 + h4 * 1.0,
-        alpha: 0.3 + h5 * 0.7,
+        x: hashFloat(i, "x") * 1920,
+        y: hashFloat(i, "y") * 1080,
+        r: 0.5 + hashFloat(i, "r") * maxSize,
+        vx: (hashFloat(i, "vx") - 0.5) * 60,
+        vy: (hashFloat(i, "vy") - 0.3) * 40,
+        alpha: 0.3 + hashFloat(i, "a") * 0.7,
       });
     }
 
-    return { canvas, ctx, W, H, S, particles, speed, color, dx, dy };
+    return { root, canvas, ctx, particles, color, speed, opacity };
   },
 
-  update(els, localT, _params) {
-    const { ctx, W, H, particles, speed, color, dx, dy } = els;
-    const fadeIn = smoothstep(0, 0.5, localT);
+  update(els, localT) {
+    const { ctx, canvas, particles, color, speed, opacity } = els;
+    const W = canvas.width;
+    const H = canvas.height;
 
-    // Clear
     ctx.clearRect(0, 0, W, H);
+    ctx.globalAlpha = opacity;
 
-    // Dark background
-    ctx.fillStyle = "rgba(5,5,12,1)";
-    ctx.fillRect(0, 0, W, H);
+    for (const p of particles) {
+      const x = ((p.x + p.vx * localT * speed) % W + W) % W;
+      const y = ((p.y + p.vy * localT * speed) % H + H) % H;
 
-    ctx.globalCompositeOperation = "lighter";
-
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-
-      // Move particle
-      const vx = dx * speed * p.speedMul;
-      const vy = dy * speed * p.speedMul;
-      p.x += vx * (1 / 60); // approximate per-frame
-      p.y += vy * (1 / 60);
-
-      // Wrap around
-      if (p.x > W + 20) p.x = -20;
-      if (p.x < -20) p.x = W + 20;
-      if (p.y > H + 20) p.y = -20;
-      if (p.y < -20) p.y = H + 20;
-
-      const alpha = clamp(p.alpha * fadeIn, 0, 1);
-
-      // Glow
-      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
-      grad.addColorStop(0, color + hexAlpha(alpha));
-      grad.addColorStop(0.4, color + hexAlpha(alpha * 0.4));
-      grad.addColorStop(1, color + "00");
-      ctx.fillStyle = grad;
-      ctx.fillRect(p.x - p.size * 3, p.y - p.size * 3, p.size * 6, p.size * 6);
-
-      // Core dot
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = color + hexAlpha(alpha);
+      ctx.arc(x, y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = opacity * p.alpha;
       ctx.fill();
     }
 
-    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
   },
 
   destroy(els) {
-    if (els.canvas && els.canvas.parentNode) {
-      els.canvas.parentNode.removeChild(els.canvas);
-    }
+    els.root.remove();
   },
 };
-
-function hexAlpha(a) {
-  const v = Math.round(clamp(a, 0, 1) * 255);
-  return v.toString(16).padStart(2, "0");
-}

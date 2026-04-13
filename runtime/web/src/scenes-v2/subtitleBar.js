@@ -1,105 +1,70 @@
 import {
+  createRoot, createNode, smoothstep, toNumber,
   SANS_FONT_STACK,
-  createRoot,
-  createNode,
-  clamp,
-  smoothstep,
-  getSafeZone,
-  getStageSize,
-  resolveSize,
-  shrinkTextToFit,
-} from "../scenes-v2-shared.js";
+} from '../scenes-v2-shared.js';
 
 export default {
   id: "subtitleBar",
   type: "dom",
-  name: "Subtitle Bar",
-  category: "Overlay",
-  tags: ["subtitle", "caption", "text", "overlay", "typewriter", "bottom"],
-  description: "Bottom-centered subtitle bar with semi-transparent background and character-by-character typewriter entrance effect.",
-
+  name: "Subtitle Bar (16:9)",
+  category: "Typography",
+  ratio: "16:9",
+  tags: ["subtitle", "caption", "text", "lower-third"],
+  description: "底部居中字幕条，打字机效果。1920x1080 专用",
   params: {
-    text:     { type: "string", default: "Subtitle text", desc: "Subtitle content" },
-    fontSize: { type: "number", default: 0.025, desc: "Font size as a ratio of the short edge", min: 0.01, max: 0.06 },
-    bgColor:  { type: "string", default: "rgba(0,0,0,0.6)", desc: "Background color of the subtitle bar" },
+    text:     { type: "string", default: "Subtitle text here", desc: "字幕文字" },
+    fontSize: { type: "number", default: 24,                   desc: "字号(px)" },
+    bgColor:  { type: "string", default: "rgba(0,0,0,0.6)",   desc: "背景色" },
   },
 
   get defaultParams() {
-    const p = {};
-    for (const [k, v] of Object.entries(this.params)) {
-      p[k] = v.default;
-    }
-    return p;
+    const d = {};
+    for (const [k, v] of Object.entries(this.params)) d[k] = v.default;
+    return d;
   },
 
   create(container, params) {
-    const stage = getStageSize(container);
-    const W = Math.max(container.clientWidth || stage.width, 1);
-    const H = Math.max(container.clientHeight || stage.height, 1);
-    const S = Math.min(stage.width || W, stage.height || H); // stage-based for stable font size
-    const safeZone = getSafeZone(stage.width || W, stage.height || H);
+    const p = { ...this.defaultParams, ...params };
+    const root = createRoot(container, "display:flex;align-items:flex-end;justify-content:center;width:1920px;height:1080px;padding-bottom:80px");
 
-    const text = String(params.text || "Subtitle text");
-    const fontSize = resolveSize(params.fontSize, S, 0.025);
-    const bgColor = String(params.bgColor || "rgba(0,0,0,0.6)");
-    const radius = Math.round(S * 0.008);
-    const padding = Math.round(S * 0.012);
-    const root = createRoot(container, [
-      "display:flex",
-      "align-items:flex-end",
-      "justify-content:center",
-      `padding:${Math.round(safeZone.top)}px ${Math.round(safeZone.right)}px ${Math.round(safeZone.bottom)}px ${Math.round(safeZone.left)}px`,
-      "box-sizing:border-box",
-    ].join(";"));
+    const bar = createNode("div", `
+      padding:12px 28px;border-radius:8px;
+      background:${p.bgColor || "rgba(0,0,0,0.6)"};
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      opacity:0;
+    `);
 
-    const bar = createNode("div", [
-      `background:${bgColor}`,
-      `border-radius:${radius}px`,
-      `padding:${padding}px ${Math.round(padding * 1.5)}px`,
-      `font-size:${fontSize}px`,
-      `font-family:${SANS_FONT_STACK}`,
-      "font-weight:400",
-      "color:#ffffff",
-      "line-height:1.5",
-      "text-align:center",
-      "max-width:100%",
-      "overflow:hidden",
-      "word-break:break-word",
-      "overflow-wrap:break-word",
-      "opacity:0",
-      "will-change:opacity",
-    ].join(";"));
+    const textEl = createNode("span", `
+      font-family:${SANS_FONT_STACK};font-size:${toNumber(p.fontSize, 24)}px;
+      color:#ffffff;white-space:pre-wrap;
+    `);
 
-    const textEl = createNode("span", "display:block;max-width:100%;overflow:hidden;word-break:break-word;overflow-wrap:break-word", "");
     bar.appendChild(textEl);
     root.appendChild(bar);
-    shrinkTextToFit(bar, { container: root, minFontSize: Math.round(S * 0.02) });
 
-    return { root, bar, textEl, fullText: text, fontSize, minTextSize: Math.round(S * 0.02) };
+    const fullText = String(p.text || "");
+
+    return { root, bar, textEl, fullText };
   },
 
   update(els, localT) {
-    const t = clamp(localT);
-    const text = els.fullText;
-    const len = text.length;
+    const { bar, textEl, fullText } = els;
 
-    const barEnter = smoothstep(0, 0.08, t);
-    const exitProgress = smoothstep(0.9, 1, t);
-    els.bar.style.opacity = String(barEnter * (1 - exitProgress));
+    // fade in bar
+    const barT = smoothstep(0.0, 0.3, localT);
+    bar.style.opacity = barT;
 
-    const typeStart = 0.05;
-    const typeEnd = 0.7;
-    const typeProgress = clamp((t - typeStart) / (typeEnd - typeStart));
-    const visibleChars = Math.round(len * typeProgress);
-
-    els.bar.style.fontSize = `${els.fontSize}px`;
-    els.textEl.textContent = text.slice(0, visibleChars);
-    shrinkTextToFit(els.bar, { container: els.root, minFontSize: els.minTextSize });
+    // typewriter: reveal chars over time
+    if (fullText.length > 0) {
+      const charTime = 0.04; // seconds per char
+      const startDelay = 0.3;
+      const elapsed = Math.max(0, localT - startDelay);
+      const charCount = Math.min(fullText.length, Math.floor(elapsed / charTime));
+      textEl.textContent = fullText.slice(0, charCount);
+    }
   },
 
   destroy(els) {
-    if (els.root && els.root.parentNode) {
-      els.root.parentNode.removeChild(els.root);
-    }
+    els.root.remove();
   },
 };

@@ -1,136 +1,67 @@
 import {
-  SANS_FONT_STACK,
-  createRoot,
-  createNode,
-  clamp,
-  easeOutCubic,
-  smoothstep,
-  toNumber,
-  getSafeZone,
-  getStageSize,
-  shrinkTextToFit,
-} from "../scenes-v2-shared.js";
+  createRoot, createNode, smoothstep, easeOutCubic,
+  toNumber, SANS_FONT_STACK,
+} from '../scenes-v2-shared.js';
 
 export default {
   id: "numberCounter",
   type: "dom",
-  name: "Number Counter",
-  category: "Numbers",
-  tags: ["number", "counter", "statistic", "data", "animation", "rollup"],
-  description: "Large animated number counter that rolls from zero to the target value with optional prefix, suffix, and label.",
-
+  name: "Number Counter (16:9)",
+  category: "Data",
+  ratio: "16:9",
+  tags: ["number", "counter", "data", "stat"],
+  description: "居中大数字，从 0 滚到目标值。1920x1080 专用",
   params: {
-    value:  { type: "number", default: 100, desc: "Target number value", min: 0, max: 999999999 },
-    prefix: { type: "string", default: "", desc: "Text before the number (e.g. $)" },
-    suffix: { type: "string", default: "", desc: "Text after the number (e.g. %)" },
-    label:  { type: "string", default: "Total", desc: "Label text below the number" },
-    color:  { type: "string", default: "#6ee7ff", desc: "Number text color" },
+    value:  { type: "number", default: 1000,     desc: "目标数值" },
+    prefix: { type: "string", default: "",       desc: "前缀(如 $)" },
+    suffix: { type: "string", default: "",       desc: "后缀(如 %)" },
+    label:  { type: "string", default: "Total",  desc: "底部标签" },
+    color:  { type: "string", default: "#60a5fa", desc: "数字颜色" },
   },
 
   get defaultParams() {
-    const p = {};
-    for (const [k, v] of Object.entries(this.params)) {
-      p[k] = v.default;
-    }
-    return p;
+    const d = {};
+    for (const [k, v] of Object.entries(this.params)) d[k] = v.default;
+    return d;
   },
 
   create(container, params) {
-    const stage = getStageSize(container);
-    const W = Math.max(container.clientWidth || stage.width, 1);
-    const H = Math.max(container.clientHeight || stage.height, 1);
-    const S = Math.min(stage.width || W, stage.height || H); // stage-based for stable font size
-    const safeZone = getSafeZone(stage.width || W, stage.height || H);
+    const p = { ...this.defaultParams, ...params };
+    const root = createRoot(container, "display:flex;flex-direction:column;align-items:center;justify-content:center;width:1920px;height:1080px");
 
-    const color = String(params.color || "#6ee7ff");
-    const label = String(params.label || "Total");
-    const numberSize = Math.round(S * 0.1);
-    const labelSize = Math.round(S * 0.025);
+    const targetValue = toNumber(p.value, 1000);
+    const color = p.color || "#60a5fa";
 
-    const root = createRoot(container, [
-      "display:flex",
-      "align-items:center",
-      "justify-content:center",
-      `padding:${Math.round(safeZone.top)}px ${Math.round(safeZone.right)}px ${Math.round(safeZone.bottom)}px ${Math.round(safeZone.left)}px`,
-      "box-sizing:border-box",
-    ].join(";"));
+    const numberEl = createNode("div", `
+      font-family:${SANS_FONT_STACK};font-size:120px;font-weight:800;
+      color:${color};opacity:0;
+      font-variant-numeric:tabular-nums;
+    `, "0");
 
-    const wrap = createNode("div", [
-      "display:flex",
-      "flex-direction:column",
-      "align-items:center",
-      "max-width:100%",
-      "overflow:hidden",
-      `gap:${Math.round(S * 0.012)}px`,
-    ].join(";"));
+    const labelEl = createNode("div", `
+      font-family:${SANS_FONT_STACK};font-size:28px;font-weight:400;
+      color:rgba(255,255,255,0.6);margin-top:16px;opacity:0;
+    `, p.label || "");
 
-    const numberEl = createNode("div", [
-      `font-size:${numberSize}px`,
-      `font-family:${SANS_FONT_STACK}`,
-      "font-weight:900",
-      `color:${color}`,
-      "line-height:1",
-      "font-variant-numeric:tabular-nums",
-      "opacity:0",
-      "will-change:opacity",
-      "text-align:center",
-      "max-width:100%",
-      "overflow:hidden",
-      "word-break:break-word",
-      "overflow-wrap:break-word",
-    ].join(";"), "0");
+    root.appendChild(numberEl);
+    root.appendChild(labelEl);
 
-    const labelEl = createNode("div", [
-      `font-size:${labelSize}px`,
-      `font-family:${SANS_FONT_STACK}`,
-      "font-weight:400",
-      "color:rgba(255,255,255,0.6)",
-      "text-transform:uppercase",
-      "letter-spacing:0.1em",
-      "opacity:0",
-      "will-change:opacity",
-      "text-align:center",
-      "max-width:100%",
-      "overflow:hidden",
-      "word-break:break-word",
-      "overflow-wrap:break-word",
-    ].join(";"), label);
-
-    wrap.appendChild(numberEl);
-    wrap.appendChild(labelEl);
-    root.appendChild(wrap);
-
-    return { root, wrap, numberEl, labelEl, numberSize, labelSize, minTextSize: Math.round(S * 0.02) };
+    return { root, numberEl, labelEl, targetValue, prefix: p.prefix || "", suffix: p.suffix || "" };
   },
 
-  update(els, localT, params) {
-    const t = clamp(localT);
-    const target = toNumber(params.value, 100);
-    const prefix = String(params.prefix || "");
-    const suffix = String(params.suffix || "");
+  update(els, localT) {
+    const { numberEl, labelEl, targetValue, prefix, suffix } = els;
+    const t = smoothstep(0.2, 1.2, localT);
+    const current = Math.round(easeOutCubic(t) * targetValue);
 
-    const enterProgress = easeOutCubic(smoothstep(0, 0.15, t));
-    const countProgress = easeOutCubic(smoothstep(0.05, 0.6, t));
-    const exitProgress = smoothstep(0.85, 1, t);
+    numberEl.style.opacity = Math.min(t * 3, 1);
+    numberEl.textContent = `${prefix}${current.toLocaleString()}${suffix}`;
 
-    const opacity = enterProgress * (1 - exitProgress);
-    const currentValue = Math.round(target * countProgress);
-
-    const formatted = currentValue.toLocaleString("en-US");
-    els.numberEl.textContent = `${prefix}${formatted}${suffix}`;
-    els.numberEl.style.opacity = String(opacity);
-    els.numberEl.style.fontSize = `${els.numberSize}px`;
-    shrinkTextToFit(els.numberEl, { container: els.wrap, minFontSize: els.minTextSize });
-
-    const labelEnter = easeOutCubic(smoothstep(0.1, 0.3, t));
-    els.labelEl.style.opacity = String(labelEnter * (1 - exitProgress));
-    els.labelEl.style.fontSize = `${els.labelSize}px`;
-    shrinkTextToFit(els.labelEl, { container: els.wrap, minFontSize: els.minTextSize });
+    const lt = smoothstep(0.6, 1.0, localT);
+    labelEl.style.opacity = lt;
   },
 
   destroy(els) {
-    if (els.root && els.root.parentNode) {
-      els.root.parentNode.removeChild(els.root);
-    }
+    els.root.remove();
   },
 };
