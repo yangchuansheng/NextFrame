@@ -99,6 +99,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .strip_prefix("nfdata://localhost/")
                 .or_else(|| uri.strip_prefix("nfdata://localhost"))
                 .unwrap_or("");
+            let relative_path = relative_path.split('?').next().unwrap_or(relative_path);
             protocol_response(&projects_root_for_protocol, relative_path)
         })
         .with_document_title_changed_handler(move |title| {
