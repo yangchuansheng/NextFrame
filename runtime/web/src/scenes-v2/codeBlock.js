@@ -1,11 +1,73 @@
 import {
-  createRoot, createNode, smoothstep, toNumber, lerp,
-  normalizeLines, MONO_FONT_STACK, SANS_FONT_STACK,
+  MONO_FONT_STACK,
+  SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  smoothstep,
+  easeOutCubic,
+  clamp,
+  normalizeLines,
+  escapeHtml,
 } from "../scenes-v2-shared.js";
 
-const THEMES = {
-  dark: { bg: "rgba(15,15,25,0.85)", text: "#e2e8f0", line: "rgba(255,255,255,0.15)", border: "rgba(255,255,255,0.08)" },
-  light: { bg: "rgba(245,245,250,0.9)", text: "#1e293b", line: "rgba(0,0,0,0.2)", border: "rgba(0,0,0,0.1)" },
+const KEYWORDS = new Set([
+  "const", "let", "var", "function", "return", "if", "else", "for", "while",
+  "import", "export", "from", "default", "class", "new", "this", "async",
+  "await", "try", "catch", "throw", "switch", "case", "break", "continue",
+  "true", "false", "null", "undefined", "typeof", "instanceof", "in", "of",
+  "def", "fn", "pub", "use", "mod", "struct", "enum", "impl", "trait", "self",
+  "mut", "match", "loop", "type", "interface", "extends", "implements",
+]);
+
+function highlightLine(text) {
+  const tokens = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    const commentMatch = remaining.match(/^(\/\/.*)/);
+    if (commentMatch) {
+      tokens.push({ type: "comment", value: commentMatch[1] });
+      remaining = remaining.slice(commentMatch[1].length);
+      continue;
+    }
+
+    const stringMatch = remaining.match(/^("[^"]*"|'[^']*'|`[^`]*`)/);
+    if (stringMatch) {
+      tokens.push({ type: "string", value: stringMatch[1] });
+      remaining = remaining.slice(stringMatch[1].length);
+      continue;
+    }
+
+    const wordMatch = remaining.match(/^([a-zA-Z_$][\w$]*)/);
+    if (wordMatch) {
+      const word = wordMatch[1];
+      const tokenType = KEYWORDS.has(word) ? "keyword" : "ident";
+      tokens.push({ type: tokenType, value: word });
+      remaining = remaining.slice(word.length);
+      continue;
+    }
+
+    const numberMatch = remaining.match(/^(\d+\.?\d*)/);
+    if (numberMatch) {
+      tokens.push({ type: "number", value: numberMatch[1] });
+      remaining = remaining.slice(numberMatch[1].length);
+      continue;
+    }
+
+    tokens.push({ type: "plain", value: remaining[0] });
+    remaining = remaining.slice(1);
+  }
+
+  return tokens;
+}
+
+const TOKEN_COLORS = {
+  keyword: "#ff7b72",
+  string: "#a5d6a7",
+  comment: "#6b7280",
+  number: "#79c0ff",
+  ident: "#e0e0e0",
+  plain: "#d0d0d0",
 };
 
 export default {
@@ -13,94 +75,161 @@ export default {
   type: "dom",
   name: "Code Block",
   category: "Code",
-  tags: ["code", "syntax", "terminal", "programming", "typewriter", "dark"],
-  description: "代码块逐行打字机效果，带行号、语言标签和深色/浅色主题，适合技术讲解场景",
+  tags: ["code", "terminal", "syntax", "highlight", "programming", "developer"],
+  description: "Adaptive code display with dark terminal window, traffic light dots, and simple syntax highlighting",
+
   params: {
-    code:     { type: "string", default: 'function hello() {\n  console.log("Hello, world!");\n  return 42;\n}', desc: "代码内容（支持换行符）" },
-    language: { type: "string", default: "javascript", desc: "语言标签，显示在代码块顶部" },
-    fontSize: { type: "number", default: 18,            desc: "代码字号(px)", min: 10, max: 36 },
-    theme:    { type: "string", default: "dark",        desc: "主题：dark 或 light" },
+    code: { type: "string", default: "const greeting = \"Hello, world!\";\nconsole.log(greeting);", desc: "Code content" },
+    language: { type: "string", default: "javascript", desc: "Language name for display" },
+    fontSize: { type: "number", default: 0.02, desc: "Font size relative to short edge", min: 0.01, max: 0.04 },
+    title: { type: "string", default: "main.js", desc: "Window title bar text" },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
-    const root = createRoot(container, "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6% 8%");
-    const theme = THEMES[params.theme] || THEMES.dark;
-    const fontSize = toNumber(params.fontSize, 18);
-    const card = createNode("div", [
-      `background:${theme.bg}`,
-      "border-radius:12px",
-      `border:1px solid ${theme.border}`,
-      "padding:20px 24px",
-      "max-width:720px",
-      "width:100%",
-      "box-shadow:0 8px 32px rgba(0,0,0,0.3)",
-      "will-change:opacity,transform",
-      "opacity:0",
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const code = String(params.code || "");
+    const title = String(params.title || "main.js");
+    const fontSize = S * (params.fontSize || 0.02);
+    const padding = S * 0.025;
+    const borderRadius = S * 0.012;
+    const dotSize = S * 0.008;
+
+    const root = createRoot(container, [
+      "display:flex",
+      "align-items:center",
+      "justify-content:center",
+      `padding:${Math.round(S * 0.04)}px`,
+      "box-sizing:border-box",
     ].join(";"));
-    const header = createNode("div", [
+
+    const window = createNode("div", [
+      "background:rgba(17,17,27,0.95)",
+      `border-radius:${Math.round(borderRadius)}px`,
+      "box-shadow:0 8px 32px rgba(0,0,0,0.5),0 2px 8px rgba(0,0,0,0.3)",
+      "overflow:hidden",
+      "max-width:90%",
+      "min-width:40%",
+      "opacity:0",
+      "will-change:opacity",
+    ].join(";"));
+
+    const titleBar = createNode("div", [
+      "display:flex",
+      "align-items:center",
+      `gap:${Math.round(S * 0.006)}px`,
+      `padding:${Math.round(S * 0.01)}px ${Math.round(padding)}px`,
+      "background:rgba(30,30,46,0.9)",
+      "border-bottom:1px solid rgba(255,255,255,0.06)",
+    ].join(";"));
+
+    const dotColors = ["#ff5f57", "#ffbd2e", "#28c840"];
+    for (let d = 0; d < 3; d += 1) {
+      const dot = createNode("span", [
+        `width:${Math.round(dotSize)}px`,
+        `height:${Math.round(dotSize)}px`,
+        "border-radius:50%",
+        `background:${dotColors[d]}`,
+      ].join(";"));
+      titleBar.appendChild(dot);
+    }
+
+    const titleText = createNode("span", [
+      `font-size:${Math.round(fontSize * 0.8)}px`,
       `font-family:${SANS_FONT_STACK}`,
-      "font-size:12px",
       "font-weight:500",
-      `color:${theme.line}`,
-      "margin-bottom:12px",
-      "letter-spacing:0.08em",
-      "text-transform:uppercase",
-    ].join(";"), params.language || "");
-    card.appendChild(header);
-    const lines = normalizeLines(params.code || "");
-    const lineEls = lines.map((text, i) => {
-      const row = createNode("div", [
+      "color:rgba(255,255,255,0.4)",
+      `margin-left:${Math.round(S * 0.01)}px`,
+    ].join(";"), title);
+    titleBar.appendChild(titleText);
+    window.appendChild(titleBar);
+
+    const codeArea = createNode("div", [
+      `padding:${Math.round(padding)}px`,
+      "overflow-x:auto",
+    ].join(";"));
+
+    const lines = normalizeLines(code);
+    const lineEls = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const lineWrap = createNode("div", [
         "display:flex",
-        "gap:1em",
-        "will-change:opacity",
+        `min-height:${Math.round(fontSize * 1.6)}px`,
+        "align-items:center",
         "opacity:0",
+        "will-change:opacity",
       ].join(";"));
-      const num = createNode("span", [
+
+      const lineNum = createNode("span", [
+        `font-size:${Math.round(fontSize * 0.85)}px`,
         `font-family:${MONO_FONT_STACK}`,
-        `font-size:${fontSize}px`,
-        `color:${theme.line}`,
-        "min-width:2em",
+        "color:rgba(255,255,255,0.2)",
+        `min-width:${Math.round(fontSize * 2.5)}px`,
         "text-align:right",
+        `margin-right:${Math.round(S * 0.012)}px`,
+        "flex-shrink:0",
         "user-select:none",
-        "line-height:1.7",
       ].join(";"), String(i + 1));
-      const code = createNode("span", [
+      lineWrap.appendChild(lineNum);
+
+      const lineContent = createNode("span", [
+        `font-size:${Math.round(fontSize)}px`,
         `font-family:${MONO_FONT_STACK}`,
-        `font-size:${fontSize}px`,
-        `color:${theme.text}`,
         "white-space:pre",
-        "line-height:1.7",
+        "line-height:1.6",
       ].join(";"));
-      row.appendChild(num);
-      row.appendChild(code);
-      card.appendChild(row);
-      return { row, code, fullText: text };
-    });
-    root.appendChild(card);
-    return { root, card, lineEls };
+
+      const tokens = highlightLine(lines[i]);
+      for (const token of tokens) {
+        const tokenSpan = createNode("span", `color:${TOKEN_COLORS[token.type] || "#d0d0d0"}`, token.value);
+        lineContent.appendChild(tokenSpan);
+      }
+
+      lineWrap.appendChild(lineContent);
+      codeArea.appendChild(lineWrap);
+      lineEls.push(lineWrap);
+    }
+
+    window.appendChild(codeArea);
+    root.appendChild(window);
+
+    return { root, window, lineEls, S };
   },
 
-  update(els, localT) {
-    const exitAlpha = 1 - smoothstep(0.85, 1, localT);
-    const cardT = smoothstep(0, 0.08, localT);
-    els.card.style.opacity = cardT * exitAlpha;
-    els.card.style.transform = `translateY(${(1 - cardT) * 15}px)`;
-    const totalLines = els.lineEls.length;
-    const typeWindow = 0.6 / Math.max(1, totalLines);
-    els.lineEls.forEach((item, i) => {
-      const lineStart = 0.06 + i * typeWindow;
-      const lineEnd = lineStart + typeWindow * 1.5;
-      const lineT = smoothstep(lineStart, lineEnd, localT);
-      item.row.style.opacity = (lineT > 0 ? 1 : 0) * exitAlpha;
-      const charCount = Math.round(lerp(0, item.fullText.length, lineT));
-      item.code.textContent = item.fullText.slice(0, charCount);
-    });
+  update(els, localT, params) {
+    const t = clamp(localT);
+    const lineCount = els.lineEls.length;
+
+    const windowEnter = easeOutCubic(smoothstep(0, 0.15, t));
+    const windowExit = smoothstep(0.85, 1, t);
+    els.window.style.opacity = String(windowEnter * (1 - windowExit));
+
+    const staggerTotal = Math.min(0.5, lineCount * 0.02);
+    for (let i = 0; i < lineCount; i += 1) {
+      const lineStart = 0.1 + (i / Math.max(1, lineCount - 1)) * staggerTotal;
+      const enterEnd = lineStart + 0.15;
+
+      const enterProgress = easeOutCubic(smoothstep(lineStart, enterEnd, t));
+      const exitProgress = smoothstep(0.85, 1, t);
+      const opacity = enterProgress * (1 - exitProgress);
+
+      els.lineEls[i].style.opacity = String(opacity);
+    }
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

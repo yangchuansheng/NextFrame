@@ -1,72 +1,83 @@
-import { toNumber, clamp } from "../scenes-v2-shared.js";
+import {
+  clamp,
+  toNumber,
+  smoothstep,
+} from "../scenes-v2-shared.js";
 
 export default {
   id: "vignette",
   type: "canvas",
   name: "Vignette",
-  category: "Effects",
-  tags: ["暗角", "叠加层", "电影感", "氛围", "遮罩", "边缘"],
-  description: "四周向中心渐暗的暗角遮罩叠加效果",
+  category: "Backgrounds",
+  tags: ["vignette", "background", "darkening", "overlay", "gradient", "canvas"],
+  description: "Canvas-based vignette effect that darkens edges with a radial gradient. Intensity animates in and out smoothly.",
+
   params: {
-    intensity: { type: "number", default: 0.7,     desc: "暗角强度", min: 0, max: 1 },
-    color:     { type: "string", default: "#000000", desc: "暗角颜色" },
-    radius:    { type: "number", default: 0.5,      desc: "亮区半径比例", min: 0.1, max: 1 },
+    intensity: { type: "number", default: 0.5, desc: "Darkness intensity at edges (0=none, 1=full black)", min: 0, max: 1 },
+    color:     { type: "string", default: "#000000", desc: "Vignette color" },
+    radius:    { type: "number", default: 0.7, desc: "Inner radius ratio (0=all dark, 1=no vignette)", min: 0.1, max: 1 },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
-  create(container, params) {
+  create(container) {
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+
     const canvas = document.createElement("canvas");
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
-    canvas.width = container.clientWidth || 1920;
-    canvas.height = container.clientHeight || 1080;
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none";
     container.appendChild(canvas);
-    return canvas;
+
+    const ctx = canvas.getContext("2d");
+
+    return { canvas, ctx, W, H };
   },
 
-  update(canvas, localT, params) {
-    const ctx = canvas.getContext("2d");
-    const cw = canvas.parentElement?.clientWidth || canvas.width;
-    const ch = canvas.parentElement?.clientHeight || canvas.height;
-    if (canvas.width !== cw || canvas.height !== ch) {
-      canvas.width = cw;
-      canvas.height = ch;
-    }
-    const W = canvas.width;
-    const H = canvas.height;
-    const cx = W / 2;
-    const cy = H / 2;
+  update(els, localT, params) {
+    const t = clamp(localT);
+    const intensity = toNumber(params.intensity, 0.5);
+    const color = String(params.color || "#000000");
+    const radius = toNumber(params.radius, 0.7);
 
-    const intensity = clamp(toNumber(params.intensity, 0.7), 0, 1);
-    const color = params.color || "#000000";
-    const radiusFrac = clamp(toNumber(params.radius, 0.5), 0.1, 1);
+    const enterProgress = smoothstep(0, 0.15, t);
+    const exitProgress = smoothstep(0.9, 1, t);
+    const alpha = intensity * enterProgress * (1 - exitProgress);
 
+    const { ctx, W, H } = els;
     ctx.clearRect(0, 0, W, H);
 
-    // Elliptical vignette: use the diagonal as the outer radius
-    const diag = Math.hypot(cx, cy);
-    const innerRadius = diag * radiusFrac;
-    const outerRadius = diag * 1.1;
+    if (alpha < 0.001) {
+      return;
+    }
 
-    const grad = ctx.createRadialGradient(cx, cy, innerRadius, cx, cy, outerRadius);
-    grad.addColorStop(0, "transparent");
-    grad.addColorStop(0.5, color + alphaHex(intensity * 0.4));
-    grad.addColorStop(1, color + alphaHex(intensity));
+    const cx = W / 2;
+    const cy = H / 2;
+    const outerR = Math.sqrt(cx * cx + cy * cy);
+    const innerR = outerR * radius;
 
-    ctx.fillStyle = grad;
+    const r = parseInt(color.slice(1, 3), 16) || 0;
+    const g = parseInt(color.slice(3, 5), 16) || 0;
+    const b = parseInt(color.slice(5, 7), 16) || 0;
+
+    const gradient = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+    gradient.addColorStop(0, `rgba(${r},${g},${b},0)`);
+    gradient.addColorStop(1, `rgba(${r},${g},${b},${alpha})`);
+
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, H);
   },
 
-  destroy(canvas) {
-    canvas.remove();
+  destroy(els) {
+    if (els.canvas && els.canvas.parentNode) {
+      els.canvas.parentNode.removeChild(els.canvas);
+    }
   },
 };
-
-/** Convert 0..1 alpha to 2-char hex suffix */
-function alphaHex(alpha) {
-  const val = Math.round(clamp(alpha, 0, 1) * 255);
-  return val.toString(16).padStart(2, "0");
-}

@@ -1,6 +1,10 @@
 import {
-  createRoot, createNode, smoothstep, lerp, toNumber,
   SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  clamp,
+  smoothstep,
+  toNumber,
 } from "../scenes-v2-shared.js";
 
 export default {
@@ -8,67 +12,81 @@ export default {
   type: "dom",
   name: "Subtitle Bar",
   category: "Overlay",
-  tags: ["字幕", "下栏", "覆盖层", "打字", "文字", "说明"],
-  description: "逐字打印显示的半透明字幕条叠加层",
+  tags: ["subtitle", "caption", "text", "overlay", "typewriter", "bottom"],
+  description: "Bottom-centered subtitle bar with semi-transparent background and character-by-character typewriter entrance effect.",
+
   params: {
-    text:      { type: "string", default: "This is a subtitle that types in character by character.", desc: "字幕文字" },
-    fontSize:  { type: "number", default: 22,               desc: "字体大小（px）", min: 12, max: 60 },
-    bgColor:   { type: "string", default: "rgba(0,0,0,0.7)", desc: "背景色（支持 rgba）" },
-    textColor: { type: "string", default: "#ffffff",         desc: "文字颜色" },
+    text:     { type: "string", default: "Subtitle text", desc: "Subtitle content" },
+    fontSize: { type: "number", default: 0.025, desc: "Font size relative to short edge", min: 0.01, max: 0.06 },
+    bgColor:  { type: "string", default: "rgba(0,0,0,0.6)", desc: "Background color of the subtitle bar" },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
-    const root = createRoot(container, "display:flex;align-items:flex-end;justify-content:center;padding-bottom:8%");
-    const fontSize = toNumber(params.fontSize, 22);
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const text = String(params.text || "Subtitle text");
+    const fontRatio = toNumber(params.fontSize, 0.025);
+    const fontSize = Math.round(S * fontRatio);
+    const bgColor = String(params.bgColor || "rgba(0,0,0,0.6)");
+    const radius = Math.round(S * 0.008);
+    const padding = Math.round(S * 0.012);
+    const bottomMargin = Math.round(S * 0.05);
+
+    const root = createRoot(container, "display:flex;align-items:flex-end;justify-content:center");
+
     const bar = createNode("div", [
-      `background:${params.bgColor || "rgba(0,0,0,0.7)"}`,
-      "padding:12px 28px",
-      "border-radius:8px",
-      "max-width:80%",
-      "backdrop-filter:blur(8px)",
-      "-webkit-backdrop-filter:blur(8px)",
-      "will-change:opacity",
-      "opacity:0",
-    ].join(";"));
-    const textEl = createNode("span", [
-      `font-family:${SANS_FONT_STACK}`,
+      `background:${bgColor}`,
+      `border-radius:${radius}px`,
+      `padding:${padding}px ${Math.round(padding * 1.5)}px`,
+      `margin-bottom:${bottomMargin}px`,
       `font-size:${fontSize}px`,
+      `font-family:${SANS_FONT_STACK}`,
       "font-weight:400",
-      `color:${params.textColor || "#ffffff"}`,
+      "color:#ffffff",
       "line-height:1.5",
-      "letter-spacing:0.01em",
-    ].join(";"));
-    const cursor = createNode("span", [
-      "display:inline-block",
-      "width:2px",
-      `height:${fontSize}px`,
-      `background:${params.textColor || "#ffffff"}`,
-      "margin-left:2px",
-      "vertical-align:text-bottom",
+      "text-align:center",
+      `max-width:${Math.round(S * 0.8)}px`,
+      "opacity:0",
       "will-change:opacity",
     ].join(";"));
+
+    const textEl = createNode("span", "", "");
     bar.appendChild(textEl);
-    bar.appendChild(cursor);
     root.appendChild(bar);
-    const fullText = String(params.text || "");
-    return { root, bar, textEl, cursor, fullText };
+
+    return { root, bar, textEl, fullText: text };
   },
 
   update(els, localT) {
-    const exitAlpha = 1 - smoothstep(0.85, 1, localT);
-    const barT = smoothstep(0, 0.06, localT);
-    els.bar.style.opacity = barT * exitAlpha;
-    const typeT = smoothstep(0.04, 0.7, localT);
-    const charCount = Math.round(lerp(0, els.fullText.length, typeT));
-    els.textEl.textContent = els.fullText.slice(0, charCount);
-    const blink = Math.sin(localT * 80) > 0 ? 1 : 0.2;
-    els.cursor.style.opacity = typeT < 1 ? blink : 0;
+    const t = clamp(localT);
+    const text = els.fullText;
+    const len = text.length;
+
+    const barEnter = smoothstep(0, 0.08, t);
+    const exitProgress = smoothstep(0.9, 1, t);
+    els.bar.style.opacity = String(barEnter * (1 - exitProgress));
+
+    const typeStart = 0.05;
+    const typeEnd = 0.7;
+    const typeProgress = clamp((t - typeStart) / (typeEnd - typeStart));
+    const visibleChars = Math.round(len * typeProgress);
+
+    els.textEl.textContent = text.slice(0, visibleChars);
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

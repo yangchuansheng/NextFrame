@@ -1,120 +1,64 @@
-// Scene Registry — all v2 components
-// Each scene: { id, type, name, category, defaultParams, create, update, destroy }
+import headline from "./headline.js";
+import bodyText from "./bodyText.js";
+import bulletList from "./bulletList.js";
+import codeBlock from "./codeBlock.js";
+import quoteBlock from "./quoteBlock.js";
+import calloutCard from "./calloutCard.js";
+import numberCounter from "./numberCounter.js";
+import subtitleBar from "./subtitleBar.js";
+import vignette from "./vignette.js";
+import videoClip from "./videoClip.js";
+import audioTrack from "./audioTrack.js";
+import barChart from "./barChart.js";
+import lineChart from "./lineChart.js";
+import progressRing from "./progressRing.js";
+import auroraGradient from "./auroraGradient.js";
+import particleFlow from "./particleFlow.js";
 
-import auroraGradient from './auroraGradient.js';
-import barChart from './barChart.js';
-import bulletList from './bulletList.js';
-import calloutCard from './calloutCard.js';
-import card3d from './card3d.js';
-import circleRipple from './circleRipple.js';
-import codeBlock from './codeBlock.js';
-import confetti from './confetti.js';
-import featureGrid from './featureGrid.js';
-import agentLoop from './agentLoop.js';
-import flowChart from './flowChart.js';
-import fluidBackground from './fluidBackground.js';
-import headline from './headline.js';
-import horizontalBars from './horizontalBars.js';
-import imageHero from './imageHero.js';
-import lineChart from './lineChart.js';
-import logoReveal from './logoReveal.js';
-import lowerThird from './lowerThird.js';
-import marquee from './marquee.js';
-import meshGrid from './meshGrid.js';
-import neonGrid from './neonGrid.js';
-import numberCounter from './numberCounter.js';
-import parallaxStack from './parallaxStack.js';
-import particleFlow from './particleFlow.js';
-import pieChart from './pieChart.js';
-import progressBar from './progressBar.js';
-import progressRing from './progressRing.js';
-import pulseWave from './pulseWave.js';
-import quoteBlock from './quoteBlock.js';
-import radarChart from './radarChart.js';
-import radialBurst from './radialBurst.js';
-import slideFrame from './slideFrame.js';
-import splitText from './splitText.js';
-import starfield from './starfield.js';
-import subtitleBar from './subtitleBar.js';
-import svgRings from './svgRings.js';
-import timelineViz from './timelineViz.js';
-import treeMap from './treeMap.js';
-import typewriter from './typewriter.js';
-import videoClip from './videoClip.js';
-import vignette from './vignette.js';
-import waveform from './waveform.js';
-import dimToolsSlide from './dimToolsSlide.js';
-import terminalCode from './terminalCode.js';
-import chipGroup from './chipGroup.js';
-import infoCard from './infoCard.js';
-import bigNumber from './bigNumber.js';
-import slideChrome from './slideChrome.js';
-
-
-// Media + Audio
-import audioTrack from './audioTrack.js';
-import syncSubs from './syncSubs.js';
-// Custom — Spectrum Waterfall
-import spectrumFall from './spectrumFall.js';
-// New v2 scenes
-import lucideIcon from './lucideIcon.js';
-import handDraw from './handDraw.js';
-import particleSystem from './particleSystem.js';
-import morphShape from './morphShape.js';
-import gradientText from './gradientText.js';
-import dataTable from './dataTable.js';
-// New v2 scenes — batch 2
-import codeTyping from './codeTyping.js';
-import compareSlider from './compareSlider.js';
-import textReveal from './textReveal.js';
-import timeline3D from './timeline3D.js';
-import colorPalette from './colorPalette.js';
-import iconGrid from './iconGrid.js';
-// New v2 scenes — batch 3
-import scatterPlot from './scatterPlot.js';
-import donutChart from './donutChart.js';
-import gaugeChart from './gaugeChart.js';
-import sankeyDiagram from './sankeyDiagram.js';
-import wordCloud from './wordCloud.js';
-import matrixRain from './matrixRain.js';
-import glowButton from './glowButton.js';
-import statsRow from './statsRow.js';
-import quoteCarousel from './quoteCarousel.js';
-import gridPattern from './gridPattern.js';
-
-const ALL_SCENES = [
-  // Canvas — backgrounds & effects
-  auroraGradient, fluidBackground, neonGrid, vignette,
-  starfield, particleFlow, circleRipple, meshGrid,
-  pulseWave, radialBurst, confetti, waveform,
-  // DOM — text & layout
-  headline, bulletList, quoteBlock, codeBlock,
-  lowerThird, numberCounter, splitText, subtitleBar,
-  progressBar, calloutCard, typewriter, marquee,
-  featureGrid, card3d, parallaxStack, logoReveal,
-  slideFrame, dimToolsSlide,
-  terminalCode, chipGroup, infoCard, bigNumber, slideChrome,
-  // SVG — data viz & decoration
-  barChart, lineChart, pieChart, progressRing,
-  svgRings, radarChart, horizontalBars, treeMap,
-  timelineViz, flowChart, agentLoop,
-  // Media + Audio
-  imageHero, videoClip, audioTrack, syncSubs,
-  // Custom scenes
-  spectrumFall,
-  // New v2 scenes
-  lucideIcon, handDraw, particleSystem, morphShape, gradientText, dataTable,
-  // New v2 scenes — batch 2
-  codeTyping, compareSlider, textReveal, timeline3D, colorPalette, iconGrid,
-  // New v2 scenes — batch 3
-  scatterPlot, donutChart, gaugeChart, sankeyDiagram, wordCloud,
-  matrixRain, glowButton, statsRow, quoteCarousel, gridPattern
+const SCENES_V2 = [
+  headline,
+  bodyText,
+  bulletList,
+  codeBlock,
+  quoteBlock,
+  calloutCard,
+  numberCounter,
+  subtitleBar,
+  vignette,
+  videoClip,
+  audioTrack,
+  barChart,
+  lineChart,
+  progressRing,
+  auroraGradient,
+  particleFlow,
 ];
 
-// Map: id → scene object
-export const SCENE_REGISTRY = {};
-for (const scene of ALL_SCENES) {
-  SCENE_REGISTRY[scene.id] = scene;
-}
+export { headline, bodyText, bulletList, codeBlock, quoteBlock, calloutCard, numberCounter, subtitleBar, vignette, videoClip, audioTrack, barChart, lineChart, progressRing, auroraGradient, particleFlow };
 
-export default SCENE_REGISTRY;
+export const SCENE_V2_MANIFEST = SCENES_V2.map((scene) => ({
+  id: scene.id,
+  type: scene.type,
+  name: scene.name,
+  category: scene.category,
+  tags: scene.tags,
+  description: scene.description,
+  params: scene.params,
+  default_params: scene.defaultParams,
+}));
+
+export const SCENE_V2_BY_ID = new Map(SCENES_V2.map((scene) => [scene.id, scene]));
+
+/**
+ * Register all v2 scenes on the provided engine.
+ * @param {{registerScene: (id: string, scene: object) => unknown}} engine
+ */
+export function registerAllScenesV2(engine) {
+  if (!engine || typeof engine.registerScene !== "function") {
+    throw new TypeError("registerAllScenesV2(engine) requires engine.registerScene");
+  }
+
+  for (const scene of SCENES_V2) {
+    engine.registerScene(scene.id, scene);
+  }
+}

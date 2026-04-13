@@ -1,18 +1,18 @@
-import { toNumber, clamp } from "../scenes-v2-shared.js";
+import { clamp, toNumber, smoothstep, hashFloat } from "../scenes-v2-shared.js";
 
 export default {
   id: "particleFlow",
   type: "canvas",
   name: "Particle Flow",
   category: "Effects",
-  tags: ["粒子流", "粒子效果", "背景", "动态背景", "流动", "光点"],
-  description: "发光粒子沿指定方向流动的动态背景效果，支持边界环绕",
+  tags: ["particles", "flow", "glow", "canvas", "animated", "effects"],
+  description: "Glowing particles flowing across the canvas with configurable direction and speed",
+
   params: {
-    count:     { type: "number", default: 150, min: 10, max: 1000, desc: "粒子数量" },
-    speed:     { type: "number", default: 1,   min: 0,  max: 10,   desc: "流动速度倍数" },
-    color:     { type: "color",  default: "#6ea8fe",               desc: "粒子颜色" },
-    size:      { type: "number", default: 2,   min: 0.5, max: 10,  desc: "粒子基础半径(px)" },
-    direction: { type: "number", default: 0,   min: 0,  max: 360,  desc: "流动方向（角度，0为向右）" },
+    count:     { type: "number", default: 150, min: 20, max: 800,   desc: "Number of particles" },
+    speed:     { type: "number", default: 30,  min: 5,  max: 200,   desc: "Particle speed (px/s)" },
+    color:     { type: "color",  default: "#6ee7ff",                 desc: "Particle color" },
+    direction: { type: "number", default: 45,  min: 0,  max: 360,   desc: "Flow direction (degrees)" },
   },
   get defaultParams() {
     const p = {};
@@ -21,84 +21,106 @@ export default {
   },
 
   create(container, params) {
+    const W = container.clientWidth  || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
     const canvas = document.createElement("canvas");
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
-    canvas.width = container.clientWidth || 1920;
-    canvas.height = container.clientHeight || 1080;
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
     container.appendChild(canvas);
 
-    const count = clamp(toNumber(params.count, 150), 10, 1000) | 0;
-    const particles = new Float64Array(count * 4); // x, y, speed_mult, size_mult
-    let seed = 137;
-    const rng = () => {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      return seed / 0x7fffffff;
-    };
+    const ctx = canvas.getContext("2d");
+
+    const count = Math.round(toNumber(params.count, 150));
+    const speed = toNumber(params.speed, 30);
+    const color = params.color || this.params.color.default;
+    const dirDeg = toNumber(params.direction, 45);
+    const dirRad = (dirDeg * Math.PI) / 180;
+    const dx = Math.cos(dirRad);
+    const dy = Math.sin(dirRad);
+
+    const sizeMin = S * 0.002;
+    const sizeMax = S * 0.005;
+
+    // Pre-compute particles
+    const particles = [];
     for (let i = 0; i < count; i++) {
-      particles[i * 4] = rng();       // x position 0..1
-      particles[i * 4 + 1] = rng();   // y position 0..1
-      particles[i * 4 + 2] = 0.3 + rng() * 0.7; // speed multiplier
-      particles[i * 4 + 3] = 0.4 + rng() * 0.6; // size multiplier
+      const h = hashFloat(i, "px");
+      const h2 = hashFloat(i, "py");
+      const h3 = hashFloat(i, "sz");
+      const h4 = hashFloat(i, "sp");
+      const h5 = hashFloat(i, "al");
+
+      particles.push({
+        x: h * W,
+        y: h2 * H,
+        size: sizeMin + h3 * (sizeMax - sizeMin),
+        speedMul: 0.5 + h4 * 1.0,
+        alpha: 0.3 + h5 * 0.7,
+      });
     }
-    canvas._data = { particles, count };
-    return canvas;
+
+    return { canvas, ctx, W, H, S, particles, speed, color, dx, dy };
   },
 
-  update(canvas, localT, params) {
-    const ctx = canvas.getContext("2d");
-    const cw = canvas.parentElement?.clientWidth || canvas.width;
-    const ch = canvas.parentElement?.clientHeight || canvas.height;
-    if (canvas.width !== cw || canvas.height !== ch) {
-      canvas.width = cw;
-      canvas.height = ch;
-    }
-    const W = canvas.width;
-    const H = canvas.height;
+  update(els, localT, _params) {
+    const { ctx, W, H, particles, speed, color, dx, dy } = els;
+    const fadeIn = smoothstep(0, 0.5, localT);
 
-    const speed = toNumber(params.speed, 1);
-    const color = params.color || "#6ea8fe";
-    const size = clamp(toNumber(params.size, 2), 0.5, 10);
-    const angle = toNumber(params.direction, 0) * Math.PI / 180;
-
-    const dx = Math.cos(angle);
-    const dy = Math.sin(angle);
-
+    // Clear
     ctx.clearRect(0, 0, W, H);
 
-    const { particles, count } = canvas._data;
-    const t = localT * speed * 0.05;
+    // Dark background
+    ctx.fillStyle = "rgba(5,5,12,1)";
+    ctx.fillRect(0, 0, W, H);
 
-    for (let i = 0; i < count; i++) {
-      const ox = particles[i * 4];
-      const oy = particles[i * 4 + 1];
-      const sm = particles[i * 4 + 2];
-      const szm = particles[i * 4 + 3];
+    ctx.globalCompositeOperation = "lighter";
 
-      // Flow along direction, wrap around
-      let px = (ox + t * sm * dx) % 1;
-      let py = (oy + t * sm * dy) % 1;
-      if (px < 0) px += 1;
-      if (py < 0) py += 1;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
 
-      const x = px * W;
-      const y = py * H;
-      const r = size * szm;
+      // Move particle
+      const vx = dx * speed * p.speedMul;
+      const vy = dy * speed * p.speedMul;
+      p.x += vx * (1 / 60); // approximate per-frame
+      p.y += vy * (1 / 60);
 
-      // Glow effect: larger transparent circle + solid core
-      const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
-      grad.addColorStop(0, color);
-      grad.addColorStop(0.3, color);
-      grad.addColorStop(1, "transparent");
+      // Wrap around
+      if (p.x > W + 20) p.x = -20;
+      if (p.x < -20) p.x = W + 20;
+      if (p.y > H + 20) p.y = -20;
+      if (p.y < -20) p.y = H + 20;
 
+      const alpha = clamp(p.alpha * fadeIn, 0, 1);
+
+      // Glow
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+      grad.addColorStop(0, color + hexAlpha(alpha));
+      grad.addColorStop(0.4, color + hexAlpha(alpha * 0.4));
+      grad.addColorStop(1, color + "00");
       ctx.fillStyle = grad;
+      ctx.fillRect(p.x - p.size * 3, p.y - p.size * 3, p.size * 6, p.size * 6);
+
+      // Core dot
       ctx.beginPath();
-      ctx.arc(x, y, r * 3, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = color + hexAlpha(alpha);
       ctx.fill();
     }
+
+    ctx.globalCompositeOperation = "source-over";
   },
 
-  destroy(canvas) {
-    canvas._data = null;
-    canvas.remove();
+  destroy(els) {
+    if (els.canvas && els.canvas.parentNode) {
+      els.canvas.parentNode.removeChild(els.canvas);
+    }
   },
 };
+
+function hexAlpha(a) {
+  const v = Math.round(clamp(a, 0, 1) * 255);
+  return v.toString(16).padStart(2, "0");
+}

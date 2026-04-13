@@ -1,79 +1,114 @@
 import {
-  createRoot, createNode, smoothstep, easeOutBack, toNumber,
   SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  clamp,
+  easeOutBack,
+  smoothstep,
 } from "../scenes-v2-shared.js";
 
 export default {
   id: "calloutCard",
   type: "dom",
   name: "Callout Card",
-  category: "Overlay",
-  tags: ["card", "overlay", "callout", "notification", "popup", "highlight"],
-  description: "居中弹出卡片，含图标、标题和描述，缩放入场，适合强调关键信息",
+  category: "Cards",
+  tags: ["card", "callout", "icon", "title", "description", "scale"],
+  description: "Adaptive callout card with icon, title, and description. Scale-in entrance with easeOutBack easing.",
+
   params: {
-    icon:        { type: "string", default: "🚀",                                         desc: "卡片顶部图标（emoji）" },
-    title:       { type: "string", default: "Launch Ready",                               desc: "卡片标题" },
-    description: { type: "string", default: "Everything is set up and ready to go.",     desc: "卡片描述文字" },
-    bgColor:     { type: "string", default: "rgba(30,30,50,0.85)",                        desc: "卡片背景色" },
-    borderColor: { type: "string", default: "#a78bfa",                                   desc: "边框与发光颜色" },
+    icon:        { type: "string", default: "\u{1F680}", desc: "Emoji icon displayed at the top" },
+    title:       { type: "string", default: "Feature", desc: "Card title text" },
+    description: { type: "string", default: "Description text", desc: "Card body description" },
+    bgColor:     { type: "string", default: "rgba(110,231,255,0.08)", desc: "Card background color" },
+    borderColor: { type: "string", default: "#6ee7ff", desc: "Card border color" },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const icon = String(params.icon || "\u{1F680}");
+    const title = String(params.title || "Feature");
+    const description = String(params.description || "Description text");
+    const bgColor = String(params.bgColor || "rgba(110,231,255,0.08)");
+    const borderColor = String(params.borderColor || "#6ee7ff");
+
+    const iconSize = Math.round(S * 0.04);
+    const titleSize = Math.round(S * 0.03);
+    const descSize = Math.round(S * 0.02);
+    const radius = Math.round(S * 0.015);
+    const padding = Math.round(S * 0.025);
+    const gap = Math.round(S * 0.012);
+
     const root = createRoot(container, "display:flex;align-items:center;justify-content:center");
-    const border = params.borderColor || "#a78bfa";
+
     const card = createNode("div", [
-      `background:${params.bgColor || "rgba(30,30,50,0.85)"}`,
-      `border:1px solid ${border}33`,
-      "border-radius:16px",
-      "padding:32px 36px",
-      "max-width:420px",
-      "width:85%",
-      `box-shadow:0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px ${border}11`,
-      "backdrop-filter:blur(12px)",
-      "-webkit-backdrop-filter:blur(12px)",
-      "will-change:transform,opacity",
+      `background:${bgColor}`,
+      `border:1px solid ${borderColor}`,
+      `border-radius:${radius}px`,
+      `padding:${padding}px`,
+      "display:flex",
+      "flex-direction:column",
+      `gap:${gap}px`,
+      `max-width:${Math.round(S * 0.4)}px`,
+      "transform:scale(0)",
       "opacity:0",
-      "transform:scale(0.8)",
+      "will-change:transform,opacity",
     ].join(";"));
+
     const iconEl = createNode("div", [
-      "font-size:40px",
-      "margin-bottom:14px",
+      `font-size:${iconSize}px`,
       "line-height:1",
-    ].join(";"), params.icon || "\uD83D\uDE80");
+    ].join(";"), icon);
+
     const titleEl = createNode("div", [
+      `font-size:${titleSize}px`,
       `font-family:${SANS_FONT_STACK}`,
-      "font-size:22px",
       "font-weight:700",
-      "color:rgba(255,255,255,0.95)",
-      "margin-bottom:8px",
-      "letter-spacing:0.01em",
-    ].join(";"), params.title || "");
+      "color:#ffffff",
+      "line-height:1.3",
+    ].join(";"), title);
+
     const descEl = createNode("div", [
+      `font-size:${descSize}px`,
       `font-family:${SANS_FONT_STACK}`,
-      "font-size:15px",
       "font-weight:400",
-      "color:rgba(255,255,255,0.6)",
-      "line-height:1.6",
-    ].join(";"), params.description || "");
+      "color:rgba(255,255,255,0.7)",
+      "line-height:1.5",
+    ].join(";"), description);
+
     card.appendChild(iconEl);
     card.appendChild(titleEl);
     card.appendChild(descEl);
     root.appendChild(card);
+
     return { root, card };
   },
 
   update(els, localT) {
-    const exitAlpha = 1 - smoothstep(0.85, 1, localT);
-    const enterT = smoothstep(0, 0.12, localT);
-    const scale = 0.8 + 0.2 * easeOutBack(enterT);
-    els.card.style.opacity = enterT * exitAlpha;
+    const t = clamp(localT);
+    const enterProgress = easeOutBack(smoothstep(0, 0.4, t));
+    const exitProgress = smoothstep(0.85, 1, t);
+
+    const scale = enterProgress * (1 - exitProgress * 0.3);
+    const opacity = enterProgress * (1 - exitProgress);
+
     els.card.style.transform = `scale(${scale})`;
+    els.card.style.opacity = String(opacity);
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

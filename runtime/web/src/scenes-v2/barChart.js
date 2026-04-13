@@ -1,13 +1,12 @@
-import { clamp, easeOutBack, toNumber, normalizeArray } from "../scenes-v2-shared.js";
+import { smoothstep, easeOutBack, clamp, toNumber, normalizeArray, SANS_FONT_STACK, MONO_FONT_STACK } from "../scenes-v2-shared.js";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-const FONT = '-apple-system, "SF Pro Display", sans-serif';
-const PALETTE = ["#6ee7ff", "#a78bfa", "#f472b6", "#fb923c", "#4ade80", "#fbbf24"];
+const NS = "http://www.w3.org/2000/svg";
 
-function svgEl(tag, attrs = {}) {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-  return el;
+function createSvg(W, H) {
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.style.cssText = "position:absolute;inset:0;width:100%;height:100%;overflow:hidden";
+  return svg;
 }
 
 export default {
@@ -15,16 +14,14 @@ export default {
   type: "svg",
   name: "Bar Chart",
   category: "Data Viz",
-  tags: ["chart", "bar", "data", "visualization", "statistics", "graph"],
-  description: "竖向柱状图，柱子逐个弹入，支持自定义颜色、标签与数值显示",
+  tags: ["chart", "bar", "data", "visualization", "svg", "animated"],
+  description: "Adaptive bar chart with easeOutBack bounce animation and staggered reveal per bar",
+
   params: {
-    data:       { type: "array",   default: [85, 45, 70, 55, 90, 35],                        desc: "数据值数组" },
-    labels:     { type: "array",   default: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],      desc: "X 轴标签数组" },
-    colors:     { type: "array",   default: PALETTE,                                          desc: "柱子颜色数组" },
-    barWidth:   { type: "number",  default: 80,                                               desc: "柱子宽度(px)", min: 10, max: 300 },
-    gap:        { type: "number",  default: 30,                                               desc: "柱子间距(px)", min: 0, max: 200 },
-    showLabels: { type: "boolean", default: true,                                             desc: "是否显示 X 轴标签" },
-    showValues: { type: "boolean", default: true,                                             desc: "是否显示数值" },
+    data:    { type: "array",  default: [40, 70, 55, 90],         desc: "Bar values" },
+    labels:  { type: "array",  default: ["A", "B", "C", "D"],    desc: "Bar labels" },
+    colors:  { type: "array",  default: ["#6ee7ff", "#a78bfa", "#f472b6", "#ffd93d"], desc: "Bar colors" },
+    stagger: { type: "number", default: 0.12, min: 0, max: 1,    desc: "Stagger delay between bars (s)" },
   },
   get defaultParams() {
     const p = {};
@@ -33,105 +30,109 @@ export default {
   },
 
   create(container, params) {
-    const svg = svgEl("svg", {
-      viewBox: "0 0 1920 1080",
-      style: "position:absolute;inset:0;width:100%;height:100%",
-    });
+    const W = container.clientWidth  || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const data    = normalizeArray(params.data,   this.params.data.default);
+    const labels  = normalizeArray(params.labels, this.params.labels.default);
+    const colors  = normalizeArray(params.colors, this.params.colors.default);
+
+    const svg = createSvg(W, H);
     container.appendChild(svg);
 
-    const data = normalizeArray(params.data, [85, 45, 70, 55, 90, 35]);
-    const labels = normalizeArray(params.labels, []);
-    const colors = normalizeArray(params.colors, PALETTE);
-    const barW = toNumber(params.barWidth, 80);
-    const gap = toNumber(params.gap, 30);
-    const showLabels = params.showLabels !== false;
-    const showValues = params.showValues !== false;
-    const maxVal = Math.max(...data, 1);
+    const padL = W * 0.1;
+    const padR = W * 0.06;
+    const padT = H * 0.12;
+    const padB = H * 0.16;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+    const chartBottom = padT + chartH;
+    const maxVal = Math.max(1, ...data);
 
-    const padL = 160, padR = 160, padT = 120, padB = 140;
-    const chartW = 1920 - padL - padR;
-    const chartH = 1080 - padT - padB;
-    const totalBarW = data.length * barW + (data.length - 1) * gap;
-    const offsetX = padL + (chartW - totalBarW) / 2;
+    const barW = chartW / (data.length * 2);
+    const gap = barW;
+    const labelFs = S * 0.018;
+    const valueFs = S * 0.02;
 
-    // grid lines
-    for (let i = 0; i <= 4; i++) {
-      const y = padT + (chartH / 4) * i;
-      svg.appendChild(svgEl("line", {
-        x1: padL, y1: y, x2: 1920 - padR, y2: y,
-        stroke: "rgba(255,255,255,0.08)", "stroke-width": "1",
-      }));
+    const bars = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const val = toNumber(data[i], 0);
+      const barH = (val / maxVal) * chartH;
+      const x = padL + i * (barW + gap) + gap / 2;
+      const y = chartBottom - barH;
+      const color = colors[i % colors.length];
+
+      const rect = document.createElementNS(NS, "rect");
+      rect.setAttribute("x", x);
+      rect.setAttribute("y", chartBottom);
+      rect.setAttribute("width", barW);
+      rect.setAttribute("height", 0);
+      rect.setAttribute("rx", Math.min(barW * 0.15, S * 0.005));
+      rect.setAttribute("fill", color);
+      svg.appendChild(rect);
+
+      const valueTxt = document.createElementNS(NS, "text");
+      valueTxt.setAttribute("x", x + barW / 2);
+      valueTxt.setAttribute("y", y - S * 0.008);
+      valueTxt.setAttribute("text-anchor", "middle");
+      valueTxt.setAttribute("font-family", MONO_FONT_STACK);
+      valueTxt.setAttribute("font-size", valueFs);
+      valueTxt.setAttribute("font-weight", "700");
+      valueTxt.setAttribute("fill", color);
+      valueTxt.setAttribute("opacity", "0");
+      valueTxt.textContent = String(Math.round(val));
+      svg.appendChild(valueTxt);
+
+      const labelTxt = document.createElementNS(NS, "text");
+      labelTxt.setAttribute("x", x + barW / 2);
+      labelTxt.setAttribute("y", chartBottom + labelFs * 1.4);
+      labelTxt.setAttribute("text-anchor", "middle");
+      labelTxt.setAttribute("font-family", SANS_FONT_STACK);
+      labelTxt.setAttribute("font-size", labelFs);
+      labelTxt.setAttribute("font-weight", "600");
+      labelTxt.setAttribute("fill", "rgba(200,210,230,0.85)");
+      labelTxt.textContent = labels[i] || "";
+      svg.appendChild(labelTxt);
+
+      bars.push({ rect, valueTxt, x, y, barH, chartBottom });
     }
 
     // baseline
-    svg.appendChild(svgEl("line", {
-      x1: padL, y1: padT + chartH, x2: 1920 - padR, y2: padT + chartH,
-      stroke: "rgba(255,255,255,0.2)", "stroke-width": "2",
-    }));
+    const baseline = document.createElementNS(NS, "line");
+    baseline.setAttribute("x1", padL);
+    baseline.setAttribute("y1", chartBottom);
+    baseline.setAttribute("x2", padL + chartW);
+    baseline.setAttribute("y2", chartBottom);
+    baseline.setAttribute("stroke", "rgba(255,255,255,0.15)");
+    baseline.setAttribute("stroke-width", Math.max(1, S * 0.001));
+    svg.appendChild(baseline);
 
-    const bars = [];
-    const valueTxts = [];
-    const labelTxts = [];
-
-    data.forEach((val, i) => {
-      const x = offsetX + i * (barW + gap);
-      const fullH = (val / maxVal) * chartH;
-      const color = colors[i % colors.length];
-
-      const rect = svgEl("rect", {
-        x: String(x), y: String(padT + chartH),
-        width: String(barW), height: "0",
-        rx: "4", fill: color, opacity: "0.9",
-      });
-      svg.appendChild(rect);
-      bars.push({ rect, fullH, val });
-
-      if (showValues) {
-        const txt = svgEl("text", {
-          x: String(x + barW / 2), y: String(padT + chartH),
-          fill: "rgba(255,255,255,0.85)", "font-size": "22",
-          "font-family": FONT, "font-weight": "600",
-          "text-anchor": "middle", opacity: "0",
-        });
-        txt.textContent = String(val);
-        svg.appendChild(txt);
-        valueTxts.push(txt);
-      }
-
-      if (showLabels && labels[i]) {
-        const lbl = svgEl("text", {
-          x: String(x + barW / 2), y: String(padT + chartH + 40),
-          fill: "rgba(255,255,255,0.6)", "font-size": "20",
-          "font-family": FONT, "text-anchor": "middle",
-        });
-        lbl.textContent = labels[i];
-        svg.appendChild(lbl);
-        labelTxts.push(lbl);
-      }
-    });
-
-    return { svg, bars, valueTxts, labelTxts, chartH, padT };
+    return { svg, bars, stagger: toNumber(params.stagger, 0.12) };
   },
 
   update(els, localT, params) {
-    const stagger = 0.12;
-    const dur = 0.8;
+    const { bars, stagger } = els;
+    for (let i = 0; i < bars.length; i++) {
+      const b = bars[i];
+      const delay = i * stagger;
+      const t = clamp((localT - delay) / 0.6, 0, 1);
+      const progress = easeOutBack(clamp(t));
 
-    els.bars.forEach((b, i) => {
-      const start = i * stagger;
-      const raw = clamp((localT - start) / dur, 0, 1);
-      const t = raw > 0 ? easeOutBack(raw) : 0;
-      const h = b.fullH * clamp(t, 0, 1.15);
-      const y = els.padT + els.chartH - h;
-      b.rect.setAttribute("y", String(y));
-      b.rect.setAttribute("height", String(Math.max(0, h)));
+      const currentH = b.barH * progress;
+      const currentY = b.chartBottom - currentH;
+      b.rect.setAttribute("y", currentY);
+      b.rect.setAttribute("height", Math.max(0, currentH));
 
-      if (els.valueTxts[i]) {
-        els.valueTxts[i].setAttribute("y", String(y - 12));
-        els.valueTxts[i].setAttribute("opacity", String(clamp(raw * 3, 0, 1)));
-      }
-    });
+      b.valueTxt.setAttribute("opacity", String(smoothstep(0.3, 0.7, t)));
+      b.valueTxt.setAttribute("y", currentY - 4);
+    }
   },
 
-  destroy(els) { els.svg.remove(); },
+  destroy(els) {
+    if (els.svg && els.svg.parentNode) {
+      els.svg.parentNode.removeChild(els.svg);
+    }
+  },
 };

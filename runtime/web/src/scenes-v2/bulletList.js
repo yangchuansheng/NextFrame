@@ -1,6 +1,11 @@
 import {
-  createRoot, createNode, smoothstep, easeOutCubic, toNumber,
-  normalizeArray, SANS_FONT_STACK,
+  SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  smoothstep,
+  easeOutCubic,
+  clamp,
+  normalizeArray,
 } from "../scenes-v2-shared.js";
 
 export default {
@@ -8,72 +13,110 @@ export default {
   type: "dom",
   name: "Bullet List",
   category: "Typography",
-  tags: ["list", "bullet", "text", "points", "typography", "stagger"],
-  description: "要点列表，每行带圆点标记，从左侧依次滑入，适合展示功能点或步骤",
+  tags: ["text", "list", "bullets", "stagger", "slide-in", "points"],
+  description: "Adaptive bullet point list with colored dots and per-item slide-in entrance from the left",
+
   params: {
-    items:       { type: "array",  default: ["First point", "Second point", "Third point"], desc: "列表文字数组" },
-    fontSize:    { type: "number", default: 28,         desc: "文字字号(px)", min: 12, max: 80 },
-    bulletColor: { type: "string", default: "#a78bfa",  desc: "圆点颜色" },
-    stagger:     { type: "number", default: 0.08,       desc: "每行入场延迟间隔(s)" },
+    items: { type: "array", default: ["Item 1", "Item 2", "Item 3"], desc: "List of bullet point strings" },
+    fontSize: { type: "number", default: 0.028, desc: "Font size relative to short edge", min: 0.015, max: 0.06 },
+    bulletColor: { type: "string", default: "#a78bfa", desc: "Bullet dot color" },
+    stagger: { type: "number", default: 0.1, desc: "Stagger delay per item (in localT units)", min: 0.02, max: 0.4 },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
-    const root = createRoot(container, "display:flex;flex-direction:column;justify-content:center;padding:8% 12%");
-    const items = normalizeArray(params.items, ["Item"]);
-    const fontSize = toNumber(params.fontSize, 28);
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const items = normalizeArray(params.items, ["Item 1", "Item 2", "Item 3"]);
+    const fontSize = S * (params.fontSize || 0.028);
     const bulletColor = params.bulletColor || "#a78bfa";
-    const rows = items.map((text) => {
+    const bulletSize = S * 0.008;
+    const gap = S * 0.018;
+    const padding = S * 0.04;
+
+    const root = createRoot(container, [
+      "display:flex",
+      "flex-direction:column",
+      "justify-content:center",
+      `padding:${Math.round(padding)}px`,
+      "box-sizing:border-box",
+    ].join(";"));
+
+    const listWrap = createNode("div", [
+      "display:flex",
+      "flex-direction:column",
+      `gap:${Math.round(gap)}px`,
+    ].join(";"));
+
+    const itemEls = [];
+    for (let i = 0; i < items.length; i += 1) {
       const row = createNode("div", [
         "display:flex",
-        "align-items:flex-start",
-        "gap:0.6em",
-        "margin-bottom:0.7em",
-        "will-change:transform,opacity",
+        "align-items:center",
+        `gap:${Math.round(S * 0.012)}px`,
         "opacity:0",
         "transform:translateX(-30px)",
+        "will-change:transform,opacity",
       ].join(";"));
+
       const dot = createNode("span", [
-        `width:10px`,
-        `height:10px`,
-        `min-width:10px`,
-        `border-radius:50%`,
+        `width:${Math.round(bulletSize)}px`,
+        `height:${Math.round(bulletSize)}px`,
+        "border-radius:50%",
         `background:${bulletColor}`,
-        `margin-top:${fontSize * 0.35}px`,
-        `box-shadow:0 0 12px ${bulletColor}66`,
+        "flex-shrink:0",
       ].join(";"));
-      const label = createNode("span", [
+
+      const textEl = createNode("span", [
+        `font-size:${Math.round(fontSize)}px`,
         `font-family:${SANS_FONT_STACK}`,
-        `font-size:${fontSize}px`,
-        "font-weight:500",
-        "color:rgba(255,255,255,0.92)",
+        "font-weight:400",
+        "color:#f0f0f0",
         "line-height:1.5",
-        "letter-spacing:0.01em",
-      ].join(";"), text);
+      ].join(";"), String(items[i]));
+
       row.appendChild(dot);
-      row.appendChild(label);
-      root.appendChild(row);
-      return row;
-    });
-    return { root, rows };
+      row.appendChild(textEl);
+      listWrap.appendChild(row);
+      itemEls.push(row);
+    }
+
+    root.appendChild(listWrap);
+    return { root, itemEls, S };
   },
 
   update(els, localT, params) {
-    const stagger = toNumber(params.stagger, 0.08);
-    const exitAlpha = 1 - smoothstep(0.85, 1, localT);
-    els.rows.forEach((row, i) => {
-      const enterT = smoothstep(0.02 + i * stagger, 0.12 + i * stagger, localT);
-      const progress = easeOutCubic(enterT);
-      const x = (1 - progress) * -30;
-      const alpha = progress * exitAlpha;
-      row.style.opacity = alpha;
-      row.style.transform = `translateX(${x}px)`;
-    });
+    const t = clamp(localT);
+    const staggerDelay = params.stagger || 0.1;
+    const itemCount = els.itemEls.length;
+
+    for (let i = 0; i < itemCount; i += 1) {
+      const itemStart = i * staggerDelay * 0.3;
+      const enterEnd = itemStart + 0.3;
+      const exitStart = 0.8;
+
+      const enterProgress = easeOutCubic(smoothstep(itemStart, Math.min(enterEnd, 0.3), t));
+      const exitProgress = smoothstep(exitStart, 1, t);
+      const opacity = enterProgress * (1 - exitProgress);
+      const translateX = (1 - enterProgress) * -30 + exitProgress * -30;
+
+      els.itemEls[i].style.opacity = String(opacity);
+      els.itemEls[i].style.transform = `translateX(${translateX}px)`;
+    }
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

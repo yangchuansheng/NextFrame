@@ -1,83 +1,99 @@
-import { toNumber, clamp, resolveAssetUrl } from "../scenes-v2-shared.js";
+import {
+  clamp,
+  toNumber,
+  smoothstep,
+  resolveAssetUrl,
+} from "../scenes-v2-shared.js";
 
-/**
- * videoClip — embeds a video, frame-synced to timeline time.
- *
- * Video is ALWAYS muted in this component — audio comes from a separate
- * audioTrack layer pointing to the same file. This avoids play/seek conflicts.
- *
- * In browser preview: seeks each frame via currentTime.
- * In recording mode: same, recorder captures via screenshot.
- */
 export default {
   id: "videoClip",
   type: "media",
   name: "Video Clip",
   category: "Media",
-  tags: ["video", "media", "background-video", "clip", "playback", "footage"],
-  description: "Media scene component for full-screen video playback",
+  tags: ["video", "clip", "media", "embed", "cover", "playback"],
+  description: "Embedded video element that stays permanently muted. Syncs playback position to the engine clock via per-frame seek.",
+
   params: {
-    src:       { type: "string", default: "",      desc: "Video file path or URL" },
-    poster:    { type: "string", default: "",      desc: "Poster image path or URL" },
-    objectFit: { type: "string", default: "cover", desc: "Fit mode: cover / contain / fill" },
-    offset:    { type: "number", default: 0,       desc: "Video start time offset in seconds", min: 0 },
+    src:       { type: "string", default: "", desc: "Video source URL or file path" },
+    objectFit: { type: "string", default: "cover", desc: "CSS object-fit value (cover, contain, fill)" },
+    offset:    { type: "number", default: 0, desc: "Start offset in seconds within the source video", min: 0, max: 36000 },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
-    const video = document.createElement("video");
-    video.style.cssText = [
-      "position:absolute;inset:0;width:100%;height:100%",
-      `object-fit:${params.objectFit || "cover"}`,
-      "display:block;background:#000",
-    ].join(";");
-    video.playsInline = true;
-    video.muted = true; // always muted — audio via audioTrack
-    video.preload = "auto";
-    const resolvedPoster = resolveAssetUrl(params.poster);
-    const resolvedSrc = resolveAssetUrl(params.src);
-    if (resolvedPoster) video.poster = resolvedPoster;
-    if (resolvedSrc) video.src = resolvedSrc;
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
 
-    const applyPendingSeek = () => {
-      if (!Number.isFinite(video.duration) || video.duration <= 0) {
-        return;
-      }
-      const pendingSeek = toNumber(video.dataset.nfPendingSeek, NaN);
-      if (!Number.isFinite(pendingSeek)) {
-        return;
-      }
-      video.currentTime = clamp(pendingSeek, 0, Math.max(0, video.duration - 0.05));
-    };
-    video.addEventListener("loadedmetadata", applyPendingSeek);
+    const src = resolveAssetUrl(params.src || "");
+    const objectFit = String(params.objectFit || "cover");
+
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.style.cssText = [
+      "position:absolute",
+      "inset:0",
+      `width:${W}px`,
+      `height:${H}px`,
+      `object-fit:${objectFit}`,
+      "pointer-events:none",
+      "opacity:0",
+      "will-change:opacity",
+    ].join(";");
+
+    if (src) {
+      video.src = src;
+    }
+
     container.appendChild(video);
-    return { video, applyPendingSeek };
+
+    return { video, duration: 0, ready: false, lastSeek: -1 };
   },
 
-  update(state, localT, params) {
-    const { video } = state;
-    const t = toNumber(localT, 0);
-    const offset = toNumber(params?.offset, 0);
-    const rawTarget = Math.max(0, offset + t);
-    video.dataset.nfPendingSeek = String(rawTarget);
-    if (!video.duration || !Number.isFinite(video.duration)) return;
-    const target = clamp(rawTarget, 0, Math.max(0, video.duration - 0.05));
-    // Seek every frame — video is muted so no audio stutter
-    if (Math.abs(video.currentTime - target) > 0.04) {
-      video.currentTime = target;
+  update(els, localT, params) {
+    const t = clamp(localT);
+    const offset = toNumber(params.offset, 0);
+    const video = els.video;
+
+    if (!els.ready && video.readyState >= 2) {
+      els.ready = true;
+      els.duration = video.duration || 0;
+    }
+
+    const enterProgress = smoothstep(0, 0.05, t);
+    const exitProgress = smoothstep(0.95, 1, t);
+    video.style.opacity = String(enterProgress * (1 - exitProgress));
+
+    if (!els.ready || els.duration <= 0) {
+      return;
+    }
+
+    const targetTime = offset + t * els.duration;
+    const clampedTime = Math.max(0, Math.min(targetTime, els.duration - 0.01));
+
+    if (Math.abs(clampedTime - els.lastSeek) > 0.016) {
+      video.currentTime = clampedTime;
+      els.lastSeek = clampedTime;
     }
   },
 
-  destroy(state) {
-    const { video, applyPendingSeek } = state;
-    video.removeEventListener("loadedmetadata", applyPendingSeek);
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
-    video.remove();
+  destroy(els) {
+    const video = els.video;
+    if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      if (video.parentNode) {
+        video.parentNode.removeChild(video);
+      }
+    }
   },
 };

@@ -1,6 +1,11 @@
 import {
-  createRoot, createNode, smoothstep, easeOutCubic, toNumber,
   SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  clamp,
+  easeOutCubic,
+  smoothstep,
+  toNumber,
 } from "../scenes-v2-shared.js";
 
 export default {
@@ -8,83 +13,97 @@ export default {
   type: "dom",
   name: "Number Counter",
   category: "Numbers",
-  tags: ["数字", "计数器", "数据展示", "统计", "滚动数字", "KPI"],
-  description: "从零动态滚动到目标数值的计数器，支持前后缀和说明标签",
+  tags: ["number", "counter", "statistic", "data", "animation", "rollup"],
+  description: "Large animated number counter that rolls from zero to the target value with optional prefix, suffix, and label.",
+
   params: {
-    value:  { type: "number", default: 1234,         desc: "目标数值" },
-    prefix: { type: "string", default: "",            desc: "数值前缀（如 $）" },
-    suffix: { type: "string", default: "",            desc: "数值后缀（如 %、K）" },
-    label:  { type: "string", default: "Total Views", desc: "底部说明标签" },
-    color:  { type: "color",  default: "#6ee7ff",     desc: "数字和标签颜色" },
+    value:  { type: "number", default: 100, desc: "Target number value", min: 0, max: 999999999 },
+    prefix: { type: "string", default: "", desc: "Text before the number (e.g. $)" },
+    suffix: { type: "string", default: "", desc: "Text after the number (e.g. %)" },
+    label:  { type: "string", default: "Total", desc: "Label text below the number" },
+    color:  { type: "string", default: "#6ee7ff", desc: "Number text color" },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
-    const root = createRoot(container, "display:flex;flex-direction:column;align-items:center;justify-content:center");
-    const color = params.color || "#6ee7ff";
-    const numWrap = createNode("div", [
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const color = String(params.color || "#6ee7ff");
+    const label = String(params.label || "Total");
+    const numberSize = Math.round(S * 0.1);
+    const labelSize = Math.round(S * 0.025);
+
+    const root = createRoot(container, "display:flex;align-items:center;justify-content:center");
+
+    const wrap = createNode("div", [
       "display:flex",
-      "align-items:baseline",
-      "gap:0.05em",
-      "will-change:transform,opacity",
-      "opacity:0",
+      "flex-direction:column",
+      "align-items:center",
+      `gap:${Math.round(S * 0.012)}px`,
     ].join(";"));
-    const prefix = createNode("span", [
+
+    const numberEl = createNode("div", [
+      `font-size:${numberSize}px`,
       `font-family:${SANS_FONT_STACK}`,
-      "font-size:36px",
-      "font-weight:300",
-      `color:${color}`,
-    ].join(";"), params.prefix || "");
-    const digits = createNode("span", [
-      `font-family:${SANS_FONT_STACK}`,
-      "font-size:80px",
       "font-weight:900",
       `color:${color}`,
-      "letter-spacing:-0.02em",
-      `text-shadow:0 0 40px ${color}44`,
+      "line-height:1",
       "font-variant-numeric:tabular-nums",
-    ].join(";"), "0");
-    const suffix = createNode("span", [
-      `font-family:${SANS_FONT_STACK}`,
-      "font-size:36px",
-      "font-weight:300",
-      `color:${color}`,
-      "margin-left:0.1em",
-    ].join(";"), params.suffix || "");
-    numWrap.appendChild(prefix);
-    numWrap.appendChild(digits);
-    numWrap.appendChild(suffix);
-    const label = createNode("div", [
-      `font-family:${SANS_FONT_STACK}`,
-      "font-size:16px",
-      "font-weight:500",
-      "color:rgba(255,255,255,0.5)",
-      "letter-spacing:0.12em",
-      "text-transform:uppercase",
-      "margin-top:0.5em",
-      "will-change:opacity",
       "opacity:0",
-    ].join(";"), params.label || "");
-    root.appendChild(numWrap);
-    root.appendChild(label);
-    return { root, numWrap, digits, label, targetValue: toNumber(params.value, 0) };
+      "will-change:opacity",
+    ].join(";"), "0");
+
+    const labelEl = createNode("div", [
+      `font-size:${labelSize}px`,
+      `font-family:${SANS_FONT_STACK}`,
+      "font-weight:400",
+      "color:rgba(255,255,255,0.6)",
+      "text-transform:uppercase",
+      "letter-spacing:0.1em",
+      "opacity:0",
+      "will-change:opacity",
+    ].join(";"), label);
+
+    wrap.appendChild(numberEl);
+    wrap.appendChild(labelEl);
+    root.appendChild(wrap);
+
+    return { root, numberEl, labelEl };
   },
 
-  update(els, localT) {
-    const exitAlpha = 1 - smoothstep(0.85, 1, localT);
-    const enterT = smoothstep(0, 0.1, localT);
-    els.numWrap.style.opacity = enterT * exitAlpha;
-    els.numWrap.style.transform = `scale(${0.8 + 0.2 * easeOutCubic(enterT)})`;
-    const countT = easeOutCubic(smoothstep(0.05, 0.4, localT));
-    const current = Math.round(els.targetValue * countT);
-    els.digits.textContent = current.toLocaleString();
-    const labelT = smoothstep(0.15, 0.25, localT);
-    els.label.style.opacity = labelT * exitAlpha;
+  update(els, localT, params) {
+    const t = clamp(localT);
+    const target = toNumber(params.value, 100);
+    const prefix = String(params.prefix || "");
+    const suffix = String(params.suffix || "");
+
+    const enterProgress = easeOutCubic(smoothstep(0, 0.15, t));
+    const countProgress = easeOutCubic(smoothstep(0.05, 0.6, t));
+    const exitProgress = smoothstep(0.85, 1, t);
+
+    const opacity = enterProgress * (1 - exitProgress);
+    const currentValue = Math.round(target * countProgress);
+
+    const formatted = currentValue.toLocaleString("en-US");
+    els.numberEl.textContent = `${prefix}${formatted}${suffix}`;
+    els.numberEl.style.opacity = String(opacity);
+
+    const labelEnter = easeOutCubic(smoothstep(0.1, 0.3, t));
+    els.labelEl.style.opacity = String(labelEnter * (1 - exitProgress));
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

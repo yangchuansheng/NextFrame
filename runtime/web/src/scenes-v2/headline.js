@@ -1,85 +1,131 @@
 import {
-  createRoot, createNode, smoothstep, easeOutCubic, toNumber,
-  normalizeArray, makeLinearGradient, SANS_FONT_STACK,
+  SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  smoothstep,
+  easeOutCubic,
+  clamp,
+  normalizeArray,
+  makeLinearGradient,
 } from "../scenes-v2-shared.js";
-
-const DEFAULT_GRADIENT = ["#6ee7ff", "#a78bfa", "#f472b6"];
 
 export default {
   id: "headline",
   type: "dom",
-  name: "Kinetic Headline",
+  name: "Headline",
   category: "Typography",
-  tags: ["headline", "title", "gradient", "stagger", "typography", "hero"],
-  description: "大标题渐变色文字，逐词错开上滑入场，带可选副标题，适合开场或章节标题",
+  tags: ["text", "title", "headline", "gradient", "stagger", "animation"],
+  description: "Adaptive headline with optional subtitle, gradient text, and per-character stagger entrance",
+
   params: {
-    text:     { type: "string", default: "NEXTFRAME",                            desc: "标题文字，空格分词后逐词入场" },
-    subtitle: { type: "string", default: "AI Video Editor",                     desc: "副标题文字（可留空）" },
-    fontSize: { type: "number", default: 72,                                    desc: "标题字号(px)", min: 24, max: 200 },
-    gradient: { type: "array",  default: DEFAULT_GRADIENT,                      desc: "渐变色数组" },
-    stagger:  { type: "number", default: 0.06,                                  desc: "每词入场延迟间隔(s)" },
+    text: { type: "string", default: "TITLE", desc: "Main headline text" },
+    subtitle: { type: "string", default: "", desc: "Optional subtitle below headline" },
+    fontSize: { type: "number", default: 0.07, desc: "Font size relative to short edge", min: 0.02, max: 0.15 },
+    gradient: { type: "array", default: ["#6ee7ff", "#a78bfa", "#f472b6"], desc: "Gradient color stops" },
+    stagger: { type: "number", default: 0.08, desc: "Stagger delay per character (in localT units)", min: 0.01, max: 0.3 },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const text = String(params.text || "TITLE");
+    const subtitle = String(params.subtitle || "");
+    const fontSize = S * (params.fontSize || 0.07);
+    const subtitleSize = S * 0.025;
+    const colors = normalizeArray(params.gradient, ["#6ee7ff", "#a78bfa", "#f472b6"]);
+    const gradientCSS = makeLinearGradient(colors);
+
     const root = createRoot(container, "display:flex;flex-direction:column;align-items:center;justify-content:center");
-    const wordsWrap = createNode("div", "display:flex;flex-wrap:wrap;justify-content:center;gap:0 0.3em");
-    const words = String(params.text || "NEXTFRAME").trim().split(/\s+/).filter(Boolean);
-    const fontSize = toNumber(params.fontSize, 72);
-    const grad = makeLinearGradient(normalizeArray(params.gradient, DEFAULT_GRADIENT));
-    const spans = words.map((w) => {
+
+    const titleWrap = createNode("div", [
+      "display:flex",
+      "flex-wrap:wrap",
+      "justify-content:center",
+      "align-items:baseline",
+      `gap:${Math.round(S * 0.005)}px`,
+      "will-change:transform,opacity",
+    ].join(";"));
+
+    const chars = [];
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
       const span = createNode("span", [
+        `font-size:${Math.round(fontSize)}px`,
         `font-family:${SANS_FONT_STACK}`,
-        `font-size:${fontSize}px`,
         "font-weight:900",
-        "letter-spacing:-0.02em",
-        `background:${grad}`,
+        `background:${gradientCSS}`,
         "-webkit-background-clip:text",
-        "-webkit-text-fill-color:transparent",
         "background-clip:text",
-        "will-change:transform,opacity",
+        "-webkit-text-fill-color:transparent",
         "display:inline-block",
         "opacity:0",
-        "transform:translateY(30px)",
-        `text-shadow:0 0 40px rgba(110,231,255,0.3)`,
-      ].join(";"), w);
-      wordsWrap.appendChild(span);
-      return span;
-    });
-    root.appendChild(wordsWrap);
-    const sub = createNode("div", [
-      `font-family:${SANS_FONT_STACK}`,
-      `font-size:${Math.max(14, fontSize * 0.22)}px`,
-      "font-weight:400",
-      "color:rgba(255,255,255,0.55)",
-      "letter-spacing:0.08em",
-      "margin-top:0.6em",
-      "will-change:opacity",
-      "opacity:0",
-    ].join(";"), params.subtitle || "");
-    root.appendChild(sub);
-    return { root, spans, sub };
+        "transform:translateY(20px)",
+        "will-change:transform,opacity",
+        "transition:none",
+        ch === " " ? `width:${Math.round(fontSize * 0.3)}px` : "",
+      ].filter(Boolean).join(";"), ch === " " ? "\u00A0" : ch);
+      titleWrap.appendChild(span);
+      chars.push(span);
+    }
+    root.appendChild(titleWrap);
+
+    let subtitleEl = null;
+    if (subtitle) {
+      subtitleEl = createNode("div", [
+        `font-size:${Math.round(subtitleSize)}px`,
+        `font-family:${SANS_FONT_STACK}`,
+        "font-weight:400",
+        "color:rgba(255,255,255,0.6)",
+        `margin-top:${Math.round(S * 0.015)}px`,
+        "opacity:0",
+        "will-change:opacity",
+        "text-align:center",
+      ].join(";"), subtitle);
+      root.appendChild(subtitleEl);
+    }
+
+    return { root, chars, subtitleEl, S };
   },
 
   update(els, localT, params) {
-    const stagger = toNumber(params.stagger, 0.06);
-    const exitStart = 0.85;
-    const exitAlpha = 1 - smoothstep(exitStart, 1, localT);
-    els.spans.forEach((span, i) => {
-      const enterT = smoothstep(0.0 + i * stagger, 0.12 + i * stagger, localT);
-      const progress = easeOutCubic(enterT);
-      const y = (1 - progress) * 30;
-      const alpha = progress * exitAlpha;
-      span.style.opacity = alpha;
-      span.style.transform = `translateY(${y}px)`;
-    });
-    const subEnter = smoothstep(0.1 + els.spans.length * stagger, 0.2 + els.spans.length * stagger, localT);
-    els.sub.style.opacity = subEnter * exitAlpha;
+    const t = clamp(localT);
+    const staggerDelay = params.stagger || 0.08;
+    const charCount = els.chars.length;
+
+    for (let i = 0; i < charCount; i += 1) {
+      const charStart = i * staggerDelay * 0.3;
+      const enterEnd = charStart + 0.3;
+      const exitStart = 0.8;
+
+      const enterProgress = easeOutCubic(smoothstep(charStart, Math.min(enterEnd, 0.3), t));
+      const exitProgress = smoothstep(exitStart, 1, t);
+      const opacity = enterProgress * (1 - exitProgress);
+      const translateY = (1 - enterProgress) * 20 + exitProgress * -20;
+
+      els.chars[i].style.opacity = String(opacity);
+      els.chars[i].style.transform = `translateY(${translateY}px)`;
+    }
+
+    if (els.subtitleEl) {
+      const subEnter = easeOutCubic(smoothstep(0.2, 0.4, t));
+      const subExit = smoothstep(0.8, 1, t);
+      els.subtitleEl.style.opacity = String(subEnter * (1 - subExit));
+    }
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

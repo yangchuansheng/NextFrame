@@ -1,28 +1,21 @@
-import { clamp, easeOutCubic, toNumber } from "../scenes-v2-shared.js";
+import { smoothstep, clamp, toNumber, toBoolean, easeOutCubic, SANS_FONT_STACK, MONO_FONT_STACK } from "../scenes-v2-shared.js";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-const FONT = '-apple-system, "SF Pro Display", sans-serif';
-
-function svgEl(tag, attrs = {}) {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-  return el;
-}
+const NS = "http://www.w3.org/2000/svg";
+const TAU = Math.PI * 2;
 
 export default {
   id: "progressRing",
   type: "svg",
   name: "Progress Ring",
-  category: "Data Viz",
-  tags: ["环形进度", "圆形进度", "KPI", "仪表盘", "百分比", "数据展示"],
-  description: "带发光效果和数字动画的 SVG 圆形进度环，支持圆弧笔帽",
+  category: "Numbers",
+  tags: ["progress", "ring", "circle", "number", "percentage", "animated"],
+  description: "Circular progress ring with animated arc growth and centered number counter",
+
   params: {
-    progress:    { type: "number",  default: 75,                      desc: "目标进度值(0-100)", min: 0, max: 100 },
-    color:       { type: "color",   default: "#6ee7ff",               desc: "进度弧线颜色" },
-    bgColor:     { type: "color",   default: "rgba(255,255,255,0.08)", desc: "背景圆环颜色" },
-    strokeWidth: { type: "number",  default: 28, min: 4, max: 60,     desc: "圆环宽度(px)" },
-    label:       { type: "string",  default: "Progress",              desc: "中心底部标签文字" },
-    showPercent: { type: "boolean", default: true,                    desc: "是否显示中心百分比数字" },
+    progress:    { type: "number",  default: 85, min: 0, max: 100,   desc: "Progress value (0-100)" },
+    color:       { type: "color",   default: "#4ade80",              desc: "Ring color" },
+    label:       { type: "string",  default: "Quality",             desc: "Label below the number" },
+    showPercent: { type: "boolean", default: true,                   desc: "Show percent symbol" },
   },
   get defaultParams() {
     const p = {};
@@ -31,90 +24,100 @@ export default {
   },
 
   create(container, params) {
-    const svg = svgEl("svg", {
-      viewBox: "0 0 1920 1080",
-      style: "position:absolute;inset:0;width:100%;height:100%",
-    });
+    const W = container.clientWidth  || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const progress    = clamp(toNumber(params.progress, 85), 0, 100);
+    const color       = params.color || this.params.color.default;
+    const label       = params.label ?? this.params.label.default;
+    const showPercent = toBoolean(params.showPercent, true);
+
+    const radius   = S * 0.2;
+    const lineW    = S * 0.015;
+    const numberFs = S * 0.08;
+    const labelFs  = S * 0.02;
+    const cx = W / 2;
+    const cy = H / 2;
+
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.style.cssText = "position:absolute;inset:0;width:100%;height:100%;overflow:hidden";
     container.appendChild(svg);
 
-    const color = params.color || "#6ee7ff";
-    const bgColor = params.bgColor || "rgba(255,255,255,0.08)";
-    const sw = toNumber(params.strokeWidth, 28);
-    const progress = clamp(toNumber(params.progress, 75), 0, 100);
-    const showPercent = params.showPercent !== false;
-    const label = params.label || "";
+    // Background track
+    const trackCircle = document.createElementNS(NS, "circle");
+    trackCircle.setAttribute("cx", cx);
+    trackCircle.setAttribute("cy", cy);
+    trackCircle.setAttribute("r", radius);
+    trackCircle.setAttribute("fill", "none");
+    trackCircle.setAttribute("stroke", "rgba(255,255,255,0.08)");
+    trackCircle.setAttribute("stroke-width", lineW);
+    svg.appendChild(trackCircle);
 
-    const cx = 960, cy = 500, r = 260;
-    const circumference = 2 * Math.PI * r;
+    // Progress arc
+    const circumference = TAU * radius;
+    const arcCircle = document.createElementNS(NS, "circle");
+    arcCircle.setAttribute("cx", cx);
+    arcCircle.setAttribute("cy", cy);
+    arcCircle.setAttribute("r", radius);
+    arcCircle.setAttribute("fill", "none");
+    arcCircle.setAttribute("stroke", color);
+    arcCircle.setAttribute("stroke-width", lineW);
+    arcCircle.setAttribute("stroke-linecap", "round");
+    arcCircle.setAttribute("stroke-dasharray", circumference);
+    arcCircle.setAttribute("stroke-dashoffset", circumference);
+    arcCircle.setAttribute("transform", `rotate(-90 ${cx} ${cy})`);
+    svg.appendChild(arcCircle);
 
-    // glow filter
-    const defs = svgEl("defs");
-    const filter = svgEl("filter", { id: "ringGlow", x: "-30%", y: "-30%", width: "160%", height: "160%" });
-    const blur = svgEl("feGaussianBlur", { stdDeviation: "6", result: "blur" });
-    const merge = svgEl("feMerge");
-    const m1 = svgEl("feMergeNode", { in: "blur" });
-    const m2 = svgEl("feMergeNode", { in: "SourceGraphic" });
-    merge.appendChild(m1);
-    merge.appendChild(m2);
-    filter.appendChild(blur);
-    filter.appendChild(merge);
-    defs.appendChild(filter);
-    svg.appendChild(defs);
+    // Number text
+    const numberTxt = document.createElementNS(NS, "text");
+    numberTxt.setAttribute("x", cx);
+    numberTxt.setAttribute("y", cy + numberFs * 0.1);
+    numberTxt.setAttribute("text-anchor", "middle");
+    numberTxt.setAttribute("dominant-baseline", "central");
+    numberTxt.setAttribute("font-family", MONO_FONT_STACK);
+    numberTxt.setAttribute("font-size", numberFs);
+    numberTxt.setAttribute("font-weight", "800");
+    numberTxt.setAttribute("fill", "#ffffff");
+    numberTxt.textContent = "0";
+    svg.appendChild(numberTxt);
 
-    // bg ring
-    svg.appendChild(svgEl("circle", {
-      cx: String(cx), cy: String(cy), r: String(r),
-      fill: "none", stroke: bgColor, "stroke-width": String(sw),
-    }));
+    // Label text
+    const labelTxt = document.createElementNS(NS, "text");
+    labelTxt.setAttribute("x", cx);
+    labelTxt.setAttribute("y", cy + radius + labelFs * 2.2);
+    labelTxt.setAttribute("text-anchor", "middle");
+    labelTxt.setAttribute("font-family", SANS_FONT_STACK);
+    labelTxt.setAttribute("font-size", labelFs);
+    labelTxt.setAttribute("font-weight", "600");
+    labelTxt.setAttribute("fill", "rgba(200,210,230,0.7)");
+    labelTxt.textContent = label;
+    svg.appendChild(labelTxt);
 
-    // progress arc
-    const arc = svgEl("circle", {
-      cx: String(cx), cy: String(cy), r: String(r),
-      fill: "none", stroke: color, "stroke-width": String(sw),
-      "stroke-linecap": "round",
-      "stroke-dasharray": String(circumference),
-      "stroke-dashoffset": String(circumference),
-      transform: `rotate(-90 ${cx} ${cy})`,
-      filter: "url(#ringGlow)",
-    });
-    svg.appendChild(arc);
-
-    // percent text
-    const pctText = svgEl("text", {
-      x: String(cx), y: String(cy + 20),
-      fill: "rgba(255,255,255,0.95)", "font-size": "96",
-      "font-family": FONT, "font-weight": "700",
-      "text-anchor": "middle", opacity: "0",
-    });
-    pctText.textContent = "0%";
-    svg.appendChild(pctText);
-
-    // label
-    const lblText = svgEl("text", {
-      x: String(cx), y: String(cy + 70),
-      fill: "rgba(255,255,255,0.5)", "font-size": "28",
-      "font-family": FONT, "font-weight": "400",
-      "text-anchor": "middle", opacity: "0",
-    });
-    lblText.textContent = label;
-    svg.appendChild(lblText);
-
-    return { svg, arc, pctText, lblText, circumference, progress, showPercent };
+    return { svg, arcCircle, numberTxt, circumference, progress, showPercent, color };
   },
 
-  update(els, localT) {
-    const raw = clamp(localT / 1.8, 0, 1);
-    const t = easeOutCubic(raw);
-    const curProgress = els.progress * t;
-    const offset = els.circumference * (1 - curProgress / 100);
-    els.arc.setAttribute("stroke-dashoffset", String(offset));
+  update(els, localT, _params) {
+    const { arcCircle, numberTxt, circumference, progress, showPercent, color } = els;
+    const t = easeOutCubic(clamp(localT / 1.4, 0, 1));
 
-    if (els.showPercent) {
-      els.pctText.textContent = `${Math.round(curProgress)}%`;
-      els.pctText.setAttribute("opacity", String(clamp(raw * 3, 0, 1)));
+    const currentProgress = progress * t;
+    const dashOffset = circumference * (1 - currentProgress / 100);
+    arcCircle.setAttribute("stroke-dashoffset", dashOffset);
+
+    const displayVal = Math.round(currentProgress);
+    numberTxt.textContent = showPercent ? `${displayVal}%` : String(displayVal);
+
+    // Glow pulse
+    const pulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(localT * 3));
+    arcCircle.setAttribute("filter", "none");
+    arcCircle.style.filter = t > 0.5 ? `drop-shadow(0 0 ${6 * pulse}px ${color})` : "none";
+  },
+
+  destroy(els) {
+    if (els.svg && els.svg.parentNode) {
+      els.svg.parentNode.removeChild(els.svg);
     }
-    els.lblText.setAttribute("opacity", String(clamp((raw - 0.2) * 3, 0, 1)));
   },
-
-  destroy(els) { els.svg.remove(); },
 };

@@ -1,6 +1,10 @@
 import {
-  createRoot, createNode, smoothstep, easeOutCubic, toNumber,
-  SERIF_FONT_STACK, SANS_FONT_STACK,
+  SANS_FONT_STACK,
+  createRoot,
+  createNode,
+  smoothstep,
+  easeOutCubic,
+  clamp,
 } from "../scenes-v2-shared.js";
 
 export default {
@@ -8,74 +12,122 @@ export default {
   type: "dom",
   name: "Quote Block",
   category: "Typography",
-  tags: ["引言", "名人名言", "排版", "引用", "文字", "宣言"],
-  description: "居中展示引言和作者署名，带大号引号装饰和渐入动画",
+  tags: ["text", "quote", "citation", "author", "blockquote", "inspiration"],
+  description: "Adaptive quote block with large decorative quotation mark, citation text, and author attribution",
+
   params: {
-    text:        { type: "string", default: "Design is not just what it looks like. Design is how it works.", desc: "引言正文内容" },
-    author:      { type: "string", default: "Steve Jobs", desc: "作者署名（留空则不显示）" },
-    fontSize:    { type: "number", default: 32, min: 16, max: 80, desc: "引言字号(px)" },
-    accentColor: { type: "color",  default: "#a78bfa",            desc: "引号和发光强调色" },
+    text: { type: "string", default: "Design is not just what it looks like. Design is how it works.", desc: "Quote text" },
+    author: { type: "string", default: "Steve Jobs", desc: "Quote attribution" },
+    fontSize: { type: "number", default: 0.03, desc: "Quote font size relative to short edge", min: 0.018, max: 0.06 },
+    accentColor: { type: "string", default: "#a78bfa", desc: "Accent color for quotation mark and attribution" },
   },
+
   get defaultParams() {
     const p = {};
-    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    for (const [k, v] of Object.entries(this.params)) {
+      p[k] = v.default;
+    }
     return p;
   },
 
   create(container, params) {
-    const root = createRoot(container, "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8% 12%");
-    const fontSize = toNumber(params.fontSize, 32);
-    const accent = params.accentColor || "#a78bfa";
-    const quoteOpen = createNode("div", [
-      `font-size:${fontSize * 2.5}px`,
-      `font-family:${SERIF_FONT_STACK}`,
-      `color:${accent}`,
+    const W = container.clientWidth || 1920;
+    const H = container.clientHeight || 1080;
+    const S = Math.min(W, H);
+
+    const text = String(params.text || "");
+    const author = String(params.author || "");
+    const fontSize = S * (params.fontSize || 0.03);
+    const quoteMarkSize = S * 0.06;
+    const authorSize = S * 0.02;
+    const accentColor = params.accentColor || "#a78bfa";
+    const padding = S * 0.06;
+
+    const root = createRoot(container, [
+      "display:flex",
+      "flex-direction:column",
+      "align-items:center",
+      "justify-content:center",
+      `padding:${Math.round(padding)}px`,
+      "box-sizing:border-box",
+    ].join(";"));
+
+    const quoteWrap = createNode("div", [
+      "display:flex",
+      "flex-direction:column",
+      "align-items:center",
+      "max-width:70ch",
+      "text-align:center",
+    ].join(";"));
+
+    const quoteMark = createNode("div", [
+      `font-size:${Math.round(quoteMarkSize)}px`,
+      `font-family:${SANS_FONT_STACK}`,
+      "font-weight:900",
+      `color:${accentColor}`,
       "line-height:1",
-      "will-change:opacity,transform",
       "opacity:0",
-      `text-shadow:0 0 30px ${accent}44`,
+      "will-change:opacity,transform",
+      `margin-bottom:${Math.round(S * 0.015)}px`,
     ].join(";"), "\u201C");
-    const body = createNode("div", [
-      `font-family:${SERIF_FONT_STACK}`,
-      `font-size:${fontSize}px`,
+    quoteWrap.appendChild(quoteMark);
+
+    const quoteText = createNode("div", [
+      `font-size:${Math.round(fontSize)}px`,
+      `font-family:${SANS_FONT_STACK}`,
       "font-weight:400",
       "font-style:italic",
       "color:rgba(255,255,255,0.9)",
       "line-height:1.6",
-      "text-align:center",
-      "max-width:680px",
-      "letter-spacing:0.01em",
-      "will-change:opacity,transform",
       "opacity:0",
-    ].join(";"), params.text || "");
-    const authorEl = createNode("div", [
-      `font-family:${SANS_FONT_STACK}`,
-      `font-size:${Math.max(13, fontSize * 0.45)}px`,
-      "font-weight:500",
-      "color:rgba(255,255,255,0.5)",
-      "margin-top:1.2em",
-      "letter-spacing:0.1em",
-      "text-transform:uppercase",
       "will-change:opacity",
-      "opacity:0",
-    ].join(";"), params.author ? `\u2014 ${params.author}` : "");
-    root.appendChild(quoteOpen);
-    root.appendChild(body);
-    root.appendChild(authorEl);
-    return { root, quoteOpen, body, authorEl };
+      "text-align:center",
+    ].join(";"), text);
+    quoteWrap.appendChild(quoteText);
+
+    let authorEl = null;
+    if (author) {
+      authorEl = createNode("div", [
+        `font-size:${Math.round(authorSize)}px`,
+        `font-family:${SANS_FONT_STACK}`,
+        "font-weight:500",
+        `color:${accentColor}`,
+        `margin-top:${Math.round(S * 0.025)}px`,
+        "opacity:0",
+        "will-change:opacity",
+        "letter-spacing:0.05em",
+        "text-transform:uppercase",
+      ].join(";"), "\u2014 " + author);
+      quoteWrap.appendChild(authorEl);
+    }
+
+    root.appendChild(quoteWrap);
+    return { root, quoteMark, quoteText, authorEl, S };
   },
 
-  update(els, localT) {
-    const exitAlpha = 1 - smoothstep(0.85, 1, localT);
-    const qT = easeOutCubic(smoothstep(0, 0.1, localT));
-    els.quoteOpen.style.opacity = qT * exitAlpha;
-    els.quoteOpen.style.transform = `scale(${0.6 + 0.4 * qT})`;
-    const bT = easeOutCubic(smoothstep(0.05, 0.15, localT));
-    els.body.style.opacity = bT * exitAlpha;
-    els.body.style.transform = `translateY(${(1 - bT) * 20}px)`;
-    const aT = smoothstep(0.12, 0.22, localT);
-    els.authorEl.style.opacity = aT * exitAlpha;
+  update(els, localT, params) {
+    const t = clamp(localT);
+
+    const markEnter = easeOutCubic(smoothstep(0, 0.15, t));
+    const markExit = smoothstep(0.85, 1, t);
+    const markScale = 0.6 + markEnter * 0.4;
+    els.quoteMark.style.opacity = String(markEnter * (1 - markExit));
+    els.quoteMark.style.transform = `scale(${markScale})`;
+
+    const textEnter = easeOutCubic(smoothstep(0.1, 0.3, t));
+    const textExit = smoothstep(0.85, 1, t);
+    els.quoteText.style.opacity = String(textEnter * (1 - textExit));
+
+    if (els.authorEl) {
+      const authorEnter = easeOutCubic(smoothstep(0.25, 0.4, t));
+      const authorExit = smoothstep(0.85, 1, t);
+      els.authorEl.style.opacity = String(authorEnter * (1 - authorExit));
+    }
   },
 
-  destroy(els) { els.root.remove(); },
+  destroy(els) {
+    if (els.root && els.root.parentNode) {
+      els.root.parentNode.removeChild(els.root);
+    }
+  },
 };

@@ -1,17 +1,19 @@
-import { toNumber, clamp } from "../scenes-v2-shared.js";
+import { clamp, toNumber, smoothstep } from "../scenes-v2-shared.js";
 
 export default {
   id: "auroraGradient",
   type: "canvas",
   name: "Aurora Gradient",
   category: "Backgrounds",
-  tags: ["background", "gradient", "aurora", "glow", "ambient", "dark", "animated"],
-  description: "极光渐变背景，多色光斑缓慢漂移，叠加胶片颗粒感，适合作为场景底层背景",
+  tags: ["aurora", "gradient", "background", "glow", "animated", "canvas"],
+  description: "Flowing aurora gradient background with multiple radial color orbs using additive blending",
+
   params: {
-    hueA:      { type: "number", default: 220, desc: "第一色光色相 (0-360)", min: 0, max: 360 },
-    hueB:      { type: "number", default: 280, desc: "第二色光色相 (0-360)", min: 0, max: 360 },
-    hueC:      { type: "number", default: 180, desc: "第三色光色相 (0-360)", min: 0, max: 360 },
-    intensity: { type: "number", default: 0.7, desc: "光晕强度 (0-1)", min: 0, max: 1 },
+    hueA:      { type: "number", default: 265, min: 0, max: 360,   desc: "Primary hue" },
+    hueB:      { type: "number", default: 200, min: 0, max: 360,   desc: "Secondary hue" },
+    hueC:      { type: "number", default: 330, min: 0, max: 360,   desc: "Tertiary hue" },
+    speed:     { type: "number", default: 0.3, min: 0.05, max: 2,  desc: "Drift speed multiplier" },
+    intensity: { type: "number", default: 0.8, min: 0, max: 1.5,   desc: "Color intensity" },
   },
   get defaultParams() {
     const p = {};
@@ -20,61 +22,79 @@ export default {
   },
 
   create(container, params) {
+    const W = container.clientWidth  || 1920;
+    const H = container.clientHeight || 1080;
+
     const canvas = document.createElement("canvas");
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
-    canvas.width = container.clientWidth || 1920;
-    canvas.height = container.clientHeight || 1080;
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
     container.appendChild(canvas);
-    return canvas;
-  },
 
-  update(canvas, localT, params) {
     const ctx = canvas.getContext("2d");
-    const cw = canvas.parentElement?.clientWidth || canvas.width;
-    const ch = canvas.parentElement?.clientHeight || canvas.height;
-    if (canvas.width !== cw || canvas.height !== ch) {
-      canvas.width = cw;
-      canvas.height = ch;
-    }
-    const W = canvas.width;
-    const H = canvas.height;
 
-    const hueA = toNumber(params.hueA, 220);
-    const hueB = toNumber(params.hueB, 280);
-    const hueC = toNumber(params.hueC, 180);
-    const intensity = clamp(toNumber(params.intensity, 0.7), 0, 1);
+    const hueA      = toNumber(params.hueA, 265);
+    const hueB      = toNumber(params.hueB, 200);
+    const hueC      = toNumber(params.hueC, 330);
+    const speed     = toNumber(params.speed, 0.3);
+    const intensity = toNumber(params.intensity, 0.8);
 
-    // Dark background
-    ctx.fillStyle = "#0a0a14";
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.globalCompositeOperation = "lighter";
-
-    const t = localT * 0.15;
-    const orbs = [
-      { hue: hueA, cx: 0.3 + 0.2 * Math.sin(t * 0.7), cy: 0.4 + 0.15 * Math.cos(t * 0.5), r: 0.45 },
-      { hue: hueB, cx: 0.7 + 0.15 * Math.cos(t * 0.6), cy: 0.3 + 0.2 * Math.sin(t * 0.8), r: 0.5 },
-      { hue: hueC, cx: 0.5 + 0.25 * Math.sin(t * 0.4 + 1), cy: 0.7 + 0.1 * Math.cos(t * 0.9), r: 0.4 },
-      { hue: (hueA + hueB) / 2, cx: 0.4 + 0.1 * Math.cos(t * 1.1), cy: 0.5 + 0.15 * Math.sin(t * 0.3), r: 0.35 },
+    const blobs = [
+      { hue: hueA, phase: 0,   sx: 0.11, sy: 0.07, amp: 0.28, size: 0.55 },
+      { hue: hueB, phase: 1.7, sx: 0.09, sy: 0.13, amp: 0.34, size: 0.68 },
+      { hue: hueC, phase: 3.2, sx: 0.13, sy: 0.05, amp: 0.22, size: 0.42 },
+      { hue: (hueA + hueB) / 2, phase: 4.9, sx: 0.07, sy: 0.11, amp: 0.3, size: 0.6 },
     ];
 
-    for (const orb of orbs) {
-      const cx = orb.cx * W;
-      const cy = orb.cy * H;
-      const radius = orb.r * Math.max(W, H);
+    return { canvas, ctx, W, H, blobs, speed, intensity };
+  },
+
+  update(els, localT, _params) {
+    const { ctx, W, H, blobs, speed, intensity } = els;
+    const S = Math.min(W, H);
+    const t = localT * speed;
+    const fadeIn = smoothstep(0, 0.6, localT);
+
+    // Dark background
+    const base = ctx.createLinearGradient(0, 0, 0, H);
+    base.addColorStop(0, "#05050c");
+    base.addColorStop(0.5, "#0a0714");
+    base.addColorStop(1, "#03020a");
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, W, H);
+
+    // Additive blending for aurora orbs
+    ctx.globalCompositeOperation = "lighter";
+
+    for (let i = 0; i < blobs.length; i++) {
+      const b = blobs[i];
+      const cx = W * (0.5 + Math.sin(t * b.sx + b.phase) * b.amp);
+      const cy = H * (0.5 + Math.cos(t * b.sy + b.phase * 1.3) * b.amp * 0.7);
+      const breath = 0.88 + 0.12 * Math.sin(t * 0.35 + i);
+      const radius = S * b.size * breath;
+      const alpha = clamp(0.45 * intensity * fadeIn, 0, 1);
+
       const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      const alpha = intensity * 0.35;
-      grad.addColorStop(0, `hsla(${orb.hue}, 80%, 55%, ${alpha})`);
-      grad.addColorStop(0.4, `hsla(${orb.hue}, 70%, 40%, ${alpha * 0.5})`);
-      grad.addColorStop(1, `hsla(${orb.hue}, 60%, 20%, 0)`);
+      grad.addColorStop(0, `hsla(${b.hue}, 90%, 65%, ${alpha})`);
+      grad.addColorStop(0.35, `hsla(${b.hue}, 85%, 55%, ${alpha * 0.55})`);
+      grad.addColorStop(1, `hsla(${b.hue}, 80%, 40%, 0)`);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
     }
 
+    // Restore and add vignette
     ctx.globalCompositeOperation = "source-over";
+    const band = ctx.createLinearGradient(0, 0, 0, H);
+    band.addColorStop(0, "rgba(0,0,0,0.55)");
+    band.addColorStop(0.5, "rgba(0,0,0,0)");
+    band.addColorStop(1, "rgba(0,0,0,0.65)");
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 0, W, H);
   },
 
-  destroy(canvas) {
-    canvas.remove();
+  destroy(els) {
+    if (els.canvas && els.canvas.parentNode) {
+      els.canvas.parentNode.removeChild(els.canvas);
+    }
   },
 };
