@@ -34,6 +34,7 @@ const SUBCOMMANDS = {
   "list-assets": () => import("../src/cli/assets.js"),
   "remove-asset": () => import("../src/cli/assets.js"),
   scenes: () => import("../src/cli/scenes.js"),
+  build: () => import("../src/cli/build.js"),
   "app-eval": () => import("../src/cli/app-eval.js"),
   "app-screenshot": () => import("../src/cli/app-screenshot.js"),
   "debug-screenshot": () => import("../src/cli/debug-screenshot.js"),
@@ -59,7 +60,9 @@ SUBCOMMANDS
   ascii <project> <episode> <segment> <t>     ASCII art preview of a frame
   gantt <project> <episode> <segment>         ASCII gantt
   bake-video <project> <episode> <segment>    pre-extract videoClip frames with ffmpeg
-  scenes                                      list all scenes with META
+  scenes                                      list all v0.3 scenes from registry
+  scenes <id>                                 show single scene details
+  build <timeline.json> [-o out.html]         bundle timeline + scenes → HTML
   bake-browser <project> <episode> <segment>  bake html/svg/markdown/lottie browser scenes
   add-clip <project> <episode> <segment> ...  add a clip to a track
   move-clip <project> <episode> <segment> ... move a clip's start time

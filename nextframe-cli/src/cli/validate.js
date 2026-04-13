@@ -1,7 +1,9 @@
 // nextframe validate <timeline.json>
+// Auto-detects v0.1 (tracks/clips) vs v0.3 (layers[]) format.
 import { parseFlags, loadTimeline, emit } from "./_io.js";
 import { resolveTimeline, timelineDir, timelineUsage } from "./_resolve.js";
-import { validateTimeline } from "../engine/validate.js";
+import { validateTimeline as validateV1 } from "../engine/validate.js";
+import { validateTimeline as validateV3, detectFormat } from "../engine-v2/validate.js";
 
 export async function run(argv) {
   const { positional, flags } = parseFlags(argv);
@@ -15,11 +17,20 @@ export async function run(argv) {
     emit(loaded, flags);
     return 2;
   }
-  const result = validateTimeline(loaded.value, { projectDir: timelineDir(resolved.jsonPath) });
-  if (flags.json) {
-    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+
+  const fmt = detectFormat(loaded.value);
+  let result;
+  if (fmt === "v0.1") {
+    process.stderr.write("warn: v0.1 tracks/clips format detected — consider migrating to v0.3 layers[]\n");
+    result = validateV1(loaded.value, { projectDir: timelineDir(resolved.jsonPath) });
   } else {
-    process.stdout.write(`Errors: ${result.errors.length}  Warnings: ${result.warnings.length}\n`);
+    result = validateV3(loaded.value);
+  }
+
+  if (flags.json) {
+    process.stdout.write(JSON.stringify({ format: fmt, ...result }, null, 2) + "\n");
+  } else {
+    process.stdout.write(`Format: ${fmt}  Errors: ${result.errors.length}  Warnings: ${result.warnings.length}\n`);
     for (const e of result.errors) {
       process.stdout.write(`  ERROR ${e.code} ${e.ref || ""}: ${e.message}\n`);
       if (e.hint) process.stdout.write(`    hint: ${e.hint}\n`);

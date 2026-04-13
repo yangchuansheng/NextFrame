@@ -1,129 +1,94 @@
-import { REGISTRY } from "../scenes/index.js";
-import { getSceneMeta, listSceneMeta } from "../scenes/meta.js";
-import { validateTimeline } from "../engine/validate.js";
-import { resolveTimeline, resolveExpression } from "../engine/time.js";
-import { describeAt } from "../engine/describe.js";
-import { renderGantt as gantt } from "../views/gantt.js";
-import { pngToAscii } from "../views/ascii.js";
-import { addClip, addMarker, moveClip, removeClip, resizeClip, setParam } from "../timeline/ops.js";
+// AI tool definitions — v0.3 layers[] format.
+import { REGISTRY, listScenes, getScene } from '../engine-v2/registry.js';
+import { validateTimeline } from '../engine-v2/validate.js';
+import { describeAt } from '../engine-v2/describe.js';
+import { addLayer, removeLayer, moveLayer, resizeLayer, setLayerProp, listLayers } from '../engine-v2/ops.js';
 
 export const TOOLS = {
   list_scenes: {
-    schema: { name: "list_scenes", description: "List all scenes and their META", params: [] },
-    handler: () => ({ ok: true, value: listSceneMeta() }),
+    schema: { name: "list_scenes", description: "List all v0.3 scenes from registry", params: [] },
+    handler: () => ({ ok: true, value: listScenes() }),
   },
-  get_scene_meta: {
+  get_scene: {
     schema: {
-      name: "get_scene_meta",
-      description: "Get META for a single scene",
+      name: "get_scene",
+      description: "Get scene metadata by id",
       params: [{ name: "id", type: "string", required: true }],
     },
     handler: ({ id }) => {
-      const meta = getSceneMeta(id);
-      if (!meta) return { ok: false, error: { code: "UNKNOWN_SCENE", message: `no scene "${id}"` } };
-      return { ok: true, value: meta };
+      const scene = getScene(id);
+      if (!scene) return { ok: false, error: { code: "UNKNOWN_SCENE", message: `no scene "${id}"` } };
+      return { ok: true, value: scene };
     },
   },
   validate_timeline: {
     schema: {
       name: "validate_timeline",
-      description: "Run 6 safety gates",
+      description: "Validate v0.3 layers[] timeline",
       params: [{ name: "timeline", type: "object", required: true }],
     },
-    handler: ({ timeline }) => ({ ok: true, value: validateTimeline(timeline) }),
-  },
-  resolve_time: {
-    schema: {
-      name: "resolve_time",
-      description: "Resolve a symbolic time expression against a timeline",
-      params: [{ name: "timeline", type: "object", required: true }, { name: "expr", type: "object", required: true }],
-    },
-    handler: ({ timeline, expr }) => {
-      const r = resolveTimeline(timeline);
-      if (!r.ok) return r;
-      const lookup = withShorthandRefs(r.lookup || {}, r.value);
-      return resolveExpression(expr, lookup, timeline.duration);
-    },
+    handler: ({ timeline }) => validateTimeline(timeline),
   },
   describe_frame: {
     schema: {
       name: "describe_frame",
-      description: "Semantic metadata at time t",
+      description: "Describe active layers at time t",
       params: [{ name: "timeline", type: "object", required: true }, { name: "t", type: "number", required: true }],
     },
     handler: ({ timeline, t }) => describeAt(timeline, t),
   },
-  find_clips: {
+  find_layers: {
     schema: {
-      name: "find_clips",
-      description: "Search clips by predicate",
-      params: [{ name: "timeline", type: "object", required: true }, { name: "scene", type: "string" }, { name: "track", type: "string" }, { name: "at", type: "number" }, { name: "param", type: "string" }],
+      name: "find_layers",
+      description: "Search layers by scene or time",
+      params: [{ name: "timeline", type: "object", required: true }, { name: "scene", type: "string" }, { name: "at", type: "number" }],
     },
-    handler: ({ timeline, scene, track, at, param }) => {
-      const r = resolveTimeline(timeline);
-      if (!r.ok) return r;
+    handler: ({ timeline, scene, at }) => {
       const matches = [];
-      for (const trk of r.value.tracks || []) {
-        if (track && trk.id !== track) continue;
-        for (const clip of trk.clips || []) {
-          if (scene && clip.scene !== scene) continue;
-          if (typeof at === "number" && (at < clip.start || at > clip.start + clip.dur)) continue;
-          if (param && !Object.prototype.hasOwnProperty.call(clip.params || {}, param)) continue;
-          matches.push({
-            trackId: trk.id,
-            clipId: clip.id,
-            scene: clip.scene,
-            start: clip.start,
-            dur: clip.dur,
-            params: clip.params || {},
-          });
-        }
+      for (const layer of timeline.layers || []) {
+        if (scene && layer.scene !== scene) continue;
+        if (typeof at === "number" && (at < layer.start || at >= layer.start + layer.dur)) continue;
+        matches.push({ id: layer.id, scene: layer.scene, start: layer.start, dur: layer.dur, end: layer.start + layer.dur });
       }
       return { ok: true, value: matches };
     },
   },
-  get_clip: {
+  get_layer: {
     schema: {
-      name: "get_clip",
-      description: "Get full clip details by id",
-      params: [{ name: "timeline", type: "object", required: true }, { name: "clipId", type: "string", required: true }],
+      name: "get_layer",
+      description: "Get full layer details by id",
+      params: [{ name: "timeline", type: "object", required: true }, { name: "layerId", type: "string", required: true }],
     },
-    handler: ({ timeline, clipId }) => {
-      const r = resolveTimeline(timeline);
-      if (!r.ok) return r;
-      const original = findClipEntry(timeline, clipId);
-      const resolved = findClipEntry(r.value, clipId);
-      if (!original || !resolved) {
-        return { ok: false, error: { code: "CLIP_NOT_FOUND", message: `no clip "${clipId}"` } };
-      }
-      return {
-        ok: true,
-        value: {
-          trackId: original.trackId,
-          clip: clone(original.clip),
-          resolvedStart: resolved.clip.start,
-          meta: REGISTRY.get(original.clip.scene)?.META || null,
-        },
-      };
+    handler: ({ timeline, layerId }) => {
+      const layer = (timeline.layers || []).find(l => l.id === layerId);
+      if (!layer) return { ok: false, error: { code: "NOT_FOUND", message: `no layer "${layerId}"` } };
+      return { ok: true, value: { ...layer, sceneMeta: REGISTRY.get(layer.scene) || null } };
     },
+  },
+  list_layers: {
+    schema: {
+      name: "list_layers",
+      description: "List all layers with timing",
+      params: [{ name: "timeline", type: "object", required: true }],
+    },
+    handler: ({ timeline }) => listLayers(timeline),
   },
   apply_patch: {
     schema: {
       name: "apply_patch",
-      description: "Apply timeline mutations then validate",
+      description: "Apply layer mutations then validate",
       params: [{ name: "timeline", type: "object", required: true }, { name: "ops", type: "array", required: true }],
     },
     handler: ({ timeline, ops }) => {
       if (!Array.isArray(ops)) return { ok: false, error: { code: "BAD_OPS", message: "ops must be an array" } };
-      let next = timeline;
+      const tl = JSON.parse(JSON.stringify(timeline));
       let applied = 0;
       for (const op of ops) {
-        const result = applyTimelineOp(next, op);
+        const result = applyLayerOp(tl, op);
         if (!result.ok) return result;
-        next = result.value;
         applied += 1;
       }
-      return { ok: true, value: { timeline: next, validation: validateTimeline(next), applied } };
+      return { ok: true, value: { timeline: tl, validation: validateTimeline(tl), applied } };
     },
   },
   assert_at: {
@@ -147,114 +112,25 @@ export const TOOLS = {
       return { ok: true, value: { t, passed, failed, total: checks.length } };
     },
   },
-  render_ascii: {
-    schema: {
-      name: "render_ascii",
-      description: "ASCII art of frame at time t",
-      params: [{ name: "timeline", type: "object", required: true }, { name: "t", type: "number", required: true }, { name: "width", type: "number" }],
-    },
-    handler: async ({ timeline, t, width }) => {
-      const targetModule = "../targets/" + "napi-canvas.js";
-      const { renderFramePNG } = await import(targetModule);
-      const rendered = renderFramePNG(timeline, t, { width: 640, height: 360 });
-      if (!rendered.ok) return rendered;
-      try {
-        return { ok: true, value: await pngToAscii(rendered.value, width || 80, 24) };
-      } catch (error) {
-        return { ok: false, error: { code: "ASCII_RENDER_FAILED", message: error.message } };
-      }
-    },
-  },
-  gantt_ascii: {
-    schema: {
-      name: "gantt_ascii",
-      description: "ASCII gantt chart of the timeline",
-      params: [{ name: "timeline", type: "object", required: true }, { name: "width", type: "number", required: false }],
-    },
-    handler: ({ timeline, width }) => {
-      const r = resolveTimeline(timeline);
-      if (!r.ok) return r;
-      return { ok: true, value: gantt(r.value, { width: width || 80 }) };
-    },
-  },
-  suggest_clip_at: {
-    schema: {
-      name: "suggest_clip_at",
-      description: "Return clips active at time t",
-      params: [{ name: "timeline", type: "object", required: true }, { name: "t", type: "number", required: true }],
-    },
-    handler: ({ timeline, t }) => {
-      const r = resolveTimeline(timeline);
-      if (!r.ok) return r;
-      const active = [];
-      for (const trk of r.value.tracks || []) {
-        for (const clip of trk.clips || []) {
-          if (t >= clip.start && t <= clip.start + clip.dur) {
-            active.push({ track: trk.id, id: clip.id, scene: clip.scene });
-          }
-        }
-      }
-      return { ok: true, value: active };
-    },
-  },
 };
 
 export const TOOL_DEFINITIONS = Object.fromEntries(Object.entries(TOOLS).map(([name, tool]) => [name, { description: tool.schema.description }]));
 
-function withShorthandRefs(lookup, timeline) {
-  const aliases = { ...lookup };
-  for (const marker of timeline.markers || []) {
-    if (marker?.id && aliases[marker.id] === undefined && lookup[`marker-${marker.id}`] !== undefined) {
-      aliases[marker.id] = lookup[`marker-${marker.id}`];
-    }
-  }
-  for (const chapter of timeline.chapters || []) {
-    if (chapter?.id && aliases[chapter.id] === undefined && lookup[`chapter-${chapter.id}`] !== undefined) {
-      aliases[chapter.id] = lookup[`chapter-${chapter.id}`];
-    }
-  }
-  for (const track of timeline.tracks || []) {
-    for (const clip of track.clips || []) {
-      if (clip?.id && aliases[clip.id] === undefined && lookup[`clip-${clip.id}`] !== undefined) {
-        aliases[clip.id] = lookup[`clip-${clip.id}`];
-      }
-    }
-  }
-
-  return aliases;
-}
-
-function clone(value) { return JSON.parse(JSON.stringify(value)); }
-
-function findClipEntry(timeline, clipId) {
-  for (const track of timeline?.tracks || []) {
-    for (const clip of track.clips || []) {
-      if (clip.id === clipId) return { trackId: track.id, clip };
-    }
-  }
-  return null;
-}
-
-function applyTimelineOp(timeline, op) {
+function applyLayerOp(timeline, op) {
   if (!op || typeof op !== "object") {
     return { ok: false, error: { code: "BAD_OP", message: "op must be an object" } };
   }
-  if (op.op === "add-clip" && typeof op.clip?.start === "number") {
-    return { ok: false, error: { code: "RAW_SECONDS", message: "clip.start must be symbolic", hint: "use symbolic time" } };
-  }
   switch (op.op) {
-    case "add-clip":
-      return addClip(timeline, op.track, op.clip);
-    case "move-clip":
-      return moveClip(timeline, op.clipId, op.start);
-    case "resize-clip":
-      return resizeClip(timeline, op.clipId, op.dur);
-    case "remove-clip":
-      return removeClip(timeline, op.clipId);
-    case "set-param":
-      return setParam(timeline, op.clipId, op.key, op.value);
-    case "add-marker":
-      return addMarker(timeline, op.marker || { id: op.id, t: op.t ?? op.at, label: op.label });
+    case "add-layer":
+      return addLayer(timeline, op.layer || op);
+    case "remove-layer":
+      return removeLayer(timeline, op.id || op.layerId);
+    case "move-layer":
+      return moveLayer(timeline, op.id || op.layerId, op.start);
+    case "resize-layer":
+      return resizeLayer(timeline, op.id || op.layerId, op.dur);
+    case "set-prop":
+      return setLayerProp(timeline, op.id || op.layerId, op.key, op.value);
     default:
       return { ok: false, error: { code: "UNSUPPORTED_OP", message: `unsupported op "${op.op}"` } };
   }
@@ -264,26 +140,22 @@ function evaluateCheck(frame, check) {
   if (!check || typeof check !== "object") {
     return { ok: false, error: { code: "BAD_CHECK", message: "check must be an object" } };
   }
-  const active = frame.active_clips || [];
+  const active = frame.active || [];
   switch (check.type) {
-    case "clip_visible": {
-      const actual = active.some((clip) => clip.clipId === check.clipId);
+    case "layer_visible": {
+      const actual = active.some((l) => l.id === check.layerId);
       const expected = check.visible ?? true;
       return { ok: true, value: { pass: actual === expected, expected, actual } };
     }
     case "scene_active": {
-      const actual = active.some((clip) => clip.sceneId === check.scene);
+      const actual = active.some((l) => l.scene === check.scene);
       const expected = check.active ?? true;
       return { ok: true, value: { pass: actual === expected, expected, actual } };
     }
-    case "clip_count": {
+    case "layer_count": {
       const actual = active.length;
       const expected = check.min ?? 0;
       return { ok: true, value: { pass: actual >= expected, expected: { min: expected }, actual } };
-    }
-    case "chapter": {
-      const actual = frame.chapter;
-      return { ok: true, value: { pass: actual === check.chapter, expected: check.chapter, actual } };
     }
     default:
       return { ok: false, error: { code: "UNSUPPORTED_CHECK", message: `unsupported check "${check.type}"` } };
