@@ -1,14 +1,20 @@
 @import url("../_archive-v01/styles/editor.css");
 
+#render-stage .nf-layer {
+  pointer-events: auto;
+}
+
 .nf-layer > *,
 .nf-layer [data-nf-selectable] {
   pointer-events: auto;
+  transition: outline-color 120ms ease, outline-offset 120ms ease, box-shadow 120ms ease;
 }
 
 .nf-layer > *:hover,
 .nf-layer [data-nf-selectable]:hover {
   outline: 1px solid rgba(138, 111, 174, 0.4);
   outline-offset: 2px;
+  box-shadow: 0 0 0 1px rgba(138, 111, 174, 0.15);
 }
 
 .nf-selected {
@@ -21,6 +27,7 @@
   position: absolute;
   pointer-events: none;
   border: 1.5px dashed var(--accent);
+  background: rgba(138, 111, 174, 0.06);
   z-index: 9999;
 }
 
@@ -41,10 +48,34 @@
 .nf-handle-br { bottom: -5px; right: -5px; }
 
 .nf-param-meta {
+  display: grid;
+  gap: 6px;
   margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgba(138, 111, 174, 0.14);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--ink-dim);
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.45;
+}
+
+.nf-param-meta-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nf-param-meta-label {
+  color: var(--ink-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nf-param-meta-value {
+  min-width: 0;
+  text-align: right;
+  word-break: break-word;
 }
 
 .nf-param-label {

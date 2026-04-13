@@ -248,6 +248,7 @@ function markSelectableElements() {
     }
     Array.prototype.forEach.call(candidates, function(el) {
       el.setAttribute("data-nf-selectable", "true");
+      el.setAttribute("draggable", "false");
       if (!el.style.pointerEvents || el.style.pointerEvents === "none") {
         el.style.pointerEvents = "auto";
       }
@@ -276,7 +277,8 @@ function describeElement(el) {
     text = text.slice(0, 57) + "...";
   }
   return {
-    tagName: el.tagName,
+    tagName: String(el.tagName || "").toLowerCase(),
+    id: el.id || "",
     className: el.className || "",
     text: text,
     width: el.offsetWidth,
@@ -296,25 +298,105 @@ function escapeHtml(value) {
   });
 }
 
+function roundMetric(value) {
+  return Math.round(finiteNumber(value, 0) * 100) / 100;
+}
+
+function getSelectionForElement(el) {
+  var layerEl = el && el.closest(".nf-layer");
+  if (!layerEl) {
+    return null;
+  }
+  return {
+    layerId: layerEl.dataset.layerId || "",
+    path: elementPath(el, layerEl),
+  };
+}
+
+function getElementMetrics(el) {
+  var rect = el ? el.getBoundingClientRect() : null;
+  var stageRect = state.previewStage ? state.previewStage.getBoundingClientRect() : null;
+  var selection = getSelectionForElement(el);
+  var key = selection ? selectionKey(selection) : "";
+  var offset = key && state.elementOffsets[key] ? state.elementOffsets[key] : { x: 0, y: 0 };
+  var scale = Math.max(state.scale, 0.001);
+  return {
+    x: rect && stageRect ? roundMetric((rect.left - stageRect.left) / scale) : 0,
+    y: rect && stageRect ? roundMetric((rect.top - stageRect.top) / scale) : 0,
+    width: rect ? roundMetric(rect.width / scale) : roundMetric(el && el.offsetWidth),
+    height: rect ? roundMetric(rect.height / scale) : roundMetric(el && el.offsetHeight),
+    offsetX: roundMetric(offset.x),
+    offsetY: roundMetric(offset.y),
+  };
+}
+
+function describeElementLabel(info) {
+  var label = info.tagName || "element";
+  if (info.id) {
+    label += "#" + info.id;
+  }
+  if (info.className) {
+    label += "." + String(info.className).trim().split(/\s+/).slice(0, 3).join(".");
+  }
+  return label;
+}
+
+function buildParamMetaHtml(info, sceneType, layerId) {
+  var metrics = info.metrics || {};
+  return (
+    '<div class="nf-param-meta-row"><span class="nf-param-meta-label">Scene Type</span><span class="nf-param-meta-value">' + escapeHtml(sceneType || "--") + "</span></div>" +
+    '<div class="nf-param-meta-row"><span class="nf-param-meta-label">Layer ID</span><span class="nf-param-meta-value">' + escapeHtml(layerId || "--") + "</span></div>" +
+    '<div class="nf-param-meta-row"><span class="nf-param-meta-label">Element</span><span class="nf-param-meta-value">' + escapeHtml(describeElementLabel(info)) + "</span></div>" +
+    '<div class="nf-param-meta-row"><span class="nf-param-meta-label">Frame</span><span class="nf-param-meta-value">' + escapeHtml(metrics.x + ", " + metrics.y + " \u00b7 " + metrics.width + " \u00d7 " + metrics.height) + "</span></div>" +
+    '<div class="nf-param-meta-row"><span class="nf-param-meta-label">Offset</span><span class="nf-param-meta-value">' + escapeHtml(metrics.offsetX + ", " + metrics.offsetY) + "</span></div>" +
+    '<div class="nf-param-meta-row"><span class="nf-param-meta-label">Text</span><span class="nf-param-meta-value">' + escapeHtml(info.text || "--") + '</span></div>'
+  );
+}
+
+function setParamsMessage(message) {
+  var paramsEl = document.getElementById("insp-params");
+  if (!paramsEl) {
+    return;
+  }
+  paramsEl.dataset.layerId = "";
+  paramsEl.dataset.selectionKey = "";
+  paramsEl.textContent = message;
+}
+
+function readTextContent(id, fallback) {
+  var el = document.getElementById(id);
+  var text = el && el.textContent ? el.textContent.trim() : "";
+  return text || fallback;
+}
+
 function renderParamsEditor(layer, el, sceneType) {
   var paramsEl = document.getElementById("insp-params");
   if (!paramsEl) {
     return;
   }
+  var selection = getSelectionForElement(el);
+  var currentSelectionKey = selection ? selectionKey(selection) : "";
   var existingEditor = document.getElementById("nf-param-editor");
-  if (existingEditor && document.activeElement === existingEditor && paramsEl.dataset.layerId === (layer.id || "")) {
+  var lockedToCurrentSelection = existingEditor &&
+    document.activeElement === existingEditor &&
+    paramsEl.dataset.layerId === (layer.id || "") &&
+    paramsEl.dataset.selectionKey === currentSelectionKey;
+
+  var info = describeElement(el);
+  info.metrics = getElementMetrics(el);
+
+  if (lockedToCurrentSelection) {
+    var metaEl = paramsEl.querySelector(".nf-param-meta");
+    if (metaEl) {
+      metaEl.innerHTML = buildParamMetaHtml(info, sceneType, layer.id || "--");
+    }
     return;
   }
 
-  var info = describeElement(el);
   paramsEl.dataset.layerId = layer.id || "";
+  paramsEl.dataset.selectionKey = currentSelectionKey;
   paramsEl.innerHTML =
-    '<div class="nf-param-meta">' +
-      "<strong>Element</strong>: " + escapeHtml(info.tagName + (info.className ? " ." + info.className.split(/\s+/).join(".") : "")) + "<br>" +
-      "<strong>Size</strong>: " + escapeHtml(info.width + "x" + info.height) + "<br>" +
-      "<strong>Text</strong>: " + escapeHtml(info.text || "--") + "<br>" +
-      "<strong>Scene Type</strong>: " + escapeHtml(sceneType || "--") +
-    "</div>" +
+    '<div class="nf-param-meta">' + buildParamMetaHtml(info, sceneType, layer.id || "--") + "</div>" +
     '<label class="nf-param-label" for="nf-param-editor">Params JSON</label>' +
     '<textarea id="nf-param-editor" class="nf-param-editor" spellcheck="false"></textarea>' +
     '<div class="nf-param-status" id="nf-param-status">Editing valid JSON updates the DOM instantly.</div>';
@@ -350,16 +432,21 @@ function updateInspectorFromElement(el) {
   var sceneDef = sceneId && state.sceneRegistry ? state.sceneRegistry[sceneId] : null;
   var sceneType = sceneDef && sceneDef.type ? sceneDef.type : "--";
 
-  setText("insp-scene-name", sceneId || "--");
+  setText("insp-scene-name", layer ? (sceneDef && sceneDef.name ? sceneDef.name : sceneId) : "No clip selected");
   setText("insp-clip-id", layerId || "--");
   setText("insp-scene-readout", sceneId || "--");
   setText("insp-clip-readout", layerId || "--");
   setText("insp-start", layer ? formatTime(layer.start) : "00:00.000");
   setText("insp-duration", layer ? formatDuration(layer.dur) : "0.000s");
+  setText("insp-project", readTextContent("bc-show-label", "--"));
+  setText("insp-episode", readTextContent("bc-ep-label", "--"));
+  setText("insp-segment", readTextContent("bc-scene-label", "--"));
   setSceneChip(sceneType);
 
-  if (layer) {
+  if (layer && el) {
     renderParamsEditor(layer, el, sceneType);
+  } else {
+    setParamsMessage("Select a stage element to inspect its params.");
   }
 }
 
@@ -441,15 +528,12 @@ function clearSelectedClass() {
 }
 
 function selectElement(el) {
-  var layerEl = el && el.closest(".nf-layer");
-  if (!layerEl) {
+  var selection = getSelectionForElement(el);
+  if (!selection) {
     return;
   }
   clearSelectedClass();
-  state.selection = {
-    layerId: layerEl.dataset.layerId || "",
-    path: elementPath(el, layerEl),
-  };
+  state.selection = selection;
   state.selectedEl = el;
   el.classList.add("nf-selected");
   el.style.cursor = "move";
@@ -511,16 +595,7 @@ function applyOffset(el, key) {
   if (!offset) {
     return;
   }
-  if (!el.dataset.nfBaseTransformSet) {
-    el.dataset.nfBaseTransformSet = "true";
-    el.dataset.nfBaseTransform = el.style.transform || "";
-  }
-  var parts = [];
-  if (el.dataset.nfBaseTransform) {
-    parts.push(el.dataset.nfBaseTransform);
-  }
-  parts.push("translate(" + offset.x + "px, " + offset.y + "px)");
-  el.style.transform = parts.join(" ").trim();
+  el.style.translate = offset.x + "px " + offset.y + "px";
 }
 
 function reapplyOffsets() {
@@ -559,6 +634,12 @@ function initInteraction(stageEl) {
     }
     var target = event.target.closest("[data-nf-selectable]");
     if (!target || !state.previewStage || !state.previewStage.contains(target)) {
+      if (event.target === stageEl || event.target === state.previewHost || event.target === state.previewStage) {
+        state.selection = null;
+        clearSelectedClass();
+        hideSelectionOverlay();
+        updateInspectorFromElement(null);
+      }
       return;
     }
     selectElement(target);
@@ -581,7 +662,14 @@ function initInteraction(stageEl) {
       startX: offset.x,
       startY: offset.y,
     };
+    document.body.style.userSelect = "none";
     event.preventDefault();
+  });
+
+  stageEl.addEventListener("dragstart", function(event) {
+    if (event.target.closest("[data-nf-selectable]")) {
+      event.preventDefault();
+    }
   });
 
   document.addEventListener("mousemove", function(event) {
@@ -595,11 +683,13 @@ function initInteraction(stageEl) {
     offset.y = Math.round((state.dragging.startY + dy) * 100) / 100;
     applyOffset(state.selectedEl, state.dragging.key);
     updateSelectionOverlay();
+    updateInspectorFromElement(state.selectedEl);
     state.ignoreClick = true;
   });
 
   document.addEventListener("mouseup", function() {
     state.dragging = null;
+    document.body.style.userSelect = "";
   });
 }
 
@@ -616,6 +706,7 @@ Object.assign(window, {
 
 installRenderEngine();
 ensurePreviewDom();
+updateInspectorFromElement(null);
 ensureModules();
 loadLegacyBundle();
 })();
