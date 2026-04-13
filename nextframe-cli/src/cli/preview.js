@@ -11,6 +11,21 @@ import { parseFlags, emit } from "./_io.js";
 import { resolveTimeline, timelineUsage } from "./_resolve.js";
 import { buildHTML } from "../engine-v2/build.js";
 
+function getPreviewViewport(timeline) {
+  const width = timeline?.project?.width || timeline?.width || 1920;
+  const height = timeline?.project?.height || timeline?.height || 1080;
+  const isPortrait = height > width;
+  const isSquare = Math.abs(width - height) < 50;
+
+  if (isSquare) {
+    return { width: 1080, height: 1200 };
+  }
+  if (isPortrait) {
+    return { width: 430, height: 932 };
+  }
+  return { width: 1440, height: 900 };
+}
+
 export async function run(argv) {
   const { positional, flags } = parseFlags(argv);
   const resolved = resolveTimeline(positional, { usage: timelineUsage("preview", " [--times=0,5,10]") });
@@ -70,7 +85,7 @@ export async function run(argv) {
   });
 
   const page = await browser.newPage();
-  await page.setViewport({ width: timeline.width || 1920, height: timeline.height || 1080 });
+  await page.setViewport(getPreviewViewport(timeline));
 
   const errors = [];
   page.on("pageerror", (err) => errors.push(err.message));

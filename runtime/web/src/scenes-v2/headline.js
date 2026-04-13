@@ -76,6 +76,16 @@ export default {
     ].join(";"));
 
     const chars = [];
+    const applyTitleFontSize = (size) => {
+      const rounded = Math.round(size);
+      for (const span of chars) {
+        span.style.fontSize = `${rounded}px`;
+        if (span.dataset.space === "true") {
+          span.style.width = `${Math.round(size * 0.3)}px`;
+        }
+      }
+    };
+
     for (let i = 0; i < text.length; i += 1) {
       const ch = text[i];
       const span = createNode("span", [
@@ -93,6 +103,9 @@ export default {
         "transition:none",
         ch === " " ? `width:${Math.round(fontSize * 0.3)}px` : "",
       ].filter(Boolean).join(";"), ch === " " ? "\u00A0" : ch);
+      if (ch === " ") {
+        span.dataset.space = "true";
+      }
       titleWrap.appendChild(span);
       chars.push(span);
     }
@@ -115,6 +128,24 @@ export default {
       ].join(";"), subtitle);
       root.appendChild(subtitleEl);
     }
+
+    const minFontSize = S * 0.02;
+    const maxTitleHeight = () => Math.max(root.clientHeight * (subtitle ? 0.5 : 0.65), minFontSize * 2);
+    const checkOverflow = () => {
+      if (!titleWrap.parentElement) return;
+      let currentSize = fontSize;
+      while (
+        currentSize > minFontSize &&
+        (
+          titleWrap.scrollWidth > titleWrap.clientWidth * 0.98 ||
+          titleWrap.scrollHeight > maxTitleHeight()
+        )
+      ) {
+        currentSize *= 0.9;
+        applyTitleFontSize(currentSize);
+      }
+    };
+    requestAnimationFrame(checkOverflow);
 
     return { root, chars, subtitleEl, S };
   },
