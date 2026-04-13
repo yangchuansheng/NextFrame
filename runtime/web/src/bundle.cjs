@@ -117,13 +117,14 @@ const html = `<!DOCTYPE html>
 <title>NextFrame — Generated Video</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: #111; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-  #stage { aspect-ratio: ${width} / ${height}; max-width: 100vw; max-height: 100vh; }
+  html, body { background: #111; height: 100vh; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+  #preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 0; padding: 8px; }
+  #stage { aspect-ratio: ${width} / ${height}; max-width: 100%; max-height: 100%; width: auto; height: auto; position: relative; overflow: hidden; background: #05050c; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
   .nf-layer { will-change: opacity, transform; }
 </style>
 </head>
 <body>
-<div id="stage"></div>
+<div id="preview-wrap"><div id="stage"></div></div>
 <script>
 // ===== Shared Utilities =====
 ${sharedCode}
