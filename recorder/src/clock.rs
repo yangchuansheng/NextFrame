@@ -268,7 +268,12 @@ mod tests {
         assert_frame(&cue_change, 1, "Outro", true);
     }
 
-    fn assert_frame(frame: &FrameDecision, cue_index: i32, subtitle_text: &str, needs_capture: bool) {
+    fn assert_frame(
+        frame: &FrameDecision,
+        cue_index: i32,
+        subtitle_text: &str,
+        needs_capture: bool,
+    ) {
         assert_eq!(frame.cue_index, cue_index);
         assert_eq!(frame.subtitle_text, subtitle_text);
         assert_eq!(frame.needs_capture, needs_capture);

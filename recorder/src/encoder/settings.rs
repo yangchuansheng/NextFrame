@@ -64,8 +64,7 @@ pub(super) fn video_output_settings(
     let height_value = NSNumber::numberWithUnsignedInteger(frame_size.height);
     let bitrate_value =
         NSNumber::numberWithUnsignedInteger(target_video_bitrate(frame_size, fps, crf));
-    let max_keyframe_interval =
-        NSNumber::numberWithUnsignedInteger(target_keyframe_interval(fps));
+    let max_keyframe_interval = NSNumber::numberWithUnsignedInteger(target_keyframe_interval(fps));
     let compression_keys = [
         unsafe { AVVideoAverageBitRateKey },
         unsafe { AVVideoMaxKeyFrameIntervalKey },
@@ -132,9 +131,9 @@ fn select_h264_profile_level(frame_size: FrameSize, fps: usize) -> H264ProfileLe
 
 fn profile_level_nsobject(frame_size: FrameSize, fps: usize) -> &'static NSObject {
     match select_h264_profile_level(frame_size, fps) {
-        H264ProfileLevel::High31
-        | H264ProfileLevel::High40
-        | H264ProfileLevel::High51 => unsafe { AVVideoProfileLevelH264HighAutoLevel },
+        H264ProfileLevel::High31 | H264ProfileLevel::High40 | H264ProfileLevel::High51 => unsafe {
+            AVVideoProfileLevelH264HighAutoLevel
+        },
     }
 }
 
@@ -233,7 +232,13 @@ mod tests {
     #[test]
     fn selects_profile_level_from_frame_size_and_fps() {
         assert_eq!(
-            select_h264_profile_level(FrameSize { width: 1280, height: 720 }, 30),
+            select_h264_profile_level(
+                FrameSize {
+                    width: 1280,
+                    height: 720
+                },
+                30
+            ),
             H264ProfileLevel::High31
         );
         assert_eq!(

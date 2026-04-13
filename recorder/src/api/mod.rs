@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::CommonArgs;
 use crate::overlay::{
-    build_video_overlay_specs, overlay_video, overlay_video_layers, write_perf_log,
+    PerfLogContext, build_video_overlay_specs, overlay_video, overlay_video_layers, write_perf_log,
 };
 use crate::parser::SlideType;
 use crate::plan::{build_segment_plans, collect_frame_files, detect_root};
@@ -252,6 +252,22 @@ fn record_single(
         .unwrap_or(0.0);
     let skipped_frames: usize = summaries.iter().map(|summary| summary.skipped_frames).sum();
     let measured_fps = total_frames as f64 / elapsed.as_secs_f64().max(0.001);
+    let html_duration_sec = summaries
+        .iter()
+        .all(|summary| summary.page_duration_sec.is_some())
+        .then(|| {
+            summaries
+                .iter()
+                .filter_map(|summary| summary.page_duration_sec)
+                .sum()
+        });
+    let video_layers_count: usize = summaries
+        .iter()
+        .map(|summary| summary.video_layers.len())
+        .sum();
+    let audio_src = summaries
+        .iter()
+        .find_map(|summary| summary.audio_path.as_deref());
 
     println!("\n  ✓ {}", out.display());
     println!(
@@ -272,8 +288,6 @@ fn record_single(
 
     write_perf_log(
         out,
-        frame_files,
-        &None,
         total_frames,
         skipped_frames,
         total_duration_sec,
@@ -282,8 +296,22 @@ fn record_single(
         measured_fps,
         output_size_mb,
         pixel_size,
-        cli.fps,
         backend.label(),
+        PerfLogContext {
+            frame_files,
+            video_overlay: None,
+            html_duration_sec,
+            plan_duration_sec: total_duration_sec,
+            width: cli.width,
+            height: cli.height,
+            dpr: cli.dpr,
+            target_fps: cli.fps,
+            parallel: cli.parallel,
+            render_scale: cli.render_scale,
+            has_audio: audio_src.is_some(),
+            video_layers_count,
+            audio_src,
+        },
     );
 
     Ok(RecordOutput {

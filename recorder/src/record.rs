@@ -145,18 +145,21 @@ pub fn record_segment(
 
     // Query page-declared duration (v0.3 engine exposes this via JS)
     let page_duration = host.query_page_duration();
-    let effective_duration = if let Some(dur) = page_duration {
+    let page_duration_sec = page_duration.and_then(|dur| {
         if dur > 0.0 && dur.is_finite() {
-            println!(
-                "  segment {}: page reports duration={:.1}s (plan had {:.1}s)",
-                index + 1,
-                dur,
-                plan.effective_duration_sec
-            );
-            dur
+            Some(dur)
         } else {
-            plan.effective_duration_sec
+            None
         }
+    });
+    let effective_duration = if let Some(dur) = page_duration_sec {
+        println!(
+            "  segment {}: page reports duration={:.1}s (plan had {:.1}s)",
+            index + 1,
+            dur,
+            plan.effective_duration_sec
+        );
+        dur
     } else {
         plan.effective_duration_sec
     };
@@ -241,6 +244,7 @@ pub fn record_segment(
             .as_deref()
             .or(plan.metadata.audio_path.as_deref())
     };
+    let effective_audio_path = effective_audio.map(Path::to_path_buf);
     let mut encoder = SegmentEncoder::spawn(
         &segment_path,
         effective_audio,
@@ -290,7 +294,11 @@ pub fn record_segment(
         None => (0, total_frames),
     };
     let no_timing_data = plan.metadata.total_cues == 0 && plan.metadata.subtitles.is_empty();
-    let batch_size = if cli.no_skip || no_timing_data { 1usize } else { 5usize };
+    let batch_size = if cli.no_skip || no_timing_data {
+        1usize
+    } else {
+        5usize
+    };
     let mut frame_index = range_start;
     while frame_index < range_end {
         let batch_end = (frame_index + batch_size).min(range_end);
@@ -385,6 +393,8 @@ pub fn record_segment(
         path: segment_path,
         total_frames: frames_recorded,
         skipped_frames: clock.skipped_frames(),
+        page_duration_sec,
+        audio_path: effective_audio_path,
         video_layers,
     })
 }

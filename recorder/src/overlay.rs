@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde_json::json;
+
 use crate::plan::VideoLayerInfo;
 
 const OVERLAY_X: usize = 80;
@@ -191,11 +193,33 @@ fn build_video_layer_filter(layers: &[VideoOverlaySpec]) -> String {
     filters.join(";")
 }
 
+pub struct PerfLogContext<'a> {
+    pub frame_files: &'a [PathBuf],
+    pub video_overlay: Option<&'a Path>,
+    pub html_duration_sec: Option<f64>,
+    pub plan_duration_sec: f64,
+    pub width: f64,
+    pub height: f64,
+    pub dpr: f64,
+    pub target_fps: usize,
+    pub parallel: Option<usize>,
+    pub render_scale: f64,
+    pub has_audio: bool,
+    pub video_layers_count: usize,
+    pub audio_src: Option<&'a Path>,
+}
+
+fn round_tenths(value: f64) -> f64 {
+    (value * 10.0).round() / 10.0
+}
+
+fn path_display_string(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
 #[allow(clippy::too_many_arguments)]
 fn format_perf_log_line(
     ts: u64,
-    frame_files: &[PathBuf],
-    video_overlay: &Option<PathBuf>,
     total_frames: usize,
     skipped_frames: usize,
     content_duration: f64,
@@ -204,10 +228,11 @@ fn format_perf_log_line(
     fps: f64,
     size_mb: f64,
     pixel_size: (usize, usize),
-    target_fps: usize,
     encoder: &str,
+    context: &PerfLogContext<'_>,
+    command_args: &[String],
 ) -> String {
-    let mode = if video_overlay.is_some() {
+    let mode = if context.video_overlay.is_some() {
         "clip"
     } else {
         "slide"
@@ -223,23 +248,60 @@ fn format_perf_log_line(
     } else {
         0.0
     };
-    let first_file = frame_files
+    let html_files = context
+        .frame_files
+        .iter()
+        .map(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown")
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    let first_file = context
+        .frame_files
         .first()
         .and_then(|p| p.file_name())
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
 
-    format!(
-        r#"{{"ts":{ts},"mode":"{mode}","file":"{first_file}","content_s":{content_duration:.1},"record_s":{record_secs:.1},"overlay_s":{overlay_secs:.1},"total_s":{total_secs:.1},"realtime_x":{realtime_x:.1},"fps":{fps:.1},"frames":{total_frames},"skipped":{skipped_frames},"skip_pct":{skip_pct:.1},"size_mb":{size_mb:.1},"resolution":"{}x{}","target_fps":{target_fps},"encoder":"{encoder}"}}"#,
-        pixel_size.0, pixel_size.1,
-    )
+    json!({
+        "ts": ts,
+        "mode": mode,
+        "file": first_file,
+        "html_files": html_files,
+        "content_s": round_tenths(content_duration),
+        "html_duration_sec": context.html_duration_sec.map(round_tenths),
+        "plan_duration_sec": round_tenths(context.plan_duration_sec),
+        "record_s": round_tenths(record_secs),
+        "overlay_s": round_tenths(overlay_secs),
+        "total_s": round_tenths(total_secs),
+        "realtime_x": round_tenths(realtime_x),
+        "fps": round_tenths(fps),
+        "frames": total_frames,
+        "skipped": skipped_frames,
+        "skip_pct": round_tenths(skip_pct),
+        "size_mb": round_tenths(size_mb),
+        "resolution": format!("{}x{}", pixel_size.0, pixel_size.1),
+        "width": context.width,
+        "height": context.height,
+        "dpr": context.dpr,
+        "target_fps": context.target_fps,
+        "parallel": context.parallel,
+        "render_scale": context.render_scale,
+        "has_audio": context.has_audio,
+        "has_video_overlay": context.video_layers_count > 0,
+        "video_layers_count": context.video_layers_count,
+        "audio_src": context.audio_src.map(path_display_string),
+        "command_args": command_args,
+        "encoder": encoder,
+    })
+    .to_string()
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn write_perf_log(
     _out: &Path,
-    frame_files: &[PathBuf],
-    video_overlay: &Option<PathBuf>,
     total_frames: usize,
     skipped_frames: usize,
     content_duration: f64,
@@ -248,20 +310,25 @@ pub fn write_perf_log(
     fps: f64,
     size_mb: f64,
     pixel_size: (usize, usize),
-    target_fps: usize,
     encoder: &str,
+    context: PerfLogContext<'_>,
 ) {
     use std::io::Write;
+
+    if env::var_os(crate::api::OUTPUT_JSON_ENV).is_some() {
+        return;
+    }
 
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+    let command_args = env::args_os()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
 
     let line = format_perf_log_line(
         ts,
-        frame_files,
-        video_overlay,
         total_frames,
         skipped_frames,
         content_duration,
@@ -270,8 +337,9 @@ pub fn write_perf_log(
         fps,
         size_mb,
         pixel_size,
-        target_fps,
         encoder,
+        &context,
+        &command_args,
     );
 
     let log_path = env::current_exe()
@@ -379,12 +447,21 @@ pub fn overlay_video_at(
     use std::process::Command;
 
     if !video_src.exists() {
-        return Err(format!("video overlay source not found: {}", video_src.display()));
+        return Err(format!(
+            "video overlay source not found: {}",
+            video_src.display()
+        ));
     }
 
     println!(
         "  overlay: {} → {}x{} at ({},{}) t={:.1}s dur={:.1}s",
-        video_src.display(), w, h, x, y, start, dur
+        video_src.display(),
+        w,
+        h,
+        x,
+        y,
+        start,
+        dur
     );
     let temp_out = recorded.with_extension("overlay.mp4");
 
@@ -436,6 +513,7 @@ pub fn overlay_video_at(
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use serde_json::Value;
     use std::ffi::OsString;
     use std::sync::{Mutex, OnceLock};
 
@@ -602,10 +680,24 @@ mod tests {
 
     #[test]
     fn format_perf_log_line_formats_clip_mode_metrics() {
+        let frame_files = [PathBuf::from("/tmp/frame-001.png")];
+        let context = PerfLogContext {
+            frame_files: &frame_files,
+            video_overlay: Some(Path::new("/tmp/overlay.mp4")),
+            html_duration_sec: Some(28.5),
+            plan_duration_sec: 30.0,
+            width: 540.0,
+            height: 960.0,
+            dpr: 2.0,
+            target_fps: 30,
+            parallel: Some(4),
+            render_scale: 0.75,
+            has_audio: true,
+            video_layers_count: 2,
+            audio_src: Some(Path::new("/tmp/audio.m4a")),
+        };
         let line = format_perf_log_line(
             123,
-            &[PathBuf::from("/tmp/frame-001.png")],
-            &Some(PathBuf::from("/tmp/overlay.mp4")),
             12,
             3,
             30.0,
@@ -614,22 +706,59 @@ mod tests {
             60.0,
             42.4,
             (1080, 1920),
-            30,
             "h264_videotoolbox",
+            &context,
+            &[
+                "nextframe-recorder".into(),
+                "slide".into(),
+                "frame-001.png".into(),
+            ],
         );
+        let value: Value = serde_json::from_str(&line).unwrap();
 
+        assert_eq!(value["ts"], 123);
+        assert_eq!(value["mode"], "clip");
+        assert_eq!(value["file"], "frame-001.png");
+        assert_eq!(value["html_files"], serde_json::json!(["frame-001.png"]));
+        assert_eq!(value["html_duration_sec"], 28.5);
+        assert_eq!(value["plan_duration_sec"], 30.0);
+        assert_eq!(value["width"], 540.0);
+        assert_eq!(value["height"], 960.0);
+        assert_eq!(value["dpr"], 2.0);
+        assert_eq!(value["parallel"], 4);
+        assert_eq!(value["render_scale"], 0.75);
+        assert_eq!(value["has_audio"], true);
+        assert_eq!(value["has_video_overlay"], true);
+        assert_eq!(value["video_layers_count"], 2);
+        assert_eq!(value["audio_src"], "/tmp/audio.m4a");
         assert_eq!(
-            line,
-            r#"{"ts":123,"mode":"clip","file":"frame-001.png","content_s":30.0,"record_s":10.0,"overlay_s":5.0,"total_s":15.0,"realtime_x":2.0,"fps":60.0,"frames":12,"skipped":3,"skip_pct":25.0,"size_mb":42.4,"resolution":"1080x1920","target_fps":30,"encoder":"h264_videotoolbox"}"#
+            value["command_args"],
+            serde_json::json!(["nextframe-recorder", "slide", "frame-001.png"])
         );
+        assert_eq!(value["target_fps"], 30);
+        assert_eq!(value["encoder"], "h264_videotoolbox");
     }
 
     #[test]
     fn format_perf_log_line_handles_slide_mode_with_zero_totals() {
+        let frame_files: [PathBuf; 0] = [];
+        let context = PerfLogContext {
+            frame_files: &frame_files,
+            video_overlay: None,
+            html_duration_sec: None,
+            plan_duration_sec: 0.0,
+            width: 920.0,
+            height: 538.0,
+            dpr: 1.0,
+            target_fps: 24,
+            parallel: None,
+            render_scale: 1.0,
+            has_audio: false,
+            video_layers_count: 0,
+            audio_src: None,
+        };
         let line = format_perf_log_line(
             456,
-            &[],
-            &None,
             0,
             0,
             0.0,
@@ -638,13 +767,24 @@ mod tests {
             24.0,
             0.0,
             (920, 538),
-            24,
             "libx264",
+            &context,
+            &["nextframe-recorder".into(), "slide".into()],
         );
+        let value: Value = serde_json::from_str(&line).unwrap();
 
+        assert_eq!(value["mode"], "slide");
+        assert_eq!(value["file"], "unknown");
+        assert_eq!(value["html_files"], serde_json::json!([]));
+        assert_eq!(value["html_duration_sec"], Value::Null);
+        assert_eq!(value["parallel"], Value::Null);
+        assert_eq!(value["has_audio"], false);
+        assert_eq!(value["has_video_overlay"], false);
+        assert_eq!(value["video_layers_count"], 0);
+        assert_eq!(value["audio_src"], Value::Null);
         assert_eq!(
-            line,
-            r#"{"ts":456,"mode":"slide","file":"unknown","content_s":0.0,"record_s":0.0,"overlay_s":0.0,"total_s":0.0,"realtime_x":0.0,"fps":24.0,"frames":0,"skipped":0,"skip_pct":0.0,"size_mb":0.0,"resolution":"920x538","target_fps":24,"encoder":"libx264"}"#
+            value["command_args"],
+            serde_json::json!(["nextframe-recorder", "slide"])
         );
     }
 

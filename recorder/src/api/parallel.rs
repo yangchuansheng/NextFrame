@@ -8,6 +8,7 @@ use std::process::{Command, Stdio};
 use std::time::Instant;
 
 use super::{OUTPUT_JSON_ENV, RecordArgs, RecordOutput};
+use crate::overlay::{PerfLogContext, write_perf_log};
 use crate::util::create_temp_dir;
 
 const RECORDER_PATH_ENV: &str = "NEXTFRAME_RECORDER_PATH";
@@ -16,6 +17,7 @@ const RECORDER_PATH_ENV: &str = "NEXTFRAME_RECORDER_PATH";
 struct PageProbe {
     duration_sec: Option<f64>,
     audio_path: Option<PathBuf>,
+    video_layers_count: usize,
 }
 
 pub(super) fn record_parallel(
@@ -24,6 +26,32 @@ pub(super) fn record_parallel(
     out: &Path,
     requested: usize,
 ) -> Result<RecordOutput, String> {
+    let cli: crate::CommonArgs = args.clone().into();
+    let plans = crate::plan::build_segment_plans(frame_files)?;
+    let plan_duration_sec: f64 = plans.iter().map(|plan| plan.effective_duration_sec).sum();
+    let page_probes = frame_files
+        .iter()
+        .map(|frame_file| probe_page(frame_file, &cli))
+        .collect::<Vec<_>>();
+    let html_duration_sec = page_probes
+        .iter()
+        .all(|probe| probe.duration_sec.is_some())
+        .then(|| {
+            page_probes
+                .iter()
+                .filter_map(|probe| probe.duration_sec)
+                .sum()
+        });
+    let audio_src = plans
+        .iter()
+        .map(|plan| plan.metadata.audio_path.as_deref())
+        .zip(page_probes.iter().map(|probe| probe.audio_path.as_deref()))
+        .find_map(|(planned, probed)| probed.or(planned));
+    let video_layers_count: usize = page_probes
+        .iter()
+        .map(|probe| probe.video_layers_count)
+        .sum();
+
     let cpus = std::thread::available_parallelism()
         .map(|value| value.get())
         .unwrap_or(4);
@@ -172,6 +200,7 @@ pub(super) fn record_parallel(
     let output_size_mb = fs::metadata(out)
         .map(|meta| meta.len() as f64 / 1024.0 / 1024.0)
         .unwrap_or(0.0);
+    let measured_fps = total_frames as f64 / elapsed.as_secs_f64().max(0.001);
 
     println!("\n  ✓ {}", out.display());
     println!(
@@ -179,6 +208,37 @@ pub(super) fn record_parallel(
         output_size_mb,
         actual_procs,
         elapsed.as_secs_f64()
+    );
+
+    write_perf_log(
+        out,
+        total_frames,
+        skipped_frames,
+        duration_sec,
+        elapsed.as_secs_f64(),
+        0.0,
+        measured_fps,
+        output_size_mb,
+        (
+            (args.width * args.dpr).round() as usize,
+            (args.height * args.dpr).round() as usize,
+        ),
+        "parallel",
+        PerfLogContext {
+            frame_files,
+            video_overlay: None,
+            html_duration_sec,
+            plan_duration_sec,
+            width: args.width,
+            height: args.height,
+            dpr: args.dpr,
+            target_fps: args.fps,
+            parallel: Some(actual_procs),
+            render_scale: args.render_scale,
+            has_audio: audio_src.is_some(),
+            video_layers_count,
+            audio_src,
+        },
     );
 
     Ok(RecordOutput {
@@ -385,6 +445,7 @@ pub(super) fn record_parallel_single(
     let output_size_mb = fs::metadata(out)
         .map(|meta| meta.len() as f64 / 1024.0 / 1024.0)
         .unwrap_or(0.0);
+    let frame_files = [html_file.to_path_buf()];
 
     println!("\n  ✓ {}", out.display());
     println!(
@@ -393,6 +454,37 @@ pub(super) fn record_parallel_single(
         actual_procs,
         elapsed.as_secs_f64(),
         total_frames_recorded as f64 / elapsed.as_secs_f64().max(0.001),
+    );
+
+    write_perf_log(
+        out,
+        total_frames_recorded,
+        skipped_frames,
+        duration,
+        elapsed.as_secs_f64(),
+        0.0,
+        total_frames_recorded as f64 / elapsed.as_secs_f64().max(0.001),
+        output_size_mb,
+        (
+            (args.width * args.dpr).round() as usize,
+            (args.height * args.dpr).round() as usize,
+        ),
+        "parallel",
+        PerfLogContext {
+            frame_files: &frame_files,
+            video_overlay: None,
+            html_duration_sec: page_probe.duration_sec,
+            plan_duration_sec: plan_duration,
+            width: args.width,
+            height: args.height,
+            dpr: args.dpr,
+            target_fps: args.fps,
+            parallel: Some(actual_procs),
+            render_scale: args.render_scale,
+            has_audio: final_audio.is_some(),
+            video_layers_count: page_probe.video_layers_count,
+            audio_src: final_audio.as_deref(),
+        },
     );
 
     Ok(RecordOutput {
@@ -451,6 +543,7 @@ fn probe_page(html_path: &Path, cli: &crate::CommonArgs) -> PageProbe {
     let segment_durations = [duration_sec.unwrap_or(0.0)];
     let _ = host.inject_state(0, "", 0.0, 0, 1, &segment_titles, &segment_durations, 0.0);
     let _ = host.flush_render(std::time::Duration::from_millis(200));
+    let video_layers_count = host.query_video_layers().len();
     let server_base_url = server.as_ref().map(|server| server.base_url());
     let audio_path = host.query_page_audio_src().and_then(|src| {
         crate::record::resolve_media_src(&src, server_base_url.as_deref(), &root, html_path)
@@ -459,6 +552,7 @@ fn probe_page(html_path: &Path, cli: &crate::CommonArgs) -> PageProbe {
     PageProbe {
         duration_sec,
         audio_path,
+        video_layers_count,
     }
 }
 

@@ -28,6 +28,8 @@ pub struct SegmentSummary {
     pub path: PathBuf,
     pub total_frames: usize,
     pub skipped_frames: usize,
+    pub page_duration_sec: Option<f64>,
+    pub audio_path: Option<PathBuf>,
     pub video_layers: Vec<VideoLayerInfo>,
 }
 

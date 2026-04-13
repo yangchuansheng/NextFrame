@@ -22,10 +22,7 @@ use crate::progress::ProgressOverlay;
 const kCGInterpolationHigh: i32 = 3;
 
 unsafe extern "C" {
-    fn CGContextSetInterpolationQuality(
-        context: *const std::ffi::c_void,
-        quality: i32,
-    );
+    fn CGContextSetInterpolationQuality(context: *const std::ffi::c_void, quality: i32);
 }
 
 /// Creates a CVPixelBuffer at `output_size` and draws the CGImage into it.
@@ -95,10 +92,7 @@ pub(super) fn create_pixel_buffer_from_cgimage_scaled(
         if is_upscaling {
             unsafe {
                 let ctx_ptr: *const CGContext = &*context;
-                CGContextSetInterpolationQuality(
-                    ctx_ptr.cast(),
-                    kCGInterpolationHigh,
-                );
+                CGContextSetInterpolationQuality(ctx_ptr.cast(), kCGInterpolationHigh);
             }
         }
 

@@ -144,8 +144,8 @@ fn segment_dot_positions(segment_durations: &[f64]) -> Vec<f64> {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::{
-        parse_hex_color, ProgressBar, ProgressRect, PROGRESS_CANDIDATE_SELECTORS,
-        PROGRESS_TRACK_SELECTOR,
+        PROGRESS_CANDIDATE_SELECTORS, PROGRESS_TRACK_SELECTOR, ProgressBar, ProgressRect,
+        parse_hex_color,
     };
 
     #[test]
@@ -178,8 +178,14 @@ mod tests {
 
     #[test]
     fn parse_hex_color_accepts_valid_three_six_and_eight_digit_hex() {
-        assert_eq!(parse_hex_color("#abc"), Some((170.0 / 255.0, 187.0 / 255.0, 204.0 / 255.0)));
-        assert_eq!(parse_hex_color("123456"), Some((18.0 / 255.0, 52.0 / 255.0, 86.0 / 255.0)));
+        assert_eq!(
+            parse_hex_color("#abc"),
+            Some((170.0 / 255.0, 187.0 / 255.0, 204.0 / 255.0))
+        );
+        assert_eq!(
+            parse_hex_color("123456"),
+            Some((18.0 / 255.0, 52.0 / 255.0, 86.0 / 255.0))
+        );
         assert_eq!(
             parse_hex_color("#11223344"),
             Some((17.0 / 255.0, 34.0 / 255.0, 51.0 / 255.0))
