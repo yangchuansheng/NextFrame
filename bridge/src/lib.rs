@@ -33,7 +33,10 @@ use autosave::{
 use compose::handle_compose_generate;
 use dialog::{handle_fs_dialog_open, handle_fs_dialog_save, handle_fs_reveal};
 use episode::{handle_episode_create, handle_episode_list};
-use export::{handle_export_cancel, handle_export_start, handle_export_status, process_registry};
+use export::{
+    handle_export_cancel, handle_export_log, handle_export_start, handle_export_status,
+    process_registry,
+};
 use ffmpeg::{ffmpeg_command_path, handle_export_mux_audio};
 use fs::{
     handle_fs_list_dir, handle_fs_mtime, handle_fs_read, handle_fs_write, handle_fs_write_base64,
@@ -103,6 +106,7 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "export.start" => handle_export_start(&params),
         "export.status" => handle_export_status(&params),
         "export.cancel" => handle_export_cancel(&params),
+        "export.log" => handle_export_log(&params),
         "export.muxAudio" => handle_export_mux_audio(&params),
         "log" => handle_log(&params),
         "recent.list" => handle_recent_list(&params),

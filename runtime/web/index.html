@@ -48,7 +48,12 @@ window.__ipc = window.__ipc || {};
     </div>
   </div>
 
-  <div class="home-content">
+  <div class="home-tabs">
+    <button class="home-tab active" onclick="switchHomeTab('projects')" id="home-tab-projects">Projects</button>
+    <button class="home-tab" onclick="switchHomeTab('exports')" id="home-tab-exports">Export Log</button>
+  </div>
+
+  <div class="home-content" id="home-projects-content">
     <div class="home-inner">
       <div class="greeting stagger-in">Good evening</div>
 
@@ -70,6 +75,12 @@ window.__ipc = window.__ipc || {};
       </div>
 
       <div class="project-list" id="project-list"></div>
+    </div>
+  </div>
+
+  <div class="home-content" id="home-exports-content" style="display:none">
+    <div class="home-inner" style="max-width:1200px">
+      <div id="export-log-root"></div>
     </div>
   </div>
 </div>
@@ -508,6 +519,7 @@ window.__ipc = window.__ipc || {};
 <script src="src/modules/pipeline/output-stage.js"></script>
 <script src="src/modules/pipeline/navigation.js"></script>
 <script src="src/modules/file-watcher.js"></script>
+<script src="src/modules/export-log.js"></script>
 <script src="src/app-bundle.js"></script>
 
 <!-- DOM preview engine — ES module, loaded after the split app scripts -->

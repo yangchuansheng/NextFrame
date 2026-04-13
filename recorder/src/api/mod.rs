@@ -312,6 +312,9 @@ fn record_single(
             has_audio: audio_src.is_some(),
             video_layers_count,
             audio_src,
+            crf: cli.crf,
+            no_skip: cli.no_skip,
+            skip_aggressive: cli.skip_aggressive,
         },
     );
 

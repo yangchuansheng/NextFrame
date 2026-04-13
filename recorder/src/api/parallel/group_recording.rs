@@ -228,6 +228,9 @@ pub(super) fn record_parallel(
             has_audio: audio_src.is_some(),
             video_layers_count,
             audio_src,
+            crf: args.crf,
+            no_skip: args.no_skip,
+            skip_aggressive: args.skip_aggressive,
         },
     );
 
