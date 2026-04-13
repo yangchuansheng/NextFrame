@@ -76,6 +76,7 @@ export async function run(argv) {
   await page.goto("file://" + htmlPath, { waitUntil: "domcontentloaded" });
   await new Promise((r) => setTimeout(r, 500));
 
+  const BG_IDS = /^(bg|vignette|stars|dark|overlay|rings|particles|noise|shader|wave|ripple|marquee|subtitle|lower|badge)/i;
   const screenshots = [];
   const issues = [];
 
@@ -86,27 +87,37 @@ export async function run(argv) {
     const framePath = resolve(outDir, `frame-${t.toFixed(1)}s.png`);
     await page.screenshot({ path: framePath });
 
-    // Analyze frame: check visible layers, detect potential issues
+    // Analyze frame: layout + overlap detection
     const analysis = await page.evaluate((time) => {
       const layers = document.querySelectorAll(".nf-layer");
       const visible = [];
       const stage = document.getElementById("stage");
-      const stageRect = stage ? stage.getBoundingClientRect() : { width: 1920, height: 1080 };
+      const sr = stage ? stage.getBoundingClientRect() : { left: 0, top: 0, width: 1920, height: 1080 };
 
       layers.forEach((el) => {
         if (el.style.display === "none") return;
         const id = el.dataset.layerId;
         const opacity = parseFloat(el.style.opacity) || 1;
         const rect = el.getBoundingClientRect();
-        const isFullscreen = rect.width >= stageRect.width * 0.9 && rect.height >= stageRect.height * 0.9;
-        visible.push({ id, opacity: +opacity.toFixed(2), isFullscreen });
+        // Position relative to stage
+        const x = Math.round(rect.left - sr.left);
+        const y = Math.round(rect.top - sr.top);
+        const w = Math.round(rect.width);
+        const h = Math.round(rect.height);
+        const isFullscreen = w >= sr.width * 0.9 && h >= sr.height * 0.9;
+        // Get blend mode and z-index
+        const cs = getComputedStyle(el);
+        const blend = cs.mixBlendMode || "normal";
+        const zIndex = el.style.zIndex || "auto";
+        // Check if has actual content (not just empty container)
+        const hasContent = el.querySelector("canvas, svg, div, img, video, h1, p, span") !== null;
+        visible.push({ id, x, y, w, h, opacity: +opacity.toFixed(2), isFullscreen, blend, zIndex, hasContent });
       });
 
-      return { time, visibleCount: visible.length, visible };
+      return { time, visibleCount: visible.length, visible, stageW: Math.round(sr.width), stageH: Math.round(sr.height) };
     }, t);
 
     // Detect issues — exclude known background/overlay layers
-    const BG_IDS = /^(bg|vignette|stars|dark|overlay|rings|particles|noise|shader|wave|ripple|marquee|subtitle|lower|badge)/i;
     const fullscreenContent = analysis.visible.filter(
       (v) => v.isFullscreen && v.opacity > 0.3 && !BG_IDS.test(v.id)
     );
@@ -133,12 +144,22 @@ export async function run(argv) {
   if (flags.json) {
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } else {
-    process.stdout.write(`Previewed ${screenshots.length} frames → ${outDir}/\n`);
     for (const s of screenshots) {
-      process.stdout.write(`  t=${s.time.toFixed(1)}s  ${s.visibleCount} layers  ${s.path}\n`);
+      process.stdout.write(`\n── t=${s.time.toFixed(1)}s ── ${s.visibleCount} layers ── ${s.path}\n`);
+      // Layout map
+      for (const v of s.visible) {
+        const pos = v.isFullscreen ? "FULL" : `${v.x},${v.y} ${v.w}x${v.h}`;
+        const role = BG_IDS.test(v.id) ? "bg" : "CONTENT";
+        const extra = [];
+        if (v.blend !== "normal") extra.push(`blend:${v.blend}`);
+        if (v.opacity < 1) extra.push(`α:${v.opacity}`);
+        const tag = extra.length ? ` (${extra.join(" ")})` : "";
+        process.stdout.write(`  z${String(v.zIndex).padStart(2)} ${v.id.padEnd(22)} ${pos.padEnd(18)} ${role}${tag}\n`);
+      }
     }
+    process.stdout.write(`\n${outDir}/\n`);
     if (issues.length) {
-      process.stdout.write(`\n⚠ ${issues.length} potential issues:\n`);
+      process.stdout.write(`\n⚠ ${issues.length} issues:\n`);
       for (const i of issues) {
         process.stdout.write(`  t=${i.time.toFixed(1)}s  ${i.type}: ${i.message}\n`);
       }
