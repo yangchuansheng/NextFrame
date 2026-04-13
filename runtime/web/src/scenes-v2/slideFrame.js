@@ -12,16 +12,23 @@ export default {
   type: "dom",
   name: "Slide Frame",
   category: "Layout",
-  defaultParams: {
-    brand: "OPC · 王宇轩",
-    series: "《深入浅出 Claude Code 源代码》",
-    ep: "E01",
-    slideTitle: "维度6：工具箱",
-    dimNum: 6,
-    totalDims: 15,
-    bgColor: "#1a1510",
-    accentColor: "#da7756",
-    textColor: "#f5ece0",
+  tags: ["幻灯片", "框架", "布局", "品牌", "进度条", "节目"],
+  description: "带品牌标识和维度进度条的幻灯片边框模板",
+  params: {
+    brand:       { type: "string", default: "OPC · 王宇轩",                   desc: "品牌名称" },
+    series:      { type: "string", default: "《深入浅出 Claude Code 源代码》", desc: "系列名称" },
+    ep:          { type: "string", default: "E01",                            desc: "集数标签" },
+    slideTitle:  { type: "string", default: "维度6：工具箱",                  desc: "幻灯片标题" },
+    dimNum:      { type: "number", default: 6,                                desc: "当前维度序号" },
+    totalDims:   { type: "number", default: 15,                               desc: "总维度数" },
+    bgColor:     { type: "string", default: "#1a1510",                        desc: "背景色" },
+    accentColor: { type: "string", default: "#da7756",                        desc: "强调色" },
+    textColor:   { type: "string", default: "#f5ece0",                        desc: "文字颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

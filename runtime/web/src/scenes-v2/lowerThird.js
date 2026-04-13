@@ -10,11 +10,18 @@ export default {
   type: "dom",
   name: "Lower Third",
   category: "Overlay",
-  defaultParams: {
-    title: "John Doe",
-    subtitle: "Creative Director",
-    accentColor: "#6ee7ff",
-    position: "left",
+  tags: ["角标", "字幕条", "下三分之一", "姓名条", "新闻字幕", "覆盖层"],
+  description: "视频下方姓名职位字幕条，带强调色横线和滑入动画",
+  params: {
+    title:       { type: "string", default: "John Doe",          desc: "主标题文字（姓名）" },
+    subtitle:    { type: "string", default: "Creative Director", desc: "副标题文字（职位）" },
+    accentColor: { type: "color",  default: "#6ee7ff",           desc: "强调色（横线和副标题）" },
+    position:    { type: "select", default: "left",              desc: "水平位置 left/center/right", options: ["left", "center", "right"] },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

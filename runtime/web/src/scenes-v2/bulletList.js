@@ -8,11 +8,18 @@ export default {
   type: "dom",
   name: "Bullet List",
   category: "Typography",
-  defaultParams: {
-    items: ["First point", "Second point", "Third point"],
-    fontSize: 28,
-    bulletColor: "#a78bfa",
-    stagger: 0.08,
+  tags: ["list", "bullet", "text", "points", "typography", "stagger"],
+  description: "要点列表，每行带圆点标记，从左侧依次滑入，适合展示功能点或步骤",
+  params: {
+    items:       { type: "array",  default: ["First point", "Second point", "Third point"], desc: "列表文字数组" },
+    fontSize:    { type: "number", default: 28,         desc: "文字字号(px)", min: 12, max: 80 },
+    bulletColor: { type: "string", default: "#a78bfa",  desc: "圆点颜色" },
+    stagger:     { type: "number", default: 0.08,       desc: "每行入场延迟间隔(s)" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

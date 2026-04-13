@@ -80,7 +80,20 @@ export default {
   type: "webgl",
   name: "Simplex Noise",
   category: "Shader",
-  defaultParams: { scale: 3.0, speed: 0.5, color1: "#6ee7ff", color2: "#a78bfa", octaves: 4 },
+  tags: ["噪声", "Simplex", "纹理", "着色器", "背景", "有机感"],
+  description: "基于 Simplex 噪声的多倍频动态纹理背景",
+  params: {
+    scale:  { type: "number", default: 3.0,      desc: "噪声缩放比例", min: 0.5, max: 10 },
+    speed:  { type: "number", default: 0.5,      desc: "动画速度", min: 0, max: 3 },
+    color1: { type: "string", default: "#6ee7ff", desc: "噪声色1" },
+    color2: { type: "string", default: "#a78bfa", desc: "噪声色2" },
+    octaves:{ type: "number", default: 4,         desc: "噪声倍频数", min: 1, max: 8 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");

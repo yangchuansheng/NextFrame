@@ -8,12 +8,19 @@ export default {
   type: "dom",
   name: "Callout Card",
   category: "Overlay",
-  defaultParams: {
-    icon: "\uD83D\uDE80",
-    title: "Launch Ready",
-    description: "Everything is set up and ready to go. Just hit publish.",
-    bgColor: "rgba(30,30,50,0.85)",
-    borderColor: "#a78bfa",
+  tags: ["card", "overlay", "callout", "notification", "popup", "highlight"],
+  description: "居中弹出卡片，含图标、标题和描述，缩放入场，适合强调关键信息",
+  params: {
+    icon:        { type: "string", default: "🚀",                                         desc: "卡片顶部图标（emoji）" },
+    title:       { type: "string", default: "Launch Ready",                               desc: "卡片标题" },
+    description: { type: "string", default: "Everything is set up and ready to go.",     desc: "卡片描述文字" },
+    bgColor:     { type: "string", default: "rgba(30,30,50,0.85)",                        desc: "卡片背景色" },
+    borderColor: { type: "string", default: "#a78bfa",                                   desc: "边框与发光颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

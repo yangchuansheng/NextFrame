@@ -17,19 +17,26 @@ export default {
   type: "dom",
   name: "Slide Chrome",
   category: "Layout",
-  defaultParams: {
-    brand: "OPC · 王宇轩",
-    series: "《深入浅出 Claude Code 源代码》",
-    ep: "E01",
-    tag: "tools[]",
-    title: "工具箱",
-    tagExtra: "20+ built-in",
-    dimNum: 6,
-    totalDims: 15,
-    bgColor: "#1a1510",
-    accentColor: "#da7756",
-    textColor: "#f5ece0",
-    subtitles: [],
+  tags: ["幻灯片", "品牌", "标题", "布局", "Chrome", "节目"],
+  description: "带品牌标识、集数、标题和字幕区的视频幻灯片外框",
+  params: {
+    brand:       { type: "string", default: "OPC · 王宇轩",                       desc: "品牌名称" },
+    series:      { type: "string", default: "《深入浅出 Claude Code 源代码》",     desc: "系列名称" },
+    ep:          { type: "string", default: "E01",                                desc: "集数标签" },
+    tag:         { type: "string", default: "tools[]",                            desc: "标签文字" },
+    title:       { type: "string", default: "工具箱",                             desc: "主标题" },
+    tagExtra:    { type: "string", default: "20+ built-in",                       desc: "标签附加说明" },
+    dimNum:      { type: "number", default: 6,                                    desc: "当前维度序号" },
+    totalDims:   { type: "number", default: 15,                                   desc: "总维度数" },
+    bgColor:     { type: "string", default: "#1a1510",                            desc: "背景色" },
+    accentColor: { type: "string", default: "#da7756",                            desc: "强调色" },
+    textColor:   { type: "string", default: "#f5ece0",                            desc: "文字颜色" },
+    subtitles:   { type: "array",  default: [],                                   desc: "字幕段落数组" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

@@ -14,13 +14,20 @@ export default {
   type: "svg",
   name: "Line Chart",
   category: "Data Viz",
-  defaultParams: {
-    data: [20, 55, 35, 80, 50, 90, 65],
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
-    color: "#6ee7ff",
-    strokeWidth: 3,
-    showDots: true,
-    showArea: true,
+  tags: ["折线图", "趋势图", "数据可视化", "图表", "统计", "时间序列"],
+  description: "带渐变填充区域和动画描线效果的 SVG 折线图",
+  params: {
+    data:        { type: "array",   default: [20, 55, 35, 80, 50, 90, 65], desc: "数据点数值数组" },
+    labels:      { type: "array",   default: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], desc: "X轴标签数组" },
+    color:       { type: "color",   default: "#6ee7ff",                     desc: "折线和数据点颜色" },
+    strokeWidth: { type: "number",  default: 3,   min: 1, max: 10,          desc: "折线宽度(px)" },
+    showDots:    { type: "boolean", default: true,                           desc: "是否显示数据点圆点" },
+    showArea:    { type: "boolean", default: true,                           desc: "是否显示渐变填充区域" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

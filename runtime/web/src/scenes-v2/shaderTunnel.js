@@ -65,7 +65,19 @@ export default {
   type: "webgl",
   name: "Tunnel / Wormhole",
   category: "Shader",
-  defaultParams: { speed: 0.5, rings: 8, color: "#6ee7ff", twist: 2.0 },
+  tags: ["隧道", "虫洞", "穿越", "着色器", "3D", "旋转"],
+  description: "向前穿越旋转隧道的沉浸式虫洞着色器动画",
+  params: {
+    speed: { type: "number", default: 0.5,      desc: "前进速度", min: 0.1, max: 3 },
+    rings: { type: "number", default: 8,         desc: "隧道环数量", min: 2, max: 20 },
+    color: { type: "string", default: "#6ee7ff", desc: "主色调" },
+    twist: { type: "number", default: 2.0,       desc: "扭转强度", min: 0, max: 5 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");

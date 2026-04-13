@@ -82,7 +82,19 @@ export default {
   type: "webgl",
   name: "GPU Fireflies",
   category: "Shader",
-  defaultParams: { count: 200, color: "#ffd93d", glowSize: 0.02, speed: 0.5 },
+  tags: ["萤火虫", "WebGL", "着色器", "粒子光点", "夜景", "发光粒子"],
+  description: "GPU 着色器渲染数百个漂浮闪烁的萤火虫光点，带晃动和呼吸效果",
+  params: {
+    count:    { type: "number", default: 200,     min: 1, max: 300, desc: "萤火虫数量（最大300受GPU限制）" },
+    color:    { type: "color",  default: "#ffd93d",                 desc: "萤火虫光点颜色" },
+    glowSize: { type: "number", default: 0.02,    min: 0.001, max: 0.2, desc: "发光半径大小" },
+    speed:    { type: "number", default: 0.5,     min: 0.1, max: 3,  desc: "飘动速度倍数" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");

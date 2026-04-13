@@ -18,13 +18,20 @@ export default {
   type: "dom",
   name: "Synced Subtitles",
   category: "Overlay",
-  defaultParams: {
-    segments: [],
-    fontSize: 24,
-    color: "#ffffff",
-    bgColor: "rgba(0,0,0,0.6)",
-    position: "bottom",
-    highlightColor: "#6ee7ff",
+  tags: ["字幕", "同步", "时间轴", "覆盖层", "高亮", "多语言"],
+  description: "按时间轴同步显示并高亮当前词的字幕叠加层",
+  params: {
+    segments:       { type: "array",  default: [],               desc: "字幕段落数组（含 start/end/text）" },
+    fontSize:       { type: "number", default: 24,               desc: "字体大小（px）", min: 12, max: 60 },
+    color:          { type: "string", default: "#ffffff",        desc: "文字颜色" },
+    bgColor:        { type: "string", default: "rgba(0,0,0,0.6)", desc: "背景色（支持 rgba）" },
+    position:       { type: "string", default: "bottom",         desc: "位置：top / center / bottom" },
+    highlightColor: { type: "string", default: "#6ee7ff",        desc: "当前词高亮颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

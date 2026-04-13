@@ -1,3 +1,5 @@
+import { resolveAssetUrl } from "../scenes-v2-shared.js";
+
 /**
  * audioTrack — plays audio synced to engine timeline.
  *
@@ -13,21 +15,29 @@ export default {
   type: "media",
   name: "Audio Track",
   category: "Media",
-  defaultParams: {
-    src: "",
-    volume: 1,
-    offset: 0,
+  tags: ["audio", "music", "sound", "media", "sync", "background"],
+  description: "音频轨道，随引擎时间轴同步播放、暂停、定位，支持音量与偏移控制",
+  params: {
+    src:    { type: "string", default: "",  desc: "音频文件路径或 URL" },
+    volume: { type: "number", default: 1,   desc: "音量 (0-1)", min: 0, max: 1 },
+    offset: { type: "number", default: 0,   desc: "音频偏移秒数，正值跳过开头" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {
     const audio = document.createElement("audio");
     audio.preload = "auto";
     audio.style.display = "none";
-    if (params.src) audio.src = params.src;
+    const resolvedSrc = resolveAssetUrl(params.src);
+    if (resolvedSrc) audio.src = resolvedSrc;
     audio.volume = Math.max(0, Math.min(1, params.volume ?? 1));
     container.appendChild(audio);
-    if (params.src && !window.__audioSrc) {
-      window.__audioSrc = params.src;
+    if (resolvedSrc && !window.__audioSrc) {
+      window.__audioSrc = resolvedSrc;
     }
     return { audio, prevT: -999, prevWall: 0, wasPlaying: false };
   },

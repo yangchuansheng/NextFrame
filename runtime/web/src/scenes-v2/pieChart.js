@@ -54,12 +54,19 @@ export default {
   type: "svg",
   name: "Pie Chart",
   category: "Data Viz",
-  defaultParams: {
-    data: [35, 25, 20, 12, 8],
-    labels: ["Design", "Dev", "Marketing", "Research", "Ops"],
-    colors: PALETTE,
-    innerRadius: 0,
-    showLabels: true,
+  tags: ["饼图", "环形图", "占比", "数据可视化", "图表", "扇形"],
+  description: "带逐扇形展开动画的 SVG 饼图，支持圆环模式和标签",
+  params: {
+    data:        { type: "array",   default: [35, 25, 20, 12, 8],                          desc: "各扇形数值数组" },
+    labels:      { type: "array",   default: ["Design", "Dev", "Marketing", "Research", "Ops"], desc: "扇形标签数组" },
+    colors:      { type: "array",   default: PALETTE,                                      desc: "扇形颜色数组（循环使用）" },
+    innerRadius: { type: "number",  default: 0, min: 0, max: 300,                          desc: "内径大小(0=实心饼图，>0=环形)" },
+    showLabels:  { type: "boolean", default: true,                                         desc: "是否显示扇形标签" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

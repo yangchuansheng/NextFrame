@@ -5,12 +5,19 @@ export default {
   type: "canvas",
   name: "Circle Ripple",
   category: "Effects",
-  defaultParams: {
-    count: 5,
-    speed: 1,
-    color: "#7c6ef0",
-    strokeWidth: 2,
-    maxRadius: 0.8,
+  tags: ["ripple", "circle", "pulse", "wave", "effect", "ambient", "loop"],
+  description: "同心圆波纹向外扩散，循环播放，可自定义颜色和速度，适合强调中心元素",
+  params: {
+    count:       { type: "number", default: 5,        desc: "同时存在的波纹数量", min: 1, max: 20 },
+    speed:       { type: "number", default: 1,        desc: "扩散速度倍数", min: 0.1, max: 5 },
+    color:       { type: "string", default: "#7c6ef0", desc: "波纹颜色" },
+    strokeWidth: { type: "number", default: 2,        desc: "线宽(px)", min: 0.5, max: 10 },
+    maxRadius:   { type: "number", default: 0.8,      desc: "最大半径（相对于画面短边的比例）", min: 0.1, max: 1.5 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

@@ -5,12 +5,19 @@ export default {
   type: "canvas",
   name: "Radial Burst",
   category: "Effects",
-  defaultParams: {
-    rays: 24,
-    color: "#e0c3fc",
-    rotation: 1,
-    spread: 0.4,
-    fadeLength: 0.6,
+  tags: ["放射光", "爆发光效", "光芒", "射线", "背景光效", "仪式感"],
+  description: "从中心向外放射的脉冲光束，带旋转和闪烁效果",
+  params: {
+    rays:       { type: "number", default: 24,  min: 4,  max: 120, desc: "光束数量" },
+    color:      { type: "color",  default: "#e0c3fc",              desc: "光束颜色" },
+    rotation:   { type: "number", default: 1,   min: -5, max: 5,   desc: "旋转速度（负值反转方向）" },
+    spread:     { type: "number", default: 0.4, min: 0.05, max: 1, desc: "光束扇形宽度比例" },
+    fadeLength: { type: "number", default: 0.6, min: 0.1, max: 1,  desc: "光束衰减长度比例" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

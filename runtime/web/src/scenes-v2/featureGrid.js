@@ -15,10 +15,17 @@ export default {
   type: "dom",
   name: "Feature Grid",
   category: "Layout",
-  defaultParams: {
-    features: DEFAULT_FEATURES,
-    columns: 2,
-    stagger: 0.05,
+  tags: ["grid", "features", "cards", "layout", "icons", "product", "stagger"],
+  description: "功能特性网格，每张卡片含图标、标题和描述，依次缩放弹入，支持多列布局",
+  params: {
+    features: { type: "array",  default: DEFAULT_FEATURES, desc: "特性列表，每项含 icon/title/desc" },
+    columns:  { type: "number", default: 2,                desc: "网格列数", min: 1, max: 4 },
+    stagger:  { type: "number", default: 0.05,             desc: "每张卡片入场延迟间隔(s)" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

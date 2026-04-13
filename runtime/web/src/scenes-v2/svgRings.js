@@ -14,12 +14,19 @@ export default {
   type: "svg",
   name: "Decorative Rings",
   category: "Motion Graphics",
-  defaultParams: {
-    count: 4,
-    colors: PALETTE,
-    speed: 1,
-    strokeWidth: 3,
-    dashArray: "20 10",
+  tags: ["圆环", "装饰", "SVG", "旋转", "动效", "背景"],
+  description: "多层旋转虚线圆环的装饰性 SVG 动效背景",
+  params: {
+    count:       { type: "number", default: 4,        desc: "圆环数量", min: 1, max: 10 },
+    colors:      { type: "array",  default: null,     desc: "颜色数组（null 使用内置调色板）" },
+    speed:       { type: "number", default: 1,        desc: "旋转速度", min: 0.1, max: 5 },
+    strokeWidth: { type: "number", default: 3,        desc: "线条宽度（px）", min: 1, max: 10 },
+    dashArray:   { type: "string", default: "20 10",  desc: "SVG 虚线样式" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

@@ -10,12 +10,19 @@ export default {
   type: "dom",
   name: "Kinetic Headline",
   category: "Typography",
-  defaultParams: {
-    text: "NEXTFRAME",
-    subtitle: "AI Video Editor",
-    fontSize: 72,
-    gradient: DEFAULT_GRADIENT,
-    stagger: 0.06,
+  tags: ["headline", "title", "gradient", "stagger", "typography", "hero"],
+  description: "大标题渐变色文字，逐词错开上滑入场，带可选副标题，适合开场或章节标题",
+  params: {
+    text:     { type: "string", default: "NEXTFRAME",                            desc: "标题文字，空格分词后逐词入场" },
+    subtitle: { type: "string", default: "AI Video Editor",                     desc: "副标题文字（可留空）" },
+    fontSize: { type: "number", default: 72,                                    desc: "标题字号(px)", min: 24, max: 200 },
+    gradient: { type: "array",  default: DEFAULT_GRADIENT,                      desc: "渐变色数组" },
+    stagger:  { type: "number", default: 0.06,                                  desc: "每词入场延迟间隔(s)" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

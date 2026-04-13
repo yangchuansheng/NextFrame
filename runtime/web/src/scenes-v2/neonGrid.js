@@ -5,11 +5,18 @@ export default {
   type: "canvas",
   name: "Neon Grid",
   category: "Backgrounds",
-  defaultParams: {
-    gridColor: "#ff2d95",
-    skyColor: "#0a001a",
-    speed: 1,
-    perspective: 0.6,
+  tags: ["霓虹网格", "赛博朋克", "复古未来", "透视网格", "背景", "合成波"],
+  description: "赛博朋克风格的透视消失点霓虹网格背景，带滚动动效",
+  params: {
+    gridColor:   { type: "color",  default: "#ff2d95",  desc: "霓虹网格线颜色" },
+    skyColor:    { type: "color",  default: "#0a001a",  desc: "天空背景色" },
+    speed:       { type: "number", default: 1, min: 0, max: 5, desc: "网格滚动速度" },
+    perspective: { type: "number", default: 0.6, min: 0.3, max: 0.85, desc: "地平线高度比例" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

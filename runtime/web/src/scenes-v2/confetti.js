@@ -7,11 +7,18 @@ export default {
   type: "canvas",
   name: "Confetti",
   category: "Effects",
-  defaultParams: {
-    count: 100,
-    colors: DEFAULT_COLORS,
-    gravity: 0.5,
-    spread: 60,
+  tags: ["confetti", "celebration", "particle", "effect", "festive", "burst"],
+  description: "五彩碎纸片从画面底部爆发散射，自然下落，适合庆祝或完成场景",
+  params: {
+    count:   { type: "number", default: 100,          desc: "粒子数量", min: 10, max: 500 },
+    colors:  { type: "array",  default: DEFAULT_COLORS, desc: "颜色数组" },
+    gravity: { type: "number", default: 0.5,          desc: "重力强度倍数", min: 0, max: 3 },
+    spread:  { type: "number", default: 60,           desc: "扩散角度(度)", min: 10, max: 180 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

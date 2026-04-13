@@ -8,12 +8,19 @@ export default {
   type: "dom",
   name: "Typewriter",
   category: "Typography",
-  defaultParams: {
-    text: "Hello, World!",
-    fontSize: 32,
-    speed: 20,
-    cursor: true,
-    cursorColor: "#6ee7ff",
+  tags: ["打字机", "文字", "动画", "等宽字体", "逐字", "排版"],
+  description: "模拟打字机逐字输入效果的文字动画组件",
+  params: {
+    text:        { type: "string",  default: "Hello, World!", desc: "显示文字" },
+    fontSize:    { type: "number",  default: 32,              desc: "字体大小（px）", min: 12, max: 200 },
+    speed:       { type: "number",  default: 20,              desc: "打字速度（字/秒）", min: 1, max: 100 },
+    cursor:      { type: "boolean", default: true,            desc: "是否显示光标" },
+    cursorColor: { type: "string",  default: "#6ee7ff",       desc: "光标颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

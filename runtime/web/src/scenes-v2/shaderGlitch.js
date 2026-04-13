@@ -70,7 +70,19 @@ export default {
   type: "webgl",
   name: "Glitch Effect",
   category: "Shader",
-  defaultParams: { intensity: 0.5, blockSize: 16, colorSplit: 0.02, scanlines: true },
+  tags: ["故障", "glitch", "干扰", "扫描线", "赛博朋克", "着色器"],
+  description: "模拟信号故障的画面撕裂、色差和扫描线特效",
+  params: {
+    intensity:  { type: "number", default: 0.5,  desc: "故障强度", min: 0, max: 1 },
+    blockSize:  { type: "number", default: 16,   desc: "撕裂块大小（像素）", min: 4, max: 64 },
+    colorSplit: { type: "number", default: 0.02, desc: "色差偏移量", min: 0, max: 0.1 },
+    scanlines:  { type: "boolean", default: true, desc: "是否显示扫描线" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");

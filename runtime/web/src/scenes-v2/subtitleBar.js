@@ -8,11 +8,18 @@ export default {
   type: "dom",
   name: "Subtitle Bar",
   category: "Overlay",
-  defaultParams: {
-    text: "This is a subtitle that types in character by character.",
-    fontSize: 22,
-    bgColor: "rgba(0,0,0,0.7)",
-    textColor: "#ffffff",
+  tags: ["字幕", "下栏", "覆盖层", "打字", "文字", "说明"],
+  description: "逐字打印显示的半透明字幕条叠加层",
+  params: {
+    text:      { type: "string", default: "This is a subtitle that types in character by character.", desc: "字幕文字" },
+    fontSize:  { type: "number", default: 22,               desc: "字体大小（px）", min: 12, max: 60 },
+    bgColor:   { type: "string", default: "rgba(0,0,0,0.7)", desc: "背景色（支持 rgba）" },
+    textColor: { type: "string", default: "#ffffff",         desc: "文字颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

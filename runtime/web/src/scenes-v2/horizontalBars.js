@@ -15,13 +15,20 @@ export default {
   type: "svg",
   name: "Horizontal Bar Chart",
   category: "Data Viz",
-  defaultParams: {
-    data: [90, 72, 65, 50, 38, 25],
-    labels: ["React", "Python", "Rust", "Go", "Swift", "Kotlin"],
-    colors: PALETTE,
-    height: 44,
-    gap: 20,
-    showValues: true,
+  tags: ["chart", "horizontal", "bar", "ranking", "data", "comparison", "graph"],
+  description: "横向条形图，条形从左向右扩展，适合展示排名或对比数据",
+  params: {
+    data:       { type: "array",   default: [90, 72, 65, 50, 38, 25],                            desc: "数据值数组" },
+    labels:     { type: "array",   default: ["React", "Python", "Rust", "Go", "Swift", "Kotlin"], desc: "每行左侧标签数组" },
+    colors:     { type: "array",   default: PALETTE,                                              desc: "条形颜色数组" },
+    height:     { type: "number",  default: 44,    desc: "条形高度(px)", min: 10, max: 120 },
+    gap:        { type: "number",  default: 20,    desc: "条形间距(px)", min: 0, max: 100 },
+    showValues: { type: "boolean", default: true,  desc: "是否显示数值" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

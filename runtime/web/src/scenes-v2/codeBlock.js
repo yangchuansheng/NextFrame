@@ -13,11 +13,18 @@ export default {
   type: "dom",
   name: "Code Block",
   category: "Code",
-  defaultParams: {
-    code: 'function hello() {\n  console.log("Hello, world!");\n  return 42;\n}',
-    language: "javascript",
-    fontSize: 18,
-    theme: "dark",
+  tags: ["code", "syntax", "terminal", "programming", "typewriter", "dark"],
+  description: "代码块逐行打字机效果，带行号、语言标签和深色/浅色主题，适合技术讲解场景",
+  params: {
+    code:     { type: "string", default: 'function hello() {\n  console.log("Hello, world!");\n  return 42;\n}', desc: "代码内容（支持换行符）" },
+    language: { type: "string", default: "javascript", desc: "语言标签，显示在代码块顶部" },
+    fontSize: { type: "number", default: 18,            desc: "代码字号(px)", min: 10, max: 36 },
+    theme:    { type: "string", default: "dark",        desc: "主题：dark 或 light" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

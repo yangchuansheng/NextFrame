@@ -11,15 +11,22 @@ export default {
   id: "infoCard",
   type: "dom",
   name: "Info Card",
-  category: "Layout",
-  defaultParams: {
-    topColor: "#7ec699",
-    borderStyle: "solid",
-    label: "LABEL",
-    title: "卡片标题",
-    desc: "卡片描述文字",
-    chips: [],
-    chipColor: "#7ec699",
+  category: "Cards",
+  tags: ["卡片", "信息卡", "标签", "标题", "描述", "布局", "内容展示"],
+  description: "带顶部色条、标签 pill、标题、描述和 chip 标签的信息卡片组件",
+  params: {
+    topColor:    { type: "color",  default: "#7ec699",            desc: "顶部色条颜色" },
+    borderStyle: { type: "select", default: "solid",              desc: "边框样式 solid/dashed", options: ["solid", "dashed"] },
+    label:       { type: "string", default: "LABEL",              desc: "顶部标签文字" },
+    title:       { type: "string", default: "卡片标题",            desc: "卡片主标题" },
+    desc:        { type: "string", default: "卡片描述文字",        desc: "卡片描述内容，支持换行" },
+    chips:       { type: "array",  default: [],                   desc: "底部 chip 标签数组" },
+    chipColor:   { type: "color",  default: "#7ec699",            desc: "chip 颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

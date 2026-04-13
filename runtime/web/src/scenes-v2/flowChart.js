@@ -16,10 +16,17 @@ export default {
   type: "svg",
   name: "Flow Chart",
   category: "Data Viz",
-  defaultParams: {
-    steps: DEFAULT_STEPS,
-    color: "#6ee7ff",
-    arrowColor: "#a78bfa",
+  tags: ["flowchart", "diagram", "steps", "process", "arrow", "workflow"],
+  description: "横向流程图，方框加箭头依次出现，展示工作流或处理步骤，支持 2-6 个节点",
+  params: {
+    steps:      { type: "array",  default: DEFAULT_STEPS,  desc: "步骤列表，每项含 label 字段" },
+    color:      { type: "string", default: "#6ee7ff",      desc: "节点边框颜色" },
+    arrowColor: { type: "string", default: "#a78bfa",      desc: "箭头颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

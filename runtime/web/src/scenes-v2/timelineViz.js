@@ -19,10 +19,17 @@ export default {
   type: "svg",
   name: "Timeline",
   category: "Data Viz",
-  defaultParams: {
-    events: DEFAULT_EVENTS,
-    color: "#a78bfa",
-    dotSize: 8,
+  tags: ["时间轴", "事件", "数据可视化", "SVG", "历史", "流程"],
+  description: "水平时间轴展示事件节点的数据可视化组件",
+  params: {
+    events:  { type: "array",  default: null,      desc: "事件数组（含 label/year）" },
+    color:   { type: "string", default: "#a78bfa", desc: "线条和节点颜色" },
+    dotSize: { type: "number", default: 8,          desc: "节点圆点半径（px）", min: 4, max: 20 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

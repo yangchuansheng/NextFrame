@@ -14,11 +14,18 @@ export default {
   type: "dom",
   name: "Agent Loop",
   category: "Data Viz",
-  defaultParams: {
-    steps: DEFAULT_STEPS,
-    title: "Tool Use Loop",
-    accentColor: "#a78bfa",
-    ringColor: "rgba(167,139,250,0.25)",
+  tags: ["agent", "loop", "diagram", "workflow", "circular", "ai", "tool"],
+  description: "圆形循环图，展示 AI Agent 的思考-行动-观察-重复步骤，每个节点逐步入场",
+  params: {
+    steps:       { type: "array",  default: DEFAULT_STEPS,                desc: "循环步骤列表，每项含 label/icon/color" },
+    title:       { type: "string", default: "Tool Use Loop",              desc: "标题文字" },
+    accentColor: { type: "string", default: "#a78bfa",                    desc: "主强调色" },
+    ringColor:   { type: "string", default: "rgba(167,139,250,0.25)",     desc: "中心圆环背景色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

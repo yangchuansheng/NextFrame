@@ -15,14 +15,21 @@ export default {
   type: "svg",
   name: "Bar Chart",
   category: "Data Viz",
-  defaultParams: {
-    data: [85, 45, 70, 55, 90, 35],
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    colors: PALETTE,
-    barWidth: 80,
-    gap: 30,
-    showLabels: true,
-    showValues: true,
+  tags: ["chart", "bar", "data", "visualization", "statistics", "graph"],
+  description: "竖向柱状图，柱子逐个弹入，支持自定义颜色、标签与数值显示",
+  params: {
+    data:       { type: "array",   default: [85, 45, 70, 55, 90, 35],                        desc: "数据值数组" },
+    labels:     { type: "array",   default: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],      desc: "X 轴标签数组" },
+    colors:     { type: "array",   default: PALETTE,                                          desc: "柱子颜色数组" },
+    barWidth:   { type: "number",  default: 80,                                               desc: "柱子宽度(px)", min: 10, max: 300 },
+    gap:        { type: "number",  default: 30,                                               desc: "柱子间距(px)", min: 0, max: 200 },
+    showLabels: { type: "boolean", default: true,                                             desc: "是否显示 X 轴标签" },
+    showValues: { type: "boolean", default: true,                                             desc: "是否显示数值" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

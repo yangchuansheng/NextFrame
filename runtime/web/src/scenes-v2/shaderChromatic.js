@@ -58,7 +58,18 @@ export default {
   type: "webgl",
   name: "Chromatic Aberration",
   category: "Shader",
-  defaultParams: { intensity: 0.01, angle: 0, pulse: true },
+  tags: ["色差", "WebGL", "着色器", "光学效果", "Glitch", "边缘色散"],
+  description: "GPU 着色器模拟镜头色差，边缘产生 RGB 分离的光学效果",
+  params: {
+    intensity: { type: "number",  default: 0.01, min: 0, max: 0.1, desc: "色差强度" },
+    angle:     { type: "number",  default: 0,    min: 0, max: 6.28, desc: "色差偏移角度（弧度）" },
+    pulse:     { type: "boolean", default: true,                    desc: "是否开启脉冲呼吸效果" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");

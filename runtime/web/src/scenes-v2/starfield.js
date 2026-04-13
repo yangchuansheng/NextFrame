@@ -5,11 +5,18 @@ export default {
   type: "canvas",
   name: "Starfield",
   category: "Effects",
-  defaultParams: {
-    count: 200,
-    speed: 1,
-    depth: 1,
-    color: "#ffffff",
+  tags: ["星空", "粒子", "背景", "太空", "飞行", "氛围"],
+  description: "模拟星空飞行的粒子背景动画",
+  params: {
+    count: { type: "number", default: 200,     desc: "星星数量", min: 10, max: 2000 },
+    speed: { type: "number", default: 1,       desc: "飞行速度", min: 0.1, max: 10 },
+    depth: { type: "number", default: 1,       desc: "深度感强度", min: 0.1, max: 5 },
+    color: { type: "string", default: "#ffffff", desc: "星星颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

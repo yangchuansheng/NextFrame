@@ -1,5 +1,5 @@
 import {
-  createRoot, createNode, smoothstep, easeOutCubic, toNumber,
+  createRoot, createNode, smoothstep, easeOutCubic, toNumber, resolveAssetUrl,
 } from "../scenes-v2-shared.js";
 
 export default {
@@ -7,10 +7,17 @@ export default {
   type: "dom",
   name: "Logo Reveal",
   category: "Media",
-  defaultParams: {
-    src: "",
-    size: 200,
-    glowColor: "#6ee7ff",
+  tags: ["Logo", "品牌", "图片", "发光", "出场动画", "光扫"],
+  description: "带光扫动效和发光效果的 Logo 入场展示组件",
+  params: {
+    src:       { type: "string", default: "",         desc: "图片资源路径或 URL" },
+    size:      { type: "number", default: 200, min: 50, max: 800, desc: "图片尺寸(px)" },
+    glowColor: { type: "color",  default: "#6ee7ff",  desc: "光扫效果颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {
@@ -27,7 +34,8 @@ export default {
 
     const img = document.createElement("img");
     img.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:1";
-    if (params.src) img.src = params.src;
+    const resolvedSrc = resolveAssetUrl(params.src);
+    if (resolvedSrc) img.src = resolvedSrc;
     wrap.appendChild(img);
 
     const glow = createNode("div", [

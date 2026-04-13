@@ -13,9 +13,16 @@ export default {
   id: "parallaxStack",
   type: "dom",
   name: "Parallax Stack",
-  category: "Motion Graphics",
-  defaultParams: {
-    layers: DEFAULT_LAYERS,
+  category: "Effects",
+  tags: ["视差", "多层叠加", "景深", "运动图形", "层次感", "文字动效"],
+  description: "多层文字以不同速度做视差滚动，产生空间景深感",
+  params: {
+    layers: { type: "array", default: DEFAULT_LAYERS, desc: "图层配置数组（text/speed/color/size）" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

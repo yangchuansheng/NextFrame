@@ -12,11 +12,18 @@ export default {
   type: "dom",
   name: "Chip Group",
   category: "Layout",
-  defaultParams: {
-    chips: ["Bash", "Read", "Edit", "Grep"],
-    color: "#7ee787",
-    bgColor: "rgba(126,231,135,0.08)",
-    stagger: 0.08,
+  tags: ["chips", "tags", "pills", "labels", "group", "stagger", "tech"],
+  description: "标签组，一排 pill 样式标签逐个弹出，适合展示技术栈、特性或关键词",
+  params: {
+    chips:   { type: "array",  default: ["Bash", "Read", "Edit", "Grep"], desc: "标签文字数组" },
+    color:   { type: "string", default: "#7ee787",                        desc: "文字与边框颜色" },
+    bgColor: { type: "string", default: "rgba(126,231,135,0.08)",         desc: "标签背景色" },
+    stagger: { type: "number", default: 0.08,                             desc: "每个标签入场延迟间隔(s)" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

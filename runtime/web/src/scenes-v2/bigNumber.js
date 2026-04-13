@@ -12,12 +12,19 @@ export default {
   type: "dom",
   name: "Big Number",
   category: "Layout",
-  defaultParams: {
-    number: "100+",
-    label: "说明文字",
-    numColor: "#da7756",
-    numSize: 72,
-    fontFamily: "serif",
+  tags: ["number", "stat", "metric", "highlight", "typography", "counter"],
+  description: "大数字配说明文字，数字弹跳入场，适合展示关键指标或统计数据",
+  params: {
+    number:     { type: "string", default: "100+",   desc: "显示的大数字文本" },
+    label:      { type: "string", default: "说明文字", desc: "数字右侧的说明文字" },
+    numColor:   { type: "string", default: "#da7756", desc: "数字颜色" },
+    numSize:    { type: "number", default: 72,        desc: "数字字号(px)", min: 24, max: 300 },
+    fontFamily: { type: "string", default: "serif",   desc: "字体族：serif / sans / mono" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

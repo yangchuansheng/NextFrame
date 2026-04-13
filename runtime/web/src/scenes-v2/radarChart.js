@@ -19,12 +19,19 @@ export default {
   type: "svg",
   name: "Radar Chart",
   category: "Data Viz",
-  defaultParams: {
-    data: [85, 60, 75, 90, 50, 70],
-    labels: ["Speed", "Power", "Range", "Armor", "Stealth", "Tech"],
-    color: "#6ee7ff",
-    fillOpacity: 0.25,
-    maxValue: 100,
+  tags: ["雷达图", "蜘蛛图", "能力评估", "多维度", "数据可视化", "属性图"],
+  description: "多维属性雷达图，数据多边形从中心动态扩张展开",
+  params: {
+    data:        { type: "array",  default: [85, 60, 75, 90, 50, 70],                    desc: "各维度数值数组" },
+    labels:      { type: "array",  default: ["Speed", "Power", "Range", "Armor", "Stealth", "Tech"], desc: "各维度标签数组" },
+    color:       { type: "color",  default: "#6ee7ff",                                   desc: "数据多边形颜色" },
+    fillOpacity: { type: "number", default: 0.25, min: 0, max: 1,                        desc: "填充区域透明度" },
+    maxValue:    { type: "number", default: 100,  min: 1,                                desc: "坐标轴最大值" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

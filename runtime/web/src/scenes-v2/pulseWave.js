@@ -5,12 +5,19 @@ export default {
   type: "canvas",
   name: "Pulse Wave",
   category: "Effects",
-  defaultParams: {
-    bars: 32,
-    color: "#a855f7",
-    minHeight: 0.05,
-    maxHeight: 0.8,
-    beatFreq: 2,
+  tags: ["脉冲波形", "音频波形", "均衡器", "音乐可视化", "波形", "动效"],
+  description: "模拟音频均衡器的脉冲波形动画，柱状条随节拍上下跳动",
+  params: {
+    bars:      { type: "number", default: 32,   min: 4,  max: 128, desc: "波形柱数量" },
+    color:     { type: "color",  default: "#a855f7",              desc: "波形柱颜色" },
+    minHeight: { type: "number", default: 0.05, min: 0,  max: 0.5, desc: "柱最小高度比例(0-1)" },
+    maxHeight: { type: "number", default: 0.8,  min: 0.1, max: 1,  desc: "柱最大高度比例(0-1)" },
+    beatFreq:  { type: "number", default: 2,    min: 0.5, max: 10, desc: "节拍频率倍数" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

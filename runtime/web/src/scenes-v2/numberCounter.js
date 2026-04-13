@@ -7,13 +7,20 @@ export default {
   id: "numberCounter",
   type: "dom",
   name: "Number Counter",
-  category: "Data",
-  defaultParams: {
-    value: 1234,
-    prefix: "",
-    suffix: "",
-    label: "Total Views",
-    color: "#6ee7ff",
+  category: "Numbers",
+  tags: ["数字", "计数器", "数据展示", "统计", "滚动数字", "KPI"],
+  description: "从零动态滚动到目标数值的计数器，支持前后缀和说明标签",
+  params: {
+    value:  { type: "number", default: 1234,         desc: "目标数值" },
+    prefix: { type: "string", default: "",            desc: "数值前缀（如 $）" },
+    suffix: { type: "string", default: "",            desc: "数值后缀（如 %、K）" },
+    label:  { type: "string", default: "Total Views", desc: "底部说明标签" },
+    color:  { type: "color",  default: "#6ee7ff",     desc: "数字和标签颜色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

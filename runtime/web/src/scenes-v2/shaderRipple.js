@@ -66,7 +66,19 @@ export default {
   type: "webgl",
   name: "Water Ripple",
   category: "Shader",
-  defaultParams: { frequency: 10, amplitude: 0.02, speed: 2.0, center: [0.5, 0.5] },
+  tags: ["涟漪", "水波", "扭曲", "着色器", "波纹", "流体"],
+  description: "从中心向外扩散的水面涟漪扭曲着色器效果",
+  params: {
+    frequency: { type: "number", default: 10,         desc: "波纹频率", min: 1, max: 30 },
+    amplitude: { type: "number", default: 0.02,       desc: "扭曲振幅", min: 0, max: 0.1 },
+    speed:     { type: "number", default: 2.0,        desc: "扩散速度", min: 0.1, max: 10 },
+    center:    { type: "array",  default: [0.5, 0.5], desc: "波纹中心点 [x, y]" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");

@@ -8,11 +8,18 @@ export default {
   type: "dom",
   name: "Quote Block",
   category: "Typography",
-  defaultParams: {
-    text: "Design is not just what it looks like. Design is how it works.",
-    author: "Steve Jobs",
-    fontSize: 32,
-    accentColor: "#a78bfa",
+  tags: ["引言", "名人名言", "排版", "引用", "文字", "宣言"],
+  description: "居中展示引言和作者署名，带大号引号装饰和渐入动画",
+  params: {
+    text:        { type: "string", default: "Design is not just what it looks like. Design is how it works.", desc: "引言正文内容" },
+    author:      { type: "string", default: "Steve Jobs", desc: "作者署名（留空则不显示）" },
+    fontSize:    { type: "number", default: 32, min: 16, max: 80, desc: "引言字号(px)" },
+    accentColor: { type: "color",  default: "#a78bfa",            desc: "引号和发光强调色" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

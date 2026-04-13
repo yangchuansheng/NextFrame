@@ -5,10 +5,17 @@ export default {
   type: "canvas",
   name: "Vignette",
   category: "Effects",
-  defaultParams: {
-    intensity: 0.7,
-    color: "#000000",
-    radius: 0.5,
+  tags: ["暗角", "叠加层", "电影感", "氛围", "遮罩", "边缘"],
+  description: "四周向中心渐暗的暗角遮罩叠加效果",
+  params: {
+    intensity: { type: "number", default: 0.7,     desc: "暗角强度", min: 0, max: 1 },
+    color:     { type: "string", default: "#000000", desc: "暗角颜色" },
+    radius:    { type: "number", default: 0.5,      desc: "亮区半径比例", min: 0.1, max: 1 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

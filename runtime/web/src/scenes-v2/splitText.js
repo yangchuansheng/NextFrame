@@ -8,11 +8,18 @@ export default {
   type: "dom",
   name: "Split Text",
   category: "Typography",
-  defaultParams: {
-    text: "CREATIVE",
-    fontSize: 96,
-    color: "#ffffff",
-    splitDelay: 0.05,
+  tags: ["文字", "分裂", "动画", "排版", "标题", "过渡"],
+  description: "文字上下分裂展开的动态标题动画效果",
+  params: {
+    text:       { type: "string", default: "CREATIVE", desc: "显示文字" },
+    fontSize:   { type: "number", default: 96,          desc: "字体大小（px）", min: 24, max: 300 },
+    color:      { type: "string", default: "#ffffff",   desc: "文字颜色" },
+    splitDelay: { type: "number", default: 0.05,        desc: "每字延迟（秒）", min: 0, max: 0.5 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

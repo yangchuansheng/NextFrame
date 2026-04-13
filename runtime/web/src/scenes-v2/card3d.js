@@ -8,12 +8,19 @@ export default {
   type: "dom",
   name: "3D Card Flip",
   category: "Motion Graphics",
-  defaultParams: {
-    frontTitle: "Front",
-    frontSubtitle: "",
-    backContent: "Back side",
-    bgColor: "rgba(30,30,50,0.9)",
-    rotateAxis: "Y",
+  tags: ["card", "3d", "flip", "animation", "motion", "reveal"],
+  description: "3D 翻转卡片，入场时从背面翻到正面，退场再翻回，正反面内容可自定义",
+  params: {
+    frontTitle:    { type: "string", default: "Front",                desc: "正面标题" },
+    frontSubtitle: { type: "string", default: "",                     desc: "正面副标题（可选）" },
+    backContent:   { type: "string", default: "Back side",            desc: "背面内容文字" },
+    bgColor:       { type: "string", default: "rgba(30,30,50,0.9)",   desc: "卡片背景色" },
+    rotateAxis:    { type: "string", default: "Y",                    desc: "翻转轴：Y（左右翻）或 X（上下翻）" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

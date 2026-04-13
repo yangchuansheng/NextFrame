@@ -77,17 +77,24 @@ export default {
   type: "svg",
   name: "Tree Map",
   category: "Data Viz",
-  defaultParams: {
-    data: [
+  tags: ["树图", "矩形树图", "数据可视化", "SVG", "比例", "面积"],
+  description: "按数值大小自动分割面积的矩形树图数据可视化",
+  params: {
+    data: { type: "array", default: [
       { label: "Videos", value: 45, color: "#6ee7ff" },
       { label: "Images", value: 30, color: "#a78bfa" },
       { label: "Audio", value: 20, color: "#f472b6" },
       { label: "Docs", value: 15, color: "#fb923c" },
       { label: "Code", value: 12, color: "#4ade80" },
       { label: "Other", value: 8, color: "#fbbf24" },
-    ],
-    gap: 6,
-    borderRadius: 6,
+    ], desc: "数据项数组（含 label/value/color）" },
+    gap:          { type: "number", default: 6, desc: "矩形间距（px）", min: 0, max: 20 },
+    borderRadius: { type: "number", default: 6, desc: "圆角半径（px）", min: 0, max: 20 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

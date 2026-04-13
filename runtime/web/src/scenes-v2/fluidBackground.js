@@ -5,10 +5,17 @@ export default {
   type: "canvas",
   name: "Fluid Background",
   category: "Backgrounds",
-  defaultParams: {
-    colors: ["#4a00e0", "#8e2de2", "#00d2ff", "#ff6b6b"],
-    speed: 1,
-    blur: 80,
+  tags: ["background", "fluid", "blob", "gradient", "animated", "ambient", "dark"],
+  description: "多色流体光斑背景，光晕缓慢漂移融合，高斯模糊营造梦幻氛围，适合作为底层背景",
+  params: {
+    colors: { type: "array",  default: ["#4a00e0", "#8e2de2", "#00d2ff", "#ff6b6b"], desc: "光斑颜色数组" },
+    speed:  { type: "number", default: 1,   desc: "动画速度倍数", min: 0.1, max: 5 },
+    blur:   { type: "number", default: 80,  desc: "高斯模糊半径(px)", min: 0, max: 200 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

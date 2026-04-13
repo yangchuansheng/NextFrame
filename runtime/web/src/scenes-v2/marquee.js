@@ -8,12 +8,19 @@ export default {
   type: "dom",
   name: "Marquee",
   category: "Typography",
-  defaultParams: {
-    text: "BREAKING NEWS — NEXTFRAME AI VIDEO EDITOR",
-    fontSize: 24,
-    speed: 100,
-    color: "#fff",
-    bgColor: "rgba(0,0,0,0.6)",
+  tags: ["跑马灯", "滚动字幕", "新闻条", "底部字幕", "循环滚动", "文字"],
+  description: "底部无缝循环滚动的跑马灯字幕条，支持自定义速度和样式",
+  params: {
+    text:    { type: "string", default: "BREAKING NEWS — NEXTFRAME AI VIDEO EDITOR", desc: "滚动文字内容" },
+    fontSize: { type: "number", default: 24, min: 12, max: 72, desc: "字号(px)" },
+    speed:   { type: "number", default: 100, min: 10, max: 500, desc: "滚动速度（数值越大越快）" },
+    color:   { type: "color",  default: "#fff",                 desc: "文字颜色" },
+    bgColor: { type: "color",  default: "rgba(0,0,0,0.6)",      desc: "背景条颜色（支持透明度）" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

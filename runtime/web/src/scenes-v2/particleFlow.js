@@ -5,12 +5,19 @@ export default {
   type: "canvas",
   name: "Particle Flow",
   category: "Effects",
-  defaultParams: {
-    count: 150,
-    speed: 1,
-    color: "#6ea8fe",
-    size: 2,
-    direction: 0,
+  tags: ["粒子流", "粒子效果", "背景", "动态背景", "流动", "光点"],
+  description: "发光粒子沿指定方向流动的动态背景效果，支持边界环绕",
+  params: {
+    count:     { type: "number", default: 150, min: 10, max: 1000, desc: "粒子数量" },
+    speed:     { type: "number", default: 1,   min: 0,  max: 10,   desc: "流动速度倍数" },
+    color:     { type: "color",  default: "#6ea8fe",               desc: "粒子颜色" },
+    size:      { type: "number", default: 2,   min: 0.5, max: 10,  desc: "粒子基础半径(px)" },
+    direction: { type: "number", default: 0,   min: 0,  max: 360,  desc: "流动方向（角度，0为向右）" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

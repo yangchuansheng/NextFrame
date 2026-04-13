@@ -5,12 +5,19 @@ export default {
   type: "canvas",
   name: "Aurora Gradient",
   category: "Backgrounds",
-  defaultParams: {
-    hueA: 220,
-    hueB: 280,
-    hueC: 180,
-    intensity: 0.7,
-    grain: 0.03,
+  tags: ["background", "gradient", "aurora", "glow", "ambient", "dark", "animated"],
+  description: "极光渐变背景，多色光斑缓慢漂移，叠加胶片颗粒感，适合作为场景底层背景",
+  params: {
+    hueA:      { type: "number", default: 220, desc: "第一色光色相 (0-360)", min: 0, max: 360 },
+    hueB:      { type: "number", default: 280, desc: "第二色光色相 (0-360)", min: 0, max: 360 },
+    hueC:      { type: "number", default: 180, desc: "第三色光色相 (0-360)", min: 0, max: 360 },
+    intensity: { type: "number", default: 0.7, desc: "光晕强度 (0-1)", min: 0, max: 1 },
+    grain:     { type: "number", default: 0.03, desc: "胶片颗粒强度 (0-0.2)", min: 0, max: 0.2 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

@@ -152,7 +152,10 @@ export default {
   type: "dom",
   name: "Dim Tools Slide",
   category: "Layout",
-  defaultParams: {},
+  tags: ["slide", "layout", "claude", "tools", "presentation", "dark", "branded"],
+  description: "Claude Code 源码讲解专用幻灯片，展示工具箱维度，含代码窗口、MCP 卡片和大数字两阶段动画",
+  params: {},
+  get defaultParams() { return {}; },
 
   create(container) {
     const root = createRoot(container, `background:${C.bg};display:flex;flex-direction:column;font-family:${C.sans};`);

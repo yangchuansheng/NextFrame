@@ -5,12 +5,19 @@ export default {
   type: "canvas",
   name: "Mesh Grid",
   category: "Effects",
-  defaultParams: {
-    cols: 20,
-    rows: 12,
-    color: "#4a6fa5",
-    amplitude: 8,
-    frequency: 1,
+  tags: ["网格", "波动网格", "背景", "粒子网格", "有机动效", "技术感"],
+  description: "基于正弦波位移的有机波动网格，网格交叉点有发光圆点",
+  params: {
+    cols:      { type: "number", default: 20, min: 3,  max: 60,  desc: "网格列数" },
+    rows:      { type: "number", default: 12, min: 3,  max: 40,  desc: "网格行数" },
+    color:     { type: "color",  default: "#4a6fa5",             desc: "网格线和节点颜色" },
+    amplitude: { type: "number", default: 8,  min: 0,  max: 50,  desc: "位移幅度(px)" },
+    frequency: { type: "number", default: 1,  min: 0.1, max: 5,  desc: "动画频率倍数" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

@@ -5,11 +5,18 @@ export default {
   type: "canvas",
   name: "Waveform",
   category: "Effects",
-  defaultParams: {
-    bars: 64,
-    color: "#6ee7ff",
-    mirrorY: true,
-    beatSpeed: 2,
+  tags: ["波形", "音频", "可视化", "条形", "音乐", "动效"],
+  description: "模拟音频频谱跳动的波形条形可视化动画",
+  params: {
+    bars:      { type: "number",  default: 64,       desc: "条形数量", min: 8, max: 256 },
+    color:     { type: "string",  default: "#6ee7ff", desc: "条形颜色" },
+    mirrorY:   { type: "boolean", default: true,      desc: "是否上下镜像对称" },
+    beatSpeed: { type: "number",  default: 2,         desc: "跳动速度", min: 0.5, max: 10 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

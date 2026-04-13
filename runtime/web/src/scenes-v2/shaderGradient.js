@@ -62,7 +62,19 @@ export default {
   type: "webgl",
   name: "GPU Gradient",
   category: "Shader",
-  defaultParams: { color1: "#1a0a3e", color2: "#0a2a4e", color3: "#2a0a2e", speed: 0.3 },
+  tags: ["渐变", "背景", "GPU", "着色器", "颜色流动", "氛围"],
+  description: "GPU 驱动的三色平滑渐变背景动画",
+  params: {
+    color1: { type: "string", default: "#1a0a3e", desc: "渐变色1" },
+    color2: { type: "string", default: "#0a2a4e", desc: "渐变色2" },
+    color3: { type: "string", default: "#2a0a2e", desc: "渐变色3" },
+    speed:  { type: "number", default: 0.3,      desc: "动画速度", min: 0, max: 3 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container, params) {
     const canvas = document.createElement("canvas");

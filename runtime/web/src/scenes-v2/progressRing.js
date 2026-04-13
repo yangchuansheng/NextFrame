@@ -14,13 +14,20 @@ export default {
   type: "svg",
   name: "Progress Ring",
   category: "Data Viz",
-  defaultParams: {
-    progress: 75,
-    color: "#6ee7ff",
-    bgColor: "rgba(255,255,255,0.08)",
-    strokeWidth: 28,
-    label: "Progress",
-    showPercent: true,
+  tags: ["环形进度", "圆形进度", "KPI", "仪表盘", "百分比", "数据展示"],
+  description: "带发光效果和数字动画的 SVG 圆形进度环，支持圆弧笔帽",
+  params: {
+    progress:    { type: "number",  default: 75,                      desc: "目标进度值(0-100)", min: 0, max: 100 },
+    color:       { type: "color",   default: "#6ee7ff",               desc: "进度弧线颜色" },
+    bgColor:     { type: "color",   default: "rgba(255,255,255,0.08)", desc: "背景圆环颜色" },
+    strokeWidth: { type: "number",  default: 28, min: 4, max: 60,     desc: "圆环宽度(px)" },
+    label:       { type: "string",  default: "Progress",              desc: "中心底部标签文字" },
+    showPercent: { type: "boolean", default: true,                    desc: "是否显示中心百分比数字" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

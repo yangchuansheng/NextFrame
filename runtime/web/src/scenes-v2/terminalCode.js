@@ -12,10 +12,17 @@ export default {
   type: "dom",
   name: "Terminal Code Window",
   category: "Code",
-  defaultParams: {
-    title: "schema.json",
-    lines: [],
-    lineHeight: 1.75,
+  tags: ["终端", "代码", "等宽字体", "代码块", "窗口", "编程"],
+  description: "仿终端窗口样式的代码内容展示组件",
+  params: {
+    title:      { type: "string", default: "schema.json", desc: "窗口标题栏文字" },
+    lines:      { type: "array",  default: [],             desc: "代码行数组（含 text/color）" },
+    lineHeight: { type: "number", default: 1.75,           desc: "行高倍数", min: 1, max: 3 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

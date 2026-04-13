@@ -7,12 +7,19 @@ export default {
   id: "progressBar",
   type: "dom",
   name: "Progress Bar",
-  category: "Data",
-  defaultParams: {
-    progress: 75,
-    label: "Project Progress",
-    color: "#6ee7ff",
-    height: 12,
+  category: "Data Viz",
+  tags: ["进度条", "进度", "百分比", "加载", "数据展示", "完成度"],
+  description: "带动画填充和实时百分比显示的水平进度条",
+  params: {
+    progress: { type: "number", default: 75,                desc: "目标进度值(0-100)", min: 0, max: 100 },
+    label:    { type: "string", default: "Project Progress", desc: "进度条标签文字" },
+    color:    { type: "color",  default: "#6ee7ff",          desc: "进度条填充颜色" },
+    height:   { type: "number", default: 12, min: 4, max: 40, desc: "进度条高度(px)" },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
   },
 
   create(container, params) {

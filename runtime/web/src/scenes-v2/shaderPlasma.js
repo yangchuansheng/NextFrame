@@ -66,7 +66,18 @@ export default {
   type: "webgl",
   name: "Plasma Effect",
   category: "Shader",
-  defaultParams: { speed: 1.0, scale: 4.0, colors: 3 },
+  tags: ["等离子", "plasma", "彩色", "背景", "着色器", "迷幻"],
+  description: "彩色等离子波浪流动的全屏着色器背景",
+  params: {
+    speed:  { type: "number", default: 1.0, desc: "动画速度", min: 0.1, max: 5 },
+    scale:  { type: "number", default: 4.0, desc: "波纹缩放", min: 1, max: 10 },
+    colors: { type: "number", default: 3,   desc: "参与混合的颜色数量", min: 1, max: 6 },
+  },
+  get defaultParams() {
+    const p = {};
+    for (const [k, v] of Object.entries(this.params)) p[k] = v.default;
+    return p;
+  },
 
   create(container) {
     const canvas = document.createElement("canvas");
