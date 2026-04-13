@@ -38,6 +38,7 @@ const SUBCOMMANDS = {
   scenes: () => import("../src/cli/scenes.js"),
   build: () => import("../src/cli/build.js"),
   preview: () => import("../src/cli/preview.js"),
+  app: () => import("../src/cli/app.js"),
   "app-eval": () => import("../src/cli/app-eval.js"),
   "app-screenshot": () => import("../src/cli/app-screenshot.js"),
   "debug-screenshot": () => import("../src/cli/debug-screenshot.js"),
@@ -73,6 +74,15 @@ COMMANDS
   project-new <name>             create project in ~/NextFrame/projects/
   episode-new <proj> <name>      create episode
   segment-new <proj> <ep> <name> create segment (v0.3 layers format)
+  app <subcommand>               remote control the running desktop app
+
+APP CONTROL
+  app eval <js>                              evaluate JS in desktop app
+  app screenshot [--out=path.png]            capture preview to PNG
+  app diagnose                               show app state JSON
+  app navigate <project> <episode> <segment> navigate to segment
+  app click <x> <y>                          simulate click at viewport coords
+  app status                                 check app status + active view
 
 TIMELINE FORMAT
   {
