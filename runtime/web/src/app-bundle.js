@@ -1998,8 +1998,12 @@ function renderPipelineStage() {
   switch (pipelineStage) {
     case "script": container.innerHTML = renderPipelineScript(pipelineData); break;
     case "audio": container.innerHTML = renderPipelineAudio(pipelineData); break;
+    case "clips": container.innerHTML = renderPipelineClips(pipelineData); break;
     case "atoms": container.innerHTML = renderPipelineAtoms(pipelineData); break;
-    case "assembly": container.innerHTML = renderPipelineAssembly(); break;
+    case "assembly":
+      container.innerHTML = '<div class="pipeline-empty">正在加载编辑器...</div>';
+      if (currentProject && currentEpisode) goEditor(currentProject, currentEpisode);
+      break;
     case "output": container.innerHTML = renderPipelineOutput(pipelineData); break;
     default: container.innerHTML = '<div class="pipeline-empty">Unknown stage</div>';
   }
@@ -2085,6 +2089,34 @@ function renderPipelineAudio(data) {
   '<div class="pl-audio-list">' + rowsHtml +
     '<div style="padding:12px 0;font-size:11px;color:var(--ink-dim);font-family:var(--font-mono)">总时长 ' + totalDur.toFixed(1) + "s</div>" +
   "</div>";
+}
+
+function renderPipelineClips(data) {
+  var atoms = data.atoms || [];
+  var videos = atoms.filter(function(a) { return a.type === "video"; });
+  if (videos.length === 0) return '<div class="pipeline-empty">暂无素材 — nextframe atom-add --type=video</div>';
+
+  var rowsHtml = videos.map(function(v) {
+    var hasSub = v.subtitles && v.subtitles.length > 0;
+    var hasTl = v.hasTl;
+    var tags = '';
+    tags += hasSub ? '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:rgba(224,160,64,0.12);color:#e0a040;font-weight:500">字幕 ✓</span> ' : '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:var(--ink-08);color:var(--ink-25)">无字幕</span> ';
+    tags += hasTl ? '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:rgba(124,106,239,0.1);color:#7c6aef;font-weight:500">时间轴 ✓</span> ' : '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:var(--ink-08);color:var(--ink-25)">无时间轴</span> ';
+    if (v.segment) tags += '<span style="font-size:11px;padding:2px 10px;border-radius:3px;background:rgba(124,106,239,0.15);color:#7c6aef;font-family:var(--font-mono)">段 ' + v.segment + '</span>';
+
+    return '<div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:var(--border-a1)">' +
+      '<div style="width:100px;aspect-ratio:16/9;background:var(--bg-surface);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--ink-ghost);font-size:11px">▶</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:14px;font-weight:500;margin-bottom:2px">' + escHtml(v.name) + '</div>' +
+        '<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-dim)">' + escHtml(v.file || "") + (v.duration ? " · " + v.duration + "s" : "") + '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0">' + tags + '</div>' +
+    '</div>';
+  }).join("");
+
+  return '<div style="padding:10px 20px;border-bottom:var(--border-a1);display:flex;align-items:center;gap:8px">' +
+    '<span style="font-size:12px;color:var(--ink-dim)">' + videos.length + ' 个素材</span>' +
+  '</div>' + rowsHtml;
 }
 
 function renderPipelineAtoms(data) {

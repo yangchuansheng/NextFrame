@@ -31,7 +31,21 @@ export async function run(argv) {
   try {
     order = await countEpisodes(projectPath) + 1;
     await mkdir(path);
+    // Create pipeline subdirectories
+    await mkdir(join(path, "sources"), { recursive: true });
+    await mkdir(join(path, "clips"), { recursive: true });
+    await mkdir(join(path, "audio"), { recursive: true });
+    await mkdir(join(path, "exports"), { recursive: true });
     await writeFile(episodeFile, JSON.stringify({ name, order, created: stamp }, null, 2) + "\n");
+    // Initialize empty pipeline.json
+    const emptyPipeline = {
+      version: "0.4",
+      script: { principles: {}, arc: [], segments: [] },
+      audio: { voice: null, speed: 1, segments: [] },
+      atoms: [],
+      outputs: [],
+    };
+    await writeFile(join(path, "pipeline.json"), JSON.stringify(emptyPipeline, null, 2) + "\n");
     project.updated = stamp;
     await writeFile(projectFile, JSON.stringify(project, null, 2) + "\n");
   } catch (err) {
