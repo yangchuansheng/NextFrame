@@ -20,7 +20,36 @@ use nextframe_recorder::util::absolute_path;
 #[command(
     name = "recorder",
     version,
-    about = "HTML slide → MP4. Two modes: `slide` (pure HTML) and `clip` (HTML + video overlay)."
+    about = "HTML → MP4 recorder. Frame-pure: every frame is an exact screenshot, no frame drops.",
+    after_help = r#"EXAMPLES:
+  # Vertical 1080p 60fps (fastest, recommended)
+  recorder slide video.html --width 540 --height 960 --dpr 2 --fps 60 --out video.mp4
+
+  # Landscape 1080p 60fps
+  recorder slide video.html --width 1920 --height 1080 --dpr 1 --fps 60 --out video.mp4
+
+  # 4K 60fps with parallel (4 processes)
+  recorder slide video.html --width 1920 --height 1080 --dpr 2 --fps 60 --parallel 4 --out video.mp4
+
+  # Multiple HTML files → one video
+  recorder slide slide1.html slide2.html --out combined.mp4
+
+RESOLUTION CHEAT SHEET:
+  1080x1920 (vertical)  → --width 540  --height 960  --dpr 2
+  1920x1080 (landscape) → --width 1920 --height 1080 --dpr 1
+  3840x2160 (4K)        → --width 1920 --height 1080 --dpr 2
+
+SPEED (10-core M series, 60fps):
+  1080p vertical  → 56 fps (faster than realtime)
+  1080p landscape → 25-31 fps (near realtime)
+  4K serial       → 5-6 fps
+  4K --parallel 4 → 13 fps
+  4K --parallel 8 → 14 fps
+
+AUTO-DETECTION:
+  Duration  → reads engine.duration from page JS
+  Audio     → detects window.__audioSrc, muxes to MP4
+  Video     → detects videoClip layers, ffmpeg overlays after recording"#
 )]
 struct Cli {
     #[command(subcommand)]
