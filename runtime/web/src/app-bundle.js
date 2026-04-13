@@ -2140,6 +2140,47 @@ function plFilterSeg(idx) {
   }
 }
 
+function populateEditorClipSidebar() {
+  var list = document.getElementById("editor-clip-list");
+  var count = document.getElementById("editor-clip-count");
+  if (!list) return;
+  if (!pipelineData || !pipelineData.script || !pipelineData.script.segments || pipelineData.script.segments.length === 0) {
+    if (currentProject && currentEpisode) {
+      bridgeCall("fs.read", { path: "~/NextFrame/projects/" + currentProject + "/" + currentEpisode + "/pipeline.json" }, 3000).then(function(result) {
+        try { pipelineData = JSON.parse(result.contents); renderEditorClips(); } catch (_e) {}
+      }).catch(function() {});
+    }
+    list.innerHTML = '<div style="padding:20px;color:rgba(228,228,232,0.25);font-size:12px;text-align:center">暂无片段</div>';
+    if (count) count.textContent = "0";
+    return;
+  }
+  renderEditorClips();
+}
+
+function renderEditorClips() {
+  var list = document.getElementById("editor-clip-list");
+  var countEl = document.getElementById("editor-clip-count");
+  if (!list || !pipelineData) return;
+  var segs = pipelineData.script.segments || [];
+  var audioSegs = (pipelineData.audio || {}).segments || [];
+  if (countEl) countEl.textContent = segs.length + " 个片段";
+  var html = segs.map(function(seg, i) {
+    var audio = audioSegs.find(function(a) { return a.segment === seg.segment; });
+    var dur = audio && audio.duration ? audio.duration + "s" : "—";
+    var role = seg.role ? seg.role + " — " : "";
+    return '<div class="editor-clip-item' + (i === 0 ? ' active' : '') + '" onclick="selectEditorClip(this)">' +
+      '<div class="editor-clip-name">' + escHtml(role + (seg.narration || '').substring(0, 12)) + '</div>' +
+      '<div class="editor-clip-meta">段 ' + (seg.segment || i + 1) + ' · ' + dur + '</div>' +
+    '</div>';
+  }).join("");
+  list.innerHTML = html;
+}
+
+function selectEditorClip(el) {
+  document.querySelectorAll(".editor-clip-item").forEach(function(item) { item.classList.remove("active"); });
+  el.classList.add("active");
+}
+
 function renderPipelineAudio(data) {
   var voice = escHtml(data.audio.voice);
   var speed = data.audio.speed;
