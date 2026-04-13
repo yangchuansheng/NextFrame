@@ -4,3 +4,5 @@ target/
 .worktrees/
 .ally/
 node_modules/
+test-results/
+output/
