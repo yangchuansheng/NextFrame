@@ -14,6 +14,8 @@ import lineChart from "./lineChart.js";
 import progressRing from "./progressRing.js";
 import auroraGradient from "./auroraGradient.js";
 import particleFlow from "./particleFlow.js";
+import statsRow from "./statsRow.js";
+import featureGrid from "./featureGrid.js";
 
 const SCENES_V2 = [
   headline,
@@ -32,9 +34,11 @@ const SCENES_V2 = [
   progressRing,
   auroraGradient,
   particleFlow,
+  statsRow,
+  featureGrid,
 ];
 
-export { headline, bodyText, bulletList, codeBlock, quoteBlock, calloutCard, numberCounter, subtitleBar, vignette, videoClip, audioTrack, barChart, lineChart, progressRing, auroraGradient, particleFlow };
+export { headline, bodyText, bulletList, codeBlock, quoteBlock, calloutCard, numberCounter, subtitleBar, vignette, videoClip, audioTrack, barChart, lineChart, progressRing, auroraGradient, particleFlow, statsRow, featureGrid };
 
 export const SCENE_V2_MANIFEST = SCENES_V2.map((scene) => ({
   id: scene.id,
