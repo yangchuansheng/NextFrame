@@ -316,9 +316,7 @@ pub fn record_segment(
         }
 
         autoreleasepool(|_| -> Result<(), String> {
-            let mut i = 0;
-            while i < decisions.len() {
-                let (fi, ref decision) = decisions[i];
+            for (fi, decision) in &decisions {
                 if !decision.needs_capture && last_image.is_some() {
                     let image = last_image
                         .as_ref()
@@ -331,75 +329,29 @@ pub fn record_segment(
                     } else {
                         encoder.write_cgimage_with_progress(image, prog)?;
                     }
-                    i += 1;
                     continue;
                 }
 
-                let run_start = i;
-                let mut run_end = i + 1;
-                while run_end < decisions.len() {
-                    let (_, ref next_decision) = decisions[run_end];
-                    if !next_decision.needs_capture && last_image.is_some() {
-                        break;
-                    }
-                    run_end += 1;
-                }
-
-                if run_end - run_start == 1 {
-                    host.inject_state(
-                        decision.cue_index,
-                        &decision.subtitle_text,
-                        decision.progress_pct,
-                        index,
-                        total_segments,
-                        segment_titles,
-                        segment_durations,
-                        decision.timestamp_sec,
-                    )?;
-                    let image =
-                        capture_frame(host, index, fi, &mut capture_method, cli.render_scale)?;
-                    let prog = progress_rect
-                        .as_ref()
-                        .map(|pb| pb.overlay(decision.progress_pct));
-                    if is_upscaling {
-                        encoder.write_cgimage_scaled(&image, output_pw, output_ph, prog)?;
-                    } else {
-                        encoder.write_cgimage_with_progress(&image, prog)?;
-                    }
-                    last_image = Some(image);
+                host.inject_state(
+                    decision.cue_index,
+                    &decision.subtitle_text,
+                    decision.progress_pct,
+                    index,
+                    total_segments,
+                    segment_titles,
+                    segment_durations,
+                    decision.timestamp_sec,
+                )?;
+                let image = capture_frame(host, index, *fi, &mut capture_method, cli.render_scale)?;
+                let prog = progress_rect
+                    .as_ref()
+                    .map(|pb| pb.overlay(decision.progress_pct));
+                if is_upscaling {
+                    encoder.write_cgimage_scaled(&image, output_pw, output_ph, prog)?;
                 } else {
-                    let batch_frames: Vec<_> = (run_start..run_end)
-                        .map(|j| {
-                            let (_, ref d) = decisions[j];
-                            (
-                                d.cue_index,
-                                d.subtitle_text.as_str(),
-                                d.progress_pct,
-                                index,
-                                total_segments,
-                                segment_titles,
-                                segment_durations,
-                                d.timestamp_sec,
-                            )
-                        })
-                        .collect();
-                    host.inject_states_batch(&batch_frames)?;
-
-                    let last_fi = decisions[run_end - 1].0;
-                    let image =
-                        capture_frame(host, index, last_fi, &mut capture_method, cli.render_scale)?;
-                    for (_, d) in &decisions[run_start..run_end] {
-                        let prog = progress_rect.as_ref().map(|pb| pb.overlay(d.progress_pct));
-                        if is_upscaling {
-                            encoder.write_cgimage_scaled(&image, output_pw, output_ph, prog)?;
-                        } else {
-                            encoder.write_cgimage_with_progress(&image, prog)?;
-                        }
-                    }
-                    last_image = Some(image);
+                    encoder.write_cgimage_with_progress(&image, prog)?;
                 }
-
-                i = run_end;
+                last_image = Some(image);
             }
             Ok(())
         })?;
