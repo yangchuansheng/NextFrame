@@ -54,7 +54,10 @@ impl WebViewHost {
                     .into(),
             );
         }
-        self.flush_render(Duration::from_millis(1))
+        // 8ms flush: enough for video.currentTime seek to decode a frame.
+        // For pages without video, this is a ~7ms overhead vs the old 1ms flush,
+        // but it ensures embedded video frames are visible in the capture.
+        self.flush_render(Duration::from_millis(8))
     }
 
     /// Sends multiple frames of data to the page in a single JS evaluation.

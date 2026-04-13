@@ -273,7 +273,12 @@ impl WebViewHost {
           const help = document.querySelector('.help');
           if (help) help.style.display = 'none';
           document.querySelectorAll('audio, video').forEach(el => {
-            try { el.pause(); el.currentTime = 0; el.muted = true; } catch (_) {}
+            try {
+              el.muted = true;
+              // Don't pause video — videoClip scene seeks it per frame via __onFrame.
+              // Only pause audio elements (audio is muxed by ffmpeg separately).
+              if (el.tagName === 'AUDIO') { el.pause(); el.currentTime = 0; }
+            } catch (_) {}
           });
           return 'ok';
         })()

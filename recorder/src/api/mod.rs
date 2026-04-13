@@ -8,7 +8,7 @@ use objc2::MainThreadMarker;
 use serde::{Deserialize, Serialize};
 
 use crate::CommonArgs;
-use crate::overlay::{overlay_video, write_perf_log};
+use crate::overlay::{build_video_overlay_specs, overlay_video, overlay_video_layers, write_perf_log};
 use crate::parser::SlideType;
 use crate::plan::{build_segment_plans, collect_frame_files, detect_root};
 use crate::record::record_segment;
@@ -32,6 +32,14 @@ pub struct RecordArgs {
     pub width: f64,
     pub height: f64,
     pub parallel: Option<usize>,
+    #[serde(default)]
+    pub frame_range: Option<(usize, usize)>,
+    #[serde(default = "default_render_scale")]
+    pub render_scale: f64,
+}
+
+fn default_render_scale() -> f64 {
+    1.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +66,8 @@ impl From<RecordArgs> for CommonArgs {
             width: args.width,
             height: args.height,
             parallel: args.parallel,
+            frame_range: args.frame_range,
+            render_scale: args.render_scale,
         }
     }
 }
@@ -70,6 +80,10 @@ pub fn record_segments(args: RecordArgs) -> Result<RecordOutput, String> {
     let out = absolute_path(&cli.out)?;
 
     match cli.parallel {
+        Some(requested) if frame_files.len() == 1 => {
+            // Single HTML file: use intra-segment frame-slice parallelism
+            parallel::record_parallel_single(&args, &frame_files[0], &out, requested)
+        }
         Some(requested) => parallel::record_parallel(&args, &frame_files, &out, requested),
         None => record_single(&cli, &frame_files, &out),
     }
@@ -189,7 +203,20 @@ fn record_single(
             offset_sec += plan.effective_duration_sec;
             total_frames += summary.total_frames;
 
-            if plan.metadata.slide_type == SlideType::Clip
+            let video_layer_overlays = build_video_overlay_specs(
+                &summary.video_layers,
+                &root,
+                &plan.metadata.html_path,
+                cli.width,
+                cli.height,
+                cli.dpr,
+            )?;
+            if !video_layer_overlays.is_empty() {
+                overlay_video_layers(&summary.path, &video_layer_overlays)?;
+            }
+
+            if summary.video_layers.is_empty()
+                && plan.metadata.slide_type == SlideType::Clip
                 && let Some(ref audio) = plan.metadata.audio_path
             {
                 let ext = audio.extension().and_then(|ext| ext.to_str()).unwrap_or("");
