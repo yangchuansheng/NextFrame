@@ -101,10 +101,17 @@ export function validateTimeline(timeline) {
     const fontSize = layer.params?.fontSize;
     if (typeof fontSize === 'number') {
       const minFont = isVertical ? 24 : 18;
+      const maxTitle = Math.floor(timeline.width / 20);
       if (fontSize < minFont) {
         warnings.push({
           code: 'FONT_TOO_SMALL',
           message: `layer "${layer.id}" fontSize ${fontSize}px — minimum ${minFont}px for ${isVertical ? '竖屏' : '横屏'}`,
+        });
+      }
+      if (fontSize > maxTitle) {
+        warnings.push({
+          code: 'FONT_TOO_LARGE',
+          message: `layer "${layer.id}" fontSize ${fontSize}px exceeds max ${maxTitle}px for ${timeline.width}px width — text will be clipped`,
         });
       }
     }
