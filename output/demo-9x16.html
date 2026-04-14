@@ -30,23 +30,37 @@ body { background: #000; display: flex; flex-direction: column; align-items: cen
 // ─── Config ───
 const DURATION = 12;
 
-// 录制模式：viewport 就是整个窗口（recorder 设了精确尺寸）
-// 预览模式：缩小到屏幕内显示
-const isRecording = typeof window.__onFrame === 'function' || window.innerWidth === 1080;
-const W = isRecording ? window.innerWidth : Math.round(Math.min(window.innerHeight - 80, 750) * 9 / 16);
-const H = isRecording ? window.innerHeight : Math.min(window.innerHeight - 80, 750);
+// 检测是否在 recorder WebView 里（非交互环境 = 录制）
+// recorder 的 WebView 宽高比精确等于 9:16
+const ratio = window.innerWidth / window.innerHeight;
+const isRecording = Math.abs(ratio - 9/16) < 0.01 && window.innerWidth >= 500;
+
+let W, H;
+if (isRecording) {
+  W = window.innerWidth;
+  H = window.innerHeight;
+} else {
+  const maxH = Math.min(window.innerHeight - 80, 750);
+  H = maxH;
+  W = Math.round(H * 9 / 16);
+}
 
 const vp = document.getElementById('viewport');
 vp.style.width = W + 'px';
 vp.style.height = H + 'px';
+
 if (isRecording) {
-  // 录制时全屏，隐藏控件
   document.body.style.margin = '0';
+  document.body.style.padding = '0';
   document.body.style.overflow = 'hidden';
+  document.body.style.display = 'block';
   document.getElementById('controls').style.display = 'none';
   document.getElementById('title').style.display = 'none';
   vp.style.borderRadius = '0';
   vp.style.border = 'none';
+  vp.style.position = 'fixed';
+  vp.style.top = '0';
+  vp.style.left = '0';
 }
 
 // ─── Timeline ───
