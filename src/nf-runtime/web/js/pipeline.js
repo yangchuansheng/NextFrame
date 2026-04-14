@@ -17,7 +17,7 @@ function loadPipelineData() {
   var exportLogPath = currentProjectPath ? currentProjectPath + '/exports.json' : '';
   if (exportLogPath) {
     bridgeCall('fs.read', { path: exportLogPath }).then(function(data) {
-      try { var parsed = JSON.parse(data.content || '[]'); renderOutputTab(Array.isArray(parsed) ? parsed : []); }
+      try { var parsed = JSON.parse(data.contents || data.content || '[]'); renderOutputTab(Array.isArray(parsed) ? parsed : []); }
       catch(e2) { renderOutputTab([]); }
     }).catch(function() { renderOutputTab([]); });
   } else {

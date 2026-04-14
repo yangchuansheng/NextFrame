@@ -339,7 +339,9 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
     let _ = webview::screenshot(wv, "/tmp/nf-verify-audio.png");
 
     check!("switch to editor", webview::eval_js(wv, "document.querySelector('[data-stage=\"assembly\"]')?.click();'clicked'"));
-    webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
+    webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
+    check!("editor clips loaded", webview::eval_js(wv, "var c=document.getElementById('ed-clip-list2');c?(c.querySelectorAll('.ed-clip-item').length||'empty'):'missing'"));
+    check!("editor timeline data", webview::eval_js(wv, "edTimelineData ? (edTimelineData.layers||[]).length + ' layers' : 'null'"));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-editor.png");
 
     check!("switch to output", webview::eval_js(wv, "document.querySelector('[data-stage=\"output\"]')?.click();'clicked'"));

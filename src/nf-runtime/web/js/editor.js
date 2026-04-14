@@ -12,21 +12,51 @@ function loadEditorTimeline() {
     showEditorEmpty('选择一个剧集查看时间线');
     return;
   }
-  // List files in episode dir to find segment-*.json or timeline.json
-  bridgeCall('fs.listDir', { path: window.currentEpisodePath }).then(function(data) {
+  // Try pipeline.json first (real data), then timeline.json, then segment-*.json
+  var pipelinePath = window.currentEpisodePath + '/pipeline.json';
+  bridgeCall('fs.read', { path: pipelinePath }).then(function(data) {
+    var raw = data.contents || data.content || '';
+    var parsed;
+    try { parsed = typeof raw === 'object' ? raw : JSON.parse(raw); }
+    catch(pe) { parsed = {}; }
+    var atoms = parsed.atoms || [];
+    if (atoms.length > 0) {
+      // Convert atoms to timeline-like format for rendering
+      var totalDur = 0;
+      var layers = atoms.map(function(a, i) {
+        var start = totalDur;
+        var dur = a.duration || 10;
+        totalDur += dur;
+        return {
+          name: a.name || ('Atom ' + (i + 1)),
+          scene: a.type || 'video',
+          start: start,
+          duration: dur,
+          file: a.file || '',
+          subtitles: a.subtitles ? a.subtitles.length + ' subs' : ''
+        };
+      });
+      var tl = { layers: layers, duration: totalDur };
+      edTimelineData = tl;
+      renderEditorFromTimeline(tl);
+      return;
+    }
+    // Fall back to looking for timeline/segment files
+    return bridgeCall('fs.listDir', { path: window.currentEpisodePath });
+  }).then(function(data) {
+    if (!data || edTimelineData) return;
     var entries = data.entries || [];
-    // Find first .json file that looks like a timeline (segment-*.json or timeline.json)
     var tlFile = entries.find(function(e) {
-      return e.name && (e.name.startsWith('segment-') || e.name === 'timeline.json') && e.name.endsWith('.json');
+      return e.name && (e.name === 'timeline.json' || e.name.startsWith('segment-')) && e.name.endsWith('.json');
     });
     if (!tlFile) {
-      showEditorEmpty('暂无时间线文件');
+      showEditorEmpty('暂无时间线数据');
       return;
     }
     var tlPath = window.currentEpisodePath + '/' + tlFile.name;
     return bridgeCall('timeline.load', { path: tlPath });
   }).then(function(data) {
-    if (!data) return;
+    if (!data || edTimelineData) return;
     edTimelineData = data;
     renderEditorFromTimeline(data);
   }).catch(function(e) {
@@ -82,7 +112,9 @@ function renderEditorFromTimeline(tl) {
     });
     tlEl.innerHTML = html;
   }
-  showEditorEmpty();
+  // Set inspector to default "select a clip" state
+  const insp = document.getElementById('ed-insp-inner2');
+  if (insp) insp.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px">选择一个片段查看参数</div>';
 }
 
 function selectTimelineClip(index) {
