@@ -295,56 +295,143 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
 
     // ── HOME PAGE ──
     check!("document.title", webview::eval_js(wv, "document.title"));
-    check!("topbar exists", webview::eval_js(wv, "!!document.querySelector('.topbar') ? 'yes' : 'no'"));
-    check!("project cards", webview::eval_js(wv, "document.querySelectorAll('.project-card').length + ' cards'"));
-    check!("search input", webview::eval_js(wv, "!!document.querySelector('.tb-search-input') ? 'yes' : 'no'"));
-    check!("new project btn", webview::eval_js(wv, "!!document.querySelector('.btn-primary') ? 'yes' : 'no'"));
+    check!(
+        "topbar exists",
+        webview::eval_js(wv, "!!document.querySelector('.topbar') ? 'yes' : 'no'")
+    );
+    check!(
+        "project cards",
+        webview::eval_js(
+            wv,
+            "document.querySelectorAll('.project-card').length + ' cards'"
+        )
+    );
+    check!(
+        "search input",
+        webview::eval_js(
+            wv,
+            "!!document.querySelector('.tb-search-input') ? 'yes' : 'no'"
+        )
+    );
+    check!(
+        "new project btn",
+        webview::eval_js(
+            wv,
+            "!!document.querySelector('.btn-primary') ? 'yes' : 'no'"
+        )
+    );
 
     let _ = webview::screenshot(wv, "/tmp/nf-verify-home.png");
     tracing::info!("[SCREENSHOT] /tmp/nf-verify-home.png");
 
     // ── SETTINGS MODAL ──
-    check!("open settings", webview::eval_js(wv, "toggleSettings(); 'opened'"));
+    check!(
+        "open settings",
+        webview::eval_js(wv, "toggleSettings(); 'opened'")
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
     check!("settings panel", webview::eval_js(wv, "document.getElementById('settings-panel').classList.contains('open') ? 'open' : 'closed'"));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-settings.png");
-    check!("close settings", webview::eval_js(wv, "toggleSettings(); 'closed'"));
+    check!(
+        "close settings",
+        webview::eval_js(wv, "toggleSettings(); 'closed'")
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_millis(300));
 
     // ── AI PROMPTS MODAL ──
-    check!("open AI prompts", webview::eval_js(wv, "toggleAIPrompts(); 'opened'"));
+    check!(
+        "open AI prompts",
+        webview::eval_js(wv, "toggleAIPrompts(); 'opened'")
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
-    check!("prompt sections", webview::eval_js(wv, "document.querySelectorAll('.prompt-section').length + ' sections'"));
+    check!(
+        "prompt sections",
+        webview::eval_js(
+            wv,
+            "document.querySelectorAll('.prompt-section').length + ' sections'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-ai-prompts.png");
-    check!("close AI prompts", webview::eval_js(wv, "toggleAIPrompts(); 'closed'"));
+    check!(
+        "close AI prompts",
+        webview::eval_js(wv, "toggleAIPrompts(); 'closed'")
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_millis(300));
 
     // ── NAVIGATE TO PROJECT ──
     check!("navigate to project", webview::eval_js(wv, "var cards=document.querySelectorAll('.project-card');if(cards.length>0){cards[0].click();'clicked'}else{'no cards'}"));
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
-    check!("project view active", webview::eval_js(wv, "document.getElementById('view-project')?.classList.contains('active') ? 'yes' : 'no'"));
-    check!("breadcrumb visible", webview::eval_js(wv, "document.getElementById('global-breadcrumb')?.style.display !== 'none' ? 'yes' : 'no'"));
+    check!(
+        "project view active",
+        webview::eval_js(
+            wv,
+            "document.getElementById('view-project')?.classList.contains('active') ? 'yes' : 'no'"
+        )
+    );
+    check!(
+        "breadcrumb visible",
+        webview::eval_js(
+            wv,
+            "document.getElementById('global-breadcrumb')?.style.display !== 'none' ? 'yes' : 'no'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-project.png");
 
     // ── NAVIGATE TO PIPELINE ──
     check!("navigate to pipeline", webview::eval_js(wv, "var eps=document.querySelectorAll('.vp-ep-card');if(eps.length>0){eps[0].click();'clicked'}else{showView('pipeline',{projectName:'test',episodeName:'EP01'});'forced'}"));
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
-    check!("pipeline view active", webview::eval_js(wv, "document.getElementById('view-pipeline')?.classList.contains('active') ? 'yes' : 'no'"));
-    check!("pipeline tabs visible", webview::eval_js(wv, "document.getElementById('global-pl-tabs')?.style.display !== 'none' ? 'yes' : 'no'"));
+    check!(
+        "pipeline view active",
+        webview::eval_js(
+            wv,
+            "document.getElementById('view-pipeline')?.classList.contains('active') ? 'yes' : 'no'"
+        )
+    );
+    check!(
+        "pipeline tabs visible",
+        webview::eval_js(
+            wv,
+            "document.getElementById('global-pl-tabs')?.style.display !== 'none' ? 'yes' : 'no'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-pipeline.png");
 
     // ── SWITCH PIPELINE TABS ──
-    check!("switch to audio", webview::eval_js(wv, "document.querySelector('[data-stage=\"audio\"]')?.click();'clicked'"));
+    check!(
+        "switch to audio",
+        webview::eval_js(
+            wv,
+            "document.querySelector('[data-stage=\"audio\"]')?.click();'clicked'"
+        )
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-audio.png");
 
-    check!("switch to editor", webview::eval_js(wv, "document.querySelector('[data-stage=\"assembly\"]')?.click();'clicked'"));
+    check!(
+        "switch to editor",
+        webview::eval_js(
+            wv,
+            "document.querySelector('[data-stage=\"assembly\"]')?.click();'clicked'"
+        )
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
     check!("editor clips loaded", webview::eval_js(wv, "var c=document.getElementById('ed-clip-list2');c?(c.querySelectorAll('.ed-clip-item').length||'empty'):'missing'"));
-    check!("editor timeline data", webview::eval_js(wv, "edTimelineData ? (edTimelineData.layers||[]).length + ' layers' : 'null'"));
+    check!(
+        "editor timeline data",
+        webview::eval_js(
+            wv,
+            "edTimelineData ? (edTimelineData.layers||[]).length + ' layers' : 'null'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-editor.png");
 
-    check!("switch to output", webview::eval_js(wv, "document.querySelector('[data-stage=\"output\"]')?.click();'clicked'"));
+    check!(
+        "switch to output",
+        webview::eval_js(
+            wv,
+            "document.querySelector('[data-stage=\"output\"]')?.click();'clicked'"
+        )
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-output.png");
 
@@ -361,39 +448,96 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
     "#;
     check!("open 2nd project", webview::eval_js(wv, rich_js));
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
-    check!("2nd project episodes", webview::eval_js(wv, "document.querySelectorAll('.vp-ep-card').length + ' episodes'"));
+    check!(
+        "2nd project episodes",
+        webview::eval_js(
+            wv,
+            "document.querySelectorAll('.vp-ep-card').length + ' episodes'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-project.png");
 
     // Open first episode if available
     check!("open episode", webview::eval_js(wv, "var eps=document.querySelectorAll('.vp-ep-card');if(eps.length>0){eps[0].click();'clicked'}else{'no eps'}"));
     webview::pump_run_loop_pub(std::time::Duration::from_secs(3));
-    check!("rich segments", webview::eval_js(wv, "document.querySelectorAll('#pl-tab-script .glass').length + ' segments'"));
+    check!(
+        "rich segments",
+        webview::eval_js(
+            wv,
+            "document.querySelectorAll('#pl-tab-script .glass').length + ' segments'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-script.png");
 
     // Audio tab — TTS buttons
-    check!("rich audio tab", webview::eval_js(wv, "document.querySelector('[data-stage=\"audio\"]')?.click();'clicked'"));
+    check!(
+        "rich audio tab",
+        webview::eval_js(
+            wv,
+            "document.querySelector('[data-stage=\"audio\"]')?.click();'clicked'"
+        )
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-audio.png");
 
     // Clips tab — real clips from source.clips
-    check!("rich clips tab", webview::eval_js(wv, "document.querySelector('[data-stage=\"clips\"]')?.click();'clicked'"));
+    check!(
+        "rich clips tab",
+        webview::eval_js(
+            wv,
+            "document.querySelector('[data-stage=\"clips\"]')?.click();'clicked'"
+        )
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-clips.png");
 
     // Editor tab — atoms from pipeline.json
-    check!("rich editor tab", webview::eval_js(wv, "document.querySelector('[data-stage=\"assembly\"]')?.click();'clicked'"));
+    check!(
+        "rich editor tab",
+        webview::eval_js(
+            wv,
+            "document.querySelector('[data-stage=\"assembly\"]')?.click();'clicked'"
+        )
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
-    check!("rich editor layers", webview::eval_js(wv, "edTimelineData ? (edTimelineData.layers||[]).length + ' layers' : 'null'"));
+    check!(
+        "rich editor layers",
+        webview::eval_js(
+            wv,
+            "edTimelineData ? (edTimelineData.layers||[]).length + ' layers' : 'null'"
+        )
+    );
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-editor.png");
 
     // ── BACK TO HOME ──
-    check!("back to home", webview::eval_js(wv, "showView('home');'ok'"));
+    check!(
+        "back to home",
+        webview::eval_js(wv, "showView('home');'ok'")
+    );
     webview::pump_run_loop_pub(std::time::Duration::from_secs(1));
-    check!("home view active", webview::eval_js(wv, "document.querySelector('.view-home')?.classList.contains('active') ? 'yes' : 'no'"));
+    check!(
+        "home view active",
+        webview::eval_js(
+            wv,
+            "document.querySelector('.view-home')?.classList.contains('active') ? 'yes' : 'no'"
+        )
+    );
 
     // ── AI OPERABILITY ──
-    check!("data-nf-action count", webview::eval_js(wv, "document.querySelectorAll('[data-nf-action]').length + ' actions'"));
-    check!("diagnose available", webview::eval_js(wv, "typeof window.__nfDiagnose === 'function' ? 'yes' : 'no'"));
+    check!(
+        "data-nf-action count",
+        webview::eval_js(
+            wv,
+            "document.querySelectorAll('[data-nf-action]').length + ' actions'"
+        )
+    );
+    check!(
+        "diagnose available",
+        webview::eval_js(
+            wv,
+            "typeof window.__nfDiagnose === 'function' ? 'yes' : 'no'"
+        )
+    );
 
     tracing::info!("=== VERIFY DONE: {} pass, {} fail ===", pass, fail);
 }

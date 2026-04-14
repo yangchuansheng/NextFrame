@@ -1,6 +1,8 @@
 // Pipeline runtime bindings.
 let pipelineRenderEntries = [];
 let pipelineSegments = [];
+let pipelineAudioStage = { voice: null, speed: 1, segments: [] };
+let pipelineAudioState = {};
 let pipelinePreviewState = {};
 let pipelineExportState = null;
 let pipelineExportPollTimer = null;
@@ -23,6 +25,8 @@ function escapeJsString(value) {
 
 function resetPipelineEpisodeState() {
   pipelineSegments = [];
+  pipelineAudioStage = { voice: null, speed: 1, segments: [] };
+  pipelineAudioState = {};
   pipelinePreviewState = {};
   pipelineExportState = null;
   stopExportPolling();
@@ -136,31 +140,40 @@ function fallbackSegmentPreviewParams(segmentName) {
 function loadPipelineData() {
   if (typeof bridgeCall !== 'function') return;
 
-  const nextScope = getCurrentEpisodeRef();
+  const projectRef = getCurrentProjectRef();
+  const episodeRef = getCurrentEpisodeRef();
+  const nextScope = episodeRef;
   if (pipelineEpisodeScope !== nextScope) {
     pipelineEpisodeScope = nextScope;
     resetPipelineEpisodeState();
   }
 
-  if (getCurrentEpisodeRef()) {
-    // Load script segments from pipeline.json (has narration text)
-    bridgeCall('fs.read', { path: getCurrentEpisodeRef() + '/pipeline.json' }).then(function(data) {
-      const raw = data.contents || data.content || '';
-      let parsed;
-      try { parsed = typeof raw === 'object' ? raw : JSON.parse(raw); } catch(_e) { parsed = {}; }
-      const segs = (parsed.script && parsed.script.segments) || [];
-      pipelineSegments = segs;
-      renderScriptTab(segs);
-      renderAudioTab(segs);
+  if (episodeRef) {
+    bridgeCall('script.get', { project: projectRef, episode: episodeRef }).then(function(data) {
+      const script = data && (data.script || data.value) ? (data.script || data.value) : {};
+      const segments = Array.isArray(script.segments) ? script.segments : [];
+      pipelineSegments = segments;
+      renderScriptTab(segments);
+      renderAudioTab(pipelineAudioStage.segments);
     }).catch(function(error) {
-      console.error('[pipeline] pipeline.json:', error);
-      // Fallback to segment.list
-      bridgeCall('segment.list', { project: getCurrentProjectRef(), episode: getCurrentEpisodeRef() }).then(function(data) {
-        const segs = data.segments || [];
-        pipelineSegments = segs;
-        renderScriptTab(segs);
-        renderAudioTab(segs);
-      }).catch(function() {});
+      console.error('[pipeline] script.get:', error);
+      pipelineSegments = [];
+      renderScriptTab([]);
+      renderAudioTab(pipelineAudioStage.segments);
+    });
+
+    bridgeCall('audio.get', { project: projectRef, episode: episodeRef }).then(function(data) {
+      const audio = data && (data.audio || data.value) ? (data.audio || data.value) : {};
+      pipelineAudioStage = {
+        voice: audio.voice || null,
+        speed: typeof audio.speed === 'number' ? audio.speed : 1,
+        segments: Array.isArray(audio.segments) ? audio.segments : [],
+      };
+      renderAudioTab(pipelineAudioStage.segments);
+    }).catch(function(error) {
+      console.error('[pipeline] audio.get:', error);
+      pipelineAudioStage = { voice: null, speed: 1, segments: [] };
+      renderAudioTab([]);
     });
   }
 
@@ -171,8 +184,8 @@ function loadPipelineData() {
   });
 
   // Load existing clips for the clips/asset tab
-  if (getCurrentEpisodeRef()) {
-    bridgeCall('source.clips', { episode: getCurrentEpisodeRef() }).then(function(data) {
+  if (episodeRef) {
+    bridgeCall('source.clips', { episode: episodeRef }).then(function(data) {
       renderClipsTab(data.clips || []);
     }).catch(function() {
       renderClipsTab([]);
@@ -264,44 +277,77 @@ function scrollToSegment(index) {
 }
 
 function saveNarration(el) {
-  const index = parseInt(el.dataset.segIndex);
+  const index = Number.parseInt(el.dataset.segIndex, 10);
   const text = el.textContent || '';
   if (!pipelineSegments[index]) return;
   pipelineSegments[index].narration = text;
-  // Save back to pipeline.json
   if (typeof bridgeCall !== 'function' || !getCurrentEpisodeRef()) return;
-  const path = getCurrentEpisodeRef() + '/pipeline.json';
-  bridgeCall('fs.read', { path: path }).then(function(data) {
-    const raw = data.contents || data.content || '';
-    let parsed;
-    try { parsed = typeof raw === 'object' ? raw : JSON.parse(raw); } catch(_e) { parsed = {}; }
-    if (parsed.script && parsed.script.segments && parsed.script.segments[index]) {
-      parsed.script.segments[index].narration = text;
-      return bridgeCall('fs.write', { path: path, contents: JSON.stringify(parsed, null, 2) });
-    }
-  }).catch(function(e) { console.error('[script] save narration:', e); });
+  bridgeCall('script.set', {
+    project: getCurrentProjectRef(),
+    episode: getCurrentEpisodeRef(),
+    segment: index + 1,
+    narration: text,
+  }).catch(function(error) {
+    console.error('[script] save narration:', error);
+  });
 }
 
-let pipelineAudioState = {};
+function getAudioSegmentsForRender(segments) {
+  const audioSegments = Array.isArray(segments) ? segments : [];
+  if (pipelineSegments.length === 0) return audioSegments;
+
+  const audioBySegment = {};
+  audioSegments.forEach(function(seg, index) {
+    const segmentNumber = Number(seg.segment) || (index + 1);
+    audioBySegment[segmentNumber] = seg;
+  });
+
+  const mergedSegments = pipelineSegments.map(function(seg, index) {
+    const segmentNumber = index + 1;
+    return Object.assign({
+      segment: segmentNumber,
+      narration: seg.narration || seg.text || '',
+    }, audioBySegment[segmentNumber] || {});
+  });
+
+  audioSegments.forEach(function(seg, index) {
+    const segmentNumber = Number(seg.segment) || (index + 1);
+    if (segmentNumber > mergedSegments.length) mergedSegments.push(seg);
+  });
+
+  return mergedSegments;
+}
+
+function getAudioSegmentNarration(seg, index) {
+  if (seg && (seg.narration || seg.text)) return seg.narration || seg.text || '';
+  const segmentNumber = Number(seg && seg.segment) || (index + 1);
+  const scriptSegment = pipelineSegments[segmentNumber - 1] || {};
+  return scriptSegment.narration || scriptSegment.text || '';
+}
 
 function renderAudioTab(segments) {
   const el = document.querySelector('#pl-tab-audio .pl-main');
+  const audioSegments = getAudioSegmentsForRender(segments);
   if (!el) return;
-  if (segments.length === 0) {
+  if (audioSegments.length === 0) {
     el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">暂无音频数据</div>';
     return;
   }
-  // Check TTS status for each segment
-  segments.forEach(function(seg) {
-    const segName = seg.name || seg.path || '';
-    if (!pipelineAudioState[segName] && typeof bridgeCall === 'function' && getCurrentEpisodeRef()) {
-      bridgeCall('tts.status', { episode: getCurrentEpisodeRef(), segment: segName }).then(function(data) {
-        pipelineAudioState[segName] = { exists: data.exists, mp3: data.mp3 || '' };
-        renderAudioTabInner(segments);
+  audioSegments.forEach(function(seg, index) {
+    const segmentNumber = Number(seg.segment) || (index + 1);
+    if (!pipelineAudioState[segmentNumber] && typeof bridgeCall === 'function' && getCurrentEpisodeRef()) {
+      bridgeCall('audio.status', { episode: getCurrentEpisodeRef(), segment: segmentNumber }).then(function(data) {
+        pipelineAudioState[segmentNumber] = {
+          exists: !!data.exists,
+          mp3: data.mp3 || '',
+          timelineData: data.timelineData || null,
+          srt: data.srt || '',
+        };
+        renderAudioTabInner(audioSegments);
       }).catch(function() {});
     }
   });
-  renderAudioTabInner(segments);
+  renderAudioTabInner(audioSegments);
 }
 
 function renderAudioTabInner(segments) {
@@ -309,20 +355,20 @@ function renderAudioTabInner(segments) {
   if (!el) return;
   let html = '';
   segments.forEach(function(seg, index) {
-    const segName = seg.name || seg.narration || seg.path || ('seg-' + (index + 1));
-    const narration = seg.narration || seg.text || segName;
-    const segId = 'seg-' + (index + 1);
-    const state = pipelineAudioState[segName] || {};
+    const segmentNumber = Number(seg.segment) || (index + 1);
+    const narration = getAudioSegmentNarration(seg, index) || ('seg-' + segmentNumber);
+    const segId = 'seg-' + segmentNumber;
+    const state = pipelineAudioState[segmentNumber] || {};
     const hasAudio = state.exists && state.mp3;
     html += '<div class="glass" style="padding:16px;margin-bottom:8px;border-radius:10px">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">' +
-        '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--t100)">音频 ' + (index + 1) + ' <span style="font-size:11px;color:var(--t50);font-weight:400">' + escapeHtml(segId) + '</span></div>' +
+        '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--t100)">音频 ' + segmentNumber + ' <span style="font-size:11px;color:var(--t50);font-weight:400">' + escapeHtml(segId) + '</span></div>' +
         '<div style="font-size:12px;color:var(--t65);margin-top:4px;line-height:1.5">' + escapeHtml(narration.length > 80 ? narration.substring(0, 80) + '...' : narration) + '</div></div>' +
         '<div style="display:flex;gap:6px;flex-shrink:0">' +
           (hasAudio
             ? '<button data-nf-action="play-audio" onclick="playSegmentAudio(\'' + escapeJsString(state.mp3) + '\')" style="border:0;border-radius:999px;padding:6px 12px;background:rgba(52,211,153,0.15);color:var(--green);cursor:pointer;font-size:12px">播放</button>'
             : '') +
-          '<button data-nf-action="generate-tts" onclick="generateTTS(\'' + escapeJsString(segName) + '\')" style="border:0;border-radius:999px;padding:6px 12px;background:rgba(167,139,250,0.15);color:var(--accent);cursor:pointer;font-size:12px">' + (hasAudio ? '重新生成' : '生成配音') + '</button>' +
+          '<button data-nf-action="generate-tts" onclick="generateTTS(' + segmentNumber + ')" style="border:0;border-radius:999px;padding:6px 12px;background:rgba(167,139,250,0.15);color:var(--accent);cursor:pointer;font-size:12px">' + (hasAudio ? '重新生成' : '生成配音') + '</button>' +
         '</div>' +
       '</div>' +
       (state.generating ? '<div style="font-size:11px;color:var(--t50);margin-top:8px">正在生成配音...</div>' : '') +
@@ -333,25 +379,30 @@ function renderAudioTabInner(segments) {
   el.innerHTML = html;
 }
 
-function generateTTS(segName) {
+function generateTTS(segmentNumber) {
   if (typeof bridgeCall !== 'function' || !getCurrentEpisodeRef()) return;
-  // Find narration text from segment data
-  const seg = pipelineSegments.find(function(s) {
-    return (s.name || s.narration || s.path || '') === segName;
-  });
-  const text = (seg && seg.narration) || segName;
-  pipelineAudioState[segName] = { generating: true };
-  renderAudioTabInner(pipelineSegments);
-  bridgeCall('tts.synth', {
+  pipelineAudioState[segmentNumber] = Object.assign({}, pipelineAudioState[segmentNumber], { generating: true, error: '' });
+  renderAudioTabInner(getAudioSegmentsForRender(pipelineAudioStage.segments));
+  bridgeCall('audio.synth', {
+    project: getCurrentProjectRef(),
     episode: getCurrentEpisodeRef(),
-    segment: 'seg-' + (pipelineSegments.indexOf(seg) + 1),
-    text: text,
+    segment: segmentNumber,
   }).then(function(data) {
-    pipelineAudioState[segName] = { exists: true, mp3: data.mp3 || '' };
-    renderAudioTabInner(pipelineSegments);
+    pipelineAudioState[segmentNumber] = {
+      exists: true,
+      mp3: data.mp3 || '',
+      timelineData: data.timelineData || null,
+      generating: false,
+      error: '',
+    };
+    renderAudioTabInner(getAudioSegmentsForRender(pipelineAudioStage.segments));
   }).catch(function(error) {
-    pipelineAudioState[segName] = { exists: false, error: String(error) };
-    renderAudioTabInner(pipelineSegments);
+    pipelineAudioState[segmentNumber] = {
+      exists: false,
+      generating: false,
+      error: String(error),
+    };
+    renderAudioTabInner(getAudioSegmentsForRender(pipelineAudioStage.segments));
   });
 }
 

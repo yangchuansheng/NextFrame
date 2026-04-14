@@ -1,71 +1,45 @@
-//! Source pipeline bridge — spawn `nf-source` CLI for video cutting.
+//! Source pipeline bridge — source list/cut helpers for episode clip state.
 use serde_json::{json, Value};
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 
+use super::cli::{normalize_name, run_nextframe_cli};
 use crate::util::validation::require_string;
-
-/// Find the `nf-source` binary.
-fn source_path() -> Result<PathBuf, String> {
-    which::which("nf-source").map_err(|_| {
-        "failed to find nf-source binary: not in PATH. Fix: build nf-source or add to PATH.".into()
-    })
-}
 
 /// source.cut — cut video clips from a source video using a sentence plan.
 /// Params: { episode: string, video: string, sentencesDir: string, planPath: string }
-/// Output goes to <episode>/clips/
 pub(crate) fn handle_source_cut(params: &Value) -> Result<Value, String> {
     let episode = require_string(params, "episode")?;
     let video = require_string(params, "video")?;
     let sentences_dir = require_string(params, "sentencesDir")?;
     let plan_path = require_string(params, "planPath")?;
-
-    let episode_path = PathBuf::from(episode);
-    let clips_dir = episode_path.join("clips");
-    fs::create_dir_all(&clips_dir)
-        .map_err(|e| format!("failed to create clips dir '{}': {e}", clips_dir.display()))?;
-
-    let nf_source = source_path()?;
-    let output = Command::new(&nf_source)
-        .arg("cut")
-        .arg("--video")
-        .arg(video)
-        .arg("--sentences-path")
-        .arg(sentences_dir)
-        .arg("--plan-path")
-        .arg(plan_path)
-        .arg("--out-dir")
-        .arg(&clips_dir)
-        .output()
-        .map_err(|e| format!("failed to run nf-source cut: {e}"))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "nf-source cut failed (exit {}): {stderr}",
-            output.status
-        ));
-    }
-
-    // Read cut_report.json if it exists
-    let report_path = clips_dir.join("cut_report.json");
-    let report = if report_path.exists() {
-        let content = fs::read_to_string(&report_path).unwrap_or_default();
-        serde_json::from_str::<Value>(&content).unwrap_or(json!(null))
-    } else {
-        json!(null)
-    };
-
-    // List generated clips
-    let clips = list_clips(&clips_dir);
-
-    Ok(json!({
-        "clipsDir": clips_dir.display().to_string(),
-        "clips": clips,
-        "report": report,
-    }))
+    let episode_name = normalize_name(episode);
+    let project_name = Path::new(episode)
+        .parent()
+        .and_then(|path| path.file_name())
+        .and_then(|name| name.to_str())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            "failed to resolve params.episode project name for source.cut. Fix: provide params.episode as an episode path.".to_string()
+        })?;
+    let source_name = Path::new(sentences_dir)
+        .file_name()
+        .or_else(|| Path::new(video).parent().and_then(|path| path.file_name()))
+        .and_then(|name| name.to_str())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            "failed to resolve source name for source.cut. Fix: provide params.sentencesDir or params.video inside a source directory.".to_string()
+        })?;
+    let plan_arg = format!("--plan={plan_path}");
+    let source_arg = format!("--source={source_name}");
+    run_nextframe_cli(&[
+        "source-cut",
+        project_name.as_str(),
+        episode_name.as_str(),
+        source_arg.as_str(),
+        plan_arg.as_str(),
+    ])
 }
 
 /// source.clips — list existing clips in an episode.

@@ -15,10 +15,11 @@ use std::time::Instant;
 
 use codec::{ffmpeg_command_path, handle_export_mux_audio};
 use domain::{
-    handle_episode_create, handle_episode_list, handle_project_create, handle_project_list,
-    handle_scene_list, handle_segment_list, handle_segment_video_url, handle_source_clips,
-    handle_audio_status, handle_audio_synth, handle_source_cut, handle_timeline_load,
-    handle_timeline_save,
+    handle_audio_get, handle_audio_status, handle_audio_synth, handle_episode_create,
+    handle_episode_list, handle_project_create, handle_project_list, handle_scene_list,
+    handle_script_get, handle_script_set, handle_segment_list, handle_segment_video_url,
+    handle_source_clips, handle_source_cut, handle_source_download, handle_source_list,
+    handle_source_transcribe, handle_timeline_load, handle_timeline_save,
 };
 use export::{
     handle_export_cancel, handle_export_log, handle_export_start, handle_export_status,
@@ -70,7 +71,8 @@ pub fn dispatch(req: Request) -> Response {
             result,
             error: None,
         },
-        Err(error) => Response { // Internal: response forwards validated handler errors unchanged.
+        Err(error) => Response {
+            // Internal: response forwards validated handler errors unchanged.
             id,
             ok: false,
             result: Value::Null,
@@ -113,8 +115,14 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "episode.create" => handle_episode_create(&params),
         "segment.list" => handle_segment_list(&params),
         "segment.videoUrl" => handle_segment_video_url(&params),
+        "script.get" => handle_script_get(&params),
+        "script.set" => handle_script_set(&params),
+        "audio.get" => handle_audio_get(&params),
         "source.cut" => handle_source_cut(&params),
         "source.clips" => handle_source_clips(&params),
+        "source.list" => handle_source_list(&params),
+        "source.download" => handle_source_download(&params),
+        "source.transcribe" => handle_source_transcribe(&params),
         "audio.synth" => handle_audio_synth(&params),
         "audio.status" => handle_audio_status(&params),
         "preview.frame" => handle_preview_frame(&params),
@@ -136,17 +144,19 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
                 "duration_ms": duration_ms,
             }
         ),
-        Err(error) => trace_log!( // Internal: log sink records the already-formatted handler error.
-            module: "ipc",
-            event: "dispatch",
-            data: {
-                "method": method,
-                "params": params_preview,
-                "status": "error",
-                "error": error,
-                "duration_ms": duration_ms,
-            }
-        ),
+        Err(error) => {
+            trace_log!( // Internal: log sink records the already-formatted handler error.
+                module: "ipc",
+                event: "dispatch",
+                data: {
+                    "method": method,
+                    "params": params_preview,
+                    "status": "error",
+                    "error": error,
+                    "duration_ms": duration_ms,
+                }
+            )
+        }
     }
 
     result

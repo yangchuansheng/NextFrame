@@ -21,8 +21,10 @@ fn nextframe_cli() -> Result<(String, Vec<String>), String> {
     if let Ok(path) = which::which("nextframe") {
         return Ok((path.display().to_string(), vec![]));
     }
-    Err("failed to find nextframe CLI. Fix: run from project root or install nextframe globally."
-        .into())
+    Err(
+        "failed to find nextframe CLI. Fix: run from project root or install nextframe globally."
+            .into(),
+    )
 }
 
 /// Resolve project name and episode name from full paths.
@@ -95,12 +97,11 @@ pub(crate) fn handle_audio_synth(params: &Value) -> Result<Value, String> {
 /// Params: { episode: string, segment: number }
 pub(crate) fn handle_audio_status(params: &Value) -> Result<Value, String> {
     let episode = require_string(params, "episode")?;
-    let segment = params
-        .get("segment")
-        .and_then(Value::as_u64)
-        .unwrap_or(1);
+    let segment = params.get("segment").and_then(Value::as_u64).unwrap_or(1);
 
-    let audio_dir = PathBuf::from(&episode).join("audio").join(format!("seg-{segment}"));
+    let audio_dir = PathBuf::from(&episode)
+        .join("audio")
+        .join(format!("seg-{segment}"));
     let mp3 = find_first_file(&audio_dir, ".mp3");
     let timeline = find_first_file(&audio_dir, ".timeline.json");
     let srt = find_first_file(&audio_dir, ".srt");
