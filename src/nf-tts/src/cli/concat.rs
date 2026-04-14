@@ -23,7 +23,7 @@ pub fn run(files: Vec<String>, output: String) -> Result<()> {
     }
     std::fs::write(out_path, &combined)?;
 
-    println!(
+    crate::output::write_stdout_line(format_args!(
         "{}",
         serde_json::to_string(&serde_json::json!({
             "status": "done",
@@ -31,7 +31,7 @@ pub fn run(files: Vec<String>, output: String) -> Result<()> {
             "inputs": files.len(),
             "size_bytes": std::fs::metadata(out_path)?.len(),
         }))?
-    );
+    ));
 
     Ok(())
 }

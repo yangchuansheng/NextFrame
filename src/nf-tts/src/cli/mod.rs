@@ -66,7 +66,9 @@ Examples:\n\
 
 pub async fn run(cli: Cli) -> Result<()> {
     if cli.brief {
-        println!("vox — multi-backend TTS CLI, agent-friendly");
+        crate::output::write_stdout_line(format_args!(
+            "vox — multi-backend TTS CLI, agent-friendly"
+        ));
         return Ok(());
     }
 

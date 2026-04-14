@@ -4,6 +4,14 @@ use chrono::{Local, SecondsFormat};
 use super::SessionHistoryEntry;
 use super::persistence;
 
+pub(crate) fn write_stderr_line(args: std::fmt::Arguments<'_>) {
+    use std::io::{self, Write};
+
+    let mut stderr = io::stderr().lock();
+    let _ = stderr.write_fmt(args);
+    let _ = stderr.write_all(b"\n");
+}
+
 pub(crate) fn timestamp_now() -> String {
     Local::now().to_rfc3339_opts(SecondsFormat::Secs, false)
 }
@@ -41,7 +49,7 @@ pub(crate) fn log_crash(level: &str, location: &str, message: &str) {
 
     let ts = timestamp_now();
     let line = format!("[{ts}] {level} {location}: {message}");
-    eprintln!("{line}");
+    write_stderr_line(format_args!("{line}"));
     let path = persistence::state_dir().join("crash.log");
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)

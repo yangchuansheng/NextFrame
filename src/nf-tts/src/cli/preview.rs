@@ -53,7 +53,9 @@ pub async fn run(
         dialect: None,
     };
 
-    eprintln!("Previewing voice: {voice_name} (backend: {backend_name})");
+    crate::output::write_stderr_line(format_args!(
+        "[preview] voice={voice_name} backend={backend_name}"
+    ));
     let result = backend.synthesize(&preview_text, &params).await?;
 
     let tmp = std::env::temp_dir().join(format!("vox-preview-{}.mp3", std::process::id()));

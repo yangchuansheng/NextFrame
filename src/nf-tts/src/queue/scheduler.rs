@@ -138,16 +138,26 @@ pub async fn run_batch(
                     match crate::whisper::align_audio(&out_path, &job.text) {
                         Ok(Some(timeline)) => {
                             if let Ok(json_path) = timeline.write_json(&out_path) {
-                                eprintln!("Timeline: {json_path}");
+                                crate::output::write_stderr_line(format_args!(
+                                    "[whisper] timeline: {json_path}"
+                                ));
                             }
                             if let Ok(srt_path) =
                                 srt::write_srt(&out_path, &timeline.to_boundaries())
                             {
-                                eprintln!("SRT: {srt_path}");
+                                crate::output::write_stderr_line(format_args!(
+                                    "[whisper] srt: {srt_path}"
+                                ));
                             }
                         }
-                        Ok(None) => eprintln!("whisper: no segments for job {}", job.id),
-                        Err(e) => eprintln!("whisper: job {}: {e}", job.id),
+                        Ok(None) => crate::output::write_stderr_line(format_args!(
+                            "[whisper] no segments for job {}",
+                            job.id
+                        )),
+                        Err(e) => crate::output::write_stderr_line(format_args!(
+                            "[whisper] job {}: {e}",
+                            job.id
+                        )),
                     }
                 }
 

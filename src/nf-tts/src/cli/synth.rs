@@ -151,12 +151,16 @@ pub async fn run(command: SynthCommand) -> Result<()> {
             match crate::whisper::align_audio(&out_path, &text) {
                 Ok(Some(timeline)) => {
                     let json_path = timeline.write_json(&out_path)?;
-                    eprintln!("Timeline: {json_path}");
+                    crate::output::write_stderr_line(format_args!(
+                        "[whisper] timeline: {json_path}"
+                    ));
                     let srt_path = srt::write_srt(&out_path, &timeline.to_boundaries())?;
-                    eprintln!("SRT: {srt_path}");
+                    crate::output::write_stderr_line(format_args!("[whisper] srt: {srt_path}"));
                 }
-                Ok(None) => eprintln!("whisper: no segments detected"),
-                Err(e) => eprintln!("whisper: {e}"),
+                Ok(None) => {
+                    crate::output::write_stderr_line(format_args!("[whisper] no segments detected"))
+                }
+                Err(e) => crate::output::write_stderr_line(format_args!("[whisper] {e}")),
             }
         }
         let file_str = out_path.to_string_lossy().to_string();
@@ -175,12 +179,14 @@ pub async fn run(command: SynthCommand) -> Result<()> {
         match crate::whisper::align_audio(&out_path, &text) {
             Ok(Some(timeline)) => {
                 let json_path = timeline.write_json(&out_path)?;
-                eprintln!("Timeline: {json_path}");
+                crate::output::write_stderr_line(format_args!("[whisper] timeline: {json_path}"));
                 let srt_path = srt::write_srt(&out_path, &timeline.to_boundaries())?;
-                eprintln!("SRT: {srt_path}");
+                crate::output::write_stderr_line(format_args!("[whisper] srt: {srt_path}"));
             }
-            Ok(None) => eprintln!("whisper: no segments detected"),
-            Err(e) => eprintln!("whisper: {e}"),
+            Ok(None) => {
+                crate::output::write_stderr_line(format_args!("[whisper] no segments detected"))
+            }
+            Err(e) => crate::output::write_stderr_line(format_args!("[whisper] {e}")),
         }
     }
 

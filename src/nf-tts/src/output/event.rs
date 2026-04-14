@@ -62,7 +62,7 @@ impl<'a> Event<'a> {
 
     pub fn emit(&self) {
         if let Ok(line) = serde_json::to_string(self) {
-            println!("{line}");
+            crate::output::write_stdout_line(format_args!("{line}"));
         }
     }
 }

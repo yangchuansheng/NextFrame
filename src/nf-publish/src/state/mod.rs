@@ -14,7 +14,7 @@ mod session;
 mod tabs;
 
 #[allow(unused_imports)]
-pub(crate) use events::{log_activity, log_crash, read_activity_log};
+pub(crate) use events::{log_activity, log_crash, read_activity_log, write_stderr_line};
 pub(crate) use events::{timestamp_now, trim_history};
 #[allow(unused_imports)]
 pub(crate) use navigation::{

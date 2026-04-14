@@ -113,7 +113,7 @@ pub async fn run(
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&plan)?);
+        crate::output::write_stdout_line(format_args!("{}", serde_json::to_string_pretty(&plan)?));
         return Ok(());
     }
 
@@ -142,7 +142,7 @@ pub async fn run(
 
     // Write manifest and emit summary.
     let manifest_path = manifest.write_to(dir)?;
-    println!(
+    crate::output::write_stdout_line(format_args!(
         "{}",
         serde_json::to_string(&serde_json::json!({
             "manifest": manifest_path,
@@ -151,7 +151,7 @@ pub async fn run(
             "cached": manifest.cached,
             "errors": manifest.errors,
         }))?
-    );
+    ));
 
     ensure_batch_success(&manifest, &manifest_path)
 }
@@ -160,8 +160,8 @@ pub async fn run(
 mod tests {
     use super::{ensure_batch_success, prepare_jobs, resolve_batch_options, BatchOptions};
     use crate::config::VoxConfig;
-    use crate::output::manifest::{ManifestEntry, ManifestFailure};
     use crate::output::manifest::Manifest;
+    use crate::output::manifest::{ManifestEntry, ManifestFailure};
     use crate::queue::job::Job;
     use std::collections::HashMap;
 

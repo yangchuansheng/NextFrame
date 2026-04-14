@@ -2,7 +2,7 @@
 use std::io::{self, Write};
 
 use chrono::{SecondsFormat, Utc};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub(crate) fn emit_trace(module: impl AsRef<str>, event: impl AsRef<str>, data: Value) {
     let line = build_trace_line(module.as_ref(), event.as_ref(), data);
@@ -37,14 +37,9 @@ pub(crate) fn build_trace_line(module: &str, event: &str, data: Value) -> String
 }
 
 fn normalize_crate_name(crate_name: &str) -> String {
-    crate_name
-        .rsplit('_')
-        .next()
-        .unwrap_or(crate_name)
-        .to_owned()
+    crate_name.rsplit('_').next().unwrap_or(crate_name).to_owned()
 }
 
-#[allow(unused_macro_rules)]
 macro_rules! trace_log {
     (module: $module:expr, event: $event:expr, data: { $($key:literal : $value:expr),* $(,)? }) => {{
         $crate::util::trace::emit_trace($module, $event, serde_json::json!({ $($key: $value),* }));

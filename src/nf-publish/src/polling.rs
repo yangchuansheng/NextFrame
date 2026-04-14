@@ -26,7 +26,10 @@ fn poll_all() {
     if APP_STATE.get().is_some() {
         for tab in all_tab_ids() {
             if let Some(cmd) = try_read_cmd(&cmd_file(tab)) {
-                eprintln!("[wp] tab {tab}: {}", &cmd[..cmd.len().min(60)]);
+                crate::state::write_stderr_line(format_args!(
+                    "[wp] tab {tab}: {}",
+                    &cmd[..cmd.len().min(60)]
+                ));
                 if let Some(webview) = webview_for_tab(tab) {
                     run_command(webview, &cmd, result_file(tab), screenshot_file(tab));
                 } else {
@@ -36,7 +39,7 @@ fn poll_all() {
         }
     }
     if let Some(cmd) = try_read_cmd(LEGACY_CMD) {
-        eprintln!("[wp] legacy: {}", &cmd[..cmd.len().min(60)]);
+        crate::state::write_stderr_line(format_args!("[wp] legacy: {}", &cmd[..cmd.len().min(60)]));
         if let Some(webview) = current_webview() {
             run_command(
                 webview,

@@ -20,28 +20,43 @@ pub fn run_set(key: String, value: String) -> Result<()> {
         }
     }
     config.save()?;
-    println!(
+    crate::output::write_stdout_line(format_args!(
         "{}",
         serde_json::to_string(&serde_json::json!({"status": "ok", "key": key}))?
-    );
+    ));
     Ok(())
 }
 
 pub fn run_get(key: Option<String>) -> Result<()> {
     let config = VoxConfig::load();
     match key.as_deref() {
-        Some("voice") => println!("{}", config.default_voice.unwrap_or_default()),
-        Some("dir") => println!("{}", config.default_dir.unwrap_or_default()),
-        Some("backend") => println!("{}", config.default_backend.unwrap_or_default()),
+        Some("voice") => crate::output::write_stdout_line(format_args!(
+            "{}",
+            config.default_voice.unwrap_or_default()
+        )),
+        Some("dir") => crate::output::write_stdout_line(format_args!(
+            "{}",
+            config.default_dir.unwrap_or_default()
+        )),
+        Some("backend") => crate::output::write_stdout_line(format_args!(
+            "{}",
+            config.default_backend.unwrap_or_default()
+        )),
         Some(k) if k.starts_with("alias.") => {
             if let Some(name) = k.strip_prefix("alias.") {
-                println!("{}", config.aliases.get(name).cloned().unwrap_or_default());
+                crate::output::write_stdout_line(format_args!(
+                    "{}",
+                    config.aliases.get(name).cloned().unwrap_or_default()
+                ));
             }
         }
         Some(k) => anyhow::bail!("Unknown key: {k}"),
         None => {
             // Print all config as JSON
-            println!("{}", serde_json::to_string_pretty(&config)?);
+            crate::output::write_stdout_line(format_args!(
+                "{}",
+                serde_json::to_string_pretty(&config)?
+            ));
         }
     }
     Ok(())
