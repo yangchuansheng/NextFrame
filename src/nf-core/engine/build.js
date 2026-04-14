@@ -173,7 +173,17 @@ function buildRuntime() {
       message + " (" + String(layer.scene || "unknown") + ")</div>";
   }
 
-  function resolveSceneParams(scene, rawParams) {
+  // Auto-generate SRT from timeline.audio.sentences (if audio-synth was used)
+  const _autoSrt = (function() {
+    const audio = timeline.audio;
+    if (!audio || typeof audio === "string") return null;
+    // audio can be {src:"path", sentences:[{text,start,end,words}]} from pipeline
+    const sentences = audio.sentences || (audio.segments && audio.segments.flatMap(function(seg) { return seg.sentences || []; }));
+    if (!Array.isArray(sentences) || sentences.length === 0) return null;
+    return sentences.map(function(s) { return { s: Number(s.start || 0), e: Number(s.end || 0), t: String(s.text || "") }; }).filter(function(e) { return e.t; });
+  })();
+
+  function resolveSceneParams(scene, rawParams, layerDataSource) {
     const input = rawParams && typeof rawParams === "object" ? rawParams : {};
     const meta = scene && scene.meta && typeof scene.meta === "object" ? scene.meta : {};
     const paramsMeta = meta.params && typeof meta.params === "object" ? meta.params : {};
@@ -188,7 +198,16 @@ function buildRuntime() {
     const themeValues = themeKey && themes[themeKey] && typeof themes[themeKey] === "object"
       ? themes[themeKey]
       : {};
-    return { ...defaults, ...themeValues, ...input };
+    const merged = { ...defaults, ...themeValues, ...input };
+    // Auto-inject SRT if layer has dataSource:"audio" and scene has srt param
+    if (layerDataSource === "audio" && _autoSrt && !merged.srt) {
+      merged.srt = _autoSrt;
+    }
+    // Auto-inject progress for progressBar scenes
+    if (layerDataSource === "progress" || (meta.id && meta.id.toLowerCase().indexOf("progress") >= 0)) {
+      // progress is handled per-frame in compose, not here
+    }
+    return merged;
   }
 
   function getPhaseLabel(visible) {
@@ -228,7 +247,7 @@ function buildRuntime() {
         inner = renderSceneError(layer, "Missing scene renderer");
       } else {
         try {
-          inner = scene.render(t - start, resolveSceneParams(scene, layer.params), viewport);
+          inner = scene.render(t - start, resolveSceneParams(scene, layer.params, layer.dataSource), viewport);
         } catch (err) {
           inner = renderSceneError(layer, String(err && err.message ? err.message : err));
         }
