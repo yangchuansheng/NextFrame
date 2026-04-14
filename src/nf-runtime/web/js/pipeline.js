@@ -40,37 +40,20 @@ function resetPipelineEpisodeState() {
 }
 
 function stopExportPolling() {
-  if (!pipelineExportPollTimer) return;
-  window.clearTimeout(pipelineExportPollTimer);
+  if (pipelineExportPollTimer) window.clearTimeout(pipelineExportPollTimer);
   pipelineExportPollTimer = null;
 }
 
 function scheduleExportPolling(delayMs) {
   stopExportPolling();
-  pipelineExportPollTimer = window.setTimeout(function() {
-    pollExportStatus();
-  }, delayMs);
+  pipelineExportPollTimer = window.setTimeout(pollExportStatus, delayMs);
 }
 
-function getCurrentProjectRef() {
-  return window.currentProjectPath || '';
-}
+function getCurrentProjectRef() { return window.currentProjectPath || ''; }
+function getCurrentEpisodeRef() { return window.currentEpisodePath || ''; }
 
-function getCurrentEpisodeRef() {
-  return window.currentEpisodePath || '';
-}
-
-function getProjectNameFromPath() {
-  const path = getCurrentProjectRef().replace(/\/+$/, '');
-  const parts = path.split('/');
-  return parts[parts.length - 1] || path;
-}
-
-function getEpisodeNameFromPath() {
-  const path = getCurrentEpisodeRef().replace(/\/+$/, '');
-  const parts = path.split('/');
-  return parts[parts.length - 1] || path;
-}
+function getProjectNameFromPath() { const parts = getCurrentProjectRef().replace(/\/+$/, '').split('/'); return parts[parts.length - 1] || ''; }
+function getEpisodeNameFromPath() { const parts = getCurrentEpisodeRef().replace(/\/+$/, '').split('/'); return parts[parts.length - 1] || ''; }
 
 function formatExportPercent(percent) {
   if (typeof percent !== 'number' || Number.isNaN(percent)) return '0%';
@@ -190,13 +173,12 @@ function loadPipelineData() {
     console.error('[pipeline] scenes:', error);
   });
 
-  // Load existing clips for the clips/asset tab
   if (episodeRef) {
-    bridgeCall('source.clips', { episode: episodeRef }).then(function(data) {
-      renderClipsTab(data.clips || []);
-    }).catch(function() {
-      renderClipsTab([]);
-    });
+    if (typeof loadPipelineClipsData === 'function') {
+      loadPipelineClipsData({ project: projectRef, episode: episodeRef });
+    } else if (typeof renderClipsTab === 'function') {
+      renderClipsTab({ sources: [] });
+    }
   }
 
   const exportLogPath = getCurrentProjectRef() ? getCurrentProjectRef() + '/exports.json' : '';
@@ -750,47 +732,6 @@ function previewSegmentVideo(segmentName) {
   });
 }
 
-function renderClipsTab(clips) {
-  const el = document.querySelector('#pl-tab-asset .pl-main');
-  if (!el) return;
-  if (clips.length === 0) {
-    el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--t50)">' +
-      '<div style="font-size:15px;font-weight:500">暂无切片</div>' +
-      '<div style="font-size:13px">从源视频切分段落素材</div>' +
-    '</div>';
-    return;
-  }
-  let html = '<div style="padding:16px"><div style="font-size:14px;font-weight:600;color:var(--t100);margin-bottom:12px">' + clips.length + ' 个切片</div>';
-  clips.forEach(function(clip) {
-    const name = clip.name || '';
-    const sizeMB = clip.size ? (clip.size / 1024 / 1024).toFixed(1) + ' MB' : '';
-    const videoUrl = toNfdataUrl(clip.path || '');
-    html += '<div class="glass" data-nf-action="preview-clip" style="padding:12px;margin-bottom:8px;border-radius:10px">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">' +
-        '<div><div style="font-size:13px;font-weight:600;color:var(--t100)">' + escapeHtml(name) + '</div>' +
-        '<div style="font-family:var(--mono);font-size:11px;color:var(--t50);margin-top:2px">' + escapeHtml(sizeMB) + '</div></div>' +
-        (videoUrl ? '<button data-nf-action="play-clip" onclick="playClipVideo(\'' + escapeJsString(videoUrl) + '\')" style="border:0;border-radius:999px;padding:6px 12px;background:rgba(167,139,250,0.15);color:var(--accent);cursor:pointer;font-size:12px">播放</button>' : '') +
-      '</div>' +
-    '</div>';
-  });
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-function playClipVideo(url) {
-  let overlay = document.getElementById('clip-video-overlay');
-  if (overlay) overlay.remove();
-  overlay = document.createElement('div');
-  overlay.id = 'clip-video-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = '<div style="position:relative;max-width:80vw;max-height:70vh;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.8)">' +
-    '<video src="' + escapeHtml(url) + '" controls autoplay style="max-width:80vw;max-height:70vh"></video>' +
-    '<button data-nf-action="close-clip-preview" onclick="document.getElementById(\'clip-video-overlay\').remove()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">×</button>' +
-  '</div>';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-  document.body.appendChild(overlay);
-}
-
 // Editor runtime exports.
 window.loadPipelineData = loadPipelineData;
 window.renderScriptTab = renderScriptTab;
@@ -806,5 +747,3 @@ window.scrollToSegment = scrollToSegment;
 window.saveNarration = saveNarration;
 window.generateTTS = generateTTS;
 window.playSegmentAudio = playSegmentAudio;
-window.renderClipsTab = renderClipsTab;
-window.playClipVideo = playClipVideo;
