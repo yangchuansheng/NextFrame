@@ -1,18 +1,51 @@
 // Transport controls — bridge between editor UI and preview iframe playback.
-// Sends nf-cmd messages to iframe, receives nf-state updates, syncs UI.
+// Uses direct contentWindow access for commands, polls state via __nfState().
 
 var edPlaybackState = { currentTime: 0, duration: 0, isPlaying: false };
+var _transportPollId = 0;
 
-function sendPreviewCmd(action, time) {
+function getPreviewWindow() {
   var iframe = window.edPreviewIframe;
   if (!iframe || !iframe.contentWindow) {
+    return null;
+  }
+  try {
+    return iframe.contentWindow;
+  } catch (e) {
+    return null;
+  }
+}
+
+function sendPreviewCmd(action, time) {
+  var cw = getPreviewWindow();
+  if (!cw) {
     return;
   }
-  var msg = { type: 'nf-cmd', action: action };
-  if (typeof time === 'number') {
-    msg.time = time;
+  try {
+    if (action === 'play' && typeof cw.__nfPlay === 'function') {
+      cw.__nfPlay();
+    } else if (action === 'pause' && typeof cw.__nfPause === 'function') {
+      cw.__nfPause();
+    } else if (action === 'toggle' && typeof cw.__nfToggle === 'function') {
+      cw.__nfToggle();
+    } else if (action === 'seek' && typeof cw.__nfSeek === 'function' && typeof time === 'number') {
+      cw.__nfSeek(time);
+    } else {
+      // Fallback to postMessage
+      var msg = { type: 'nf-cmd', action: action };
+      if (typeof time === 'number') {
+        msg.time = time;
+      }
+      cw.postMessage(msg, '*');
+    }
+  } catch (e) {
+    // Cross-origin fallback
+    var msg = { type: 'nf-cmd', action: action };
+    if (typeof time === 'number') {
+      msg.time = time;
+    }
+    cw.postMessage(msg, '*');
   }
-  iframe.contentWindow.postMessage(msg, '*');
 }
 
 function updatePlayButton(playing) {
@@ -52,7 +85,26 @@ function ensurePlayhead() {
   tlBody.appendChild(ph);
 }
 
-// Receive state from iframe
+// Poll iframe state (works with both same-origin and cross-origin)
+function pollPreviewState() {
+  var cw = getPreviewWindow();
+  if (!cw) {
+    return;
+  }
+  try {
+    if (typeof cw.__nfState === 'function') {
+      var state = cw.__nfState();
+      edPlaybackState = state;
+      updateEditorPreviewState(state.currentTime, state.duration);
+      updatePlayButton(state.isPlaying);
+      updatePlayhead(state.currentTime, state.duration);
+    }
+  } catch (e) {
+    // Cross-origin, rely on postMessage
+  }
+}
+
+// Also listen for postMessage as fallback
 window.addEventListener('message', function(event) {
   var d = event.data;
   if (!d || d.type !== 'nf-state') {
@@ -64,10 +116,24 @@ window.addEventListener('message', function(event) {
   updatePlayhead(d.currentTime, d.duration);
 });
 
+function startStatePolling() {
+  if (_transportPollId) {
+    return;
+  }
+  _transportPollId = setInterval(pollPreviewState, 50);
+}
+
+function stopStatePolling() {
+  if (_transportPollId) {
+    clearInterval(_transportPollId);
+    _transportPollId = 0;
+  }
+}
+
 function wireTransportButtons() {
   var play = document.getElementById('ed-btn-play');
   if (play) {
-    play.onclick = function() { sendPreviewCmd('toggle'); };
+    play.onclick = function() { sendPreviewCmd('toggle'); startStatePolling(); };
   }
   var start = document.getElementById('ed-btn-start');
   if (start) {
@@ -85,10 +151,9 @@ function wireTransportButtons() {
   if (fwd) {
     fwd.onclick = function() { sendPreviewCmd('seek', edPlaybackState.currentTime + 5); };
   }
-  // Big play button in preview area
   var bigBtn = document.querySelector('.ed-play-btn');
   if (bigBtn) {
-    bigBtn.onclick = function() { sendPreviewCmd('toggle'); };
+    bigBtn.onclick = function() { sendPreviewCmd('toggle'); startStatePolling(); };
   }
 }
 
@@ -125,6 +190,7 @@ document.addEventListener('keydown', function(e) {
   }
   e.preventDefault();
   sendPreviewCmd('toggle');
+  startStatePolling();
 });
 
 wireTransportButtons();
@@ -132,3 +198,5 @@ wireProgressBar();
 
 window.edPreviewIframe = null;
 window.sendPreviewCmd = sendPreviewCmd;
+window.startStatePolling = startStatePolling;
+window.stopStatePolling = stopStatePolling;

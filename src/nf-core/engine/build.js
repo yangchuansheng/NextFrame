@@ -486,9 +486,27 @@ function buildRuntime() {
     });
   }
 
-  // postMessage API for iframe embedding (editor preview)
-  if (window.parent !== window) {
+  // Iframe embedding mode — use setInterval instead of rAF (rAF may not fire in WKWebView iframes)
+  var _iframeMode = (window.parent !== window);
+  var _intervalId = 0;
+  if (_iframeMode) {
     controls.style.display = "none";
+    // Override play to use setInterval instead of rAF
+    var _origPlay = play;
+    play = function() {
+      _origPlay();
+      if (isPlaying && !_intervalId) {
+        _intervalId = setInterval(function() {
+          if (!isPlaying) { clearInterval(_intervalId); _intervalId = 0; return; }
+          tick(performance.now());
+        }, 33); // ~30fps
+      }
+    };
+    var _origPause = pause;
+    pause = function() {
+      _origPause();
+      if (_intervalId) { clearInterval(_intervalId); _intervalId = 0; }
+    };
     window.addEventListener("message", function(event) {
       var d = event.data;
       if (!d || d.type !== "nf-cmd") return;
@@ -504,8 +522,12 @@ function buildRuntime() {
   var hashTime = parseFloat((location.hash.match(/t=([\\d.]+)/) || [])[1]);
   var initTime = isFinite(hashTime) ? hashTime : 0;
   compose(initTime);
-  // Expose seek for external control (console, AppleScript, etc.)
+  // Expose controls for external access (iframe parent, console, AppleScript)
   window.__nfSeek = seek;
+  window.__nfPlay = play;
+  window.__nfPause = stopPlayback;
+  window.__nfToggle = togglePlayback;
+  window.__nfState = function() { return { currentTime: currentTime, duration: duration, isPlaying: isPlaying }; };
   window.__nfPlay = play;
   window.__nfPause = pause;
 })();`;
