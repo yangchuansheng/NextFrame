@@ -1,3 +1,2 @@
 // Scene registry helpers for CLI commands.
-
-export { REGISTRY, listScenes, getScene } from "../../lib/scene-registry.js";
+export { listScenes, getScene, listScenesForRatio, getREGISTRY as REGISTRY } from "../../lib/scene-registry.js";
