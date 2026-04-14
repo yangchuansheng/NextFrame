@@ -986,6 +986,20 @@ html, body {
 }
 
 /* ══════════════════════════════════════
+   AI PROMPTS
+   ══════════════════════════════════════ */
+.prompt-section { margin-bottom: 20px; }
+.prompt-section:last-child { margin-bottom: 0; }
+.prompt-section-title { font-size: 13px; font-weight: 600; color: var(--t80); margin-bottom: 8px; padding-left: 4px; }
+.prompt-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s var(--ease); gap: 12px; }
+.prompt-item:hover { background: rgba(255,255,255,0.04); }
+.prompt-text { font-size: 13px; color: var(--t65); flex: 1; line-height: 1.5; }
+.prompt-item:hover .prompt-text { color: var(--t80); }
+.prompt-copy { font-size: 12px; font-weight: 500; color: var(--accent); opacity: 0; transition: opacity 0.15s var(--ease); flex-shrink: 0; }
+.prompt-item:hover .prompt-copy { opacity: 1; }
+.prompt-copy.copied { color: #34d399; opacity: 1; }
+
+/* ══════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════ */
 @media (max-width: 800px) {
@@ -1028,7 +1042,7 @@ html, body {
     <div class="tb-spacer"></div>
 
     <!-- AI Prompts (opens separate page) -->
-    <button class="tb-icon-btn" onclick="location.href='shared/ai-prompts/index.html'" title="AI 指令库">
+    <button class="tb-icon-btn" onclick="toggleAIPrompts()" title="AI 指令库">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M8 1l1.8 3.6L14 5.3l-3 2.9.7 4.1L8 10.5 4.3 12.3l.7-4.1-3-2.9 4.2-.7Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" fill="none"/>
       </svg>
@@ -1303,7 +1317,52 @@ html, body {
   </main>
 </div>
 
+<!-- AI Prompts Modal -->
+<div class="modal-overlay" id="ai-overlay" onclick="toggleAIPrompts()"></div>
+<div class="modal-panel" id="ai-modal" style="width:520px;max-height:580px">
+  <div class="modal-header">
+    <span class="modal-title">✨ AI 指令库</span>
+    <button class="settings-close" onclick="toggleAIPrompts()">&times;</button>
+  </div>
+  <div class="modal-body" id="ai-prompts-body"></div>
+</div>
+
 <script>
+const AI_PROMPTS = [
+  { icon: "📁", title: "项目管理", prompts: ["新建一个横屏教程项目，名字叫\"XX课\"","删除项目\"项目名\"以及所有相关文件","列出所有项目，显示集数和最后修改时间","重命名项目\"旧名\"为\"新名\"","复制项目\"XX\"创建一个副本"] },
+  { icon: "🎬", title: "视频制作", prompts: ["给\"XX\"项目新建一集，主题是...","用这段文字生成脚本，自动配音并预览","预览第一集的时间线，截图给我看","把第二集的字幕样式改成居中大字","给这一集加一个 3 秒的片头动画","调整背景音乐音量到 30%"] },
+  { icon: "📤", title: "导出发布", prompts: ["导出\"XX\"项目所有集，1080p 30fps h264","导出当前集的竖屏版本 9:16","把最新导出的视频发布到抖音","批量导出所有项目的第一集"] },
+  { icon: "📦", title: "素材管理", prompts: ["从这个 YouTube 链接下载素材并转写字幕","列出所有已下载的素材和时长","把这段音频切成按句子分割的片段","导入本地文件夹作为素材库"] },
+  { icon: "⚙️", title: "设置与维护", prompts: ["把默认导出设置改成 4K 60fps ProRes","清理所有缓存，释放磁盘空间","显示当前存储占用情况","切换界面语言为英文"] },
+];
+
+let aiPromptsRendered = false;
+function toggleAIPrompts() {
+  document.getElementById('ai-overlay').classList.toggle('open');
+  document.getElementById('ai-modal').classList.toggle('open');
+  if (!aiPromptsRendered) {
+    let html = '';
+    for (const s of AI_PROMPTS) {
+      html += '<div class="prompt-section"><div class="prompt-section-title">' + s.icon + ' ' + s.title + '</div>';
+      for (const p of s.prompts) {
+        html += '<div class="prompt-item" onclick="copyPrompt(this)"><span class="prompt-text">' + p.replace(/</g,'&lt;') + '</span><span class="prompt-copy">复制</span></div>';
+      }
+      html += '</div>';
+    }
+    document.getElementById('ai-prompts-body').innerHTML = html;
+    aiPromptsRendered = true;
+  }
+}
+
+function copyPrompt(el) {
+  const text = el.querySelector('.prompt-text').textContent;
+  const copy = el.querySelector('.prompt-copy');
+  if (navigator.clipboard) { navigator.clipboard.writeText(text); }
+  copy.textContent = '已复制';
+  copy.classList.add('copied');
+  setTimeout(() => { copy.textContent = '复制'; copy.classList.remove('copied'); }, 1500);
+}
+
 function toggleSettings() {
   document.getElementById('settings-overlay').classList.toggle('open');
   document.getElementById('settings-panel').classList.toggle('open');

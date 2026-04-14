@@ -100,11 +100,52 @@ pub fn create(
     Ok(web_view)
 }
 
+/// Execute JavaScript and return the string result.
+pub fn eval_js(web_view: &WKWebView, script: &str) -> Result<String, String> {
+    let slot: Rc<RefCell<Option<Result<String, String>>>> = Rc::new(RefCell::new(None));
+    let slot_clone = Rc::clone(&slot);
+
+    let ns_script = NSString::from_str(script);
+    let block = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
+        let val = if !error.is_null() {
+            let desc = unsafe { &*error }.localizedDescription().to_string();
+            Err(format!("JS error: {desc}"))
+        } else if !result.is_null() {
+            let s: Retained<NSString> = unsafe {
+                objc2::msg_send![result, description]
+            };
+            Ok(s.to_string())
+        } else {
+            Ok("null".to_string())
+        };
+        *slot_clone.borrow_mut() = Some(val);
+    });
+
+    unsafe {
+        web_view.evaluateJavaScript_completionHandler(&ns_script, Some(&block));
+    }
+
+    let started = Instant::now();
+    while slot.borrow().is_none() {
+        if started.elapsed() > Duration::from_secs(5) {
+            return Err("JS eval timed out".to_string());
+        }
+        pump_run_loop(Duration::from_millis(10));
+    }
+    let result = slot.borrow_mut().take().ok_or("no result".to_string())?;
+    result
+}
+
 fn load_fallback(web_view: &WKWebView) {
     let html = NSString::from_str(FALLBACK_HTML);
     unsafe {
         web_view.loadHTMLString_baseURL(&html, None);
     }
+}
+
+/// Public version for use from app.rs verify.
+pub fn pump_run_loop_pub(duration: Duration) {
+    pump_run_loop(duration);
 }
 
 /// Pump the main run loop for a given duration (needed for async WebKit ops).

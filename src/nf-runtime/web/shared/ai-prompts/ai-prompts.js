@@ -101,7 +101,12 @@ const AIPrompts = (() => {
       return;
     }
     try {
-      const resp = await fetch('shared/ai-prompts/prompts.json');
+      // Try same-directory first (when loaded from shared/ai-prompts/index.html)
+      let resp = await fetch('prompts.json');
+      if (!resp.ok) {
+        // Fallback: loaded from root index.html
+        resp = await fetch('shared/ai-prompts/prompts.json');
+      }
       const json = await resp.json();
       render(container, json.sections);
     } catch (e) {

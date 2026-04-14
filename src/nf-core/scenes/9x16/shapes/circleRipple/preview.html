@@ -40,14 +40,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
     <div class="desc">9:16 竖屏 · 同心圆环从中心扩散</div>
     <div id="params"></div>
     <div id="info">
-      <p>比例: <code>9:16</code> (1080×1920)</p>
+      <p>比例: <code>9:16</code> (1080x1920)</p>
       <p>预览: <code id="preview-size"></code></p>
       <p>技术: <code>canvas2d</code></p>
+      <p>时长: <code>6s</code></p>
     </div>
   </div>
 </div>
 <script>
-// ─── Scene render ───
+// ─── Scene render (full resolution) ───
 function easeOut(t) { return t * (2 - t); }
 
 function renderCircleRipple(ctx, t, params, W, H) {
@@ -61,36 +62,31 @@ function renderCircleRipple(ctx, t, params, W, H) {
   const maxRadius = Math.max(W, H) * 0.6;
   const lineW = W * thickness;
 
-  // Calculate which rings are alive at time t
-  // Rings spawn at t = i * interval, for i = 0, 1, 2, ...
-  // Each ring lives for `lifespan` seconds
-  // We need to figure out all rings visible at time t (looping)
-
   const totalCycleRings = ringCount;
 
-  for (let i = 0; i < 50; i++) { // check enough potential rings
+  for (let i = 0; i < 50; i++) {
     const spawnTime = i * interval;
     const age = t - spawnTime;
 
-    if (age < 0) break; // future ring, stop
-    if (age > lifespan) continue; // dead ring, skip
+    if (age < 0) break;
+    if (age > lifespan) continue;
 
     const progress = age / lifespan;
     const easedRadius = easeOut(progress);
     const radius = easedRadius * maxRadius;
-    const alpha = 1 - progress; // fade out linearly
+    const alpha = 1 - progress;
 
     const hue = hueStart + (hueSpan * (i % totalCycleRings)) / Math.max(1, totalCycleRings - 1);
 
-    ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${alpha})`;
-    ctx.lineWidth = lineW * (1 - progress * 0.5); // thinner as it expands
+    ctx.strokeStyle = 'hsla(' + hue + ', 80%, 60%, ' + alpha + ')';
+    ctx.lineWidth = lineW * (1 - progress * 0.5);
     ctx.beginPath();
     ctx.arc(cx, cy, Math.max(1, radius), 0, Math.PI * 2);
     ctx.stroke();
   }
 }
 
-// ─── Preview setup ───
+// ─── Preview setup: full-res canvas, CSS scaled down ───
 const REAL_W = 1080, REAL_H = 1920;
 const MAX_H = Math.min(window.innerHeight - 120, 700);
 const SCALE = MAX_H / REAL_H;
@@ -98,12 +94,12 @@ const PW = Math.round(REAL_W * SCALE);
 const PH = Math.round(REAL_H * SCALE);
 
 const canvas = document.getElementById('stage');
-canvas.width = PW;
-canvas.height = PH;
+canvas.width = REAL_W;
+canvas.height = REAL_H;
 canvas.style.width = PW + 'px';
 canvas.style.height = PH + 'px';
 document.getElementById('stage-box').style.width = PW + 'px';
-document.getElementById('preview-size').textContent = PW + '×' + PH;
+document.getElementById('preview-size').textContent = PW + 'x' + PH;
 
 const ctx = canvas.getContext('2d');
 const DURATION = 6;
@@ -147,7 +143,7 @@ for (const [key, def] of Object.entries(paramDefs)) {
   const input = document.createElement('input');
   input.type = 'range';
   input.min = def.range[0]; input.max = def.range[1]; input.step = def.step; input.value = params[key];
-  input.addEventListener('input', () => {
+  input.addEventListener('input', function() {
     params[key] = +input.value;
     valSpan.textContent = def.step < 1 ? (+input.value).toFixed(2) : (+input.value).toFixed(0);
   });
@@ -162,14 +158,14 @@ const progressFill = document.getElementById('progress-fill');
 const tCurrent = document.getElementById('t-current');
 const playBtn = document.getElementById('play-btn');
 
-playBtn.addEventListener('click', () => {
+playBtn.addEventListener('click', function() {
   playing = !playing;
   if (playing) { startTime = performance.now() - currentT * 1000; playBtn.textContent = '⏸ 暂停'; }
   else { playBtn.textContent = '▶ 播放'; }
 });
 
 const progressBar = document.getElementById('progress-bar');
-progressBar.addEventListener('click', (e) => {
+progressBar.addEventListener('click', function(e) {
   const rect = progressBar.getBoundingClientRect();
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   currentT = ratio * DURATION;
@@ -184,7 +180,10 @@ function loop() {
   }
   tCurrent.textContent = currentT.toFixed(2);
   progressFill.style.width = (currentT / DURATION * 100) + '%';
-  renderCircleRipple(ctx, currentT, params, PW, PH);
+
+  // render at FULL resolution
+  renderCircleRipple(ctx, currentT, params, REAL_W, REAL_H);
+
   requestAnimationFrame(loop);
 }
 loop();

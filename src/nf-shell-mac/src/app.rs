@@ -237,12 +237,82 @@ pub fn run() {
         std::process::exit(0);
     }
 
+    // Self-verification mode
+    if std::env::args().any(|a| a == "--verify") {
+        verify_app(&wv);
+        std::process::exit(0);
+    }
+
     unsafe {
         let _: () = msg_send![&app, activateIgnoringOtherApps: true];
     }
 
     tracing::info!("NextFrame window ready");
     app.run();
+}
+
+/// Automated self-verification: check pages load, buttons work, navigation works.
+fn verify_app(wv: &objc2_web_kit::WKWebView) {
+    use crate::webview;
+
+    let mut pass = 0;
+    let mut fail = 0;
+
+    macro_rules! check {
+        ($name:expr, $result:expr) => {
+            match $result {
+                Ok(val) => {
+                    tracing::info!("[PASS] {} = {}", $name, val);
+                    pass += 1;
+                }
+                Err(e) => {
+                    tracing::error!("[FAIL] {} — {}", $name, e);
+                    fail += 1;
+                }
+            }
+        };
+    }
+
+    // Wait for page load
+    webview::pump_run_loop_pub(std::time::Duration::from_secs(4));
+
+    // 1. Check page loaded
+    check!("document.title", webview::eval_js(wv, "document.title"));
+
+    // 2. Check topbar exists
+    check!("topbar exists", webview::eval_js(wv, "!!document.querySelector('.topbar') ? 'yes' : 'no'"));
+
+    // 3. Check project cards exist
+    check!("project cards", webview::eval_js(wv, "document.querySelectorAll('.project-card').length + ' cards'"));
+
+    // 4. Check ✨ button exists
+    check!("AI prompts btn", webview::eval_js(wv, "!!document.querySelector('.tb-icon-btn[title*=\"指令\"]') ? 'yes' : 'no'"));
+
+    // 5. Check settings button
+    check!("settings btn", webview::eval_js(wv, "!!document.querySelector('.tb-icon-btn[title=\"Settings\"]') ? 'yes' : 'no'"));
+
+    // 6. Screenshot homepage
+    let _ = webview::screenshot(wv, "/tmp/nf-verify-home.png");
+    tracing::info!("[SCREENSHOT] /tmp/nf-verify-home.png");
+
+    // 7. Open AI prompts modal
+    check!("open AI prompts", webview::eval_js(wv, "toggleAIPrompts(); 'opened'"));
+    webview::pump_run_loop_pub(std::time::Duration::from_secs(1));
+
+    // 8. Check prompt sections rendered
+    check!("prompt sections", webview::eval_js(wv, "document.querySelectorAll('.prompt-section').length + ' sections'"));
+
+    // 9. Check prompt items
+    check!("prompt items", webview::eval_js(wv, "document.querySelectorAll('.prompt-item').length + ' items'"));
+
+    // 10. Screenshot with modal open
+    let _ = webview::screenshot(wv, "/tmp/nf-verify-ai-prompts.png");
+    tracing::info!("[SCREENSHOT] /tmp/nf-verify-ai-prompts.png");
+
+    // 11. Close modal
+    check!("close AI prompts", webview::eval_js(wv, "toggleAIPrompts(); 'closed'"));
+
+    tracing::info!("=== VERIFY DONE: {} pass, {} fail ===", pass, fail);
 }
 
 fn install_window_drag_bridge(

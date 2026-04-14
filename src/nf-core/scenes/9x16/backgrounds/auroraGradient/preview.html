@@ -36,33 +36,32 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
     <button id="play-btn">⏸ 暂停</button>
   </div>
   <div id="controls">
-    <h2>Aurora Gradient</h2>
+    <h2>极光渐变</h2>
     <div class="desc">9:16 竖屏 · 极光渐变背景</div>
     <div id="params"></div>
     <div id="info">
-      <p>比例: <code>9:16</code> (1080×1920)</p>
+      <p>比例: <code>9:16</code> (1080x1920)</p>
       <p>预览: <code id="preview-size"></code></p>
       <p>技术: <code>canvas2d</code></p>
+      <p>时长: <code>12s</code></p>
     </div>
   </div>
 </div>
 <script>
-// ─── Scene render (inline, no module import needed) ───
+// ─── Scene render (full resolution, CSS scaled) ───
 function renderAurora(ctx, t, params, W, H) {
   const { hueA, hueB, hueC, intensity, grain, speed } = params;
   const T = t * speed;
 
-  // dark base
   ctx.fillStyle = '#0a0a12';
   ctx.fillRect(0, 0, W, H);
 
-  // gradient blobs
   ctx.globalCompositeOperation = 'lighter';
 
   function blob(cx, cy, r, h, a) {
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, `hsla(${h},${Math.round(70 * intensity)}%,55%,${a})`);
-    g.addColorStop(1, `hsla(${h},${Math.round(70 * intensity)}%,55%,0)`);
+    g.addColorStop(0, 'hsla(' + h + ',' + Math.round(70 * intensity) + '%,55%,' + a + ')');
+    g.addColorStop(1, 'hsla(' + h + ',' + Math.round(70 * intensity) + '%,55%,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
@@ -74,12 +73,12 @@ function renderAurora(ctx, t, params, W, H) {
 
   ctx.globalCompositeOperation = 'source-over';
 
-  // film grain
+  // film grain (sample every 4th pixel for perf at full res)
   if (grain > 0.001) {
     const imgData = ctx.getImageData(0, 0, W, H);
     const px = imgData.data;
     const g255 = 255 * grain;
-    for (let i = 0; i < px.length; i += 16) { // sample every 4th pixel for perf
+    for (let i = 0; i < px.length; i += 16) {
       const n = (Math.random() - 0.5) * g255;
       px[i] += n; px[i+1] += n; px[i+2] += n;
     }
@@ -87,7 +86,7 @@ function renderAurora(ctx, t, params, W, H) {
   }
 }
 
-// ─── Preview setup ───
+// ─── Preview setup: full-res canvas, CSS scaled down ───
 const REAL_W = 1080, REAL_H = 1920;
 const MAX_H = Math.min(window.innerHeight - 120, 700);
 const SCALE = MAX_H / REAL_H;
@@ -95,12 +94,12 @@ const PW = Math.round(REAL_W * SCALE);
 const PH = Math.round(REAL_H * SCALE);
 
 const canvas = document.getElementById('stage');
-canvas.width = PW;
-canvas.height = PH;
+canvas.width = REAL_W;
+canvas.height = REAL_H;
 canvas.style.width = PW + 'px';
 canvas.style.height = PH + 'px';
 document.getElementById('stage-box').style.width = PW + 'px';
-document.getElementById('preview-size').textContent = PW + '×' + PH;
+document.getElementById('preview-size').textContent = PW + 'x' + PH;
 
 const ctx = canvas.getContext('2d');
 const DURATION = 12;
@@ -144,7 +143,7 @@ for (const [key, def] of Object.entries(paramDefs)) {
   const input = document.createElement('input');
   input.type = 'range';
   input.min = def.range[0]; input.max = def.range[1]; input.step = def.step; input.value = params[key];
-  input.addEventListener('input', () => {
+  input.addEventListener('input', function() {
     params[key] = +input.value;
     valSpan.textContent = def.step < 1 ? (+input.value).toFixed(2) : (+input.value).toFixed(0);
   });
@@ -159,15 +158,14 @@ const progressFill = document.getElementById('progress-fill');
 const tCurrent = document.getElementById('t-current');
 const playBtn = document.getElementById('play-btn');
 
-playBtn.addEventListener('click', () => {
+playBtn.addEventListener('click', function() {
   playing = !playing;
   if (playing) { startTime = performance.now() - currentT * 1000; playBtn.textContent = '⏸ 暂停'; }
   else { playBtn.textContent = '▶ 播放'; }
 });
 
-// progress bar seek
 const progressBar = document.getElementById('progress-bar');
-progressBar.addEventListener('click', (e) => {
+progressBar.addEventListener('click', function(e) {
   const rect = progressBar.getBoundingClientRect();
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   currentT = ratio * DURATION;
@@ -183,8 +181,8 @@ function loop() {
   tCurrent.textContent = currentT.toFixed(2);
   progressFill.style.width = (currentT / DURATION * 100) + '%';
 
-  // render at preview size (scene thinks it's drawing at PW×PH)
-  renderAurora(ctx, currentT, params, PW, PH);
+  // render at FULL resolution — canvas is 1080x1920, CSS shrinks it
+  renderAurora(ctx, currentT, params, REAL_W, REAL_H);
 
   requestAnimationFrame(loop);
 }
