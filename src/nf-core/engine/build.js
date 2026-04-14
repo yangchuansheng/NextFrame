@@ -533,7 +533,17 @@ function buildRuntime() {
 })();`;
 }
 
+function buildSharedPreamble() {
+  const sharedPath = resolve(SCENES_DIR, "shared", "design.js");
+  try {
+    return stripESM(readFileSync(sharedPath, "utf8")).trim();
+  } catch {
+    return "// no shared/design.js";
+  }
+}
+
 function buildDocument(timeline, sceneModules) {
+  const sharedPreamble = buildSharedPreamble();
   const sceneBundles = sceneModules.map(buildSceneBundle).join("\n\n");
   const sceneMap = sceneModules
     .map((scene) => `${JSON.stringify(scene.id)}: ${scene.varName}`)
@@ -548,6 +558,8 @@ function buildDocument(timeline, sceneModules) {
   const scriptBody = escapeInlineScript(`window.__SLIDE_SEGMENTS = { ${audioField} gap: 0, segments: [{ phaseId: "main", duration: ${dur}, srt: [{ s: 0, e: ${dur}, t: "" }] }] };
 const SRT = ${serializeSrtLiteral(inlineSrt)};
 const TIMELINE = ${JSON.stringify(timeline, null, 2)};
+// Shared scene utilities (design tokens, helpers)
+${sharedPreamble}
 ${sceneBundles}
 const SCENES = {
 ${sceneMap}
