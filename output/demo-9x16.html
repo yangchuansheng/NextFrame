@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>NextFrame Demo — 9:16 竖屏</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, sans-serif; color: #fff; }
+#viewport { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+.layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+#controls { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+#progress { width: 300px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer; position: relative; }
+#progress-fill { height: 100%; background: #6366f1; border-radius: 2px; }
+#time { font-size: 12px; color: rgba(255,255,255,0.4); font-variant-numeric: tabular-nums; width: 80px; }
+#play-btn { background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3); color: #6366f1; border-radius: 6px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
+#title { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 8px; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+
+<div id="viewport"></div>
+<div id="controls">
+  <button id="play-btn">⏸</button>
+  <div id="progress"><div id="progress-fill"></div></div>
+  <span id="time">0.00 / 12.00</span>
+</div>
+<div id="title">NEXTFRAME ENGINE DEMO · 9:16 · 5 SCENES · 12s</div>
+
+<script>
+// ─── Config ───
+const W = 1080, H = 1920, DURATION = 12;
+const MAX_H = Math.min(window.innerHeight - 80, 750);
+const SCALE = MAX_H / H;
+const PW = Math.round(W * SCALE), PH = Math.round(H * SCALE);
+
+const vp = document.getElementById('viewport');
+vp.style.width = PW + 'px';
+vp.style.height = PH + 'px';
+
+// ─── Timeline ───
+const timeline = [
+  { id: 'bg',     scene: 'auroraGradient',   start: 0,  dur: 12, z: 0, x: 0, y: 0, w: 1, h: 1, params: { hueA: 270, hueB: 200, hueC: 320, intensity: 1.2, grain: 0.03, speed: 0.3 } },
+  { id: 'ripple', scene: 'circleRipple',      start: 0,  dur: 12, z: 1, x: 0, y: 0, w: 1, h: 1, params: { hueStart: 260, hueSpan: 120, ringCount: 7, interval: 0.4, lifespan: 3, thickness: 0.008 }, opacity: 0.3 },
+  { id: 'title',  scene: 'kineticHeadline',   start: 0.5, dur: 5, z: 2, x: 0, y: 0.15, w: 1, h: 0.35, params: { text: 'NEXTFRAME', subtitle: 'AI Video Engine', hueStart: 30, hueEnd: 320, stagger: 0.15, size: 0.14 } },
+  { id: 'chart',  scene: 'barChartReveal',    start: 6,  dur: 5.5, z: 2, x: 0.05, y: 0.2, w: 0.9, h: 0.55, params: { title: '月度增长', unit: '%', data: [72, 85, 63, 91, 78, 95], labels: ['1月','2月','3月','4月','5月','6月'], hueStart: 200, hueEnd: 320, stagger: 0.15, barDur: 0.9 } },
+  { id: 'lower',  scene: 'lowerThirdVelvet',  start: 1,  dur: 10, z: 3, x: 0, y: 0, w: 1, h: 1, params: { title: 'NEXTFRAME', subtitle: 'AI 视频引擎 · 结构化信息 → 视频', hueA: 20, hueB: 320, holdEnd: 8, fadeOut: 1.5 } },
+];
+
+// ─── Scene Renderers ───
+
+function renderAurora(t, p, W, H) {
+  const T = t * p.speed;
+  return `<canvas width="${W}" height="${H}" style="width:100%;height:100%;display:block" id="sc_bg"></canvas>
+<script>(function(){var c=document.getElementById("sc_bg"),x=c.getContext("2d"),W=${W},H=${H};
+x.fillStyle="#0a0a12";x.fillRect(0,0,W,H);x.globalCompositeOperation="lighter";
+function b(cx,cy,r,h,a){var g=x.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,"hsla("+h+","+Math.round(70*${p.intensity})+"%,55%,"+a+")");g.addColorStop(1,"hsla("+h+","+Math.round(70*${p.intensity})+"%,55%,0)");x.fillStyle=g;x.fillRect(0,0,W,H)}
+b(W*(0.3+0.2*Math.sin(${T}*0.7)),H*(0.2+0.12*Math.cos(${T}*0.5)),W*0.8,${p.hueA},0.6);
+b(W*(0.7+0.15*Math.cos(${T}*0.6)),H*(0.45+0.15*Math.sin(${T}*0.4)),W*0.7,${p.hueB},0.5);
+b(W*(0.5+0.2*Math.sin(${T}*0.8)),H*(0.7+0.1*Math.cos(${T}*0.9)),W*0.75,${p.hueC},0.45);
+x.globalCompositeOperation="source-over"})()</` + `script>`;
+}
+
+function renderRipple(t, p, W, H) {
+  const minD = Math.min(W, H), maxR = minD * 0.45, lw = minD * p.thickness;
+  return `<canvas width="${W}" height="${H}" style="width:100%;height:100%;display:block" id="sc_rip"></canvas>
+<script>(function(){var c=document.getElementById("sc_rip"),x=c.getContext("2d"),W=${W},H=${H};
+x.clearRect(0,0,W,H);var cx=W/2,cy=H/2;
+for(var i=0;i<${p.ringCount};i++){var age=(${t}-i*${p.interval})%(${p.ringCount}*${p.interval});
+if(age<0)age+=${p.ringCount}*${p.interval};var pr=age/${p.lifespan};if(pr>1||pr<0)continue;
+var ease=pr*(2-pr),r=ease*${maxR},a=1-pr,h=${p.hueStart}+(${p.hueSpan}*i/${p.ringCount})%360;
+x.beginPath();x.arc(cx,cy,Math.max(1,r),0,Math.PI*2);x.strokeStyle="hsla("+h+",70%,60%,"+a+")";x.lineWidth=${lw}*(1-pr*0.5);x.stroke()}})()</` + `script>`;
+}
+
+function renderHeadline(t, p, W, H) {
+  const fontSize = Math.round(W * p.size);
+  const letters = p.text.split('');
+  const totalDur = letters.length * p.stagger + 0.4;
+  let spans = '';
+  for (let i = 0; i < letters.length; i++) {
+    const delay = i * p.stagger;
+    const prog = Math.max(0, Math.min(1, (t - delay) / 0.4));
+    const ease = prog * (2 - prog);
+    const hue = p.hueStart + (p.hueEnd - p.hueStart) * (i / Math.max(1, letters.length - 1));
+    spans += `<span style="display:inline-block;opacity:${ease};transform:scale(${0.3+ease*0.7});color:hsl(${hue},80%,65%)">${letters[i]}</span>`;
+  }
+  const subOp = Math.max(0, Math.min(1, (t - totalDur) / 0.6)) * (2 - Math.max(0, Math.min(1, (t - totalDur) / 0.6)));
+  return `<div style="width:${W}px;height:${H}px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Inter,-apple-system,sans-serif">
+    <div style="font-size:${fontSize}px;font-weight:800;letter-spacing:-0.02em;text-align:center;line-height:1.1">${spans}</div>
+    <div style="font-size:${Math.round(fontSize*0.28)}px;color:rgba(255,255,255,0.5);margin-top:${H*0.015}px;opacity:${subOp};letter-spacing:0.15em">${p.subtitle}</div>
+  </div>`;
+}
+
+function renderBarChart(t, p, W, H) {
+  const n = p.data.length, maxVal = Math.max(...p.data, 1);
+  const cX = W*0.1, cW = W*0.8, cY = H*0.2, cH = H*0.55;
+  const bW = cW/n*0.6, gap = cW/n;
+  let bars = '', vals = '', labs = '';
+  for (let i = 0; i < n; i++) {
+    const prog = Math.max(0, Math.min(1, (t - i*p.stagger) / p.barDur));
+    const ease = prog*(2-prog);
+    const bH = (p.data[i]/maxVal)*cH*ease;
+    const x = cX + i*gap + (gap-bW)/2, y = cY + cH - bH;
+    const hue = p.hueStart + (p.hueEnd-p.hueStart)*(i/Math.max(1,n-1));
+    bars += `<rect x="${x}" y="${y}" width="${bW}" height="${bH}" rx="4" fill="hsl(${hue},70%,60%)" opacity="${0.3+ease*0.7}"/>`;
+    if (prog > 0.8) { const a = Math.min(1,(prog-0.8)/0.2); vals += `<text x="${x+bW/2}" y="${y-12}" text-anchor="middle" fill="rgba(255,255,255,${a})" font-size="${W*0.028}" font-weight="600">${p.data[i]}${p.unit}</text>`; }
+    labs += `<text x="${x+bW/2}" y="${cY+cH+W*0.04}" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="${W*0.024}">${p.labels[i]||''}</text>`;
+  }
+  const tOp = Math.min(1, t/0.5);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg">
+    <text x="${W/2}" y="${H*0.12}" text-anchor="middle" fill="rgba(255,255,255,${tOp})" font-size="${W*0.045}" font-weight="700" font-family="Inter,-apple-system,sans-serif">${p.title}</text>
+    <line x1="${cX}" y1="${cY+cH}" x2="${cX+cW}" y2="${cY+cH}" stroke="rgba(255,255,255,0.1)"/>
+    ${bars}${vals}${labs}</svg>`;
+}
+
+function renderLowerThird(t, p, W, H) {
+  const wipeIn = Math.min(1, t/0.4), wipeOut = t > p.holdEnd ? Math.min(1,(t-p.holdEnd)/p.fadeOut) : 0;
+  const vis = wipeIn * (1 - wipeOut);
+  const typeProg = Math.max(0, Math.min(1, (t-0.2)/(p.title.length*0.06)));
+  const chars = Math.round(typeProg * p.title.length);
+  const subOp = Math.max(0, Math.min(1, (t-0.7)/0.4)) * (1-wipeOut);
+  const dot = 0.4 + 0.6*Math.abs(Math.sin(t*3));
+  const barY = H*0.78, barH = H*0.1, fs = W*0.042, clip = vis*100;
+  return `<div style="width:${W}px;height:${H}px;position:relative;font-family:Inter,-apple-system,sans-serif">
+    <div style="position:absolute;left:${W*0.06}px;top:${barY}px;width:${W*0.88}px;height:${barH}px;clip-path:inset(0 ${100-clip}% 0 0);background:rgba(10,10,18,0.75);backdrop-filter:blur(20px);border-radius:${W*0.015}px;border:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;justify-content:center;padding:0 ${W*0.05}px">
+      <div style="display:flex;align-items:center;gap:${W*0.02}px">
+        <div style="width:${W*0.012}px;height:${W*0.012}px;border-radius:50%;background:hsl(${p.hueA},80%,60%);opacity:${dot};box-shadow:0 0 ${W*0.01}px hsl(${p.hueA},80%,60%)"></div>
+        <span style="font-size:${fs}px;font-weight:700;color:rgba(255,255,255,0.92);letter-spacing:0.05em">${p.title.substring(0,chars)}<span style="opacity:${(t*4)%1>0.5?0:0.7};color:hsl(${p.hueB},70%,65%)">|</span></span>
+      </div>
+      <span style="font-size:${fs*0.55}px;color:rgba(255,255,255,${subOp*0.5});margin-top:${H*0.005}px;margin-left:${W*0.034}px;letter-spacing:0.08em">${p.subtitle}</span>
+    </div>
+  </div>`;
+}
+
+const RENDERERS = {
+  auroraGradient: renderAurora,
+  circleRipple: renderRipple,
+  kineticHeadline: renderHeadline,
+  barChartReveal: renderBarChart,
+  lowerThirdVelvet: renderLowerThird,
+};
+
+// ─── Create layer containers ───
+const layers = {};
+timeline.sort((a, b) => a.z - b.z).forEach(layer => {
+  const div = document.createElement('div');
+  div.className = 'layer';
+  div.id = 'layer_' + layer.id;
+  div.style.zIndex = layer.z;
+  div.style.left = (layer.x * 100) + '%';
+  div.style.top = (layer.y * 100) + '%';
+  div.style.width = (layer.w * 100) + '%';
+  div.style.height = (layer.h * 100) + '%';
+  if (layer.opacity !== undefined) div.style.opacity = layer.opacity;
+  vp.appendChild(div);
+  layers[layer.id] = div;
+});
+
+// ─── Enter/exit fade ───
+function enterExit(localT, dur) {
+  const fadeIn = Math.min(1, localT / 0.5);
+  const fadeOut = Math.max(0, 1 - (dur - localT) / 0.5);
+  return Math.min(fadeIn, 1 - fadeOut);
+}
+
+// ─── Playback ───
+let playing = true, startTime = performance.now(), currentT = 0;
+const progressFill = document.getElementById('progress-fill');
+const timeEl = document.getElementById('time');
+const playBtn = document.getElementById('play-btn');
+
+playBtn.onclick = () => { playing = !playing; if (playing) { startTime = performance.now() - currentT*1000; playBtn.textContent = '⏸'; } else playBtn.textContent = '▶'; };
+document.getElementById('progress').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); currentT = Math.max(0, Math.min(1, (e.clientX-r.left)/r.width)) * DURATION; startTime = performance.now() - currentT*1000; };
+
+function loop() {
+  if (playing) currentT = ((performance.now() - startTime) / 1000) % DURATION;
+  progressFill.style.width = (currentT / DURATION * 100) + '%';
+  timeEl.textContent = currentT.toFixed(2) + ' / ' + DURATION.toFixed(2);
+
+  timeline.forEach(layer => {
+    const div = layers[layer.id];
+    const localT = currentT - layer.start;
+    if (localT < 0 || localT > layer.dur) { div.style.display = 'none'; return; }
+    div.style.display = 'block';
+
+    // enter/exit opacity
+    const baseOpacity = layer.opacity !== undefined ? layer.opacity : 1;
+    div.style.opacity = baseOpacity * enterExit(localT, layer.dur);
+
+    // render scene
+    const renderer = RENDERERS[layer.scene];
+    if (renderer) {
+      const layerW = Math.round(W * layer.w);
+      const layerH = Math.round(H * layer.h);
+      const html = renderer(localT, layer.params, layerW, layerH);
+
+      // only update if content changed (avoid flicker)
+      if (div._lastHtml !== html) {
+        div.innerHTML = html;
+        div._lastHtml = html;
+        // execute inline scripts
+        div.querySelectorAll('script').forEach(s => {
+          const fn = new Function(s.textContent);
+          try { fn(); } catch(e) {}
+        });
+      }
+    }
+  });
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
