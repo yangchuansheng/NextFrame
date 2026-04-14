@@ -138,7 +138,7 @@ async function main() {
 function output(ok, checks, errors, screenshotTimes) {
   const result = { ok, total: checks.length, passed: checks.filter((c) => c.ok).length, failed: errors.length, checks, errors };
   if (screenshotTimes) result.screenshot_times = screenshotTimes;
-  console.log(JSON.stringify(result, null, 2));
+  process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   process.exit(ok ? 0 : 1);
 }
 
