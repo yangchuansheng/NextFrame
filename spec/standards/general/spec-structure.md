@@ -19,6 +19,11 @@ spec/
 │   ├── prototypes/     ← interactive HTML prototypes
 │   └── analysis/       ← competitive analysis, research
 ├── prototypes/         ← version-level prototype archive
+├── lessons/            ← personal knowledge base (human learning)
+│   ├── pitfalls/       ← things that went wrong
+│   ├── decisions/      ← reasoning behind key choices
+│   ├── techniques/     ← reusable patterns
+│   └── reflections/    ← bigger picture thinking
 ├── _archive/           ← all superseded documents
 └── VISION.md           ← product vision (the why)
 ```
