@@ -8,6 +8,7 @@ export const meta = {
   label: "Video Clip",
   description: "嵌入真实视频文件（MP4），支持定位和圆角。用于访谈片段、B-roll 等需要播放原始视频的场景。",
   tech: "video",
+  videoOverlay: true,
   duration_hint: 0,
   loopable: false,
   z_hint: "middle",

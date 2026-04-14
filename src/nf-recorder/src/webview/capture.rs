@@ -173,9 +173,18 @@ impl WebViewHost {
             return String(value);
           };
           const layers = timeline && Array.isArray(timeline.layers) ? timeline.layers : [];
-          // Match any layer with a video src param (videoClip, interviewVideoArea, etc.)
-          const videoLayers = layers.filter((layer) => layer && layer.params && layer.params.src &&
-            (layer.scene === 'videoClip' || (layer.scene && layer.scene.toLowerCase().indexOf('video') >= 0)));
+          // Match layers with video src: prefer meta.videoOverlay flag, fallback to name matching
+          const scenesMeta = typeof SCENES === 'object' ? SCENES : {};
+          const videoLayers = layers.filter((layer) => {
+            if (!layer || !layer.params || !layer.params.src) return false;
+            // Check scene meta.videoOverlay flag (preferred)
+            var scene = scenesMeta[layer.scene];
+            if (scene && scene.meta && scene.meta.videoOverlay) return true;
+            // Explicit videoOverlay in timeline layer
+            if (layer.videoOverlay) return true;
+            // Fallback: name matching for backwards compat
+            return layer.scene === 'videoClip' || (layer.scene && layer.scene.toLowerCase().indexOf('video') >= 0);
+          });
           // Try to read actual rendered position from DOM video elements
           const domVideos = document.querySelectorAll('video[data-nf-persist]');
           return JSON.stringify(
@@ -183,7 +192,13 @@ impl WebViewHost {
               // Use raw path for absolute paths (avoid URL encoding of CJK characters)
               var rawSrc = String(layer.params.src);
               var src = rawSrc.startsWith('/') ? rawSrc : (resolve(rawSrc) || rawSrc);
-              // Prefer DOM-measured position over layer x/y/w/h
+              // Priority: 1) explicit videoOverlay from timeline JSON, 2) DOM measurement, 3) layer x/y/w/h
+              if (layer.videoOverlay && layer.videoOverlay.x != null) {
+                return { src: src, x: String(layer.videoOverlay.x), y: String(layer.videoOverlay.y),
+                         w: String(layer.videoOverlay.w), h: String(layer.videoOverlay.h),
+                         start: Number.isFinite(layer.start) ? layer.start : 0,
+                         dur: Number.isFinite(layer.dur) ? layer.dur : totalDuration };
+              }
               var vid = domVideos[i] || null;
               var container = vid ? vid.closest('[style*="position"]') || vid.parentElement : null;
               if (container && container.getBoundingClientRect) {

@@ -154,3 +154,40 @@ pub fn build_video_overlay_specs(
 
     Ok(overlays)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn urlencoding_decode_passthrough_ascii() {
+        assert_eq!(urlencoding_decode("/tmp/video.mp4"), "/tmp/video.mp4");
+    }
+
+    #[test]
+    fn urlencoding_decode_passthrough_chinese() {
+        // Chinese characters should pass through unchanged (no % encoding)
+        let path = "/Users/张/bigbang/硅谷访谈/clips/clip_01.mp4";
+        assert_eq!(urlencoding_decode(path), path);
+    }
+
+    #[test]
+    fn urlencoding_decode_percent_encoded_chinese() {
+        // %E4%B8%AD%E6%96%87 = "中文" in UTF-8
+        assert_eq!(urlencoding_decode("%E4%B8%AD%E6%96%87"), "中文");
+    }
+
+    #[test]
+    fn urlencoding_decode_mixed() {
+        // Mix of encoded and plain characters
+        assert_eq!(
+            urlencoding_decode("/Users/%E5%BC%A0/video.mp4"),
+            "/Users/张/video.mp4"
+        );
+    }
+
+    #[test]
+    fn urlencoding_decode_space() {
+        assert_eq!(urlencoding_decode("hello%20world"), "hello world");
+    }
+}

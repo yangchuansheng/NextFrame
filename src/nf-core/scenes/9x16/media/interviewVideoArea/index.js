@@ -5,6 +5,7 @@ export const meta = {
   label: "Interview Video Area",
   description: "Black video embed matching old clip-slide .video-area: top 276, height 538, rounded corners, shadow.",
   tech: "dom", duration_hint: 20, loopable: true, z_hint: "middle",
+  videoOverlay: true, // recorder uses this flag to detect video layers for ffmpeg compositing
   tags: ["media", "interview", "video", "9x16"],
   default_theme: "dark-interview",
   themes: { "dark-interview": {} },
