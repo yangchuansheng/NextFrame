@@ -1,0 +1,42 @@
+#!/bin/bash
+# Pre-commit gate — blocks commit if quality checks fail.
+# Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+set -e
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+FAIL=0
+
+# Fast checks only (< 10s total) — full suite in lint-all.sh
+echo "[pre-commit] cargo check..."
+cargo check --workspace 2>&1 | tail -1 || FAIL=1
+
+echo "[pre-commit] clippy..."
+cargo clippy --workspace -- -D warnings 2>&1 | tail -1 || FAIL=1
+
+echo "[pre-commit] file size..."
+OVER=$(find src/ -type f \( -name '*.rs' -o -name '*.js' \) \
+  -not -path '*/target/*' -not -path '*/node_modules/*' \
+  -not -path '*/.ally/*' -not -path '*/test*' \
+  | xargs wc -l 2>/dev/null | awk '$1 > 500 {print}' | grep -v total || true)
+if [ -n "$OVER" ]; then echo "BLOCKED: files >500 lines:" && echo "$OVER"; FAIL=1; fi
+
+echo "[pre-commit] var..."
+VAR=$(grep -rn '\bvar ' src/ --include='*.js' 2>/dev/null | grep -v node_modules | head -3)
+if [ -n "$VAR" ]; then echo "BLOCKED: var found:" && echo "$VAR"; FAIL=1; fi
+
+echo "[pre-commit] console.log..."
+LOG=$(grep -rn 'console\.log' src/ --include='*.js' 2>/dev/null | grep -v node_modules | grep -v '\[bridge\]' | head -3)
+if [ -n "$LOG" ]; then echo "BLOCKED: console.log found:" && echo "$LOG"; FAIL=1; fi
+
+echo "[pre-commit] TODO/FIXME..."
+TODO=$(grep -rn 'TODO\|FIXME\|HACK\|XXX' src/ --include='*.rs' --include='*.js' 2>/dev/null | grep -v node_modules | head -3)
+if [ -n "$TODO" ]; then echo "BLOCKED: TODO found:" && echo "$TODO"; FAIL=1; fi
+
+if [ $FAIL -eq 0 ]; then
+  echo "[pre-commit] ALL PASSED"
+else
+  echo ""
+  echo "[pre-commit] COMMIT BLOCKED — fix issues above"
+  exit 1
+fi
