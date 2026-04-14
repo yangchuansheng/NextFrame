@@ -458,7 +458,11 @@ function buildRuntime() {
 
   window.__onFrame = function(data) {
     enableRecorderMode();
-    return seek(extractTime(data));
+    var result = seek(extractTime(data));
+    // Force layout flush + paint for WKWebView recorder
+    void stage.offsetHeight;
+    void stage.getBoundingClientRect();
+    return result;
   };
 
   playBtn.addEventListener("click", () => togglePlayback());
