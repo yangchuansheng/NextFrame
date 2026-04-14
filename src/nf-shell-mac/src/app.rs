@@ -303,7 +303,7 @@ fn start_window_drag(window: &NSWindow) {
     unsafe {
         // SAFETY: We mirror Tao's macOS drag path: use the current AppKit event when possible,
         // or synthesize a left-mouse-down event before calling `performWindowDragWithEvent:`.
-        let event = if current_event.r#type().0 as usize == 0x15 {
+        let event = if current_event.r#type().0 == 0x15 {
             let event: Retained<NSEvent> = msg_send![
                 objc2::class!(NSEvent),
                 mouseEventWithType: NSEventType::LeftMouseDown,
