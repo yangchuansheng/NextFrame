@@ -490,7 +490,9 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
             "document.querySelector('[data-stage=\"clips\"]')?.click();'clicked'"
         )
     );
-    webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
+    webview::pump_run_loop_pub(std::time::Duration::from_secs(3));
+    check!("smart clips sources", webview::eval_js(wv, "scSources.length + ' sources, clips=' + scClips.length"));
+    check!("smart clips debug", webview::eval_js(wv, "JSON.stringify(scSources.map(s=>s.name))"));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-clips.png");
 
     // Editor tab — atoms from pipeline.json

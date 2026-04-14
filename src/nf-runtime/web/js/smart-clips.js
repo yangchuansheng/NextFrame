@@ -6,26 +6,38 @@ let scSentences = {};
 
 function loadSmartClips() {
   if (typeof bridgeCall !== 'function' || !window.currentEpisodePath) return;
-  // Load sources from episode/sources/ directory
-  bridgeCall('fs.listDir', { path: window.currentEpisodePath + '/sources' }).then(function(data) {
-    const entries = (data.entries || []).filter(function(e) { return e.name && e.name.endsWith('.mp4'); });
-    scSources = entries.map(function(e) {
-      return { name: e.name, path: window.currentEpisodePath + '/sources/' + e.name };
+  const srcDir = window.currentEpisodePath + '/sources';
+
+  // Load sources + clips in parallel
+  Promise.all([
+    bridgeCall('fs.listDir', { path: srcDir }).catch(function() { return { entries: [] }; }),
+    bridgeCall('source.clips', { episode: window.currentEpisodePath }).catch(function() { return { clips: [] }; })
+  ]).then(function(results) {
+    const entries = results[0].entries || [];
+    scClips = results[1].clips || [];
+
+    // Find video files and pair with sentences
+    const videoExts = ['.mp4', '.mov', '.webm', '.mkv'];
+    const videos = entries.filter(function(e) {
+      return e.name && videoExts.some(function(ext) { return e.name.endsWith(ext); });
     });
-    // Also check for source.json metadata
-    return bridgeCall('fs.listDir', { path: window.currentEpisodePath + '/sources' });
-  }).then(function() {
+    const sentFiles = entries.filter(function(e) {
+      return e.name && e.name.endsWith('-sentences.json');
+    });
+
+    scSources = videos.map(function(v) {
+      const baseName = v.name.replace(/\.[^.]+$/, '');
+      const sentFile = sentFiles.find(function(s) { return s.name.startsWith(baseName); });
+      return {
+        name: v.name,
+        path: srcDir + '/' + v.name,
+        sentencesPath: sentFile ? srcDir + '/' + sentFile.name : null
+      };
+    });
+
     renderSourceList();
     if (scSources.length > 0) selectSmartSource(0);
-    // Load clips
-    return bridgeCall('source.clips', { episode: window.currentEpisodePath });
-  }).then(function(data) {
-    scClips = data.clips || [];
-    renderClipCards();
-  }).catch(function(e) {
-    console.error('[smart-clips] load:', e);
-    renderSourceList();
-    renderClipCards();
+    else { renderSourceDetail(); renderClipCards(); }
   });
 }
 
@@ -48,22 +60,22 @@ function renderSourceList() {
 
 function selectSmartSource(i) {
   scActiveSource = i;
-  document.querySelectorAll('.sc-src-item').forEach(function(el, idx) {
-    el.classList.toggle('active', idx === i);
-  });
+  renderSourceList();
   renderSourceDetail();
   // Load sentences for this source
   const src = scSources[i];
-  if (src) {
-    const sentPath = src.path.replace('.mp4', '') + '-sentences.json';
-    // Try loading sentences
-    bridgeCall('fs.read', { path: window.currentEpisodePath + '/sources/dario-sentences.json' }).then(function(data) {
+  if (src && src.sentencesPath) {
+    bridgeCall('fs.read', { path: src.sentencesPath }).then(function(data) {
       const raw = data.contents || data.content || '';
       let parsed;
       try { parsed = typeof raw === 'object' ? raw : JSON.parse(raw); } catch(e) { parsed = {}; }
       scSentences = parsed;
+      renderSourceDetail();
       renderClipCards();
-    }).catch(function() {});
+    }).catch(function() { scSentences = {}; });
+  } else {
+    scSentences = {};
+    renderClipCards();
   }
 }
 
