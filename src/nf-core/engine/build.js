@@ -95,9 +95,34 @@ ${scriptBody}
  * Build a single-file HTML from a timeline JSON and write it to outputPath.
  * Returns { ok, value } on success or { ok, error } on failure.
  */
+/**
+ * Coerce layer params to match scene meta schema types.
+ * Prevents runtime type errors from AI-generated timelines.
+ */
+function coerceLayerParams(timeline, sceneModules) {
+  const metaByScene = new Map(sceneModules.map((m) => [m.id, m]));
+  for (const layer of timeline.layers || []) {
+    if (!layer.params || !layer.scene) continue;
+    // Coerce via scene code eval is too risky — just normalize known problem patterns:
+    // audio object → ensure __SLIDE_SEGMENTS gets .src string (handled in buildDocument)
+    for (const [key, val] of Object.entries(layer.params)) {
+      if (typeof val === "string" && val.startsWith("[")) {
+        try { layer.params[key] = JSON.parse(val); } catch { /* keep string */ }
+      }
+    }
+  }
+  // Normalize audio: ensure string src is available for the runtime
+  if (timeline.audio && typeof timeline.audio === "object" && timeline.audio.src) {
+    timeline._audioSrc = String(timeline.audio.src);
+  } else if (typeof timeline.audio === "string") {
+    timeline._audioSrc = timeline.audio;
+  }
+}
+
 export function buildHTML(timeline, outputPath) {
   try {
     const sceneModules = collectSceneModules(timeline || {});
+    coerceLayerParams(timeline || {}, sceneModules);
     const html = buildDocument(timeline || {}, sceneModules);
     writeFileSync(outputPath, html, "utf8");
     return {

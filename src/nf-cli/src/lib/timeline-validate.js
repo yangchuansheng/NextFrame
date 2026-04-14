@@ -11,6 +11,7 @@ import { TRANSITION_IDS } from "nf-core/animation/transitions/index.js";
 
 let REGISTRY = new Map();
 
+// Scenes that are expected to overlay fullscreen — skip overlap warnings for these
 const BG_SCENES = new Set([
   "auroraGradient", "fluidBackground", "neonGrid", "vignette", "starfield", "particleFlow",
   "circleRipple", "meshGrid", "radialBurst", "confetti", "waveform", "pulseWave",
@@ -18,6 +19,11 @@ const BG_SCENES = new Set([
   "subtitleBar", "marquee", "lowerThird", "cornerBadge",
   "audioTrack", "syncSubs", "videoClip",
   "slideChrome", "slideFrame",
+  // 9:16 interview scenes — all overlay by design
+  "interviewBg", "interviewHeader", "interviewVideoArea", "interviewBiSub",
+  "interviewMeta", "interviewBrand", "interviewTopBar", "progressBar9x16",
+  // 16:9 scenes that overlay
+  "darkGradient", "progressBar16x9",
 ]);
 const SUPPORTED_SCHEMAS = new Set(["nextframe/v0.1"]);
 const SUPPORTED_FPS = new Set([24, 25, 30, 60]);
@@ -78,8 +84,37 @@ export async function validateTimelineV3(timeline) {
   if (!timeline.height) errors.push({ code: "MISSING_FIELD", message: "height is required" });
   if (!timeline.fps) errors.push({ code: "MISSING_FIELD", message: "fps is required" });
   if (!timeline.duration) errors.push({ code: "MISSING_FIELD", message: "duration is required" });
+  if (typeof timeline.duration === "number" && timeline.duration <= 0) {
+    errors.push({ code: "BAD_DURATION", message: "duration must be > 0" });
+  }
   if (!Array.isArray(timeline.layers)) errors.push({ code: "MISSING_FIELD", message: "layers[] is required" });
   if (errors.length > 0) return { ok: false, errors, warnings, hints };
+
+  if (timeline.layers.length === 0) {
+    errors.push({ code: "NO_LAYERS", message: "timeline has 0 layers. Fix: add at least one layer" });
+    return { ok: false, errors, warnings, hints };
+  }
+
+  if (!timeline.ratio) {
+    const inferred = timeline.height > timeline.width ? "9:16" : "16:9";
+    warnings.push({ code: "MISSING_RATIO", message: `ratio not specified — inferred "${inferred}" from ${timeline.width}x${timeline.height}. Fix: add "ratio": "${inferred}"` });
+  } else {
+    const expectPortrait = timeline.ratio === "9:16";
+    const actualPortrait = timeline.height > timeline.width;
+    if (expectPortrait !== actualPortrait) {
+      errors.push({ code: "RATIO_MISMATCH", message: `ratio "${timeline.ratio}" doesn't match ${timeline.width}x${timeline.height}. Fix: correct ratio or dimensions` });
+    }
+  }
+
+  if (timeline.audio !== undefined && timeline.audio !== null) {
+    if (typeof timeline.audio === "object" && !Array.isArray(timeline.audio)) {
+      if (!timeline.audio.src || typeof timeline.audio.src !== "string") {
+        errors.push({ code: "BAD_AUDIO", message: "timeline.audio object missing .src string. Fix: set audio.src to file path, or use a plain string" });
+      }
+    } else if (typeof timeline.audio !== "string") {
+      errors.push({ code: "BAD_AUDIO", message: `timeline.audio must be string or {src: "path"}, got ${typeof timeline.audio}` });
+    }
+  }
 
   const ids = new Set();
   for (const layer of timeline.layers) {
@@ -121,6 +156,40 @@ export async function validateTimelineV3(timeline) {
           code: "RATIO_MISMATCH",
           message: `layer "${layer.id}" uses scene "${layer.scene}" (ratio ${sceneRatio}) but timeline is ${timelineRatio} (${timeline.width}x${timeline.height}). Use the correct ratio variant.`,
         });
+      }
+    }
+
+    // Deep param validation against scene meta.params schema
+    if (registryEntry?.META?.params && layer.params && typeof layer.params === "object") {
+      const paramSchema = registryEntry.META.params;
+      for (const [key, spec] of Object.entries(paramSchema)) {
+        const val = layer.params[key];
+        if (spec.required && (val === undefined || val === null || val === "")) {
+          errors.push({ code: "MISSING_PARAM", message: `layer "${layer.id}" missing required param "${key}". Fix: add ${key} to params` });
+        }
+        if (val !== undefined && val !== null) {
+          if (spec.type === "number" && typeof val !== "number") {
+            errors.push({ code: "BAD_PARAM_TYPE", message: `layer "${layer.id}" param "${key}" must be number, got ${typeof val}` });
+          }
+          if (spec.type === "array" && !Array.isArray(val)) {
+            errors.push({ code: "BAD_PARAM_TYPE", message: `layer "${layer.id}" param "${key}" must be array, got ${typeof val}` });
+          }
+          if (spec.type === "number" && typeof val === "number" && Array.isArray(spec.range) && spec.range.length === 2) {
+            if (val < spec.range[0] || val > spec.range[1]) {
+              warnings.push({ code: "PARAM_OUT_OF_RANGE", message: `layer "${layer.id}" param "${key}" = ${val} outside [${spec.range[0]}, ${spec.range[1]}]` });
+            }
+          }
+          if (spec.type === "array" && Array.isArray(val) && spec.semantic && spec.semantic.includes("srt")) {
+            for (let si = 0; si < Math.min(val.length, 3); si++) {
+              const entry = val[si];
+              if (!entry || typeof entry !== "object") {
+                errors.push({ code: "BAD_SRT", message: `layer "${layer.id}" srt[${si}] must be {s, e, ...}` });
+              } else if (typeof entry.s !== "number" || typeof entry.e !== "number") {
+                errors.push({ code: "BAD_SRT", message: `layer "${layer.id}" srt[${si}] needs numeric s and e` });
+              }
+            }
+          }
+        }
       }
     }
 

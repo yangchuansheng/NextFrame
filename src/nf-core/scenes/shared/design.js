@@ -96,6 +96,14 @@ export function scaleH(vp, px) {
   return Math.round((vp.height * px) / 1920);
 }
 
+export function sw16(vp, px) {
+  return Math.round((vp.width * px) / 1920);
+}
+
+export function sh16(vp, px) {
+  return Math.round((vp.height * px) / 1080);
+}
+
 export function fadeIn(t, delay, duration) {
   const d = Number.isFinite(delay) ? delay : 0;
   const dur = Number.isFinite(duration) ? duration : 0.45;

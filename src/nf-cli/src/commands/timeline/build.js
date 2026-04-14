@@ -55,6 +55,37 @@ export async function run(argv) {
 
   const outputPath = shortOutput || flags.output || resolved.jsonPath.replace(/\.json$/, '.html');
   const result = buildHTML(timeline, outputPath);
+  if (!result.ok) { emit(result, flags); return 2; }
+
+  // Auto-preview: screenshot key frames for AI visual verification
+  if (!flags['no-preview']) {
+    try {
+      const { execFileSync } = await import('node:child_process');
+      const { fileURLToPath } = await import('node:url');
+      const { resolve: resolvePath, dirname } = await import('node:path');
+      const cliEntry = resolvePath(dirname(fileURLToPath(import.meta.url)), '../../../bin/nextframe.js');
+      const previewDir = outputPath.replace(/\.html$/, '-preview');
+      let raw;
+      try {
+        raw = execFileSync(process.execPath, [
+          cliEntry, 'preview', resolved.jsonPath, '--auto', '--json', `--out=${previewDir}`,
+        ], { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'ignore'] });
+      } catch (execErr) {
+        // Preview exits non-zero when issues found — stdout still has valid JSON
+        raw = execErr.stdout || '';
+      }
+      const previewResult = JSON.parse(raw);
+      if (previewResult?.screenshots) {
+        result.value.previews = previewResult.screenshots.map((s) => s.path);
+      }
+      if (previewResult?.issues?.length > 0) {
+        result.value.warnings = previewResult.issues.map((i) => `${i.type} at t=${i.time}s: ${i.message}`);
+      }
+    } catch {
+      // Preview is best-effort — don't fail the build if puppeteer is unavailable
+    }
+  }
+
   emit(result, flags);
-  return result.ok ? 0 : 2;
+  return 0;
 }
