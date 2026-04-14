@@ -115,7 +115,7 @@ pub trait Backend: Send + Sync {
 
 pub fn create_backend(name: &str) -> Result<Arc<dyn Backend>> {
     match name {
-        "edge" => Ok(Arc::new(edge::EdgeBackend::new())),
+        DEFAULT_BACKEND => Ok(Arc::new(edge::EdgeBackend::new())),
         "volcengine" => Ok(Arc::new(volcengine::VolcengineBackend::new())),
         other => bail!("Unsupported backend: {other}. Available: edge, volcengine"),
     }

@@ -1,9 +1,10 @@
 //! configuration loading
-use crate::backend::DEFAULT_BACKEND;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+const DEFAULT_BACKEND: &str = "edge";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VoxConfig {
