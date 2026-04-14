@@ -4,10 +4,12 @@ import { existsSync } from "node:fs";
 import { resolve as resolvePath, isAbsolute } from "node:path";
 import { guarded } from "./guard.js";
 import { resolveTimeline as resolveLegacyTimeline } from "./legacy-timeline.js";
-import { REGISTRY } from "./scene-registry.js";
+import { getREGISTRY } from "./scene-registry.js";
 import { EFFECT_IDS } from "../../../nf-core/animation/effects/index.js";
 import { FILTER_IDS } from "../../../nf-core/filters/index.js";
 import { TRANSITION_IDS } from "../../../nf-core/animation/transitions/index.js";
+
+let REGISTRY = new Map();
 
 const BG_SCENES = new Set([
   "auroraGradient", "fluidBackground", "neonGrid", "vignette", "starfield", "particleFlow",
@@ -32,7 +34,8 @@ export function detectFormat(timeline) {
   return "unknown";
 }
 
-export function validateTimelineV3(timeline) {
+export async function validateTimelineV3(timeline) {
+  REGISTRY = await getREGISTRY();
   const errors = [];
   const warnings = [];
   const hints = [];
