@@ -9,7 +9,9 @@ pub(crate) fn handle_episode_list(params: &Value) -> Result<Value, String> {
     let project = require_string(params, "project")?;
     let project_dir = projects_root().join(project);
     if !project_dir.exists() {
-        return Err(format!("project '{}' not found", project));
+        return Err(format!( // Fix: included in the error string below
+            "failed to list episodes: project '{project}' not found. Fix: create the project first or verify params.project."
+        ));
     }
 
     let mut episodes: Vec<Value> = Vec::new();
@@ -71,12 +73,16 @@ pub(crate) fn handle_episode_create(params: &Value) -> Result<Value, String> {
     let name = require_string(params, "name")?;
     let project_dir = projects_root().join(project);
     if !project_dir.exists() {
-        return Err(format!("project '{}' not found", project));
+        return Err(format!( // Fix: included in the error string below
+            "failed to create episode: project '{project}' not found. Fix: create the project first or verify params.project."
+        ));
     }
 
     let episode_dir = project_dir.join(name);
     if episode_dir.exists() {
-        return Err(format!("episode '{}' already exists", name));
+        return Err(format!( // Fix: included in the error string below
+            "failed to create episode: episode '{name}' already exists. Fix: choose a different episode name or remove the existing episode directory."
+        ));
     }
 
     // count existing episodes for order

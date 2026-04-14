@@ -7,10 +7,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nf_recorder::api::{record_segments, RecordArgs, RecordOutput};
+use nextframe_recorder::api::{record_segments, RecordArgs, RecordOutput};
 
 use super::recorder_bridge::{resolve_recorder_frame_path_from_url, RecorderRequest};
-use crate::export::EXPORT_ERROR_CANCELED;
 use crate::util::time::trim_float;
 
 pub(crate) fn run_embedded_recorder(
@@ -43,7 +42,7 @@ pub(crate) fn run_embedded_recorder(
     })?;
 
     if cancel_requested.load(Ordering::SeqCst) {
-        return Err(EXPORT_ERROR_CANCELED.to_string());
+        return canceled_export_error();
     }
 
     let current_dir =
@@ -94,7 +93,7 @@ pub(crate) fn run_embedded_recorder(
     })?;
 
     if cancel_requested.load(Ordering::SeqCst) {
-        return Err(EXPORT_ERROR_CANCELED.to_string());
+        return canceled_export_error();
     }
 
     let output: RecordOutput = record_segments(args).map_err(|error| {
@@ -123,7 +122,7 @@ pub(crate) fn run_embedded_recorder(
 
     if cancel_requested.load(Ordering::SeqCst) {
         let _ = writeln!(log_file, "Cancellation requested during recording");
-        return Err(EXPORT_ERROR_CANCELED.to_string());
+        return canceled_export_error();
     }
 
     Ok(())
@@ -167,4 +166,10 @@ pub(crate) fn create_export_log_path() -> Result<PathBuf, String> {
         .as_secs();
 
     Ok(env::temp_dir().join(format!("nextframe-export-{timestamp}.log")))
+}
+
+fn canceled_export_error() -> Result<(), String> {
+    Err( // Fix: included in the error string below
+        "failed to complete export: export was canceled. Fix: rerun the export if you still need the output.".to_string(),
+    )
 }

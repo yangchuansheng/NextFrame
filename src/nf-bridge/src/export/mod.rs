@@ -9,7 +9,7 @@ pub(crate) use lifecycle::{
 };
 pub(crate) use lifecycle::{
     handle_export_cancel, handle_export_log, handle_export_start, handle_export_status,
-    process_registry, EXPORT_ERROR_CANCELED,
+    process_registry,
 };
 #[cfg(test)]
 pub(crate) use recorder_bridge::{

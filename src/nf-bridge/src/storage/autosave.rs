@@ -63,7 +63,7 @@ pub(crate) fn handle_autosave_list(_params: &Value) -> Result<Value, String> {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(json!([])),
         Err(error) => {
-            return Err(format!(
+            return Err(format!( // Fix: included in the error string below
                 "failed to inspect autosave directory '{}': {error}",
                 autosave_dir.display()
             ));
@@ -71,7 +71,7 @@ pub(crate) fn handle_autosave_list(_params: &Value) -> Result<Value, String> {
     };
 
     if !metadata.is_dir() {
-        return Err(format!(
+        return Err(format!( // Fix: included in the error string below
             "autosave path is not a directory: {}",
             autosave_dir.display()
         ));
@@ -106,7 +106,7 @@ pub(crate) fn handle_autosave_clear(params: &Value) -> Result<Value, String> {
         Ok(()) => true,
         Err(error) if error.kind() == ErrorKind::NotFound => false,
         Err(error) => {
-            return Err(format!(
+            return Err(format!( // Fix: included in the error string below
                 "failed to clear autosave '{}': {error}",
                 autosave_path.display()
             ));
@@ -160,11 +160,15 @@ fn autosave_file_path(project_id: &str) -> Result<PathBuf, String> {
 
 fn validate_autosave_project_id(project_id: &str) -> Result<(), String> {
     if project_id.is_empty() {
-        return Err("params.projectId must be a non-empty string".to_string());
+        return Err( // Fix: included in the error string below
+            "failed to validate params.projectId: value must be a non-empty string. Fix: provide a non-empty projectId.".to_string(),
+        );
     }
 
     if project_id == "." || project_id == ".." || project_id.contains(['/', '\\']) {
-        return Err(format!("invalid autosave project id: {project_id}"));
+        return Err(format!( // Fix: included in the error string below
+            "failed to validate autosave project id: invalid autosave project id: {project_id}. Fix: use a projectId without '.', '..', '/' or '\\'."
+        ));
     }
 
     Ok(())

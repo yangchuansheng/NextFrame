@@ -9,7 +9,10 @@ pub(crate) fn handle_segment_list(params: &Value) -> Result<Value, String> {
     let episode = require_string(params, "episode")?;
     let episode_dir = projects_root().join(project).join(episode);
     if !episode_dir.exists() {
-        return Err("episode directory not found".to_string());
+        return Err(format!( // Fix: included in the error string below
+            "failed to list segments: episode directory '{}' was not found. Fix: create the episode first or verify params.project and params.episode.",
+            episode_dir.display()
+        ));
     }
 
     let mut segments: Vec<Value> = Vec::new();

@@ -67,3 +67,30 @@ fn dispatch_autosave_write_rejects_project_id_with_slash() {
     assert_eq!(response.result, Value::Null);
     assert_error_contains(response.error.as_deref(), "invalid autosave project id");
 }
+
+#[test]
+fn dispatch_autosave_recover_returns_saved_timeline() {
+    let temp = TestDir::new("integration-autosave-recover");
+    let _home = HomeDirOverrideGuard::new(&temp.path);
+    let timeline = json!({
+        "version": "1",
+        "metadata": { "fps": 24 },
+        "tracks": [{"id": "track-1", "clips": []}],
+    });
+
+    let write_response = dispatch_request(
+        "autosave.write",
+        json!({
+            "projectId": "recover-me",
+            "timeline": timeline.clone(),
+        }),
+    );
+    assert!(write_response.ok);
+
+    let recover_response =
+        dispatch_request("autosave.recover", json!({ "projectId": "recover-me" }));
+
+    assert!(recover_response.ok);
+    assert_eq!(recover_response.id, "req-autosave.recover");
+    assert_eq!(recover_response.result, timeline);
+}

@@ -158,5 +158,5 @@ fn parse_audio_sources_errors_when_path_is_missing() {
     }))
     .expect_err("missing path should be rejected");
 
-    assert_eq!(error, "params.audioSources[0].path must be a string");
+    assert!(error.contains("params.audioSources[0].path: value must be a string"));
 }

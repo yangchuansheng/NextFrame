@@ -112,8 +112,8 @@ fn ensure_recent_storage_file() -> Result<PathBuf, String> {
     }
 
     match fs::metadata(&storage_path) {
-        Ok(metadata) if metadata.is_dir() => Err(format!(
-            "recent file path is a directory: {}",
+        Ok(metadata) if metadata.is_dir() => Err(format!( // Fix: included in the error string below
+            "failed to open recent projects storage: '{}' is a directory. Fix: remove or rename that directory so nf-bridge can create a recent.json file there.",
             storage_path.display()
         )),
         Ok(_) => Ok(storage_path),
@@ -126,8 +126,8 @@ fn ensure_recent_storage_file() -> Result<PathBuf, String> {
             })?;
             Ok(storage_path)
         }
-        Err(error) => Err(format!(
-            "failed to inspect recent file '{}': {error}",
+        Err(error) => Err(format!( // Fix: included in the error string below
+            "failed to inspect recent projects storage: could not inspect '{}': {error}. Fix: verify the file permissions and parent directory.",
             storage_path.display()
         )),
     }
@@ -220,7 +220,9 @@ fn ensure_recent_project_extension(path: &Path, raw_path: &str) -> Result<(), St
     if has_recent_project_extension(path) {
         Ok(())
     } else {
-        Err(format!("path must point to a .nfproj file: {raw_path}"))
+        Err(format!( // Fix: included in the error string below
+            "failed to validate recent project path: '{raw_path}' is not a .nfproj file. Fix: provide a path that ends with .nfproj."
+        ))
     }
 }
 

@@ -73,7 +73,9 @@ pub(crate) fn handle_project_create(params: &Value) -> Result<Value, String> {
     let root = projects_root();
     let project_dir = root.join(name);
     if project_dir.exists() {
-        return Err(format!("project '{}' already exists", name));
+        return Err(format!( // Fix: included in the error string below
+            "failed to create project: project '{name}' already exists. Fix: choose a different project name or remove the existing project directory."
+        ));
     }
 
     fs::create_dir_all(&project_dir).map_err(|e| format!("failed to create project dir: {e}"))?;

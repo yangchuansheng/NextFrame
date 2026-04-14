@@ -115,8 +115,8 @@ pub(crate) fn run_platform_command(
     if status.success() {
         Ok(())
     } else {
-        Err(format!(
-            "command exited with {}",
+        Err(format!( // Fix: included in the error string below
+            "failed to reveal path in the file manager: command exited with {}. Fix: verify the desktop file manager command is available and try again.",
             format_exit_status(status)
         ))
     }
@@ -137,7 +137,9 @@ pub(crate) fn parse_dialog_filters(params: &Value) -> Result<Vec<String>, String
                 if let Some(normalized) = normalize_extension(extension) {
                     extensions.push(normalized);
                 } else {
-                    return Err(format!("params.filters[{index}] must not be empty"));
+                    return Err(format!( // Fix: included in the error string below
+                        "failed to read params.filters[{index}]: extension must not be empty. Fix: remove empty filter values or provide a file extension."
+                    ));
                 }
             }
             Value::Object(object) => {
@@ -158,15 +160,15 @@ pub(crate) fn parse_dialog_filters(params: &Value) -> Result<Vec<String>, String
                     if let Some(normalized) = normalize_extension(extension) {
                         extensions.push(normalized);
                     } else {
-                        return Err(format!(
-                            "params.filters[{index}].extensions[{extension_index}] must not be empty"
+                        return Err(format!( // Fix: included in the error string below
+                            "failed to read params.filters[{index}].extensions[{extension_index}]: extension must not be empty. Fix: remove empty extensions or provide a valid file extension."
                         ));
                     }
                 }
             }
             _ => {
-                return Err(format!(
-                    "params.filters[{index}] must be a string or filter object"
+                return Err(format!( // Fix: included in the error string below
+                    "failed to read params.filters[{index}]: value must be a string or filter object. Fix: provide each filter as an extension string or an object with an extensions array."
                 ));
             }
         }

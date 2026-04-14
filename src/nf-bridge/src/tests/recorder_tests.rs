@@ -85,10 +85,8 @@ fn resolve_recorder_frame_path_from_invalid_url_returns_error() {
     let result =
         resolve_recorder_frame_path_from_url("ftp://example.com/frame.html", Path::new("."));
 
-    assert_eq!(
-        result.as_ref().map_err(std::string::String::as_str),
-        Err("unsupported recorder url: ftp://example.com/frame.html")
-    );
+    let error = result.expect_err("unsupported URL should fail");
+    assert!(error.contains("unsupported recorder URL 'ftp://example.com/frame.html'"));
 }
 
 #[test]

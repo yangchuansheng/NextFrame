@@ -146,7 +146,53 @@ fn dispatch_fs_write_with_empty_path_returns_error() {
     assert!(!response.ok);
     assert_eq!(response.id, "req-fs.write");
     assert_eq!(response.result, Value::Null);
-    assert_eq!(response.error.as_deref(), Some("path must not be empty"));
+    assert_error_contains(response.error.as_deref(), "failed to validate path: value is empty");
+}
+
+#[test]
+fn dispatch_fs_write_base64_decodes_data_url_payload() {
+    let temp = TestDir::new("integration-fs-write-base64");
+    let path = temp.join("image.bin");
+    let encoded = "aGVsbG8gYmFzZTY0";
+
+    let response = dispatch_request(
+        "fs.writeBase64",
+        json!({
+            "path": path.display().to_string(),
+            "data": format!("data:application/octet-stream;base64,{encoded}"),
+        }),
+    );
+
+    assert!(response.ok);
+    assert_eq!(response.id, "req-fs.writeBase64");
+    assert_eq!(
+        response.result,
+        json!({
+            "path": path.display().to_string(),
+            "bytesWritten": 12,
+        })
+    );
+    assert_eq!(fs::read(&path).expect("read decoded bytes"), b"hello base64");
+}
+
+#[test]
+fn dispatch_fs_mtime_returns_timestamp_for_existing_file() {
+    let temp = TestDir::new("integration-fs-mtime");
+    let path = temp.join("mtime.txt");
+    fs::write(&path, "mtime").expect("write mtime fixture");
+
+    let response = dispatch_request("fs.mtime", json!({ "path": path.display().to_string() }));
+
+    assert!(response.ok);
+    assert_eq!(response.id, "req-fs.mtime");
+    assert!(
+        response
+            .result
+            .get("mtime")
+            .and_then(Value::as_u64)
+            .is_some_and(|mtime| mtime > 0),
+        "expected mtime to be present"
+    );
 }
 
 #[test]

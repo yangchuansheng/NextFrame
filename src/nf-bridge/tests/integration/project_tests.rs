@@ -48,9 +48,9 @@ fn dispatch_project_create_duplicate_name_returns_error() {
     let second_response = dispatch_request("project.create", json!({ "name": "alpha" }));
     assert!(!second_response.ok);
     assert_eq!(second_response.result, Value::Null);
-    assert_eq!(
+    assert_error_contains(
         second_response.error.as_deref(),
-        Some("project 'alpha' already exists")
+        "project 'alpha' already exists",
     );
 }
 

@@ -82,8 +82,8 @@ pub(crate) fn handle_export_start(params: &Value) -> Result<Value, String> {
     )?;
 
     let Some(parent) = output_path.parent() else {
-        return Err(format!(
-            "failed to resolve parent for '{}'",
+        return Err(format!( // Fix: included in the error string below
+            "failed to resolve export output parent: no parent directory was found for '{}'. Fix: provide an outputPath inside an existing directory or create the parent directory first.",
             output_path.display()
         ));
     };
@@ -179,7 +179,9 @@ pub(crate) fn handle_export_status(params: &Value) -> Result<Value, String> {
 
     // Now borrow immutably for json formatting
     let Some(handle) = registry.handles.get(&pid) else {
-        return Err(format!("missing export handle after refresh for pid {pid}"));
+        return Err(format!( // Fix: included in the error string below
+            "failed to read export status: export handle for pid {pid} was missing after refresh. Fix: retry the request or start the export again if the process state was lost."
+        ));
     };
     Ok(export_status_json(handle, &registry.queue, pid))
 }
@@ -271,7 +273,9 @@ fn start_next_queued(registry: &mut ProcessRegistry) -> Result<(), String> {
 fn lock_process_registry() -> Result<std::sync::MutexGuard<'static, ProcessRegistry>, String> {
     process_registry()
         .lock()
-        .map_err(|_| "process registry is unavailable".to_string())
+        .map_err(|_| {
+            "failed to access export process registry: registry lock is unavailable. Fix: retry the request after any concurrent export operation finishes.".to_string()
+        })
 }
 
 pub(crate) fn process_registry() -> &'static Mutex<ProcessRegistry> {
@@ -296,7 +300,9 @@ fn refresh_process_state(handle: &mut ProcessHandle) -> Result<(), String> {
     let completion = task
         .completion
         .lock()
-        .map_err(|_| "export task state is unavailable".to_string())?
+        .map_err(|_| {
+            "failed to read export task state: completion lock is unavailable. Fix: retry the export status request after the current export operation settles.".to_string()
+        })?
         .take();
 
     if let Some(result) = completion {

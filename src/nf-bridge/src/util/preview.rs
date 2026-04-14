@@ -14,7 +14,9 @@ pub(crate) fn handle_preview_frame(params: &Value) -> Result<Value, String> {
     let t = params
         .get("t")
         .and_then(Value::as_f64)
-        .ok_or_else(|| "preview.frame requires numeric 't' parameter".to_string())?;
+        .ok_or_else(|| {
+            "failed to render preview frame: params.t must be a number. Fix: provide the frame time in seconds as a numeric params.t value.".to_string()
+        })?;
     let width = params.get("width").and_then(Value::as_u64).unwrap_or(960);
     let height = params.get("height").and_then(Value::as_u64).unwrap_or(540);
 
@@ -40,8 +42,8 @@ pub(crate) fn handle_preview_frame(params: &Value) -> Result<Value, String> {
         .map_err(|e| format!("failed to run nextframe frame: {e}"))?;
 
     if !status.success() {
-        return Err(format!(
-            "nextframe frame exited with code {}",
+        return Err(format!( // Fix: included in the error string below
+            "failed to render preview frame: nextframe frame exited with code {}. Fix: verify the timeline path is valid and that the NextFrame CLI can render the requested frame.",
             status.code().unwrap_or(-1)
         ));
     }

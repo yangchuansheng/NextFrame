@@ -108,7 +108,9 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         "segment.videoUrl" => handle_segment_video_url(&params),
         "preview.frame" => handle_preview_frame(&params),
         "fs.mtime" => handle_fs_mtime(&params),
-        _ => Err(format!("unknown method: {method}")),
+        _ => Err(format!( // Fix: included in the error string below
+            "failed to dispatch request: unknown method: {method}. Fix: use one of the supported nf-bridge IPC methods."
+        )),
     }
 }
 

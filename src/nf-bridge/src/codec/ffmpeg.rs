@@ -216,27 +216,39 @@ pub(crate) fn parse_audio_sources(params: &Value) -> Result<Vec<AudioSource>, St
     for (index, source) in sources.iter().enumerate() {
         let object = source
             .as_object()
-            .ok_or_else(|| format!("params.audioSources[{index}] must be an object"))?;
+            .ok_or_else(|| {
+                format!(
+                    "failed to read params.audioSources[{index}]: value must be an object. Fix: provide each audio source as an object with path and startTime."
+                )
+            })?;
         let path = object
             .get("path")
             .and_then(Value::as_str)
-            .ok_or_else(|| format!("params.audioSources[{index}].path must be a string"))?;
+            .ok_or_else(|| {
+                format!(
+                    "failed to read params.audioSources[{index}].path: value must be a string. Fix: provide the audio source path as a string."
+                )
+            })?;
         let start_time = read_audio_source_number(object, index, &["startTime", "start_time"])?;
         if !start_time.is_finite() || start_time < 0.0 {
-            return Err(format!(
-                "params.audioSources[{index}].startTime must be a finite number >= 0"
+            return Err(format!( // Fix: included in the error string below
+                "failed to read params.audioSources[{index}].startTime: value must be a finite number >= 0. Fix: provide a non-negative startTime in seconds."
             ));
         }
 
         let volume = match object.get("volume") {
             Some(value) => value
                 .as_f64()
-                .ok_or_else(|| format!("params.audioSources[{index}].volume must be a number"))?,
+                .ok_or_else(|| {
+                    format!(
+                        "failed to read params.audioSources[{index}].volume: value must be a number. Fix: provide volume as a numeric multiplier."
+                    )
+                })?,
             None => 1.0,
         };
         if !volume.is_finite() || volume < 0.0 {
-            return Err(format!(
-                "params.audioSources[{index}].volume must be a finite number >= 0"
+            return Err(format!( // Fix: included in the error string below
+                "failed to read params.audioSources[{index}].volume: value must be a finite number >= 0. Fix: provide a non-negative volume multiplier."
             ));
         }
 
@@ -259,11 +271,18 @@ pub(crate) fn read_audio_source_number(
         if let Some(value) = object.get(*key) {
             return value
                 .as_f64()
-                .ok_or_else(|| format!("params.audioSources[{index}].{key} must be a number"));
+                .ok_or_else(|| {
+                    format!(
+                        "failed to read params.audioSources[{index}].{key}: value must be a number. Fix: provide params.audioSources[{index}].{key} as a numeric value."
+                    )
+                });
         }
     }
 
-    Err(format!("missing params.audioSources[{index}].{}", keys[0]))
+    Err(format!( // Fix: included in the error string below
+        "failed to read params.audioSources[{index}].{}: value is missing. Fix: provide params.audioSources[{index}].{} in the request.",
+        keys[0], keys[0]
+    ))
 }
 
 // --- test mocking ---
@@ -308,7 +327,11 @@ pub(crate) fn run_ffmpeg_command(command: &FfmpegCommand) -> Result<CommandOutpu
     state
         .runs
         .pop_front()
-        .unwrap_or_else(|| Err("missing mock ffmpeg execution".to_string()))
+        .unwrap_or_else(|| {
+            Err( // Fix: included in the error string below
+                "failed to run mock ffmpeg command: no mock execution was queued. Fix: enqueue a mock ffmpeg result before invoking the test.".to_string(),
+            )
+        })
 }
 
 #[cfg(test)]

@@ -22,11 +22,11 @@ fn require_object_accepts_object() {
 #[test]
 fn require_object_rejects_null_and_array() {
     let null_error = require_object(&Value::Null).expect_err("null params should return an error");
-    assert_eq!(null_error, "params must be a JSON object");
+    assert!(null_error.contains("params must be a JSON object"));
 
     let array_error =
         require_object(&json!([1, 2, 3])).expect_err("array params should return an error");
-    assert_eq!(array_error, "params must be a JSON object");
+    assert!(array_error.contains("params must be a JSON object"));
 }
 
 #[test]
@@ -41,11 +41,11 @@ fn require_string_handles_present_missing_and_non_string() {
 
     let missing_error =
         require_string(&params, "title").expect_err("missing string should return an error");
-    assert_eq!(missing_error, "missing params.title");
+    assert!(missing_error.contains("missing params.title"));
 
     let non_string_error =
         require_string(&params, "count").expect_err("non-string value should return an error");
-    assert_eq!(non_string_error, "params.count must be a string");
+    assert!(non_string_error.contains("params.count must be a string"));
 }
 
 #[test]
@@ -61,17 +61,14 @@ fn require_u32_handles_valid_negative_float_and_missing() {
 
     let negative_error =
         require_u32(&params, "negative").expect_err("negative number should return an error");
-    assert_eq!(
-        negative_error,
-        "params.negative must be an unsigned integer"
-    );
+    assert!(negative_error.contains("params.negative must be an unsigned integer"));
 
     let float_error = require_u32(&params, "ratio").expect_err("float should return an error");
-    assert_eq!(float_error, "params.ratio must be an unsigned integer");
+    assert!(float_error.contains("params.ratio must be an unsigned integer"));
 
     let missing_error =
         require_u32(&params, "missing").expect_err("missing integer should return an error");
-    assert_eq!(missing_error, "missing params.missing");
+    assert!(missing_error.contains("missing params.missing"));
 }
 
 #[test]
@@ -85,7 +82,7 @@ fn require_positive_u32_rejects_zero() {
 
     let zero_error =
         require_positive_u32(&zero_params, "count").expect_err("zero should return an error");
-    assert_eq!(zero_error, "params.count must be greater than 0");
+    assert!(zero_error.contains("params.count must be greater than 0"));
 }
 
 #[test]
@@ -101,15 +98,15 @@ fn require_positive_f64_rejects_zero_negative_and_non_number() {
 
     let zero_error =
         require_positive_f64(&zero_params, "volume").expect_err("zero should return an error");
-    assert_eq!(zero_error, "params.volume must be greater than 0");
+    assert!(zero_error.contains("params.volume must be greater than 0"));
 
     let negative_error = require_positive_f64(&negative_params, "volume")
         .expect_err("negative number should return an error");
-    assert_eq!(negative_error, "params.volume must be greater than 0");
+    assert!(negative_error.contains("params.volume must be greater than 0"));
 
     let string_error = require_positive_f64(&string_params, "volume")
         .expect_err("non-number should return an error");
-    assert_eq!(string_error, "params.volume must be a number");
+    assert!(string_error.contains("params.volume must be a number"));
 }
 
 #[test]
@@ -124,7 +121,7 @@ fn require_array_accepts_arrays_and_rejects_non_arrays() {
 
     let non_array_error =
         require_array(&params, "name").expect_err("non-array should return an error");
-    assert_eq!(non_array_error, "params.name must be an array");
+    assert!(non_array_error.contains("params.name must be an array"));
 }
 
 #[test]
@@ -150,10 +147,7 @@ fn require_value_alias_returns_first_second_or_missing_error() {
 
     let missing_error = require_value_alias(&missing_params, &["primary", "secondary"])
         .expect_err("missing aliases should return an error");
-    assert_eq!(
-        missing_error,
-        "missing one of params.primary, params.secondary"
-    );
+    assert!(missing_error.contains("missing one of params.primary, params.secondary"));
 }
 
 #[test]
@@ -170,11 +164,11 @@ fn read_optional_u8_in_range_handles_in_range_bounds_missing_and_non_number() {
 
     let below_error = read_optional_u8_in_range(&below_params, "level", 2, 4)
         .expect_err("below-range integer should return an error");
-    assert_eq!(below_error, "params.level must be between 2 and 4");
+    assert!(below_error.contains("params.level must be between 2 and 4"));
 
     let above_error = read_optional_u8_in_range(&above_params, "level", 2, 4)
         .expect_err("above-range integer should return an error");
-    assert_eq!(above_error, "params.level must be between 2 and 4");
+    assert!(above_error.contains("params.level must be between 2 and 4"));
 
     let missing = read_optional_u8_in_range(&missing_params, "level", 2, 4)
         .expect("missing optional integer should be accepted");
@@ -182,7 +176,7 @@ fn read_optional_u8_in_range_handles_in_range_bounds_missing_and_non_number() {
 
     let non_number_error = read_optional_u8_in_range(&string_params, "level", 2, 4)
         .expect_err("non-number should return an error");
-    assert_eq!(non_number_error, "params.level must be an unsigned integer");
+    assert!(non_number_error.contains("params.level must be an unsigned integer"));
 }
 
 #[test]
@@ -198,7 +192,8 @@ fn validate_project_component_rejects_slashes() {
     let error = validate_project_component("folder/name", "projectId")
         .expect_err("slash-containing component should return an error");
 
-    assert_eq!(error, "invalid params.projectId: folder/name");
+    assert!(error.contains("failed to validate params.projectId"));
+    assert!(error.contains("folder/name"));
 }
 
 #[test]
@@ -248,7 +243,10 @@ fn validate_path_rejects_empty_string() {
     let error =
         super::super::storage::fs::validate_path("   ").expect_err("empty path should be rejected");
 
-    assert_eq!(error, "path must not be empty");
+    assert_eq!(
+        error,
+        "failed to validate path: value is empty. Fix: provide a non-empty path."
+    );
 }
 
 #[test]
@@ -256,7 +254,10 @@ fn validate_path_rejects_null_bytes() {
     let error = super::super::storage::fs::validate_path("bad\0path")
         .expect_err("null bytes should be rejected");
 
-    assert_eq!(error, "path must not contain null bytes");
+    assert_eq!(
+        error,
+        "failed to validate path: path must not contain null bytes. Fix: remove null bytes from the path."
+    );
 }
 
 #[test]

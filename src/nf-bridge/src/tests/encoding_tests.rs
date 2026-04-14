@@ -21,7 +21,7 @@ fn encoding_percent_decode_url_path_rejects_invalid_hex_digits() {
     let error = encoding::percent_decode_url_path("/bad%2Gpath")
         .expect_err("invalid hex digits should fail percent decoding");
 
-    assert_eq!(error, "invalid percent-encoding in URL path: /bad%2Gpath");
+    assert!(error.contains("invalid percent-encoding in '/bad%2Gpath'"));
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn encoding_percent_decode_url_path_rejects_partial_sequences() {
     let error = encoding::percent_decode_url_path("/bad%")
         .expect_err("partial percent sequence should fail percent decoding");
 
-    assert_eq!(error, "invalid percent-encoding in URL path: /bad%");
+    assert!(error.contains("invalid percent-encoding in '/bad%'"));
 }
 
 #[test]

@@ -7,10 +7,7 @@ fn dispatch_unknown_method_returns_error() {
     assert!(!response.ok);
     assert_eq!(response.id, "req-missing.method");
     assert_eq!(response.result, Value::Null);
-    assert_eq!(
-        response.error.as_deref(),
-        Some("unknown method: missing.method")
-    );
+    assert_error_contains(response.error.as_deref(), "unknown method: missing.method");
 }
 
 #[test]

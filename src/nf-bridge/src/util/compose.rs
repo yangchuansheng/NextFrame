@@ -26,7 +26,9 @@ fn resolve_bundle_path() -> Result<PathBuf, String> {
         }
     }
 
-    Err("failed to resolve compose bundle from current directory".to_string())
+    Err( // Fix: included in the error string below
+        "failed to resolve compose bundle: bundle.cjs was not found from the current directory. Fix: run nf-bridge from a workspace that contains nf-runtime/web.".to_string(),
+    )
 }
 
 pub(crate) fn handle_compose_generate(params: &Value) -> Result<Value, String> {
@@ -69,7 +71,9 @@ pub(crate) fn handle_compose_generate(params: &Value) -> Result<Value, String> {
                 output.status.code().unwrap_or(-1)
             )
         };
-        return Err(details);
+        return Err(format!( // Fix: included in the error string below
+            "failed to generate composition: {details}. Fix: verify the timeline input and inspect the compose bundle output for details."
+        ));
     }
 
     let meta = fs::metadata(&output_path).map_err(|error| {
@@ -118,10 +122,10 @@ fn open_in_browser(path: &Path) -> Result<(), String> {
     if status.success() {
         Ok(())
     } else {
-        Err(format!(
-            "failed to open '{}': command exited with {}",
-            path.display(),
-            status.code().unwrap_or(-1)
+        Err(format!( // Fix: included in the error string below
+            "failed to open composed output: command exited with {} for '{}'. Fix: open the generated file manually and verify the system browser command is available.",
+            status.code().unwrap_or(-1),
+            path.display()
         ))
     }
 }

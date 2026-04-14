@@ -47,7 +47,10 @@ pub(crate) fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
         }
         let val = DECODE[b as usize];
         if val == 255 {
-            return Err(format!("invalid base64 character: {}", b as char));
+            return Err(format!( // Fix: included in the error string below
+                "failed to decode base64 data: invalid base64 character '{}'. Fix: provide a valid base64 payload or data URL.",
+                b as char
+            ));
         }
         buf = (buf << 6) | val as u32;
         bits += 6;
@@ -69,13 +72,23 @@ pub(crate) fn percent_decode_url_path(value: &str) -> Result<String, String> {
     while index < bytes.len() {
         if bytes[index] == b'%' {
             if index + 2 >= bytes.len() {
-                return Err(format!("invalid percent-encoding in URL path: {value}"));
+                return Err(format!( // Fix: included in the error string below
+                    "failed to decode URL path: invalid percent-encoding in '{value}'. Fix: provide a valid file URL or percent-encoded path."
+                ));
             }
 
             let hi = decode_hex_digit(bytes[index + 1])
-                .ok_or_else(|| format!("invalid percent-encoding in URL path: {value}"))?;
+                .ok_or_else(|| {
+                    format!(
+                        "failed to decode URL path: invalid percent-encoding in '{value}'. Fix: provide a valid file URL or percent-encoded path."
+                    )
+                })?;
             let lo = decode_hex_digit(bytes[index + 2])
-                .ok_or_else(|| format!("invalid percent-encoding in URL path: {value}"))?;
+                .ok_or_else(|| {
+                    format!(
+                        "failed to decode URL path: invalid percent-encoding in '{value}'. Fix: provide a valid file URL or percent-encoded path."
+                    )
+                })?;
             decoded.push((hi << 4) | lo);
             index += 3;
             continue;

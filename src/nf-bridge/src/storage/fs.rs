@@ -118,15 +118,21 @@ pub(crate) fn handle_fs_write_base64(params: &Value) -> Result<Value, String> {
 pub(crate) fn validate_path(raw_path: &str) -> Result<PathBuf, String> {
     let normalized = raw_path.trim();
     if normalized.is_empty() {
-        return Err("path must not be empty".to_string());
+        return Err( // Fix: included in the error string below
+            "failed to validate path: value is empty. Fix: provide a non-empty path.".to_string(),
+        );
     }
 
     if normalized.contains('\0') {
-        return Err("path must not contain null bytes".to_string());
+        return Err( // Fix: included in the error string below
+            "failed to validate path: path must not contain null bytes. Fix: remove null bytes from the path.".to_string(),
+        );
     }
 
     if normalized.contains("..") {
-        return Err(format!("path is outside sandbox: {raw_path}"));
+        return Err(format!( // Fix: included in the error string below
+            "failed to validate path: path is outside sandbox: {raw_path}. Fix: use a path under your home directory or the system temp directory without '..'."
+        ));
     }
 
     Ok(expand_home_dir(normalized))
@@ -145,7 +151,12 @@ pub(crate) fn resolve_write_path(raw_path: &str) -> Result<PathBuf, String> {
     let path = validate_path(raw_path)?;
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let existing_parent = nearest_existing_ancestor(parent)
-        .ok_or_else(|| format!("failed to resolve parent for '{}'", path.display()))?;
+        .ok_or_else(|| {
+            format!(
+                "failed to resolve parent path: no existing parent was found for '{}'. Fix: create the parent directory first or choose an existing destination.",
+                path.display()
+            )
+        })?;
     let canonical_parent = fs::canonicalize(&existing_parent).map_err(|error| {
         format!(
             "failed to resolve parent for '{}': {error}",
@@ -164,7 +175,10 @@ pub(crate) fn resolve_write_path(raw_path: &str) -> Result<PathBuf, String> {
         Ok(_) => {}
         Err(error) if error.kind() == ErrorKind::NotFound => {}
         Err(error) => {
-            return Err(format!("failed to inspect '{}': {error}", path.display()));
+            return Err(format!( // Fix: included in the error string below
+                "failed to inspect path: could not inspect '{}': {error}. Fix: verify the path is accessible and try again.",
+                path.display()
+            ));
         }
     }
 
@@ -184,7 +198,12 @@ pub(crate) fn resolve_home_write_path(raw_path: &str) -> Result<PathBuf, String>
     let path = validate_path(raw_path)?;
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let existing_parent = nearest_existing_ancestor(parent)
-        .ok_or_else(|| format!("failed to resolve parent for '{}'", path.display()))?;
+        .ok_or_else(|| {
+            format!(
+                "failed to resolve parent path: no existing parent was found for '{}'. Fix: create the parent directory first or choose an existing destination.",
+                path.display()
+            )
+        })?;
     let canonical_parent = fs::canonicalize(&existing_parent).map_err(|error| {
         format!(
             "failed to resolve parent for '{}': {error}",
@@ -203,7 +222,10 @@ pub(crate) fn resolve_home_write_path(raw_path: &str) -> Result<PathBuf, String>
         Ok(_) => {}
         Err(error) if error.kind() == ErrorKind::NotFound => {}
         Err(error) => {
-            return Err(format!("failed to inspect '{}': {error}", path.display()));
+            return Err(format!( // Fix: included in the error string below
+                "failed to inspect path: could not inspect '{}': {error}. Fix: verify the path is accessible and try again.",
+                path.display()
+            ));
         }
     }
 
@@ -226,7 +248,9 @@ pub(crate) fn ensure_allowed_path(path: &Path, raw_path: &str) -> Result<(), Str
     if is_allowed_path(path) {
         Ok(())
     } else {
-        Err(format!("path is outside sandbox: {raw_path}"))
+        Err(format!( // Fix: included in the error string below
+            "failed to validate path: path is outside sandbox: {raw_path}. Fix: use a path under your home directory or the system temp directory."
+        ))
     }
 }
 
@@ -235,7 +259,9 @@ fn ensure_home_path(path: &Path, raw_path: &str) -> Result<(), String> {
     if path.starts_with(&home) {
         Ok(())
     } else {
-        Err(format!("path is outside sandbox: {raw_path}"))
+        Err(format!( // Fix: included in the error string below
+            "failed to validate path: path is outside sandbox: {raw_path}. Fix: use a path inside your home directory."
+        ))
     }
 }
 
