@@ -17,6 +17,13 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function toNfdataUrl(path) {
+  if (!path) return '';
+  const idx = path.indexOf('/projects/');
+  if (idx >= 0) return 'nfdata://localhost' + path.substring(idx);
+  return path;
+}
+
 function escapeJsString(value) {
   return String(value || '')
     .replace(/\\/g, '\\\\')
@@ -339,9 +346,9 @@ function renderAudioTab(segments) {
       bridgeCall('audio.status', { episode: getCurrentEpisodeRef(), segment: segmentNumber }).then(function(data) {
         pipelineAudioState[segmentNumber] = {
           exists: !!data.exists,
-          mp3: data.mp3 || '',
+          mp3: toNfdataUrl(data.mp3 || ''),
           timelineData: data.timelineData || null,
-          srt: data.srt || '',
+          srt: toNfdataUrl(data.srt || ''),
         };
         renderAudioTabInner(audioSegments);
       }).catch(function() {});
@@ -595,8 +602,7 @@ function renderClipsTab(clips) {
   clips.forEach(function(clip) {
     const name = clip.name || '';
     const sizeMB = clip.size ? (clip.size / 1024 / 1024).toFixed(1) + ' MB' : '';
-    const relPath = (clip.path || '').replace(/^.*\/projects\//, '');
-    const videoUrl = relPath ? 'nfdata://localhost/' + relPath : '';
+    const videoUrl = toNfdataUrl(clip.path || '');
     html += '<div class="glass" data-nf-action="preview-clip" style="padding:12px;margin-bottom:8px;border-radius:10px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">' +
         '<div><div style="font-size:13px;font-weight:600;color:var(--t100)">' + escapeHtml(name) + '</div>' +
