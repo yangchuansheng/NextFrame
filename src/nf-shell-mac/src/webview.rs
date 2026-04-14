@@ -1,11 +1,26 @@
 //! WKWebView creation for NextFrame desktop.
 
+use std::path::PathBuf;
+
 use objc2::rc::Retained;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSURL};
 use objc2_web_kit::{WKWebView, WKWebViewConfiguration, WKWebsiteDataStore};
 
-/// Create a WKWebView that loads a placeholder page.
+/// Resolve the web-v2 directory relative to the executable.
+fn web_dir() -> PathBuf {
+    // In dev: executable is at target/debug/nextframe
+    // web-v2 is at src/nf-runtime/web-v2/
+    let exe = std::env::current_exe().unwrap_or_default();
+    let project_root = exe
+        .ancestors()
+        .find(|p| p.join("Cargo.toml").exists())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    project_root.join("src/nf-runtime/web-v2")
+}
+
+/// Create a WKWebView that loads the home page from disk.
 pub fn create(
     mtm: MainThreadMarker,
     size: NSSize,
@@ -28,92 +43,52 @@ pub fn create(
         WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), rect, &config)
     };
 
-    // Load inline HTML placeholder
-    let html = NSString::from_str(PLACEHOLDER_HTML);
-    let base = NSURL::URLWithString(&NSString::from_str("about:blank"));
+    // Load from local file
+    let dir = web_dir();
+    let index_path = dir.join("index.html");
 
-    // SAFETY: loadHTMLString_baseURL:baseURL: is a standard WKWebView method.
-    if let Some(ref base_url) = base {
-        unsafe {
-            web_view.loadHTMLString_baseURL(&html, Some(base_url));
+    if index_path.exists() {
+        let file_url = NSURL::URLWithString(&NSString::from_str(
+            &format!("file://{}", index_path.display()),
+        ));
+        let dir_url = NSURL::URLWithString(&NSString::from_str(
+            &format!("file://{}/", dir.display()),
+        ));
+
+        if let (Some(file), Some(dir)) = (file_url, dir_url) {
+            // SAFETY: loadFileURL:allowingReadAccessToURL: is a standard WKWebView method.
+            unsafe {
+                web_view.loadFileURL_allowingReadAccessToURL(&file, &dir);
+            }
+            tracing::info!("loading {}", index_path.display());
+        } else {
+            tracing::warn!("failed to create NSURLs, falling back to inline HTML");
+            load_fallback(&web_view);
         }
     } else {
-        unsafe {
-            web_view.loadHTMLString_baseURL(&html, None);
-        }
+        tracing::warn!("index.html not found at {}, using fallback", index_path.display());
+        load_fallback(&web_view);
     }
 
     tracing::info!("WKWebView created");
     Ok(web_view)
 }
 
-const PLACEHOLDER_HTML: &str = r#"<!DOCTYPE html>
+fn load_fallback(web_view: &WKWebView) {
+    let html = NSString::from_str(FALLBACK_HTML);
+    unsafe {
+        web_view.loadHTMLString_baseURL(&html, None);
+    }
+}
+
+const FALLBACK_HTML: &str = r#"<!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
+<head><meta charset="UTF-8">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-    height: 100%;
-    background: #050507;
-    color: rgba(255,255,255,0.95);
-    font-family: -apple-system, system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-}
-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 16px;
-}
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-}
-.logo-mark {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 2px solid #a78bfa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.logo-mark::after {
-    content: '';
-    width: 0;
-    height: 0;
-    border-left: 10px solid #a78bfa;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-    margin-left: 3px;
-}
-.version {
-    font-size: 14px;
-    color: rgba(255,255,255,0.50);
-    font-weight: 400;
-}
-.aurora {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background:
-        radial-gradient(ellipse 60% 12% at 50% 2%, rgba(139,92,246,0.10), transparent),
-        radial-gradient(ellipse 60% 12% at 50% 98%, rgba(124,58,237,0.05), transparent);
-}
-</style>
-</head>
-<body>
-<div class="aurora"></div>
-<div class="logo">
-    <div class="logo-mark"></div>
-    NextFrame
-</div>
-<div class="version">v0.5 · Native macOS · objc2</div>
-</body>
+html, body { height: 100%; background: #050507; color: white;
+  font-family: -apple-system, system-ui, sans-serif;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-font-smoothing: antialiased; }
+</style></head>
+<body><h1>NextFrame v0.5</h1></body>
 </html>"#;
