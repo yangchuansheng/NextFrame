@@ -5,7 +5,6 @@ export const RATIOS = {
   "16:9": { id: "16:9", width: 1920, height: 1080, label: "横屏" },
   "9:16": { id: "9:16", width: 1080, height: 1920, label: "竖屏" },
   "4:3":  { id: "4:3",  width: 1440, height: 1080, label: "PPT" },
-  "1:1":  { id: "1:1",  width: 1080, height: 1080, label: "方形" },
 };
 
 export const RATIO_IDS = Object.keys(RATIOS);
