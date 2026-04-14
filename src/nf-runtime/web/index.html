@@ -1014,6 +1014,977 @@ html, body {
   }
   .tb-search { display: none; }
 }
+
+/* ══════════════════════════════════════
+   VIEW SWITCHING
+   ══════════════════════════════════════ */
+.view { display: none; flex: 1; overflow: hidden; }
+.view.active { display: flex; flex-direction: column; }
+
+/* Home view keeps its existing <main> layout */
+.view-home.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* ══════════════════════════════════════
+   SHARED: View topbar (breadcrumb bar per view)
+   ══════════════════════════════════════ */
+.view-topbar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-16);
+  gap: var(--sp-8);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.20);
+}
+.view-topbar .tb-breadcrumb-item { cursor: pointer; }
+
+/* ══════════════════════════════════════
+   VIEW: PROJECT — Episode Dashboard
+   ══════════════════════════════════════ */
+.vp-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: var(--sp-8);
+  gap: var(--sp-8);
+}
+
+/* Sidebar */
+.vp-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.vp-sidebar::-webkit-scrollbar { width: 4px; }
+.vp-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+
+.vp-sb-panel {
+  padding: var(--sp-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+.vp-sb-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t50);
+}
+.vp-sb-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--t100);
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+}
+.vp-sb-desc {
+  font-size: 13px;
+  color: var(--t65);
+  line-height: 1.6;
+}
+.vp-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.vp-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.vp-info-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t50);
+}
+.vp-info-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t80);
+}
+.vp-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.vp-stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.vp-stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.vp-stat-dot--green { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.40); }
+.vp-stat-dot--yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251,191,36,0.40); }
+.vp-stat-dot--neutral { background: rgba(255,255,255,0.30); }
+.vp-stat-label { font-size: 13px; font-weight: 500; color: var(--t65); flex: 1; }
+.vp-stat-count { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--t80); }
+
+/* Main content - episode grid */
+.vp-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: var(--r);
+}
+.vp-main::-webkit-scrollbar { width: 6px; }
+.vp-main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+.vp-main-inner {
+  padding: var(--sp-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-24);
+}
+.vp-ep-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-16);
+}
+.vp-ep-card {
+  cursor: pointer;
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+}
+.vp-ep-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
+}
+.vp-ep-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.vp-ep-thumb-badge {
+  position: absolute;
+  top: var(--sp-8);
+  left: var(--sp-8);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-12);
+  padding: 2px 10px;
+  border-radius: 20px;
+  z-index: 2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.vp-ep-thumb-status {
+  position: absolute;
+  top: var(--sp-8);
+  right: var(--sp-8);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  z-index: 2;
+}
+.vp-ep-thumb-status--published { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.40); }
+.vp-ep-thumb-status--progress { background: var(--yellow); box-shadow: 0 0 6px rgba(251,191,36,0.40); }
+.vp-ep-thumb-status--draft { background: rgba(255,255,255,0.30); }
+.vp-ep-thumb-icon {
+  color: var(--t50);
+  opacity: 0.5;
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.vp-ep-card:hover .vp-ep-thumb-icon { opacity: 0.8; transform: scale(1.08); }
+.vp-ep-body {
+  position: relative;
+  z-index: 2;
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.vp-ep-title { font-size: 16px; font-weight: 600; color: var(--t100); line-height: 1.3; }
+.vp-ep-stats { display: flex; align-items: center; gap: var(--sp-12); }
+.vp-ep-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t50);
+}
+.vp-ep-duration { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--t50); }
+.vp-ep-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+.vp-ep-status--published { color: var(--green); background: var(--green-bg); border: 1px solid var(--green-border); }
+.vp-ep-status--progress { color: var(--yellow); background: var(--yellow-bg); border: 1px solid var(--yellow-border); }
+.vp-ep-status--draft { color: var(--t65); background: var(--neutral-bg); border: 1px solid var(--neutral-border); }
+.vp-ep-tags { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.vp-ep-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--r-xs);
+}
+.vp-ep-tag--green { color: var(--green); background: var(--green-bg); }
+.vp-ep-tag--yellow { color: var(--yellow); background: var(--yellow-bg); }
+.vp-ep-tag--neutral { color: var(--t50); background: var(--neutral-bg); }
+.vp-ep-edited { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--t50); }
+
+@media (max-width: 1024px) { .vp-sidebar { display: none; } }
+@media (max-width: 700px) { .vp-ep-grid { grid-template-columns: 1fr; } }
+
+/* ══════════════════════════════════════
+   VIEW: PIPELINE — 6-tab content area
+   ══════════════════════════════════════ */
+.pl-topbar-extra {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 0;
+}
+.pl-tab {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t50);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
+  white-space: nowrap;
+}
+.pl-tab:hover { color: var(--t80); }
+.pl-tab.active { color: var(--t100); border-bottom-color: var(--accent); }
+
+.pl-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: var(--sp-8);
+  gap: var(--sp-8);
+}
+
+/* Pipeline sidebar */
+.pl-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.pl-sidebar::-webkit-scrollbar { width: 3px; }
+.pl-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+
+.pl-sb-section {
+  padding: var(--sp-16);
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+  z-index: 2;
+}
+.pl-sb-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t50);
+  margin-bottom: var(--sp-12);
+}
+.pl-sb-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-4) 0;
+}
+.pl-sb-label { font-size: 12px; font-weight: 600; color: var(--t50); }
+.pl-sb-value { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--t80); }
+.pl-sb-stats {
+  display: flex;
+  gap: var(--sp-16);
+  margin-top: var(--sp-8);
+}
+.pl-sb-stat-item { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); }
+.pl-sb-stat-num { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--t100); }
+.pl-sb-stat-num.green { color: var(--green); }
+.pl-sb-stat-label { font-size: 12px; font-weight: 500; color: var(--t50); }
+
+/* Segment nav in sidebar */
+.pl-seg-list { display: flex; flex-direction: column; }
+.pl-seg-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.pl-seg-item:hover { background: rgba(255,255,255,0.04); }
+.pl-seg-item.active { background: var(--accent-06); }
+.pl-seg-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--t65);
+  flex-shrink: 0;
+}
+.pl-seg-item.active .pl-seg-num { background: var(--accent-12); color: var(--accent); }
+.pl-seg-info { flex: 1; min-width: 0; }
+.pl-seg-label { font-size: 12px; font-weight: 600; color: var(--t65); }
+.pl-seg-item.active .pl-seg-label { color: var(--t100); }
+.pl-seg-preview {
+  font-size: 12px;
+  color: var(--t50);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pl-seg-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pl-seg-status-dot.generated { background: var(--green); box-shadow: 0 0 4px rgba(52,211,153,0.30); }
+.pl-seg-status-dot.pending { background: rgba(255,255,255,0.20); }
+
+/* Pipeline main content area */
+.pl-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: var(--r);
+}
+.pl-main::-webkit-scrollbar { width: 6px; }
+.pl-main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+/* Script cards */
+.pl-card-scroll {
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+.pl-script-card {
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.pl-script-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--glass-shadow-hover);
+}
+.pl-card-body {
+  padding: var(--sp-16);
+  position: relative;
+  z-index: 2;
+}
+.pl-card-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-12);
+}
+.pl-card-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-12);
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+.pl-card-script {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--t80);
+  line-height: 1.7;
+}
+.pl-card-meta {
+  padding: var(--sp-12) var(--sp-16);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-16);
+  position: relative;
+  z-index: 2;
+}
+.pl-meta-block { display: flex; flex-direction: column; gap: var(--sp-4); flex: 1; min-width: 120px; }
+.pl-meta-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t50); }
+.pl-meta-text { font-size: 13px; color: var(--t65); line-height: 1.5; }
+
+/* Audio card extras */
+.pl-audio-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-16);
+  border-top: 1px solid var(--border-light);
+  position: relative;
+  z-index: 2;
+}
+.pl-audio-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+.pl-audio-status--done { color: var(--green); background: var(--green-bg); }
+.pl-audio-status--pending { color: var(--t50); background: var(--neutral-bg); }
+.pl-audio-dur { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--t50); }
+.pl-sentence-list {
+  padding: 0 var(--sp-16) var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  position: relative;
+  z-index: 2;
+}
+.pl-sentence-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.pl-s-idx {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t50);
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.pl-s-text { font-size: 13px; color: var(--t65); flex: 1; }
+.pl-s-dur { font-family: var(--mono); font-size: 12px; color: var(--t50); flex-shrink: 0; }
+.pl-no-audio { padding: var(--sp-12) var(--sp-16); font-size: 13px; color: var(--t50); position: relative; z-index: 2; }
+
+/* Pipeline tab content panels */
+.pl-tab-content { display: none; flex: 1; overflow: hidden; }
+.pl-tab-content.active { display: flex; }
+
+/* Pipeline footer */
+.pl-footer {
+  padding: var(--sp-8) var(--sp-16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-light);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t50);
+  flex-shrink: 0;
+}
+
+/* Output tab: version cards */
+.pl-output-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: var(--sp-8);
+  gap: var(--sp-8);
+}
+.pl-output-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  padding: var(--sp-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  overflow-y: auto;
+}
+.pl-output-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+.pl-version-card {
+  display: flex;
+  gap: var(--sp-16);
+  padding: var(--sp-16);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s var(--ease);
+}
+.pl-version-card:hover { transform: translateY(-1px); }
+.pl-v-thumb {
+  width: 120px;
+  height: 68px;
+  border-radius: var(--r-xs);
+  background: rgba(255,255,255,0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 20px;
+  color: var(--t50);
+  cursor: pointer;
+}
+.pl-v-info { flex: 1; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.pl-v-top { display: flex; align-items: center; justify-content: space-between; }
+.pl-v-name { font-size: 14px; font-weight: 600; color: var(--t100); }
+.pl-v-date { font-family: var(--mono); font-size: 12px; color: var(--t50); }
+.pl-v-tags { display: flex; gap: var(--sp-4); flex-wrap: wrap; }
+.pl-v-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.pl-v-tag--green { color: var(--green); background: var(--green-bg); }
+.pl-v-tag--yellow { color: var(--yellow); background: var(--yellow-bg); }
+.pl-v-tag--neutral { color: var(--t50); background: var(--neutral-bg); }
+.pl-v-changes { font-size: 13px; color: var(--t65); }
+.pl-v-path { font-family: var(--mono); font-size: 12px; color: var(--t50); word-break: break-all; }
+.pl-v-publish {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--sp-4);
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) { .pl-sidebar { display: none; } }
+
+/* ══════════════════════════════════════
+   VIEW: EDITOR — Three-panel layout
+   ══════════════════════════════════════ */
+.ed-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: var(--sp-8);
+  gap: var(--sp-8);
+}
+
+/* Left: Clip Sidebar */
+.ed-panel-left {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ed-clip-header {
+  padding: var(--sp-16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+  z-index: 2;
+}
+.ed-clip-header-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t50);
+}
+.ed-clip-count {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-12);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.ed-clip-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-8);
+  position: relative;
+  z-index: 2;
+}
+.ed-clip-list::-webkit-scrollbar { width: 3px; }
+.ed-clip-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+.ed-clip-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-12);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+  margin-bottom: var(--sp-4);
+}
+.ed-clip-item:hover { background: rgba(255,255,255,0.025); }
+.ed-clip-item.active { background: var(--accent-06); border-left-color: var(--accent); }
+.ed-clip-top { display: flex; align-items: center; gap: var(--sp-8); }
+.ed-clip-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--t65);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ed-clip-item.active .ed-clip-name { color: var(--t100); font-weight: 600; }
+.ed-clip-tc { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--t50); white-space: nowrap; }
+.ed-clip-tags { display: flex; gap: var(--sp-4); flex-wrap: wrap; }
+.ed-clip-tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.ed-clip-tag.seg { background: var(--accent-12); color: var(--accent); }
+.ed-clip-tag.dur { font-family: var(--mono); background: rgba(255,255,255,0.04); color: var(--t65); }
+
+/* Center: Preview + Timeline */
+.ed-panel-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.ed-preview-panel { }
+.ed-preview-inner { position: relative; z-index: 2; }
+.ed-preview-canvas {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #0a0a0e;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.ed-preview-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(167,139,250,0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+.ed-play-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: rgba(255,255,255,0.70);
+  cursor: pointer;
+  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
+  position: relative;
+  z-index: 2;
+}
+.ed-play-btn:hover { background: var(--accent-20); transform: scale(1.05); }
+.ed-preview-tc {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t50);
+  z-index: 2;
+}
+
+/* Transport */
+.ed-transport {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-16);
+  border-top: 1px solid var(--border-light);
+  position: relative;
+  z-index: 2;
+}
+.ed-transport-btns { display: flex; gap: var(--sp-4); align-items: center; }
+.ed-t-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-xs);
+  border: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.03);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  color: var(--t65);
+  transition: all 0.2s var(--ease);
+}
+.ed-t-btn:hover { background: rgba(255,255,255,0.06); color: var(--t100); }
+.ed-t-btn.play-main {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: rgba(0,0,0,0.90);
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  font-size: 14px;
+}
+.ed-t-btn.play-main:hover { filter: brightness(1.12); }
+.ed-transport-tc {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t80);
+  min-width: 80px;
+}
+.ed-transport-progress {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+.ed-transport-fill {
+  height: 100%;
+  width: 32%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* Timeline */
+.ed-timeline-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ed-tl-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+  z-index: 2;
+}
+.ed-tl-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t50);
+}
+.ed-tl-meta { display: flex; gap: var(--sp-8); }
+.ed-tl-meta-tag {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  color: var(--t65);
+}
+.ed-tl-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 2;
+  padding: 0 var(--sp-16) var(--sp-12);
+}
+.ed-tl-body::-webkit-scrollbar { width: 3px; }
+.ed-tl-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+.ed-tl-ruler {
+  position: relative;
+  height: 28px;
+  margin-top: var(--sp-8);
+  margin-left: 64px;
+}
+.ed-tl-ruler-bg {
+  position: absolute;
+  inset: 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.ed-tl-tick {
+  position: absolute;
+  bottom: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t50);
+  transform: translateX(-50%);
+}
+.ed-tl-tick::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 1px;
+  height: 6px;
+  background: rgba(255,255,255,0.15);
+}
+.ed-tl-playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  background: var(--accent);
+  z-index: 5;
+  pointer-events: none;
+}
+.ed-tl-playhead::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -5px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid var(--accent);
+}
+.ed-tl-track {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  position: relative;
+}
+.ed-tl-track-label {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t50);
+  padding-right: var(--sp-8);
+  text-align: right;
+}
+.ed-tl-track-lane {
+  flex: 1;
+  height: 28px;
+  position: relative;
+  background: rgba(255,255,255,0.02);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.ed-tl-clip {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s var(--ease);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+}
+.ed-tl-clip:hover { filter: brightness(1.2); }
+.ed-tl-clip.audio { background: rgba(52,211,153,0.18); border: 1px solid var(--green-border); color: var(--green); }
+.ed-tl-clip.visual { background: rgba(167,139,250,0.18); border: 1px solid rgba(167,139,250,0.20); color: var(--accent); }
+.ed-tl-clip.video { background: rgba(52,211,153,0.18); border: 1px solid var(--green-border); color: var(--green); }
+.ed-tl-clip.subtitle { background: rgba(251,191,36,0.18); border: 1px solid var(--yellow-border); color: var(--yellow); }
+
+/* Right: Inspector */
+.ed-panel-right {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ed-insp-inner {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  z-index: 2;
+}
+.ed-insp-inner::-webkit-scrollbar { width: 3px; }
+.ed-insp-inner::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+.ed-insp-header {
+  padding: var(--sp-16);
+  border-bottom: 1px solid var(--border-light);
+}
+.ed-insp-name { font-size: 16px; font-weight: 600; color: var(--t100); margin-bottom: var(--sp-4); }
+.ed-insp-id { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--t50); }
+.ed-insp-section {
+  padding: var(--sp-16);
+  border-bottom: 1px solid var(--border-light);
+}
+.ed-insp-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t50);
+  margin-bottom: var(--sp-12);
+}
+.ed-insp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-4) 0;
+}
+.ed-insp-label { font-size: 13px; font-weight: 500; color: var(--t65); }
+.ed-insp-value { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--t80); }
+.ed-insp-value.accent { color: var(--accent); }
+.ed-insp-input {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--r-xs);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--t80);
+  width: 100px;
+  text-align: right;
+  transition: border-color 0.2s var(--ease);
+}
+.ed-insp-input:focus { outline: none; border-color: rgba(167,139,250,0.35); }
+.ed-insp-path {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t50);
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+/* Editor footer */
+.ed-footer {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-16);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t50);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 1100px) { .ed-panel-right { display: none; } }
+@media (max-width: 800px) { .ed-panel-left { display: none; } }
 </style>
 </head>
 <body>
@@ -1205,7 +2176,10 @@ html, body {
     </div>
   </div>
 
-  <!-- ── Main Content ── -->
+  <!-- ══════════════════════════════════════
+       VIEW: HOME (existing project list)
+       ══════════════════════════════════════ -->
+  <div class="view view-home active" id="view-home">
   <main class="main">
     <div class="content">
 
@@ -1233,7 +2207,7 @@ html, body {
           <h2 class="section-title">最近项目</h2>
         </div>
         <div class="project-grid">
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">AI短视频课</div>
@@ -1241,7 +2215,7 @@ html, body {
               <div class="card-meta"><span class="card-badge">5 集</span><span class="card-time">2 小时前</span></div>
             </div>
           </div>
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">产品介绍</div>
@@ -1249,7 +2223,7 @@ html, body {
               <div class="card-meta"><span class="card-badge">2 集</span><span class="card-time">1 天前</span></div>
             </div>
           </div>
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">Demo Reel</div>
@@ -1267,7 +2241,7 @@ html, body {
         </div>
         <div class="project-grid">
 
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">AI短视频课</div>
@@ -1275,7 +2249,7 @@ html, body {
               <div class="card-meta"><span class="card-badge">5 集</span><span class="card-time">2 小时前</span></div>
             </div>
           </div>
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">产品介绍</div>
@@ -1283,7 +2257,7 @@ html, body {
               <div class="card-meta"><span class="card-badge">2 集</span><span class="card-time">1 天前</span></div>
             </div>
           </div>
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">Demo Reel</div>
@@ -1291,7 +2265,7 @@ html, body {
               <div class="card-meta"><span class="card-badge">3 集</span><span class="card-time">3 天前</span></div>
             </div>
           </div>
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">用户案例</div>
@@ -1299,7 +2273,7 @@ html, body {
               <div class="card-meta"><span class="card-badge">1 集</span><span class="card-time">1 周前</span></div>
             </div>
           </div>
-          <div class="project-card glass">
+          <div class="project-card glass" onclick="showView('project')">
             <div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>
             <div class="card-body">
               <div class="card-title">Onboarding</div>
@@ -1315,7 +2289,458 @@ html, body {
 
     </div>
   </main>
-</div>
+  </div><!-- /view-home -->
+
+  <!-- ══════════════════════════════════════
+       VIEW: PROJECT — Episode Dashboard
+       ══════════════════════════════════════ -->
+  <div class="view" id="view-project">
+    <div class="view-topbar">
+      <nav class="tb-breadcrumb">
+        <a class="tb-breadcrumb-item" onclick="showView('home')">Home</a>
+        <span class="tb-breadcrumb-sep">/</span>
+        <span class="tb-breadcrumb-current" id="vp-breadcrumb-name">AI短视频课</span>
+      </nav>
+      <div class="tb-spacer"></div>
+      <button class="btn-accent-soft" onclick="alert('新建剧集')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <line x1="8" y1="3" x2="8" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        新建剧集
+      </button>
+    </div>
+    <div class="vp-body">
+      <aside class="vp-sidebar">
+        <div class="glass vp-sb-panel">
+          <div class="vp-sb-title">Project</div>
+          <div class="vp-sb-name" id="vp-project-name">AI短视频课</div>
+          <div class="vp-sb-desc" id="vp-project-desc">AI 短视频制作系列教程</div>
+          <div class="vp-info-grid">
+            <div class="vp-info-row">
+              <span class="vp-info-label">Created</span>
+              <span class="vp-info-value" id="vp-created">2026-04-01</span>
+            </div>
+            <div class="vp-info-row">
+              <span class="vp-info-label">Episodes</span>
+              <span class="vp-info-value" id="vp-ep-count">5</span>
+            </div>
+            <div class="vp-info-row">
+              <span class="vp-info-label">Duration</span>
+              <span class="vp-info-value" id="vp-duration">3m 15.3s</span>
+            </div>
+          </div>
+        </div>
+        <div class="glass vp-sb-panel">
+          <div class="vp-sb-title">Status</div>
+          <div class="vp-stats" id="vp-status-stats">
+            <div class="vp-stat-row">
+              <div class="vp-stat-dot vp-stat-dot--green"></div>
+              <span class="vp-stat-label">Published</span>
+              <span class="vp-stat-count">3</span>
+            </div>
+            <div class="vp-stat-row">
+              <div class="vp-stat-dot vp-stat-dot--yellow"></div>
+              <span class="vp-stat-label">In Progress</span>
+              <span class="vp-stat-count">1</span>
+            </div>
+            <div class="vp-stat-row">
+              <div class="vp-stat-dot vp-stat-dot--neutral"></div>
+              <span class="vp-stat-label">Draft</span>
+              <span class="vp-stat-count">1</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <div class="vp-main">
+        <div class="vp-main-inner">
+          <div class="section-header">
+            <h2 class="section-title">剧集</h2>
+            <span class="section-count" id="vp-section-count">5 episodes</span>
+          </div>
+          <div class="vp-ep-grid" id="vp-episode-grid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /view-project -->
+
+  <!-- ══════════════════════════════════════
+       VIEW: PIPELINE — 6-tab episode workflow
+       ══════════════════════════════════════ -->
+  <div class="view" id="view-pipeline">
+    <div class="view-topbar">
+      <nav class="tb-breadcrumb">
+        <a class="tb-breadcrumb-item" onclick="showView('home')">Home</a>
+        <span class="tb-breadcrumb-sep">/</span>
+        <a class="tb-breadcrumb-item" onclick="showView('project')" id="pl-breadcrumb-project">AI短视频课</a>
+        <span class="tb-breadcrumb-sep">/</span>
+        <span class="tb-breadcrumb-current" id="pl-breadcrumb-ep">EP01</span>
+      </nav>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 var(--sp-12);flex-shrink:0"></div>
+      <div class="pl-topbar-extra" id="pl-tabs">
+        <div class="pl-tab active" data-tab="script" onclick="switchPipelineTab('script',this)">脚本</div>
+        <div class="pl-tab" data-tab="audio" onclick="switchPipelineTab('audio',this)">音频</div>
+        <div class="pl-tab" data-tab="asset" onclick="switchPipelineTab('asset',this)">素材</div>
+        <div class="pl-tab" data-tab="atom" onclick="switchPipelineTab('atom',this)">原子</div>
+        <div class="pl-tab" data-tab="edit" onclick="switchPipelineTab('edit',this)">剪辑</div>
+        <div class="pl-tab" data-tab="output" onclick="switchPipelineTab('output',this)">产出</div>
+      </div>
+      <div class="tb-spacer"></div>
+    </div>
+
+    <!-- Script tab -->
+    <div class="pl-tab-content active" id="pl-tab-script">
+      <div class="pl-body">
+        <div class="pl-sidebar glass">
+          <div class="pl-sb-section">
+            <div class="pl-sb-title">Episode Info</div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">Title</span><span class="pl-sb-value">EP01 产品介绍</span></div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">Segments</span><span class="pl-sb-value">5</span></div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">Words</span><span class="pl-sb-value">148</span></div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">Est.</span><span class="pl-sb-value">~60s</span></div>
+          </div>
+          <div class="pl-sb-section">
+            <div class="pl-sb-title">段落导航</div>
+            <div class="pl-seg-list" id="pl-script-seg-list">
+              <div class="pl-seg-item active"><div class="pl-seg-num">1</div><div class="pl-seg-info"><div class="pl-seg-label">开场</div><div class="pl-seg-preview">每天，我们花 3 小时...</div></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">2</div><div class="pl-seg-info"><div class="pl-seg-label">方案</div><div class="pl-seg-preview">如果有一个工具...</div></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">3</div><div class="pl-seg-info"><div class="pl-seg-label">原理</div><div class="pl-seg-preview">从脚本到音频...</div></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">4</div><div class="pl-seg-info"><div class="pl-seg-label">证明</div><div class="pl-seg-preview">传统流程 3 天...</div></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">5</div><div class="pl-seg-info"><div class="pl-seg-label">行动</div><div class="pl-seg-preview">现在就开始...</div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="pl-main glass">
+          <div class="pl-card-scroll" id="pl-script-cards">
+            <div class="pl-script-card glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 1 &middot; 开场</span></div>
+                <div class="pl-card-script">每天，我们花 3 小时在重复性工作上。这些时间，本可以用来做更有价值的事。</div>
+              </div>
+              <div class="pl-card-meta">
+                <div class="pl-meta-block"><div class="pl-meta-label">画面</div><div class="pl-meta-text">大数字 "3" + 配文 "小时/天"，数字翻滚动画</div></div>
+                <div class="pl-meta-block"><div class="pl-meta-label">意图</div><div class="pl-meta-text">开场引出痛点，用共鸣切入</div></div>
+              </div>
+            </div>
+            <div class="pl-script-card glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 2 &middot; 方案</span></div>
+                <div class="pl-card-script">如果有一个工具，能把这些时间还给你？NextFrame，让视频制作像写文档一样简单。</div>
+              </div>
+              <div class="pl-card-meta">
+                <div class="pl-meta-block"><div class="pl-meta-label">画面</div><div class="pl-meta-text">产品 Logo 从模糊到清晰，渐显动画</div></div>
+                <div class="pl-meta-block"><div class="pl-meta-label">意图</div><div class="pl-meta-text">提出方案，给出答案</div></div>
+              </div>
+            </div>
+            <div class="pl-script-card glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 3 &middot; 原理</span></div>
+                <div class="pl-card-script">从脚本到音频，从画面到成片——AI 全自动编排，你只需要审核。</div>
+              </div>
+              <div class="pl-card-meta">
+                <div class="pl-meta-block"><div class="pl-meta-label">画面</div><div class="pl-meta-text">三步流程图：脚本 → 音频 → 成片</div></div>
+                <div class="pl-meta-block"><div class="pl-meta-label">意图</div><div class="pl-meta-text">讲清原理，建立信任</div></div>
+              </div>
+            </div>
+            <div class="pl-script-card glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 4 &middot; 证明</span></div>
+                <div class="pl-card-script">传统流程 3 天，NextFrame 5 分钟。已有 2000+ 创作者在使用。</div>
+              </div>
+              <div class="pl-card-meta">
+                <div class="pl-meta-block"><div class="pl-meta-label">画面</div><div class="pl-meta-text">对比柱状图：传统 3天 vs NextFrame 5分钟</div></div>
+                <div class="pl-meta-block"><div class="pl-meta-label">意图</div><div class="pl-meta-text">数据证明，消除疑虑</div></div>
+              </div>
+            </div>
+            <div class="pl-script-card glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 5 &middot; 行动</span></div>
+                <div class="pl-card-script">现在就开始，免费创建你的第一个视频。</div>
+              </div>
+              <div class="pl-card-meta">
+                <div class="pl-meta-block"><div class="pl-meta-label">画面</div><div class="pl-meta-text">CTA 按钮 "开始试用" + 发光效果</div></div>
+                <div class="pl-meta-block"><div class="pl-meta-label">意图</div><div class="pl-meta-text">行动号召，推动转化</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audio tab -->
+    <div class="pl-tab-content" id="pl-tab-audio">
+      <div class="pl-body">
+        <div class="pl-sidebar glass">
+          <div class="pl-sb-section">
+            <div class="pl-sb-title">音频设置</div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">引擎</span><span class="pl-sb-value">Edge TTS</span></div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">语音</span><span class="pl-sb-value">zh-CN-XiaoxiaoNeural</span></div>
+            <div class="pl-sb-info-row"><span class="pl-sb-label">语速</span><span class="pl-sb-value">1.0x</span></div>
+            <div class="pl-sb-stats">
+              <div class="pl-sb-stat-item"><div class="pl-sb-stat-num green">3</div><div class="pl-sb-stat-label">已生成</div></div>
+              <div class="pl-sb-stat-item"><div class="pl-sb-stat-num">5</div><div class="pl-sb-stat-label">总段数</div></div>
+            </div>
+          </div>
+          <div class="pl-sb-section">
+            <div class="pl-sb-title">段落导航</div>
+            <div class="pl-seg-list">
+              <div class="pl-seg-item active"><div class="pl-seg-num">1</div><div class="pl-seg-info"><div class="pl-seg-label">段 1</div><div class="pl-seg-preview">每天，我们花3小时...</div></div><div class="pl-seg-status-dot generated"></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">2</div><div class="pl-seg-info"><div class="pl-seg-label">段 2</div><div class="pl-seg-preview">如果有一个工具...</div></div><div class="pl-seg-status-dot generated"></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">3</div><div class="pl-seg-info"><div class="pl-seg-label">段 3</div><div class="pl-seg-preview">从脚本到音频...</div></div><div class="pl-seg-status-dot generated"></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">4</div><div class="pl-seg-info"><div class="pl-seg-label">段 4</div><div class="pl-seg-preview">传统流程3天...</div></div><div class="pl-seg-status-dot pending"></div></div>
+              <div class="pl-seg-item"><div class="pl-seg-num">5</div><div class="pl-seg-info"><div class="pl-seg-label">段 5</div><div class="pl-seg-preview">现在就开始...</div></div><div class="pl-seg-status-dot pending"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="pl-main glass">
+          <div class="pl-card-scroll">
+            <div class="glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 1 &middot; 开场</span></div>
+                <div class="pl-card-script">每天，我们花 3 小时在重复性工作上。这些时间，本可以用来做更有价值的事。</div>
+              </div>
+              <div class="pl-audio-head">
+                <span class="pl-audio-status pl-audio-status--done">已生成</span>
+                <span class="pl-audio-dur">4.2s</span>
+              </div>
+              <div class="pl-sentence-list">
+                <div class="pl-sentence-row"><span class="pl-s-idx">1</span><span class="pl-s-text">每天，我们花 3 小时在重复性工作上。</span><span class="pl-s-dur">2.1s</span></div>
+                <div class="pl-sentence-row"><span class="pl-s-idx">2</span><span class="pl-s-text">这些时间，本可以用来做更有价值的事。</span><span class="pl-s-dur">2.1s</span></div>
+              </div>
+            </div>
+            <div class="glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 2 &middot; 方案</span></div>
+                <div class="pl-card-script">如果有一个工具，能把这些时间还给你？NextFrame，让视频制作像写文档一样简单。</div>
+              </div>
+              <div class="pl-audio-head">
+                <span class="pl-audio-status pl-audio-status--done">已生成</span>
+                <span class="pl-audio-dur">5.8s</span>
+              </div>
+              <div class="pl-sentence-list">
+                <div class="pl-sentence-row"><span class="pl-s-idx">1</span><span class="pl-s-text">如果有一个工具，能把这些时间还给你？</span><span class="pl-s-dur">2.6s</span></div>
+                <div class="pl-sentence-row"><span class="pl-s-idx">2</span><span class="pl-s-text">NextFrame，让视频制作像写文档一样简单。</span><span class="pl-s-dur">3.2s</span></div>
+              </div>
+            </div>
+            <div class="glass">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 3 &middot; 原理</span></div>
+                <div class="pl-card-script">从脚本到音频，从画面到成片——AI 全自动编排，你只需要审核。</div>
+              </div>
+              <div class="pl-audio-head">
+                <span class="pl-audio-status pl-audio-status--done">已生成</span>
+                <span class="pl-audio-dur">4.5s</span>
+              </div>
+              <div class="pl-sentence-list">
+                <div class="pl-sentence-row"><span class="pl-s-idx">1</span><span class="pl-s-text">从脚本到音频，从画面到成片——</span><span class="pl-s-dur">2.3s</span></div>
+                <div class="pl-sentence-row"><span class="pl-s-idx">2</span><span class="pl-s-text">AI 全自动编排，你只需要审核。</span><span class="pl-s-dur">2.2s</span></div>
+              </div>
+            </div>
+            <div class="glass" style="opacity:0.6">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 4 &middot; 证明</span></div>
+                <div class="pl-card-script">传统流程 3 天，NextFrame 5 分钟。已有 2000+ 创作者在使用。</div>
+              </div>
+              <div class="pl-audio-head"><span class="pl-audio-status pl-audio-status--pending">待生成</span></div>
+              <div class="pl-no-audio">暂无音频数据</div>
+            </div>
+            <div class="glass" style="opacity:0.6">
+              <div class="pl-card-body">
+                <div class="pl-card-top"><span class="pl-card-badge">段 5 &middot; 行动</span></div>
+                <div class="pl-card-script">现在就开始，免费创建你的第一个视频。</div>
+              </div>
+              <div class="pl-audio-head"><span class="pl-audio-status pl-audio-status--pending">待生成</span></div>
+              <div class="pl-no-audio">暂无音频数据</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Asset tab (placeholder) -->
+    <div class="pl-tab-content" id="pl-tab-asset">
+      <div class="pl-body">
+        <div class="pl-main glass" style="flex:1;display:flex;align-items:center;justify-content:center">
+          <div style="text-align:center;color:var(--t50)">
+            <div style="font-size:32px;margin-bottom:var(--sp-8);opacity:0.5">&#128230;</div>
+            <div style="font-size:15px;font-weight:500">素材管理</div>
+            <div style="font-size:13px;margin-top:var(--sp-4)">下载、转写、切分、关联</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Atom tab (placeholder) -->
+    <div class="pl-tab-content" id="pl-tab-atom">
+      <div class="pl-body">
+        <div class="pl-main glass" style="flex:1;display:flex;align-items:center;justify-content:center">
+          <div style="text-align:center;color:var(--t50)">
+            <div style="font-size:32px;margin-bottom:var(--sp-8);opacity:0.5">&#9883;</div>
+            <div style="font-size:15px;font-weight:500">原子组件</div>
+            <div style="font-size:13px;margin-top:var(--sp-4)">Scene 组件参数配置</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit tab (placeholder — full editor is view-editor) -->
+    <div class="pl-tab-content" id="pl-tab-edit">
+      <div class="pl-body">
+        <div class="pl-main glass" style="flex:1;display:flex;align-items:center;justify-content:center">
+          <div style="text-align:center;color:var(--t50)">
+            <div style="font-size:32px;margin-bottom:var(--sp-8);opacity:0.5">&#127916;</div>
+            <div style="font-size:15px;font-weight:500">拼装/剪辑</div>
+            <div style="font-size:13px;margin-top:var(--sp-4)">
+              <a style="color:var(--accent);cursor:pointer;text-decoration:none" onclick="showView('editor')">进入编辑器</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output tab -->
+    <div class="pl-tab-content" id="pl-tab-output">
+      <div class="pl-output-body">
+        <div class="pl-output-sidebar glass">
+          <div class="vp-sb-title">产出概览</div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-16)">
+            <div><div class="pl-sb-label">版本总数</div><div style="font-size:24px;font-weight:700;color:var(--t100);margin-top:4px">3</div><div style="font-size:12px;color:var(--t50)">EP01 &middot; 产品介绍</div></div>
+            <div><div class="pl-sb-label">已发布</div><div style="font-size:24px;font-weight:700;color:var(--green);margin-top:4px">2</div><div style="font-size:12px;color:var(--t50)">抖音 + YouTube</div></div>
+            <div>
+              <div class="pl-sb-label">最新版本</div>
+              <div class="pl-sb-info-row"><span class="pl-sb-label">格式</span><span class="pl-sb-value">MP4 / h264</span></div>
+              <div class="pl-sb-info-row"><span class="pl-sb-label">分辨率</span><span class="pl-sb-value">1920x1080</span></div>
+              <div class="pl-sb-info-row"><span class="pl-sb-label">大小</span><span class="pl-sb-value">12.4 MB</span></div>
+              <div class="pl-sb-info-row"><span class="pl-sb-label">时长</span><span class="pl-sb-value">45.2s</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="pl-output-main">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-8)">
+            <span style="font-size:16px;font-weight:600;color:var(--t100)">版本历史</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--t50)">3 个版本</span>
+          </div>
+          <div class="pl-version-card glass">
+            <div class="pl-v-thumb">&#x25B6;</div>
+            <div class="pl-v-info">
+              <div class="pl-v-top"><span class="pl-v-name">v3 — 最终版</span><span class="pl-v-date">2026-04-13 14:32</span></div>
+              <div class="pl-v-tags"><span class="pl-v-tag pl-v-tag--green">1080p</span><span class="pl-v-tag pl-v-tag--neutral">h264</span><span class="pl-v-tag pl-v-tag--neutral">45.2s</span></div>
+              <div class="pl-v-changes">更新了段2配音</div>
+              <div class="pl-v-path">/projects/ai-course/ep01/exports/v3-final.mp4</div>
+            </div>
+            <div class="pl-v-publish"><span class="pl-v-tag pl-v-tag--green">抖音</span><span class="pl-v-tag pl-v-tag--green">YouTube</span></div>
+          </div>
+          <div class="pl-version-card glass">
+            <div class="pl-v-thumb">&#x25B6;</div>
+            <div class="pl-v-info">
+              <div class="pl-v-top"><span class="pl-v-name">v2 — 修改配音</span><span class="pl-v-date">2026-04-12 20:15</span></div>
+              <div class="pl-v-tags"><span class="pl-v-tag pl-v-tag--green">1080p</span><span class="pl-v-tag pl-v-tag--neutral">h264</span><span class="pl-v-tag pl-v-tag--neutral">44.8s</span></div>
+              <div class="pl-v-changes">替换背景音乐</div>
+              <div class="pl-v-path">/projects/ai-course/ep01/exports/v2-revised.mp4</div>
+            </div>
+            <div class="pl-v-publish"><span class="pl-v-tag pl-v-tag--yellow">Draft</span></div>
+          </div>
+          <div class="pl-version-card glass">
+            <div class="pl-v-thumb">&#x25B6;</div>
+            <div class="pl-v-info">
+              <div class="pl-v-top"><span class="pl-v-name">v1 — 初稿</span><span class="pl-v-date">2026-04-11 16:48</span></div>
+              <div class="pl-v-tags"><span class="pl-v-tag pl-v-tag--green">1080p</span><span class="pl-v-tag pl-v-tag--neutral">h264</span><span class="pl-v-tag pl-v-tag--neutral">43.5s</span></div>
+              <div class="pl-v-changes">首次导出</div>
+              <div class="pl-v-path">/projects/ai-course/ep01/exports/v1-draft.mp4</div>
+            </div>
+            <div class="pl-v-publish"><span class="pl-v-tag pl-v-tag--neutral">Archived</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pl-footer">
+      <span>EP01 &middot; 5 segments &middot; ~60s</span>
+      <span>NextFrame v0.5</span>
+    </div>
+  </div><!-- /view-pipeline -->
+
+  <!-- ══════════════════════════════════════
+       VIEW: EDITOR — Three-panel timeline editor
+       ══════════════════════════════════════ -->
+  <div class="view" id="view-editor">
+    <div class="view-topbar">
+      <nav class="tb-breadcrumb">
+        <a class="tb-breadcrumb-item" onclick="showView('home')">Home</a>
+        <span class="tb-breadcrumb-sep">/</span>
+        <a class="tb-breadcrumb-item" onclick="showView('project')" id="ed-breadcrumb-project">AI短视频课</a>
+        <span class="tb-breadcrumb-sep">/</span>
+        <a class="tb-breadcrumb-item" onclick="showView('pipeline')" id="ed-breadcrumb-ep">EP01</a>
+        <span class="tb-breadcrumb-sep">/</span>
+        <span class="tb-breadcrumb-current">编辑器</span>
+      </nav>
+      <div class="tb-spacer"></div>
+    </div>
+    <div class="ed-body">
+      <!-- Left: Clip Sidebar -->
+      <div class="ed-panel-left glass">
+        <div class="ed-clip-header">
+          <span class="ed-clip-header-label">CLIPS</span>
+          <span class="ed-clip-count" id="ed-clip-count">5</span>
+        </div>
+        <div class="ed-clip-list" id="ed-clip-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Center: Preview + Timeline -->
+      <div class="ed-panel-center">
+        <div class="ed-preview-panel glass">
+          <div class="ed-preview-inner">
+            <div class="ed-preview-canvas">
+              <div class="ed-preview-gradient"></div>
+              <div class="ed-play-btn">&#9654;</div>
+              <span class="ed-preview-tc">00:00.0 / 00:45.2</span>
+            </div>
+            <div class="ed-transport">
+              <div class="ed-transport-btns">
+                <button class="ed-t-btn">&#x23EE;</button>
+                <button class="ed-t-btn">&#x23EA;</button>
+                <button class="ed-t-btn play-main">&#9654;</button>
+                <button class="ed-t-btn">&#x23E9;</button>
+                <button class="ed-t-btn">&#x23ED;</button>
+              </div>
+              <span class="ed-transport-tc">00:14.4</span>
+              <div class="ed-transport-progress"><div class="ed-transport-fill"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ed-timeline-panel glass">
+          <div class="ed-tl-header">
+            <span class="ed-tl-title">TIMELINE</span>
+            <div class="ed-tl-meta">
+              <span class="ed-tl-meta-tag">45.2s</span>
+              <span class="ed-tl-meta-tag">5 layers</span>
+              <span class="ed-tl-meta-tag">30fps</span>
+            </div>
+          </div>
+          <div class="ed-tl-body" id="ed-tl-body">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Inspector -->
+      <div class="ed-panel-right glass">
+        <div class="ed-insp-inner" id="ed-insp-inner">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+    <div class="ed-footer">
+      <span>5 clips &middot; 45.2s &middot; 1356 frames</span>
+      <span>NextFrame v0.5</span>
+    </div>
+  </div><!-- /view-editor -->
+
+</div><!-- /app -->
 
 <!-- AI Prompts Modal -->
 <div class="modal-overlay" id="ai-overlay" onclick="toggleAIPrompts()"></div>
@@ -1446,7 +2871,7 @@ function timeAgo(dateStr) {
 }
 
 function renderCard(p) {
-  return '<div class="project-card glass">' +
+  return '<div class="project-card glass" onclick="showView(\'project\')">' +
     '<div class="card-thumb"><svg class="card-thumb-icon" width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="12,8 24,16 12,24" fill="currentColor"/></svg></div>' +
     '<div class="card-body">' +
       '<div class="card-title">' + (p.name || 'Untitled') + '</div>' +
@@ -1473,7 +2898,255 @@ function loadProjects() {
 // Auto-load when IPC is ready
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(loadProjects, 500);
+  renderEditorClipList();
+  renderEditorTimeline();
+  renderEditorInspector();
+  renderProjectEpisodes();
 });
+
+// ══════════════════════════════════════
+// VIEW SWITCHING
+// ══════════════════════════════════════
+function showView(viewName, data) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById('view-' + viewName);
+  if (target) target.classList.add('active');
+}
+// Expose globally for onclick handlers
+window.showView = showView;
+
+// ══════════════════════════════════════
+// PROJECT VIEW — Episode grid rendering
+// ══════════════════════════════════════
+const MOCK_EPISODES = [
+  { id: 'ep01', num: 'EP01', title: '痛点 — 0播放vs爆款', segments: 5, duration: '42.6s', status: 'published', tags: ['抖音','YouTube'], edited: '2h ago' },
+  { id: 'ep02', num: 'EP02', title: '方案 — 三段公式', segments: 4, duration: '38.2s', status: 'published', tags: ['抖音'], edited: '1d ago' },
+  { id: 'ep03', num: 'EP03', title: '案例 — 实战拆解', segments: 6, duration: '51.0s', status: 'published', tags: ['YouTube'], edited: '3d ago' },
+  { id: 'ep04', num: 'EP04', title: '工具 — NextFrame 演示', segments: 3, duration: '28.5s', status: 'progress', tags: ['Editing'], edited: '30m ago' },
+  { id: 'ep05', num: 'EP05', title: '总结 — 行动指南', segments: 4, duration: '35.0s', status: 'draft', tags: ['Draft'], edited: '5d ago' },
+];
+
+function renderProjectEpisodes() {
+  const grid = document.getElementById('vp-episode-grid');
+  if (!grid) return;
+  let html = '';
+  MOCK_EPISODES.forEach(function(ep) {
+    const statusClass = ep.status === 'published' ? 'published' : ep.status === 'progress' ? 'progress' : 'draft';
+    const statusLabel = ep.status === 'published' ? 'Published' : ep.status === 'progress' ? 'In Progress' : 'Draft';
+    html += '<div class="vp-ep-card glass" onclick="showView(\'pipeline\')">' +
+      '<div class="vp-ep-thumb">' +
+        '<span class="vp-ep-thumb-badge">' + ep.num + '</span>' +
+        '<div class="vp-ep-thumb-status vp-ep-thumb-status--' + statusClass + '"></div>' +
+        '<svg class="vp-ep-thumb-icon" width="36" height="36" viewBox="0 0 36 36" fill="none"><polygon points="14,9 27,18 14,27" fill="currentColor"/></svg>' +
+      '</div>' +
+      '<div class="vp-ep-body">' +
+        '<div class="vp-ep-title">' + ep.title + '</div>' +
+        '<div class="vp-ep-stats">' +
+          '<span class="vp-ep-stat"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/><line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" stroke-width="1.3"/></svg> ' + ep.segments + ' segments</span>' +
+          '<span class="vp-ep-duration">' + ep.duration + '</span>' +
+          '<span class="vp-ep-status vp-ep-status--' + statusClass + '">' + statusLabel + '</span>' +
+        '</div>' +
+        '<div class="vp-ep-tags">' + ep.tags.map(function(t) {
+          const tagClass = ep.status === 'published' ? 'green' : ep.status === 'progress' ? 'yellow' : 'neutral';
+          return '<span class="vp-ep-tag vp-ep-tag--' + tagClass + '">' + t + '</span>';
+        }).join('') + '</div>' +
+        '<div class="vp-ep-edited">edited ' + ep.edited + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  grid.innerHTML = html;
+}
+
+// ══════════════════════════════════════
+// PIPELINE VIEW — Tab switching
+// ══════════════════════════════════════
+function switchPipelineTab(tabName, tabEl) {
+  // Update tab buttons
+  document.querySelectorAll('#pl-tabs .pl-tab').forEach(function(t) { t.classList.remove('active'); });
+  if (tabEl) tabEl.classList.add('active');
+  // Update tab content
+  document.querySelectorAll('#view-pipeline .pl-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  const content = document.getElementById('pl-tab-' + tabName);
+  if (content) content.classList.add('active');
+}
+window.switchPipelineTab = switchPipelineTab;
+
+// ══════════════════════════════════════
+// EDITOR VIEW — Mock data + rendering
+// ══════════════════════════════════════
+const ED_CLIPS = [
+  { id: 'clip-1', name: '痛点', tcIn: '00:00.0', tcOut: '00:08.5', seg: '段1', dur: '8.5s', scene: 'barChart', layer: 2 },
+  { id: 'clip-2', name: '方案', tcIn: '00:08.5', tcOut: '00:18.0', seg: '段2', dur: '9.5s', scene: 'splitCompare', layer: 2 },
+  { id: 'clip-3', name: '案例', tcIn: '00:18.0', tcOut: '00:28.2', seg: '段3', dur: '10.2s', scene: 'caseStudy', layer: 2 },
+  { id: 'clip-4', name: '数据', tcIn: '00:28.2', tcOut: '00:38.0', seg: '段4', dur: '9.8s', scene: 'statsGrid', layer: 2 },
+  { id: 'clip-5', name: 'CTA', tcIn: '00:38.0', tcOut: '00:45.2', seg: '段5', dur: '7.2s', scene: 'ctaCard', layer: 2 },
+];
+
+const ED_TRACKS = [
+  { name: 'Audio', clips: [
+    { name: '痛点', left: 0, width: 18.8, color: 'audio' },
+    { name: '方案', left: 18.8, width: 21.0, color: 'audio' },
+    { name: '案例', left: 39.8, width: 22.6, color: 'audio' },
+    { name: '数据', left: 62.4, width: 21.7, color: 'audio' },
+    { name: 'CTA', left: 84.1, width: 15.9, color: 'audio' },
+  ]},
+  { name: '画面', clips: [
+    { name: '痛点', left: 0, width: 18.8, color: 'visual' },
+    { name: '方案', left: 18.8, width: 21.0, color: 'visual' },
+    { name: '案例', left: 39.8, width: 22.6, color: 'visual' },
+    { name: '数据', left: 62.4, width: 21.7, color: 'visual' },
+    { name: 'CTA', left: 84.1, width: 15.9, color: 'visual' },
+  ]},
+  { name: 'Video', clips: [
+    { name: 'bg-loop', left: 0, width: 100, color: 'video' },
+  ]},
+  { name: '字幕', clips: [
+    { name: '痛点', left: 0, width: 18.8, color: 'subtitle' },
+    { name: '方案', left: 18.8, width: 21.0, color: 'subtitle' },
+    { name: '案例', left: 39.8, width: 22.6, color: 'subtitle' },
+    { name: '数据', left: 62.4, width: 21.7, color: 'subtitle' },
+    { name: 'CTA', left: 84.1, width: 15.9, color: 'subtitle' },
+  ]},
+];
+
+const ED_INSPECTOR = {
+  'clip-1': {
+    name: 'barChart', id: 'clip-pain-01',
+    clip: { scene: 'barChart', start: '00:00.0', duration: '8.5s', layer: 2 },
+    params: { title: '"剪辑耗时对比"', bars: 3, animStyle: '"stagger"', colorScheme: '"warm"' },
+    position: { x: 0, y: 0, width: 1080, height: 1920 },
+    file: '/projects/ai-course/ep01/scenes/barChart.json',
+  },
+  'clip-2': {
+    name: 'splitCompare', id: 'clip-solution-02',
+    clip: { scene: 'splitCompare', start: '00:08.5', duration: '9.5s', layer: 2 },
+    params: { leftLabel: '"传统流程"', rightLabel: '"AI流程"', splitRatio: 0.5 },
+    position: { x: 0, y: 0, width: 1080, height: 1920 },
+    file: '/projects/ai-course/ep01/scenes/splitCompare.json',
+  },
+  'clip-3': {
+    name: 'caseStudy', id: 'clip-case-03',
+    clip: { scene: 'caseStudy', start: '00:18.0', duration: '10.2s', layer: 2 },
+    params: { avatar: '"user-a.png"', quote: '"效率提升300%"', metric: '"3x"' },
+    position: { x: 0, y: 0, width: 1080, height: 1920 },
+    file: '/projects/ai-course/ep01/scenes/caseStudy.json',
+  },
+  'clip-4': {
+    name: 'statsGrid', id: 'clip-data-04',
+    clip: { scene: 'statsGrid', start: '00:28.2', duration: '9.8s', layer: 2 },
+    params: { columns: 2, rows: 2, animStyle: '"countUp"' },
+    position: { x: 0, y: 0, width: 1080, height: 1920 },
+    file: '/projects/ai-course/ep01/scenes/statsGrid.json',
+  },
+  'clip-5': {
+    name: 'ctaCard', id: 'clip-cta-05',
+    clip: { scene: 'ctaCard', start: '00:38.0', duration: '7.2s', layer: 2 },
+    params: { headline: '"立即体验"', subtext: '"免费试用7天"', btnLabel: '"开始使用"' },
+    position: { x: 0, y: 0, width: 1080, height: 1920 },
+    file: '/projects/ai-course/ep01/scenes/ctaCard.json',
+  },
+};
+
+let edActiveClip = 'clip-1';
+
+function renderEditorClipList() {
+  const el = document.getElementById('ed-clip-list');
+  if (!el) return;
+  let html = '';
+  ED_CLIPS.forEach(function(c) {
+    const isActive = c.id === edActiveClip;
+    html += '<div class="ed-clip-item' + (isActive ? ' active' : '') + '" onclick="edSelectClip(\'' + c.id + '\')">' +
+      '<div class="ed-clip-top">' +
+        '<span class="ed-clip-name">' + c.name + '</span>' +
+        '<span class="ed-clip-tc">' + c.tcIn + ' - ' + c.tcOut + '</span>' +
+      '</div>' +
+      '<div class="ed-clip-tags">' +
+        '<span class="ed-clip-tag seg">' + c.seg + '</span>' +
+        '<span class="ed-clip-tag dur">' + c.dur + '</span>' +
+      '</div>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function renderEditorTimeline() {
+  const el = document.getElementById('ed-tl-body');
+  if (!el) return;
+  const totalDur = 45.2;
+  let html = '';
+
+  // Ruler
+  html += '<div class="ed-tl-ruler">';
+  html += '<div class="ed-tl-ruler-bg"></div>';
+  for (let t = 0; t <= 45; t += 5) {
+    const pct = (t / totalDur * 100).toFixed(1);
+    html += '<span class="ed-tl-tick" style="left:' + pct + '%">' + t + 's</span>';
+  }
+  html += '<div class="ed-tl-playhead" style="left:31.8%;top:0;bottom:-' + (ED_TRACKS.length * 36 + 8) + 'px"></div>';
+  html += '</div>';
+
+  // Tracks
+  ED_TRACKS.forEach(function(track) {
+    html += '<div class="ed-tl-track">';
+    html += '<span class="ed-tl-track-label">' + track.name + '</span>';
+    html += '<div class="ed-tl-track-lane">';
+    track.clips.forEach(function(clip) {
+      html += '<div class="ed-tl-clip ' + clip.color + '" style="left:' + clip.left + '%;width:' + clip.width + '%">' + clip.name + '</div>';
+    });
+    html += '</div></div>';
+  });
+
+  el.innerHTML = html;
+}
+
+function renderEditorInspector() {
+  const el = document.getElementById('ed-insp-inner');
+  if (!el) return;
+  const data = ED_INSPECTOR[edActiveClip];
+  if (!data) return;
+
+  let html = '';
+  html += '<div class="ed-insp-header">' +
+    '<div class="ed-insp-name">' + data.name + '</div>' +
+    '<div class="ed-insp-id">' + data.id + '</div>' +
+  '</div>';
+
+  html += '<div class="ed-insp-section">' +
+    '<div class="ed-insp-section-title">CLIP</div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">Scene</span><span class="ed-insp-value accent">' + data.clip.scene + '</span></div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">Start</span><span class="ed-insp-value">' + data.clip.start + '</span></div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">Duration</span><span class="ed-insp-value">' + data.clip.duration + '</span></div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">Layer</span><span class="ed-insp-value">' + data.clip.layer + '</span></div>' +
+  '</div>';
+
+  html += '<div class="ed-insp-section"><div class="ed-insp-section-title">PARAMS</div>';
+  const params = data.params;
+  for (const key in params) {
+    html += '<div class="ed-insp-row"><span class="ed-insp-label">' + key + '</span><span class="ed-insp-value">' + params[key] + '</span></div>';
+  }
+  html += '</div>';
+
+  html += '<div class="ed-insp-section"><div class="ed-insp-section-title">POSITION</div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">x</span><input class="ed-insp-input" value="' + data.position.x + '"></div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">y</span><input class="ed-insp-input" value="' + data.position.y + '"></div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">width</span><input class="ed-insp-input" value="' + data.position.width + '"></div>' +
+    '<div class="ed-insp-row"><span class="ed-insp-label">height</span><input class="ed-insp-input" value="' + data.position.height + '"></div>' +
+  '</div>';
+
+  html += '<div class="ed-insp-section">' +
+    '<div class="ed-insp-section-title">FILE</div>' +
+    '<div class="ed-insp-path">' + data.file + '</div>' +
+  '</div>';
+
+  el.innerHTML = html;
+}
+
+function edSelectClip(id) {
+  edActiveClip = id;
+  renderEditorClipList();
+  renderEditorInspector();
+}
+window.edSelectClip = edSelectClip;
 
 </script>
 
