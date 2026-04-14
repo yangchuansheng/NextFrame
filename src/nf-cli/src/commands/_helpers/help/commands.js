@@ -13,6 +13,7 @@ const command = (name, summary, usage, params, constraints, fix = DEFAULT_FIX) =
 export const TOP_LEVEL_COMMANDS = [
   group("Timeline", "new validate build scenes preview frame describe-frame render"),
   group("Scene Dev", "scene-new scene-preview scene-validate"),
+  group("Video Production", "video-guide"),
   group("Layer CRUD", "layer-list layer-add layer-move layer-resize layer-set layer-remove"),
   group("Project Hierarchy", "project-new project-list project-config episode-new episode-list segment-new segment-list"),
   group("Pipeline", "pipeline-get script-set script-get audio-set audio-get audio-synth atom-add atom-list atom-remove output-add output-list output-publish"),
