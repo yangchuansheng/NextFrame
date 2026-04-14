@@ -2,14 +2,14 @@
 use anyhow::{anyhow, Result};
 use std::path::Path;
 
-pub fn run(files: Vec<String>, output: String) -> Result<()> {
+pub fn run(files: &[String], output: &str) -> Result<()> {
     if files.is_empty() {
         return Err(anyhow!("No input files specified"));
     }
 
     let mut combined = Vec::new();
-    for f in &files {
-        let path = Path::new(f);
+    for f in files {
+        let path = Path::new(f.as_str());
         if !path.exists() {
             return Err(anyhow!("File not found: {f}"));
         }
@@ -17,7 +17,7 @@ pub fn run(files: Vec<String>, output: String) -> Result<()> {
         combined.extend(data);
     }
 
-    let out_path = Path::new(&output);
+    let out_path = Path::new(output);
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }

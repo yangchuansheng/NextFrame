@@ -2,16 +2,18 @@
 use crate::config::VoxConfig;
 use anyhow::Result;
 
-pub fn run_set(key: String, value: String) -> Result<()> {
+pub fn run_set(key: &str, value: &str) -> Result<()> {
     let mut config = VoxConfig::load();
-    match key.as_str() {
-        "voice" => config.default_voice = Some(value),
-        "dir" => config.default_dir = Some(value),
-        "backend" => config.default_backend = Some(value),
+    match key {
+        "voice" => config.default_voice = Some(value.to_owned()),
+        "dir" => config.default_dir = Some(value.to_owned()),
+        "backend" => config.default_backend = Some(value.to_owned()),
         _ => {
             // Treat as alias: "alias.narrator" = "zh-CN-YunxiNeural"
             if let Some(alias_name) = key.strip_prefix("alias.") {
-                config.aliases.insert(alias_name.to_string(), value);
+                config
+                    .aliases
+                    .insert(alias_name.to_owned(), value.to_owned());
             } else {
                 anyhow::bail!(
                     "Unknown config key: {key}. Valid: voice, dir, backend, alias.<name>"

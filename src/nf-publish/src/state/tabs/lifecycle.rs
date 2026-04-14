@@ -3,7 +3,7 @@ use objc2::rc::Retained;
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use objc2_web_kit::WKWebView;
 
-use crate::error::error_with_fix;
+use crate::error::{error_with_fix, with_objc_boundary};
 use crate::state::{
     APP_STATE, BrowserTab, BrowserTabKind, SavedDynamicTab, TABS, cmd_file,
     current_url_for_webview, log_crash, new_tab_html, remove_view_from_superview, result_file,
@@ -36,20 +36,17 @@ pub(crate) fn switch_tab(index: usize) {
         (prev_ptr, next_ptr)
     };
 
-    let result = unsafe { // SAFETY: `catch` is the intended Objective-C boundary here, and the stored webview pointers come from retained WKWebView instances in app state.
-        objc2::exception::catch(std::panic::AssertUnwindSafe(|| {
-            if let Some(prev_ptr) = prev_ptr {
-                unsafe { // SAFETY: `prev_ptr` points to the previously visible retained WKWebView for this tab set.
-                    (&*prev_ptr).setHidden(true);
-                }
+    if let Err(err) = with_objc_boundary("switch browser tab", || {
+        if let Some(prev_ptr) = prev_ptr {
+            unsafe { // SAFETY: `prev_ptr` points to the previously visible retained WKWebView for this tab set.
+                (&*prev_ptr).setHidden(true);
             }
-            unsafe { // SAFETY: `next_ptr` points to the retained WKWebView selected as the new active tab.
-                (&*next_ptr).setHidden(false);
-            }
-        }))
-    };
-    if let Err(err) /* Fix: propagate or log the formatted error below */ = result {
-        log_crash("ERROR", "switch_tab", &format!("ObjC exception: {err:?}"));
+        }
+        unsafe { // SAFETY: `next_ptr` points to the retained WKWebView selected as the new active tab.
+            (&*next_ptr).setHidden(false);
+        }
+    }) {
+        log_crash("ERROR", "switch_tab", &err);
         return;
     }
 

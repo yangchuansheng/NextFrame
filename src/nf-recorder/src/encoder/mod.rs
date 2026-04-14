@@ -11,11 +11,9 @@ use std::path::{Path, PathBuf};
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
-use objc2_app_kit::NSImage;
 use objc2_core_graphics::CGImage;
 use objc2_foundation::NSString;
 
-use crate::capture::cgimage_from_nsimage;
 use crate::progress::ProgressOverlay;
 
 use ffmpeg::mux_audio_track;
@@ -126,21 +124,6 @@ impl SegmentEncoder {
             frame_count: 0,
             backend,
         })
-    }
-
-    /// Appends an `NSImage` frame to the segment.
-    // Public API for callers that capture NSImage; main path uses write_cgimage_with_progress.
-    #[allow(dead_code)]
-    pub(crate) fn write_nsimage(&mut self, image: &NSImage) -> Result<(), String> {
-        let cg_image = cgimage_from_nsimage(image)?;
-        self.write_cgimage(&cg_image)
-    }
-
-    /// Appends a `CGImage` frame to the segment.
-    // Convenience wrapper without progress overlay; main path uses write_cgimage_with_progress.
-    #[allow(dead_code)]
-    pub(crate) fn write_cgimage(&mut self, image: &CGImage) -> Result<(), String> {
-        self.write_cgimage_with_progress(image, None)
     }
 
     /// Appends a `CGImage` frame with an optional progress bar overlay.

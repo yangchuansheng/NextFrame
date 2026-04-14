@@ -1,11 +1,5 @@
 //! Progress bar geometry shared between DOM probing and pixel overlays.
 
-/// DOM id used by slide templates for the progress bar slot.
-#[allow(dead_code)] // canonical ID constant; PROGRESS_SELECTOR uses the string directly
-pub(crate) const PROGRESS_ELEMENT_ID: &str = "sk-progress";
-/// Legacy DOM id used by older HTML templates for the progress track.
-#[allow(dead_code)] // kept for backwards compatibility with older templates
-pub(crate) const LEGACY_PROGRESS_ELEMENT_ID: &str = "progress";
 /// Shadow-DOM-friendly selector used by component slides that render a custom track.
 pub const PROGRESS_TRACK_SELECTOR: &str = ".progress-bar .track";
 pub const PROGRESS_SELECTOR: &str = "#sk-progress";
@@ -22,27 +16,6 @@ pub const PROGRESS_CANDIDATE_SELECTORS: &[&str] = &[
 const DEFAULT_FILL_R: f64 = 0.855;
 const DEFAULT_FILL_G: f64 = 0.467;
 const DEFAULT_FILL_B: f64 = 0.337;
-
-/// Parse a hex color string (#RGB, #RRGGBB, or #RRGGBBAA) into (r, g, b) floats 0-1.
-/// (Not yet called — will be used when custom progress bar colors are supported.)
-#[allow(dead_code)] // planned feature: custom progress bar colors
-pub(crate) fn parse_hex_color(hex: &str) -> Option<(f64, f64, f64)> {
-    let hex = hex.trim_start_matches('#');
-    let (r, g, b) = match hex.len() {
-        3 => (
-            u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?,
-            u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?,
-            u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?,
-        ),
-        6 | 8 => (
-            u8::from_str_radix(&hex[0..2], 16).ok()?,
-            u8::from_str_radix(&hex[2..4], 16).ok()?,
-            u8::from_str_radix(&hex[4..6], 16).ok()?,
-        ),
-        _ => return None,
-    };
-    Some((r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0))
-}
 
 /// Physical-pixel bounding box of the progress bar slot.
 #[derive(Clone, Copy, Debug)]
@@ -144,10 +117,7 @@ fn segment_dot_positions(segment_durations: &[f64]) -> Vec<f64> {
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::{
-        PROGRESS_CANDIDATE_SELECTORS, PROGRESS_TRACK_SELECTOR, ProgressBar, ProgressRect,
-        parse_hex_color,
-    };
+    use super::{PROGRESS_CANDIDATE_SELECTORS, PROGRESS_TRACK_SELECTOR, ProgressBar, ProgressRect};
 
     #[test]
     fn progress_rect_new_preserves_geometry() {
@@ -175,22 +145,6 @@ mod tests {
 
         let clamped = bar.overlay(150.0);
         assert_eq!(clamped.fill_w, 200);
-    }
-
-    #[test]
-    fn parse_hex_color_accepts_valid_three_six_and_eight_digit_hex() {
-        assert_eq!(
-            parse_hex_color("#abc"),
-            Some((170.0 / 255.0, 187.0 / 255.0, 204.0 / 255.0))
-        );
-        assert_eq!(
-            parse_hex_color("123456"),
-            Some((18.0 / 255.0, 52.0 / 255.0, 86.0 / 255.0))
-        );
-        assert_eq!(
-            parse_hex_color("#11223344"),
-            Some((17.0 / 255.0, 34.0 / 255.0, 51.0 / 255.0))
-        );
     }
 
     #[test]

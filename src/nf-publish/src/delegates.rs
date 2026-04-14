@@ -1,6 +1,4 @@
 //! webview delegates
-use std::panic::AssertUnwindSafe;
-
 use objc2::rc::Retained;
 use objc2::{MainThreadOnly, define_class, msg_send};
 use objc2_app_kit::{
@@ -14,7 +12,7 @@ use objc2_web_kit::{
     WKOpenPanelParameters, WKUIDelegate, WKWebView,
 };
 
-use crate::error::error_with_fix;
+use crate::error::with_objc_boundary;
 use crate::state::{
     LEGACY_RESULT, LEGACY_UPLOAD, close_tab, go_back, go_forward, navigate_active_input,
     open_bookmark, reload_tab, result_file, switch_tab, tab_index_for_webview,
@@ -22,15 +20,7 @@ use crate::state::{
 };
 
 fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
-    // SAFETY: `objc2::exception::catch` is the intended wrapper around Objective-C message sends in these delegate constructors.
-    let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) }; // SAFETY: see comment above.
-    result.map_err(|e| {
-        error_with_fix(
-            "initialize the macOS WebKit delegate",
-            format!("Objective-C raised an exception: {e:?}"),
-            "Retry after the app finishes launching. If it keeps failing, restart nf-publish.",
-        )
-    })
+    with_objc_boundary("initialize the macOS WebKit delegate", f)
 }
 
 define_class!(

@@ -17,18 +17,6 @@ pub(crate) enum SlideType {
     Unknown,
 }
 
-impl SlideType {
-    // Planned feature: used in recording logs and diagnostics to label slide types.
-    #[allow(dead_code)]
-    pub(crate) fn label(self) -> &'static str {
-        match self {
-            Self::Bridge => "bridge",
-            Self::Clip => "clip",
-            Self::Unknown => "unknown",
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 /// All metadata extracted from a recorder HTML frame file.
 pub(crate) struct FrameMetadata {
@@ -42,16 +30,12 @@ pub(crate) struct FrameMetadata {
 }
 
 #[derive(Debug)]
-// Constructed during subtitle parsing; fields read via Debug formatting and future clip planner.
-#[allow(dead_code)]
 pub(super) struct ClipTiming {
     pub(super) start_sec: f64,
     pub(super) duration_sec: f64,
 }
 
 #[derive(Debug)]
-// Intermediate parse result; fields consumed by subtitle timing resolution in srt.rs.
-#[allow(dead_code)]
 pub(super) struct RawSubtitleCue {
     pub(super) start: Option<f64>,
     pub(super) end: Option<f64>,

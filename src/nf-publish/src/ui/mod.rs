@@ -1,6 +1,4 @@
 //! ui module exports
-use std::panic::AssertUnwindSafe;
-
 mod menu;
 mod toolbar;
 
@@ -12,7 +10,7 @@ use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString, NSUR
 use objc2_web_kit::{WKWebView, WKWebViewConfiguration};
 
 use crate::delegates::{PilotNavDelegate, PilotUIDelegate};
-use crate::error::error_with_fix;
+use crate::error::with_objc_boundary;
 
 pub(crate) use menu::{rebuild_bookmarks_bar, rebuild_tab_strip};
 pub(crate) use toolbar::create_browser_layout;
@@ -29,15 +27,7 @@ pub(crate) struct BrowserLayout {
 }
 
 fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
-    // SAFETY: `objc2::exception::catch` only wraps the provided closure and is designed for this FFI boundary.
-    let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) }; // SAFETY: see comment above.
-    result.map_err(|e| {
-        error_with_fix(
-            "update the macOS publish UI",
-            format!("Objective-C raised an exception: {e:?}"),
-            "Retry after the window finishes updating. If it keeps failing, restart nf-publish.",
-        )
-    })
+    with_objc_boundary("update the macOS publish UI", f)
 }
 
 fn srgb(r: f64, g: f64, b: f64, a: f64) -> Retained<NSColor> {

@@ -1,6 +1,4 @@
 //! command module exports
-use std::panic::AssertUnwindSafe;
-
 mod input;
 mod navigation;
 mod parser;
@@ -14,7 +12,7 @@ use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
 use objc2_foundation::{NSPoint, NSString};
 use objc2_web_kit::WKWebView;
 
-use crate::error::{ensure_fix, error_with_fix};
+use crate::error::{ensure_fix, error_with_fix, with_objc_boundary};
 use crate::eval::eval_js;
 use crate::keyboard::jitter;
 
@@ -47,15 +45,7 @@ pub(super) fn write_result(result_path: &str, value: impl AsRef<[u8]>) {
 }
 
 pub(super) fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
-    // SAFETY: `objc2::exception::catch` is the intended wrapper around Objective-C message sends in this module.
-    let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) }; // SAFETY: see comment above.
-    result.map_err(|e| {
-        error_with_fix(
-            "perform the macOS publish UI action",
-            format!("Objective-C raised an exception: {e:?}"),
-            "Retry after the UI settles. If it keeps failing, restart nf-publish.",
-        )
-    })
+    with_objc_boundary("perform the macOS publish UI action", f)
 }
 
 fn css_point(webview: &WKWebView, x: f64, y: f64) -> NSPoint {

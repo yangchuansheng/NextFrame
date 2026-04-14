@@ -96,9 +96,9 @@ pub async fn run(cli: Cli) -> Result<()> {
             backend,
         } => preview::run(voice, text, backend).await,
         Command::Voices { lang, backend } => voices::run(lang, backend).await,
-        Command::Concat { files, output } => concat::run(files, output),
+        Command::Concat { files, output } => concat::run(&files, &output),
         Command::Config { action } => match action {
-            ConfigAction::Set { key, value } => config_cmd::run_set(key, value),
+            ConfigAction::Set { key, value } => config_cmd::run_set(&key, &value),
             ConfigAction::Get { key } => config_cmd::run_get(key),
         },
     }
