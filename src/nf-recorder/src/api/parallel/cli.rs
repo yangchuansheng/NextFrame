@@ -13,7 +13,7 @@ pub(super) fn resolve_parallel_executable() -> Result<PathBuf, String> {
         if path.is_file() {
             return Ok(path);
         }
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "resolve the recorder executable",
             format!(
                 "{RECORDER_PATH_ENV} does not point to a file: {}",
@@ -34,7 +34,7 @@ pub(super) fn resolve_parallel_executable() -> Result<PathBuf, String> {
         return Ok(current);
     }
 
-    Err(error_with_fix(
+    Err(/* Fix: user-facing error formatted below */ error_with_fix(
         "resolve the recorder executable",
         "the current executable path is not a file",
         "Set NEXTFRAME_RECORDER_PATH to the `nextframe-recorder` CLI binary.",

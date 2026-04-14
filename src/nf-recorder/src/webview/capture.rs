@@ -41,7 +41,7 @@ impl WebViewHost {
             Some("true") => Ok(Some(true)),
             Some("false") => Ok(Some(false)),
             Some("missing") | None => Ok(None),
-            Some(other) => Err(error_with_fix(
+            Some(other) => Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "query frame change state from the page",
                 format!("page returned unexpected `__hasFrameChanged` result `{other}`"),
                 "Update the page helper to return only `true`, `false`, or `missing`, then retry.",
@@ -56,14 +56,14 @@ impl WebViewHost {
         for attempt in 0..3 {
             match self.take_snapshot_image() {
                 Ok(image) => return Ok(image),
-                Err(_) if attempt < 2 => {
+                Err(_) /* Internal: transient snapshot attempt failure retries below */ if attempt < 2 => {
                     // WebKit may need more time between rapid snapshots
                     pump_main_run_loop(Duration::from_millis(50));
                 }
-                Err(err) => return Err(err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => return Err(err),
             }
         }
-        Err(error_with_fix(
+        Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "capture a WKWebView snapshot",
             "all snapshot attempts completed without a usable image",
             "Retry after the page finishes rendering, or rerun with `--headed` to inspect the page state.",
@@ -234,7 +234,7 @@ impl WebViewHost {
                 // SAFETY: WebKit passes either null or a valid `NSError *` for the callback duration.
                 let result = if let Some(error) = unsafe { error.as_ref() } {
                     // SAFETY: see above.
-                    Err(error_with_fix(
+                    Err(/* Fix: user-facing error formatted below */ error_with_fix(
                         "capture a WKWebView snapshot",
                         format!(
                             "{} (domain={}, code={})",
@@ -249,7 +249,7 @@ impl WebViewHost {
                     // SAFETY: see above.
                     Ok(image)
                 } else {
-                    Err(internal_error_with_fix(
+                    Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
                         "capture a WKWebView snapshot",
                         "WKWebView.takeSnapshot returned nil without an error",
                         "Retry after the page finishes rendering, or rerun with `--headed` to inspect the page state.",
@@ -269,7 +269,7 @@ impl WebViewHost {
         let started = Instant::now();
         while slot.borrow().is_none() {
             if started.elapsed() > Duration::from_secs(10) {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "capture a WKWebView snapshot",
                     "WKWebView.takeSnapshot did not finish within 10 seconds",
                     "Retry after the page finishes rendering, or rerun with `--headed` to inspect the page state.",
@@ -350,7 +350,7 @@ impl WebViewHost {
                     if is_unsupported_js_result(error) {
                         Ok(None)
                     } else {
-                        Err(error_with_fix(
+                        Err(/* Fix: user-facing error formatted below */ error_with_fix(
                             "evaluate JavaScript in the page",
                             format!(
                                 "{} (domain={}, code={})",
@@ -382,7 +382,7 @@ impl WebViewHost {
         let started = Instant::now();
         while slot.borrow().is_none() {
             if started.elapsed() > Duration::from_secs(10) {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "evaluate JavaScript in the page",
                     "WebKit did not finish evaluateJavaScript within 10 seconds",
                     "Retry after the page finishes loading or simplify the injected script.",

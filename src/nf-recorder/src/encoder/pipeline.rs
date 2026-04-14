@@ -27,7 +27,7 @@ impl SegmentEncoder {
     /// Finalizes the writer and muxes the optional audio track into the output segment.
     pub fn finish(self) -> Result<(), String> {
         if self.frame_count == 0 {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "finish the encoded segment",
                 "no video frames were appended",
                 "Record at least one frame before finishing the segment.",
@@ -77,7 +77,7 @@ impl SegmentEncoder {
             let result = if status == 2 {
                 Ok(())
             } else {
-                Err(writer_error_string(
+                Err(/* Internal: AVFoundation writer failure formatted below */ writer_error_string(
                     &writer_for_block,
                     "finish the encoded segment",
                     "Inspect the AVAssetWriter error details and retry the recording job.",
@@ -97,10 +97,10 @@ impl SegmentEncoder {
         loop {
             match done_rx.recv_timeout(Duration::from_millis(20)) {
                 Ok(Ok(())) => break,
-                Ok(Err(err)) => return Err(err),
-                Err(mpsc::RecvTimeoutError::Timeout) => {
+                Ok(Err(err)) /* Fix: propagate the worker error below */ => return Err(err),
+                Err(mpsc::RecvTimeoutError::Timeout) /* Internal: completion wait is still in progress */ => {
                     if Instant::now() >= deadline {
-                        return Err(error_with_fix(
+                        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                             "finish the encoded segment",
                             "AVAssetWriter did not finish within 30 seconds",
                             "Reduce output size or retry after system load drops.",
@@ -108,8 +108,8 @@ impl SegmentEncoder {
                     }
                     pump_main_run_loop(Duration::from_millis(10));
                 }
-                Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    return Err(error_with_fix(
+                Err(mpsc::RecvTimeoutError::Disconnected) /* Internal: completion channel ended unexpectedly */ => {
+                    return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                         "finish the encoded segment",
                         "the AVAssetWriter completion channel disconnected unexpectedly",
                         "Retry the recording job after ensuring the process remains stable.",
@@ -147,14 +147,14 @@ impl SegmentEncoder {
             height: CGImage::height(Some(cg_image)),
         };
         if frame_size.width == 0 || frame_size.height == 0 {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "initialize the video writer",
                 "the captured frame image was empty",
                 "Retry after the page finishes rendering and the capture size is non-zero.",
             ));
         }
         if !frame_size.width.is_multiple_of(2) || !frame_size.height.is_multiple_of(2) {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "initialize the video writer",
                 format!(
                     "the captured frame size {}x{} is not even",
@@ -191,7 +191,7 @@ impl SegmentEncoder {
             ]
         };
         let Some(writer) = writer else {
-            return Err(ns_error_ptr_to_string(
+            return Err(/* Internal: Apple framework failure formatted below */ ns_error_ptr_to_string(
                 error,
                 "initialize AVAssetWriter",
                 "Check the output path and codec availability, then retry the recording job.",
@@ -215,7 +215,7 @@ impl SegmentEncoder {
             ]
         };
         if !can_apply {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "configure AVAssetWriter output settings",
                 format!(
                     "AVAssetWriter rejected output settings for {}x{}",
@@ -236,7 +236,7 @@ impl SegmentEncoder {
             ]
         };
         let Some(input) = input else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "create AVAssetWriterInput",
                 "AVAssetWriterInput returned nil",
                 "Retry after ensuring AVFoundation video encoding is available.",
@@ -252,7 +252,7 @@ impl SegmentEncoder {
         // SAFETY: `writer` and `input` are live, and `canAddInput:` only checks compatibility.
         let can_add: bool = unsafe { msg_send![&*writer, canAddInput: &*input] }; // SAFETY: see above.
         if !can_add {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "attach the video input to AVAssetWriter",
                 "AVAssetWriter rejected the video input",
                 "Retry with supported output settings and codec configuration.",
@@ -276,7 +276,7 @@ impl SegmentEncoder {
             ]
         };
         let Some(adaptor) = adaptor else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "create AVAssetWriterInputPixelBufferAdaptor",
                 "the pixel buffer adaptor returned nil",
                 "Retry after ensuring AVFoundation video encoding is available.",
@@ -286,7 +286,7 @@ impl SegmentEncoder {
         // SAFETY: `writer` is configured and live, so `startWriting` is valid before any appends.
         let started: bool = unsafe { msg_send![&*writer, startWriting] }; // SAFETY: see above.
         if !started {
-            return Err(writer_error_string(
+            return Err(/* Internal: AVFoundation writer failure propagated below */ writer_error_string(
                 &writer,
                 "start AVAssetWriter",
                 "Check the output path and codec availability, then retry the recording job.",
@@ -332,7 +332,7 @@ impl SegmentEncoder {
             // SAFETY: `writer` is live, and `status` is a valid accessor while waiting for readiness.
             let status: isize = unsafe { msg_send![&**writer, status] }; // SAFETY: see above.
             if status != 1 {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "append the captured frame",
                     format!(
                         "AVAssetWriter entered a failed state while waiting for input (status={status})"
@@ -341,7 +341,7 @@ impl SegmentEncoder {
                 ));
             }
             if Instant::now() >= deadline {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "append the captured frame",
                     "AVAssetWriter was not ready for more data after 10 seconds",
                     "Reduce output size or retry after system load drops.",
@@ -382,7 +382,7 @@ impl SegmentEncoder {
                     "Retry the recording job after ensuring the encoder stays initialized.",
                 )
             })?;
-            return Err(writer_error_string(
+            return Err(/* Internal: AVFoundation writer failure propagated below */ writer_error_string(
                 writer,
                 "append the captured frame",
                 "Inspect the AVAssetWriter error details and retry the recording job.",

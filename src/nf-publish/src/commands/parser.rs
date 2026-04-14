@@ -4,7 +4,7 @@ use crate::error::{ensure_fix, error_with_fix};
 pub(crate) fn parse_command_token(input: &str) -> Result<(String, &str), String> {
     let trimmed = input.trim_start();
     if trimmed.is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the publish command",
             "the command is missing a required argument",
             "Provide the required argument and retry the command.",
@@ -34,7 +34,7 @@ pub(crate) fn parse_command_token(input: &str) -> Result<(String, &str), String>
                 return Ok((parsed, rest));
             }
         }
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the quoted command argument",
             "the argument ended before the closing quote",
             "Close the quoted argument and retry the command.",
@@ -52,7 +52,7 @@ pub(crate) fn parse_selector_arg(input: &str, usage: &str) -> Result<String, Str
     let (selector, tail) = parse_command_token(input)
         .map_err(|err| ensure_fix(err, "parse the selector argument", usage))?;
     if selector.is_empty() || !tail.trim().is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the selector argument",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -65,7 +65,7 @@ pub(crate) fn parse_selector_pair(input: &str, usage: &str) -> Result<(String, S
     let (first, rest) = parse_command_token(input)
         .map_err(|err| ensure_fix(err, "parse the selector pair", usage))?;
     if first.is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the selector pair",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -74,7 +74,7 @@ pub(crate) fn parse_selector_pair(input: &str, usage: &str) -> Result<(String, S
     let (second, tail) = parse_command_token(rest)
         .map_err(|err| ensure_fix(err, "parse the selector pair", usage))?;
     if second.is_empty() || !tail.trim().is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the selector pair",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -89,7 +89,7 @@ pub(crate) fn parse_selector_and_value(
 ) -> Result<(String, String), String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the selector and value arguments",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -100,7 +100,7 @@ pub(crate) fn parse_selector_and_value(
             let selector = rest[..end].to_owned();
             let value = rest[end + 1..].trim();
             if value.is_empty() {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "parse the selector and value arguments",
                     format!("invalid arguments for `{usage}`"),
                     usage,
@@ -108,7 +108,7 @@ pub(crate) fn parse_selector_and_value(
             }
             return Ok((selector, value.to_owned()));
         }
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the quoted selector",
             "the selector ended before the closing quote",
             "Close the quoted selector and retry the command.",
@@ -116,7 +116,7 @@ pub(crate) fn parse_selector_and_value(
     }
 
     let Some(space) = trimmed.find(' ') else {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the selector and value arguments",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -125,7 +125,7 @@ pub(crate) fn parse_selector_and_value(
     let selector = trimmed[..space].trim();
     let value = trimmed[space + 1..].trim();
     if selector.is_empty() || value.is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the selector and value arguments",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -140,7 +140,7 @@ pub(crate) fn parse_selector_and_timeout(
 ) -> Result<(String, u64), String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the wait command",
             "missing selector argument",
             "Use `wait <selector> [timeout_ms]`.",
@@ -165,7 +165,7 @@ pub(crate) fn parse_selector_and_timeout(
                     )
                 });
         }
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the quoted selector",
             "the selector ended before the closing quote",
             "Close the quoted selector and retry the command.",
@@ -186,7 +186,7 @@ pub(crate) fn parse_selector_and_timeout(
 pub(crate) fn parse_xy_args(input: &str, usage: &str) -> Result<(f64, f64), String> {
     let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.len() != 2 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the coordinate arguments",
             format!("invalid arguments for `{usage}`"),
             usage,
@@ -216,7 +216,7 @@ pub(crate) fn parse_coords(coords: &str) -> Result<(f64, f64), String> {
     {
         return Ok((x, y));
     }
-    Err(error_with_fix(
+    Err(/* Fix: user-facing error formatted below */ error_with_fix(
         "parse the element coordinates",
         format!("`{coords}` is not in `x,y` format"),
         "Return coordinates as `x,y` with numeric values.",
@@ -226,7 +226,7 @@ pub(crate) fn parse_coords(coords: &str) -> Result<(f64, f64), String> {
 pub(crate) fn parse_rect(rect: &str) -> Result<(i64, i64, i64, i64), String> {
     let parts: Vec<&str> = rect.split(',').collect();
     if parts.len() != 4 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the rectangle",
             format!("`{rect}` is not in `x,y,width,height` format"),
             "Use four comma-separated integers such as `0,0,1280,720`.",

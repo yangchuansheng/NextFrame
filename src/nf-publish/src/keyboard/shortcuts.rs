@@ -60,7 +60,7 @@ fn handle_browser_shortcut(event: NonNull<NSEvent>) -> bool {
 
     match event.keyCode() {
         17 => {
-            if let Err(err) = create_dynamic_tab(Some("about:blank"), true) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = create_dynamic_tab(Some("about:blank"), true) {
                 crate::state::log_crash("WARN", "keyboard", &format!("Cmd+T: {err}"));
             }
             true
@@ -70,7 +70,7 @@ fn handle_browser_shortcut(event: NonNull<NSEvent>) -> bool {
                 return false;
             };
             let active_tab_id = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
-            if let Err(err) = close_tab(active_tab_id) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = close_tab(active_tab_id) {
                 crate::state::log_crash("WARN", "keyboard", &format!("Cmd+W: {err}"));
             }
             true
@@ -81,7 +81,7 @@ fn handle_browser_shortcut(event: NonNull<NSEvent>) -> bool {
             };
             // SAFETY: `address_field_ptr` is initialized once from the live toolbar NSTextField and remains valid for the app lifetime.
             let field = unsafe { &*state.address_field_ptr }; // SAFETY: see comment above.
-            if let Err(err) = catch_objc(|| unsafe {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = catch_objc(|| unsafe {
                 // SAFETY: see comment above.
                 // SAFETY: `field` is a live NSTextField and both Objective-C selectors are standard text-field responder APIs.
                 field.selectText(None);

@@ -35,7 +35,7 @@ pub fn is_nsimage_black(image: &NSImage) -> Result<bool, String> {
         return Ok(true);
     }
     if samples_per_pixel < 3 || bits_per_pixel < 24 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "inspect the snapshot bitmap",
             format!(
                 "unsupported bitmap format with samplesPerPixel={} and bitsPerPixel={}",
@@ -47,7 +47,7 @@ pub fn is_nsimage_black(image: &NSImage) -> Result<bool, String> {
 
     let data = bitmap.bitmapData();
     if data.is_null() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "inspect the snapshot bitmap",
             "NSBitmapImageRep returned a null bitmapData pointer",
             "Retry the capture after the page finishes rendering.",
@@ -100,7 +100,7 @@ pub fn layer_render_cgimage(
     height: usize,
 ) -> Result<Retained<CGImage>, String> {
     if width == 0 || height == 0 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "render the webview layer",
             "the render target size is zero",
             "Pass a non-zero capture width and height before retrying.",

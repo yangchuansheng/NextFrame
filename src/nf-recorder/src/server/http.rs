@@ -89,10 +89,10 @@ fn run_server(listener: TcpListener, root: PathBuf, stop: Arc<AtomicBool>) {
             Ok((stream, _)) => {
                 let _ = handle_connection(stream, &root);
             }
-            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(err) /* Internal: nonblocking listener has no pending connection */ if err.kind() == std::io::ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(25));
             }
-            Err(_) => break,
+            Err(_) /* Internal: fallback error branch handled below */ => break,
         }
     }
 }

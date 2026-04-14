@@ -37,63 +37,63 @@ pub(super) fn handle_command(cmd: &str, result_path: &str) -> bool {
                     result_path,
                     format!("ok: navigating tab {tab_id} to {target_url}"),
                 ),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             }
         } else {
             match navigate_active_input(url.trim()) {
                 Ok(tab_id) => write_result(result_path, format!("ok: navigating tab {tab_id}")),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             }
         }
         true
     } else if cmd == "back" {
         match go_back(None) {
             Ok(()) => write_result(result_path, "ok: back"),
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(idx) = cmd.strip_prefix("back ") {
         match parse_optional_tab_id(idx) {
             Ok(target) => match go_back(target) {
                 Ok(()) => write_result(result_path, "ok: back"),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             },
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if cmd == "forward" {
         match go_forward(None) {
             Ok(()) => write_result(result_path, "ok: forward"),
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(idx) = cmd.strip_prefix("forward ") {
         match parse_optional_tab_id(idx) {
             Ok(target) => match go_forward(target) {
                 Ok(()) => write_result(result_path, "ok: forward"),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             },
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if cmd == "reload" {
         match reload_tab(None) {
             Ok(()) => write_result(result_path, "ok: reloading"),
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(idx) = cmd.strip_prefix("reload ") {
         match parse_optional_tab_id(idx) {
             Ok(target) => match reload_tab(target) {
                 Ok(()) => write_result(result_path, "ok: reloading"),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             },
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if cmd == "reload_all" {
         for tab_id in all_tab_ids() {
-            if let Err(err) = reload_tab(Some(tab_id)) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = reload_tab(Some(tab_id)) {
                 log_crash("WARN", "reload_all", &err);
             }
         }

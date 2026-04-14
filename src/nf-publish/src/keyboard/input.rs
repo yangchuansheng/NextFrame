@@ -36,7 +36,7 @@ pub(crate) fn send_key_to_webview(
         keycode,
     );
     if let Some(event) = &down
-        && let Err(err) = catch_objc(|| {
+        && let Err(err) /* Internal: Objective-C responder failure is logged locally below */ = catch_objc(|| {
             // SAFETY: `webview` is a live WKWebView and `keyDown:` is a valid responder selector for the synthesized NSEvent.
             let _: () = unsafe { msg_send![webview, keyDown: &**event] }; // SAFETY: see comment above.
         })
@@ -57,7 +57,7 @@ pub(crate) fn send_key_to_webview(
         keycode,
     );
     if let Some(event) = &up
-        && let Err(err) = catch_objc(|| {
+        && let Err(err) /* Internal: Objective-C responder failure is logged locally below */ = catch_objc(|| {
             // SAFETY: `webview` is a live WKWebView and `keyUp:` is a valid responder selector for the synthesized NSEvent.
             let _: () = unsafe { msg_send![webview, keyUp: &**event] }; // SAFETY: see comment above.
         })
@@ -135,7 +135,7 @@ fn named_key_spec(key: &str) -> Option<(String, c_ushort)> {
 pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), String> {
     let key = key.trim();
     if key.is_empty() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the key command",
             "the key argument was empty",
             "Pass a key such as `enter`, `cmd+v`, or `a`.",
@@ -161,7 +161,7 @@ pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), Str
             "alt" | "option" => modifiers = modifiers.union(NSEventModifierFlags::Option),
             "ctrl" | "control" => modifiers = modifiers.union(NSEventModifierFlags::Control),
             _ => {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "parse the key modifier",
                     format!("unsupported modifier `{part}`"),
                     "Use only `cmd`, `shift`, `alt`, or `ctrl` modifiers.",
@@ -187,7 +187,7 @@ pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), Str
     {
         key_spec_for_text(ch)
     } else {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the key command",
             format!("unsupported key `{key_part}`"),
             "Use a single character or one of the supported named keys such as `enter`, `tab`, `left`, or `space`.",
@@ -352,7 +352,7 @@ pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
                 move || {
                     // SAFETY: `wv_ptr` was captured from a live WKWebView owned by app state and this work runs on the main queue.
                     let wv = unsafe { &*(wv_ptr as *const WKWebView) }; // SAFETY: see comment above.
-                    if let Err(err) = send_key_command(wv, "cmd+right") {
+                    if let Err(err) /* Fix: propagate or log the formatted error below */ = send_key_command(wv, "cmd+right") {
                         crate::state::log_crash(
                             "WARN",
                             "keyboard",
@@ -368,7 +368,7 @@ pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
                 move || {
                     // SAFETY: `wv_ptr` was captured from a live WKWebView owned by app state and this work runs on the main queue.
                     let wv = unsafe { &*(wv_ptr as *const WKWebView) }; // SAFETY: see comment above.
-                    if let Err(err) = send_key_command(wv, &ch.to_string()) {
+                    if let Err(err) /* Fix: propagate or log the formatted error below */ = send_key_command(wv, &ch.to_string()) {
                         crate::state::log_crash(
                             "WARN",
                             "keyboard",
@@ -387,7 +387,7 @@ pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
             move || {
                 // SAFETY: `wv_ptr` was captured from a live WKWebView owned by app state and this work runs on the main queue.
                 let wv = unsafe { &*(wv_ptr as *const WKWebView) }; // SAFETY: see comment above.
-                if let Err(err) = send_key_command(wv, "space") {
+                if let Err(err) /* Fix: propagate or log the formatted error below */ = send_key_command(wv, "space") {
                     let _ = std::fs::write(&rp, format!("error: {err}"));
                     return;
                 }

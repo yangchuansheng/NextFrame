@@ -68,7 +68,7 @@ fn normalize_check_status(status: &str) -> String {
 fn write_json_result(result_path: &str, value: serde_json::Value) {
     match serde_json::to_string(&value) {
         Ok(json) => write_result(result_path, json),
-        Err(err) => write_error(result_path, err),
+        Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
     }
 }
 
@@ -217,11 +217,11 @@ pub(super) fn handle_command(
                                 screenshot_path.clone(),
                                 move |result| match result {
                                     Ok(_) => write_result(&rp, &message),
-                                    Err(err) => write_error(&rp, err),
+                                    Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&rp, err),
                                 },
                             );
                         }
-                        Err(err) => write_error(&result_path, err),
+                        Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
                     }
                 });
                 // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
@@ -231,7 +231,7 @@ pub(super) fn handle_command(
                     webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
                 }
             }
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else {

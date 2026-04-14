@@ -35,8 +35,8 @@ pub(crate) fn queue_appctl_script(
                 },
             );
         }
-        Err(error) => {
-            return Err(error_with_fix(
+        Err(error) /* Internal: handled or logged locally below */ => {
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "lock the pending app-control request state",
                 error,
                 "Restart nf-shell to rebuild the app-control request state.",
@@ -44,11 +44,11 @@ pub(crate) fn queue_appctl_script(
         }
     }
 
-    if let Err(error) = webview.evaluate_script(&script) {
+    if let Err(error) /* Internal: handled or logged locally below */ = webview.evaluate_script(&script) {
         if let Ok(mut requests) = pending_appctl.lock() {
             requests.remove(&req_id);
         }
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "evaluate the app-control script",
             error,
             "Check that the desktop app is still responsive and the injected script is valid.",

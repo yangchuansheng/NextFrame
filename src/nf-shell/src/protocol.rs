@@ -91,7 +91,7 @@ pub(crate) fn protocol_response_with_range(
                 .body(std::borrow::Cow::Owned(content))
                 .unwrap_or_else(|_| wry::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
         }
-        Err(error) => {
+        Err(error) /* Internal: handled or logged locally below */ => {
             let html_request = matches!(
                 file_path
                     .extension()

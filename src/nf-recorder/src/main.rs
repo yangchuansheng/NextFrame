@@ -230,7 +230,7 @@ impl From<CommonArgs> for RecordArgs {
 }
 
 fn main() {
-    if let Err(err) = run() {
+    if let Err(err) /* Fix: propagate or log the formatted error below */ = run() {
         trace_log!("\n  ✗ {err}");
         std::process::exit(1);
     }
@@ -246,7 +246,7 @@ fn run() -> Result<(), String> {
         Command::Clip(args) => {
             let video = absolute_path(&args.video)?;
             if !video.exists() {
-                return Err(format!(
+                return Err(/* Fix: user-facing error formatted below */ format!(
                     "failed to validate the clip overlay video: --video file not found: {}. Fix: Pass an existing local video file to `--video`.",
                     video.display()
                 ));

@@ -70,10 +70,10 @@ fn handle_selector_action(
                 let wv = unsafe { &*(wv_ptr as *const WKWebView) }; // SAFETY: see comment above.
                 match action(wv, x, y) {
                     Ok(message) => write_result(&result_path, message),
-                    Err(err) => write_error(&result_path, err),
+                    Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
                 }
             }
-            Err(err) => write_error(&result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
         }
     });
     // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
@@ -86,7 +86,7 @@ fn handle_selector_action(
 
 pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) -> bool {
     if let Some(text) = cmd.strip_prefix("paste ") {
-        if let Err(err) = paste_text(webview, text) {
+        if let Err(err) /* Fix: propagate or log the formatted error below */ = paste_text(webview, text) {
             log_crash("WARN", "commands", &format!("paste: {err}"));
             write_error(result_path, err);
         } else {
@@ -111,7 +111,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                     };
                 }) {
                     Ok(()) => "ok: movetoend".to_owned(),
-                    Err(err) => {
+                    Err(err) /* Fix: propagate or serialize the formatted error below */ => {
                         log_crash("WARN", "commands", &format!("movetoend: {err}"));
                         "ok: movetoend".to_owned()
                     }
@@ -131,7 +131,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
         let key = key.trim();
         match send_key_command(webview, key) {
             Ok(()) => write_result(result_path, format!("ok: key {key}")),
-            Err(err) => {
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => {
                 log_crash("WARN", "commands", &format!("key {key}: {err}"));
                 write_error(result_path, err);
             }
@@ -141,18 +141,18 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
         match parse_xy_args(coords.trim(), "hover_xy x y") {
             Ok((x, y)) => match native_hover_at(webview, x, y) {
                 Ok(()) => write_result(result_path, format!("ok: hovered {x},{y}")),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             },
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(coords) = cmd.strip_prefix("dblclick_xy ") {
         match parse_xy_args(coords.trim(), "dblclick_xy x y") {
             Ok((x, y)) => match native_double_click_at(webview, x, y) {
                 Ok(()) => write_result(result_path, format!("ok: double-clicked {x},{y}")),
-                Err(err) => write_error(result_path, err),
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
             },
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(coords) = cmd.strip_prefix("click ") {
@@ -188,7 +188,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                 native_hover_at(wv, x, y)?;
                 Ok(format!("ok: hovered element at {x},{y}"))
             }),
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(selector) = cmd.strip_prefix("dblclick ") {
@@ -197,7 +197,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                 native_double_click_at(wv, x, y)?;
                 Ok(format!("ok: double-clicked element at {x},{y}"))
             }),
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(selector) = cmd.strip_prefix("rightclick ") {
@@ -206,7 +206,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                 native_right_click_at(wv, x, y)?;
                 Ok(format!("ok: right-clicked element at {x},{y}"))
             }),
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(rest) = cmd.strip_prefix("drag ") {
@@ -246,7 +246,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                                             "ok: dragged from {from_x},{from_y} to {to_x},{to_y}"
                                         ),
                                     ),
-                                    Err(err) => write_error(&result_path, err),
+                                    Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
                                 }
                             }
                             _ => write_error(
@@ -278,7 +278,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                     webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
                 }
             }
-            Err(err) => write_error(result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(result_path, err),
         }
         true
     } else if let Some(selector) = cmd.strip_prefix("clickel ") {
@@ -293,7 +293,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
         let (selector, text_for_paste) =
             match parse_selector_and_value(rest, "inputel <selector> <text>") {
                 Ok(values) => values,
-                Err(err) => {
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => {
                     write_error(result_path, err);
                     return true;
                 }
@@ -327,7 +327,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                             text_for_paste.len()
                         ),
                     ),
-                    Err(err) => write_error(&result_path, err),
+                    Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
                 }
                 return;
             }

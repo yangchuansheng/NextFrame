@@ -56,7 +56,7 @@ pub(super) fn record_single(
             trace_log!("server: {}", server.base_url());
             Some(server)
         }
-        Err(err) => {
+        Err(err) /* Fix: propagate or serialize the formatted error below */ => {
             trace_log!("warn server disabled: {err}");
             trace_log!("warn falling back to file:// loadFileURL mode");
             None
@@ -254,7 +254,7 @@ pub(super) fn concat_output(
             Ok(actual) if actual > 0.0 => {
                 let delta = f64::abs(actual - expected_duration_sec);
                 if delta > 2.0 {
-                    return Err(error_with_fix(
+                    return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                         "verify the concatenated output duration",
                         format!(
                             "Internal: output duration was {actual:.1}s but expected {expected_duration_sec:.1}s (delta {delta:.1}s); segments likely have incompatible time bases"

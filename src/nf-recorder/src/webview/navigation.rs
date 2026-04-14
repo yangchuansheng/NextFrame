@@ -22,7 +22,7 @@ impl WebViewHost {
         // SAFETY: `self.web_view` and `request` are live Objective-C objects for this load call.
         let navigation = unsafe { self.web_view.loadRequest(&request) }; // SAFETY: see above.
         if navigation.is_none() {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "load the target URL into WKWebView",
                 format!(
                     "WKWebView refused loadRequest for {}",
@@ -49,7 +49,7 @@ impl WebViewHost {
                 .loadFileURL_allowingReadAccessToURL(&file_url, &read_access_url)
         };
         if navigation.is_none() {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "load the local frame file into WKWebView",
                 format!(
                     "WKWebView refused loadFileURL for {} with read access {}",
@@ -120,7 +120,7 @@ impl WebViewHost {
             }
             pump_main_run_loop(Duration::from_millis(25));
         }
-        Err(error_with_fix(
+        Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "wait for the page to finish loading",
             format!(
                 "timed out waiting for page load (readyState={last_ready_state:?}, estimatedProgress={last_progress:.3}, isLoading={last_loading}, url={last_url:?})"
@@ -170,13 +170,13 @@ impl WebViewHost {
                     }
                     return self.flush_render(Duration::from_millis(120));
                 }
-                Err(error) => {
+                Err(error) /* Internal: handled or logged locally below */ => {
                     last_error = Some(error);
                     self.flush_render(Duration::from_millis(100))?;
                 }
             }
         }
-        Err(error_with_fix(
+        Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "prepare the page for recording",
             format!(
                 "failed to run the recorder DOM setup after load: {}",

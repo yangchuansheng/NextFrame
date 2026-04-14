@@ -183,7 +183,7 @@ pub(super) fn capture_frame(
                     return Ok(image);
                 }
             }
-            Err(err) => {
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => {
                 trace_log!(
                     "warn seg {} frame {}: {} failed ({err}); falling back to {}",
                     segment_index + 1,
@@ -211,7 +211,7 @@ pub(super) fn capture_frame(
             std::thread::sleep(Duration::from_millis(100));
         }
     }
-    Err(error_with_fix(
+    Err(/* Fix: user-facing error formatted below */ error_with_fix(
         "capture a non-black frame",
         format!(
             "segment {} frame {} remained black after {} snapshot attempts",

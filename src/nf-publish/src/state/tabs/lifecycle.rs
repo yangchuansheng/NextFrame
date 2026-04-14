@@ -57,7 +57,7 @@ pub(crate) fn switch_tab(index: usize) {
             }
         }))
     };
-    if let Err(err) = result {
+    if let Err(err) /* Fix: propagate or log the formatted error below */ = result {
         log_crash("ERROR", "switch_tab", &format!("ObjC exception: {err:?}"));
         return;
     }
@@ -151,7 +151,7 @@ pub(crate) fn create_dynamic_tab(
     let nav_delegate = unsafe { &*state.nav_delegate_ptr }; // SAFETY: see comment above.
     let frame = host.frame();
     let Some(mtm) = objc2_foundation::MainThreadMarker::new() else {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "create the browser tab",
             "the main thread is not available",
             "Retry the command from the main UI thread.",
@@ -192,7 +192,7 @@ pub(crate) fn create_dynamic_tab(
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     {
         let Ok(mut tabs) = state.browser_tabs.lock() else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "update the browser tab state",
                 "the tab state lock is poisoned",
                 "Retry the command. If it keeps failing, restart nf-publish.",
@@ -243,7 +243,7 @@ pub(crate) fn close_tab(tab_id: usize) -> Result<(), String> {
         let current = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
         {
             let Ok(mut tabs) = state.browser_tabs.lock() else {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "update the browser tab state",
                     "the tab state lock is poisoned",
                     "Retry the command. If it keeps failing, restart nf-publish.",
@@ -285,14 +285,14 @@ pub(crate) fn close_tab(tab_id: usize) -> Result<(), String> {
     let current = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
     let (removed_ptr, next_active, snapshot) = {
         let Ok(mut tabs) = state.browser_tabs.lock() else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "update the browser tab state",
                 "the tab state lock is poisoned",
                 "Retry the command. If it keeps failing, restart nf-publish.",
             ));
         };
         let Some(position) = tabs.iter().position(|tab| tab.id == tab_id) else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "close the browser tab",
                 format!("tab {tab_id} was not found"),
                 "List tabs again and retry with a valid tab id.",

@@ -88,7 +88,7 @@ pub fn overlay_video_layers(recorded: &Path, layers: &[VideoOverlaySpec]) -> Res
 
     if !status.status.success() {
         let stderr = String::from_utf8_lossy(&status.stderr);
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "overlay video layers with ffmpeg",
             &stderr[stderr.len().saturating_sub(500)..],
             "Inspect the ffmpeg stderr output, verify the input files, and retry.",
@@ -134,7 +134,7 @@ pub fn overlay_video(recorded: &Path, video: &Path) -> Result<(), String> {
 
     if !status.status.success() {
         let stderr = String::from_utf8_lossy(&status.stderr);
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "overlay the source video with ffmpeg",
             &stderr[stderr.len().saturating_sub(300)..],
             "Inspect the ffmpeg stderr output, verify the input files, and retry.",

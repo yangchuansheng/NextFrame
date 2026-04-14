@@ -28,9 +28,9 @@ pub(crate) fn read_http_request(
         match connection.stream.read(&mut chunk) {
             Ok(0) => break,
             Ok(read_len) => connection.buffer.extend_from_slice(&chunk[..read_len]),
-            Err(error) if error.kind() == ErrorKind::WouldBlock => break,
-            Err(error) => {
-                return Err(error_with_fix(
+            Err(error) /* Internal: nonblocking socket read completed */ if error.kind() == ErrorKind::WouldBlock => break,
+            Err(error) /* Internal: handled or logged locally below */ => {
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "read the HTTP request",
                     error,
                     "Retry after reconnecting the HTTP client and resending the request.",

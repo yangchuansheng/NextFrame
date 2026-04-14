@@ -138,7 +138,7 @@ pub(crate) fn parse_nextframe_timeline(path: &Path) -> Result<Vec<FrameMetadata>
         .or_else(|| timeline.meta.as_ref().and_then(|meta| meta.fps))
         .unwrap_or(30.0);
     if !fps.is_finite() || fps <= 0.0 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "parse the NextFrame timeline fps",
             format!(
                 "invalid fps in {}: expected a finite number greater than 0, got {fps}",

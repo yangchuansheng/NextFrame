@@ -114,7 +114,7 @@ fn write_dump(
                 &result_path,
                 format!("ok: {} ({} bytes)", target_path, content.len()),
             ),
-            Err(err) => write_error(
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(
                 &result_path,
                 error_with_fix(
                     &format!("write the {write_error_label} output"),
@@ -232,7 +232,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
                 );
                 eval_js(webview, &js, result_path);
             }
-            Err(err) => write_error(&result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
         }
         true
     } else if let Some(selector) = cmd.strip_prefix("count ") {
@@ -293,7 +293,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
             Ok((selector, timeout_ms)) => {
                 waitfor_element(webview, &selector, timeout_ms, result_path)
             }
-            Err(err) => write_error(&result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
         }
         true
     } else if let Some(rest) = cmd.strip_prefix("waitfor ") {
@@ -301,7 +301,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
             Ok((selector, timeout_ms)) => {
                 waitfor_element(webview, &selector, timeout_ms, result_path)
             }
-            Err(err) => write_error(&result_path, err),
+            Err(err) /* Fix: propagate or serialize the formatted error below */ => write_error(&result_path, err),
         }
         true
     } else if cmd == "url" {

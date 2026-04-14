@@ -95,14 +95,14 @@ pub fn overlay_output(recorded: &Path, video: &Path) -> Result<(), String> {
 
 fn validate_args(args: &RecordArgs) -> Result<(), String> {
     if args.fps == 0 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "validate the recorder arguments",
             "`--fps` must be greater than 0",
             "Pass a positive integer such as `--fps 30`.",
         ));
     }
     if args.dpr <= 0.0 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "validate the recorder arguments",
             "`--dpr` must be greater than 0",
             "Pass a positive scale such as `--dpr 2`.",

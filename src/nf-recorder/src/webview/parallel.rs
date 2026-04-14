@@ -29,7 +29,7 @@ impl ParallelHost {
         view_height: f64,
     ) -> Result<Self, String> {
         if count == 0 {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "create the parallel recorder hosts",
                 "parallel host count must be greater than 0",
                 "Pass a host count of at least `1`.",

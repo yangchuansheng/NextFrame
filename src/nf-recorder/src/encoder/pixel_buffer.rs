@@ -55,7 +55,7 @@ pub(super) fn create_pixel_buffer_from_cgimage_scaled(
         )
     };
     if create_result != 0 || pixel_buffer.is_null() {
-        return Err(internal_error_with_fix(
+        return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
             "create the scaled pixel buffer",
             format!("CVPixelBufferCreate failed with status {create_result}"),
             "Retry the recording job after reducing output size or system load.",
@@ -67,7 +67,7 @@ pub(super) fn create_pixel_buffer_from_cgimage_scaled(
     if lock_result != 0 {
         // SAFETY: this function still owns the created `pixel_buffer` on the error path.
         unsafe { CVBufferRelease(pixel_buffer) }; // SAFETY: see above.
-        return Err(internal_error_with_fix(
+        return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
             "lock the scaled pixel buffer base address",
             format!("CVPixelBufferLockBaseAddress failed with status {lock_result}"),
             "Retry the recording job after reducing output size or system load.",
@@ -78,7 +78,7 @@ pub(super) fn create_pixel_buffer_from_cgimage_scaled(
         // SAFETY: the locked pixel buffer exposes a valid base address for direct access.
         let base_address = unsafe { CVPixelBufferGetBaseAddress(pixel_buffer) }; // SAFETY: see above.
         if base_address.is_null() {
-            return Err(internal_error_with_fix(
+            return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
                 "draw into the scaled pixel buffer",
                 "CVPixelBuffer base address was null",
                 "Retry the recording job after reducing output size or system load.",
@@ -147,17 +147,17 @@ pub(super) fn create_pixel_buffer_from_cgimage_scaled(
     if unlock_result != 0 {
         // SAFETY: this function still owns the created `pixel_buffer` on the error path.
         unsafe { CVBufferRelease(pixel_buffer) }; // SAFETY: see above.
-        return Err(internal_error_with_fix(
+        return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
             "unlock the scaled pixel buffer base address",
             format!("CVPixelBufferUnlockBaseAddress failed with status {unlock_result}"),
             "Retry the recording job after reducing output size or system load.",
         ));
     }
 
-    if let Err(err) = draw_result {
+    if let Err(err) /* Fix: propagate or log the formatted error below */ = draw_result {
         // SAFETY: the caller has not taken ownership yet, so this function must release the buffer.
         unsafe { CVBufferRelease(pixel_buffer) }; // SAFETY: see above.
-        return Err(err);
+        return Err(err); // Fix: propagate the already formatted error
     }
 
     Ok(pixel_buffer)
@@ -186,7 +186,7 @@ pub(super) fn create_pixel_buffer_from_cgimage(
         )
     };
     if create_result != 0 || pixel_buffer.is_null() {
-        return Err(internal_error_with_fix(
+        return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
             "create the pixel buffer",
             format!("CVPixelBufferCreate failed with status {create_result}"),
             "Retry the recording job after reducing output size or system load.",
@@ -198,7 +198,7 @@ pub(super) fn create_pixel_buffer_from_cgimage(
     if lock_result != 0 {
         // SAFETY: this function still owns the created `pixel_buffer` on the error path.
         unsafe { CVBufferRelease(pixel_buffer) }; // SAFETY: see above.
-        return Err(internal_error_with_fix(
+        return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
             "lock the pixel buffer base address",
             format!("CVPixelBufferLockBaseAddress failed with status {lock_result}"),
             "Retry the recording job after reducing output size or system load.",
@@ -209,7 +209,7 @@ pub(super) fn create_pixel_buffer_from_cgimage(
         // SAFETY: the locked pixel buffer exposes a valid base address for direct access.
         let base_address = unsafe { CVPixelBufferGetBaseAddress(pixel_buffer) }; // SAFETY: see above.
         if base_address.is_null() {
-            return Err(internal_error_with_fix(
+            return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
                 "draw into the pixel buffer",
                 "CVPixelBuffer base address was null",
                 "Retry the recording job after reducing output size or system load.",
@@ -290,17 +290,17 @@ pub(super) fn create_pixel_buffer_from_cgimage(
     if unlock_result != 0 {
         // SAFETY: this function still owns the created `pixel_buffer` on the error path.
         unsafe { CVBufferRelease(pixel_buffer) }; // SAFETY: see above.
-        return Err(internal_error_with_fix(
+        return Err(/* Internal: FFI/system error formatted below */ internal_error_with_fix(
             "unlock the pixel buffer base address",
             format!("CVPixelBufferUnlockBaseAddress failed with status {unlock_result}"),
             "Retry the recording job after reducing output size or system load.",
         ));
     }
 
-    if let Err(err) = draw_result {
+    if let Err(err) /* Fix: propagate or log the formatted error below */ = draw_result {
         // SAFETY: the caller has not taken ownership yet, so this function must release the buffer.
         unsafe { CVBufferRelease(pixel_buffer) }; // SAFETY: see above.
-        return Err(err);
+        return Err(err); // Fix: propagate the already formatted error
     }
 
     Ok(pixel_buffer)

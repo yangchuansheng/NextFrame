@@ -55,7 +55,7 @@ impl WebViewHost {
         );
         let result = self.eval_string(&script)?;
         if result.as_deref() == Some("no __onFrame") {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "inject frame state into the page",
                 "the page does not implement `window.__onFrame`",
                 "Implement the recorder template protocol in `window.__onFrame` and retry.",

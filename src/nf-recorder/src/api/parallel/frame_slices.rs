@@ -156,7 +156,7 @@ pub(super) fn record_parallel_single(
 
     if failed {
         let _ = fs::remove_dir_all(&temp_root);
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "complete the frame-slice recording job",
             "one or more recorder subprocesses exited with a failure",
             "Inspect the subprocess stderr output and retry the recording job.",

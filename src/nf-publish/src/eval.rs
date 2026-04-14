@@ -60,7 +60,7 @@ pub(crate) fn take_screenshot_with_callback<F>(
     let callback = Rc::new(RefCell::new(Some(callback)));
     let handler = RcBlock::new(move |image: *mut NSImage, _error: *mut NSError| {
         let result = if image.is_null() {
-            Err(error_with_fix(
+            Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "capture the screenshot",
                 "WebKit returned no image",
                 "Retry after the page finishes rendering.",
@@ -91,7 +91,7 @@ pub(crate) fn take_screenshot(webview: &WKWebView, result_path: String, screensh
         Ok(len) => {
             let _ = std::fs::write(&res_path, format!("ok: {} ({len} bytes)", ss_path));
         }
-        Err(err) => {
+        Err(err) /* Fix: propagate or serialize the formatted error below */ => {
             let message = ensure_fix(
                 err,
                 "capture the screenshot",

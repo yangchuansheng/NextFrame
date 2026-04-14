@@ -81,7 +81,7 @@ pub(crate) fn run_parallel(
     let num_procs = select_num_processes(frame_files.len(), requested, cpus);
 
     if num_procs <= 1 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "start parallel recording",
             "`--parallel 1` is equivalent to serial mode",
             "Omit `--parallel` for serial mode or set `--parallel` to at least `2`.",
@@ -180,7 +180,7 @@ pub(crate) fn run_parallel(
 
     if failed {
         let _ = fs::remove_dir_all(&temp_root);
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "complete parallel recording",
             "one or more recorder subprocesses exited with failure",
             "Inspect the subprocess warnings above, then retry with fewer workers or without `--parallel`.",
@@ -190,7 +190,7 @@ pub(crate) fn run_parallel(
     for (idx, path) in group_outputs.iter().enumerate() {
         if !path.exists() {
             let _ = fs::remove_dir_all(&temp_root);
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "collect the parallel segment output",
                 format!("group {} output was missing: {}", idx + 1, path.display()),
                 "Retry the recording job and inspect the failing subprocess output for that group.",

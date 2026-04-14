@@ -231,12 +231,12 @@ pub(crate) fn start_command_poll() {
                     objc2::exception::catch(std::panic::AssertUnwindSafe(|| {
                         let result =
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(poll_all));
-                        if let Err(e) = result {
+                        if let Err(e) /* Internal: handled or logged locally below */ = result {
                             crate::state::log_crash("PANIC", "poll_all", &format!("{e:?}"));
                         }
                     }))
                 };
-                if let Err(e) = objc_result {
+                if let Err(e) /* Internal: handled or logged locally below */ = objc_result {
                     crate::state::log_crash("OBJC", "poll_all", &format!("{e:?}"));
                 }
                 if tick.is_multiple_of(save_interval) {

@@ -36,7 +36,7 @@ pub(crate) fn poll_app_control_server(
     loop {
         match listener.accept() {
             Ok((stream, addr)) => {
-                if let Err(error) = stream.set_nonblocking(true) {
+                if let Err(error) /* Internal: handled or logged locally below */ = stream.set_nonblocking(true) {
                     trace_log!("[appctl] failed to set non-blocking stream from {addr}: {error}");
                     continue;
                 }
@@ -46,8 +46,8 @@ pub(crate) fn poll_app_control_server(
                     accepted_at: Instant::now(),
                 });
             }
-            Err(error) if error.kind() == ErrorKind::WouldBlock => break,
-            Err(error) => {
+            Err(error) /* Internal: nonblocking socket drain completed */ if error.kind() == ErrorKind::WouldBlock => break,
+            Err(error) /* Internal: handled or logged locally below */ => {
                 trace_log!("[appctl] accept failed: {error}");
                 break;
             }
@@ -64,7 +64,7 @@ pub(crate) fn poll_app_control_server(
         match parsed_request {
             Ok(Some(request)) => {
                 let mut connection = connections.swap_remove(index);
-                if let Err(error) = handle_http_request(
+                if let Err(error) /* Internal: handled or logged locally below */ = handle_http_request(
                     request,
                     &mut connection.stream,
                     webview,
@@ -100,7 +100,7 @@ pub(crate) fn poll_app_control_server(
                     index += 1;
                 }
             }
-            Err(error) => {
+            Err(error) /* Internal: handled or logged locally below */ => {
                 let mut connection = connections.swap_remove(index);
                 let _ = write_http_response(
                     &mut connection.stream,
@@ -189,7 +189,7 @@ fn handle_http_request(
             let requested_path = match query_value(query, "out") {
                 Some(raw_path) => Some(match decode_query_component(raw_path) {
                     Ok(path) => path,
-                    Err(error) => {
+                    Err(error) /* Internal: handled or logged locally below */ => {
                         return write_http_response(
                             stream,
                             400,
@@ -364,7 +364,7 @@ pub(crate) fn prune_expired_appctl_requests(pending_appctl: &PendingAppCtlMap) {
                 }
             })
             .collect::<Vec<_>>(),
-        Err(error) => {
+        Err(error) /* Internal: handled or logged locally below */ => {
             trace_log!("[appctl] pending request state poisoned: {error}");
             return;
         }

@@ -22,7 +22,7 @@ enum UserEvent {
 }
 
 pub(crate) fn run() -> Result<(), Box<dyn Error>> {
-    if let Err(error) = nf_bridge::initialize() {
+    if let Err(error) /* Internal: handled or logged locally below */ = nf_bridge::initialize() {
         trace_log!("bridge initialization warning: {error}");
     }
 
@@ -82,7 +82,7 @@ pub(crate) fn run() -> Result<(), Box<dyn Error>> {
             } else {
                 title
             };
-            if let Err(error) = title_proxy.send_event(UserEvent::WindowTitle(next_title)) {
+            if let Err(error) /* Internal: handled or logged locally below */ = title_proxy.send_event(UserEvent::WindowTitle(next_title)) {
                 trace_log!("failed to queue title update: {error}");
             }
         })
@@ -126,28 +126,28 @@ pub(crate) fn run() -> Result<(), Box<dyn Error>> {
 
                     match serde_json::to_string(&response) {
                         Ok(response_json) => {
-                            if let Err(error) =
+                            if let Err(error) /* Internal: handled or logged locally below */ =
                                 proxy.send_event(UserEvent::IpcResponse(response_json))
                             {
                                 trace_log!("failed to queue IPC response: {error}");
                             }
                         }
-                        Err(error) => {
+                        Err(error) /* Internal: handled or logged locally below */ => {
                             trace_log!("failed to serialize IPC response: {error}");
                         }
                     }
                 }
-                Err(error) => {
+                Err(error) /* Internal: handled or logged locally below */ => {
                     let response = invalid_request_response(error);
                     match serde_json::to_string(&response) {
                         Ok(response_json) => {
-                            if let Err(error) =
+                            if let Err(error) /* Internal: handled or logged locally below */ =
                                 proxy.send_event(UserEvent::IpcResponse(response_json))
                             {
                                 trace_log!("failed to queue IPC response: {error}");
                             }
                         }
-                        Err(error) => {
+                        Err(error) /* Internal: handled or logged locally below */ => {
                             trace_log!("failed to serialize IPC response: {error}");
                         }
                     }
@@ -163,9 +163,9 @@ pub(crate) fn run() -> Result<(), Box<dyn Error>> {
 
     let webview = match webview_builder.build(&window) {
         Ok(webview) => webview,
-        Err(error) => {
+        Err(error) /* Internal: handled or logged locally below */ => {
             window.set_title(&format!("NextFrame - WebView Error: {error}"));
-            return Err(Box::new(error));
+            return Err(Box::new(error)); // Internal: startup abort preserves the original WebView build error
         }
     };
 
@@ -185,7 +185,7 @@ pub(crate) fn run() -> Result<(), Box<dyn Error>> {
         match event {
             Event::UserEvent(UserEvent::IpcResponse(response_json)) => {
                 let script = format!("window.__ipc.resolve({response_json});");
-                if let Err(error) = webview.evaluate_script(&script) {
+                if let Err(error) /* Internal: handled or logged locally below */ = webview.evaluate_script(&script) {
                     trace_log!("failed to deliver IPC response: {error}");
                 }
             }

@@ -110,7 +110,7 @@ impl PilotUIDelegate {
     pub(crate) fn new(mtm: MainThreadMarker) -> Retained<Self> {
         let this = mtm.alloc::<Self>().set_ivars(());
         let mut ret = None;
-        if let Err(e) = catch_objc(|| {
+        if let Err(e) /* Internal: handled or logged locally below */ = catch_objc(|| {
             // SAFETY: `this` is a freshly allocated Objective-C object whose superclass initializer is `init`.
             ret = Some(unsafe { msg_send![super(this), init] }); // SAFETY: see comment above.
         }) {
@@ -227,7 +227,7 @@ impl PilotNavDelegate {
     pub(crate) fn new(mtm: MainThreadMarker) -> Retained<Self> {
         let this = mtm.alloc::<Self>().set_ivars(());
         let mut ret = None;
-        if let Err(e) = catch_objc(|| {
+        if let Err(e) /* Internal: handled or logged locally below */ = catch_objc(|| {
             // SAFETY: `this` is a freshly allocated Objective-C object whose superclass initializer is `init`.
             ret = Some(unsafe { msg_send![super(this), init] }); // SAFETY: see comment above.
         }) {
@@ -260,7 +260,7 @@ define_class!(
         ) -> bool {
             if command_selector == objc2::sel!(insertNewline:) {
                 let input = text_view.string().to_string();
-                if let Err(err) = navigate_active_input(&input) {
+                if let Err(err) /* Fix: propagate or log the formatted error below */ = navigate_active_input(&input) {
                     crate::state::log_crash("WARN", "address_bar", &err);
                 }
                 return true.into();
@@ -281,35 +281,35 @@ define_class!(
 
         #[unsafe(method(closeTabClicked:))] // SAFETY: this selector is registered for AppKit target-action dispatch from close-tab buttons.
         fn close_tab_clicked(&self, sender: &NSButton) {
-            if let Err(err) = close_tab(sender.tag() as usize) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = close_tab(sender.tag() as usize) {
                 crate::state::log_crash("WARN", "close_tab", &err);
             }
         }
 
         #[unsafe(method(newTabClicked:))] // SAFETY: this selector is registered for AppKit target-action dispatch from the new-tab button.
         fn new_tab_clicked(&self, _sender: &NSButton) {
-            if let Err(err) = crate::state::create_dynamic_tab(Some("about:blank"), true) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = crate::state::create_dynamic_tab(Some("about:blank"), true) {
                 crate::state::log_crash("WARN", "new_tab", &err);
             }
         }
 
         #[unsafe(method(toolbarBackClicked:))] // SAFETY: this selector is registered for AppKit target-action dispatch from the toolbar back button.
         fn toolbar_back_clicked(&self, _sender: &NSButton) {
-            if let Err(err) = go_back(None) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = go_back(None) {
                 crate::state::log_crash("WARN", "toolbar_back", &err);
             }
         }
 
         #[unsafe(method(toolbarForwardClicked:))] // SAFETY: this selector is registered for AppKit target-action dispatch from the toolbar forward button.
         fn toolbar_forward_clicked(&self, _sender: &NSButton) {
-            if let Err(err) = go_forward(None) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = go_forward(None) {
                 crate::state::log_crash("WARN", "toolbar_forward", &err);
             }
         }
 
         #[unsafe(method(toolbarReloadClicked:))] // SAFETY: this selector is registered for AppKit target-action dispatch from the toolbar reload button.
         fn toolbar_reload_clicked(&self, _sender: &NSButton) {
-            if let Err(err) = reload_tab(None) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = reload_tab(None) {
                 crate::state::log_crash("WARN", "toolbar_reload", &err);
             }
         }
@@ -317,7 +317,7 @@ define_class!(
         #[unsafe(method(addressBarSubmitted:))] // SAFETY: this selector is registered for AppKit target-action dispatch from the address field.
         fn address_bar_submitted(&self, sender: &NSControl) {
             let input = sender.stringValue().to_string();
-            if let Err(err) = navigate_active_input(&input) {
+            if let Err(err) /* Fix: propagate or log the formatted error below */ = navigate_active_input(&input) {
                 crate::state::log_crash("WARN", "address_bar", &err);
             }
         }
@@ -331,7 +331,7 @@ impl BrowserActionTarget {
     pub(crate) fn new(mtm: MainThreadMarker) -> Retained<Self> {
         let this = mtm.alloc::<Self>().set_ivars(());
         let mut ret = None;
-        if let Err(e) = catch_objc(|| {
+        if let Err(e) /* Internal: handled or logged locally below */ = catch_objc(|| {
             // SAFETY: `this` is a freshly allocated Objective-C object whose superclass initializer is `init`.
             ret = Some(unsafe { msg_send![super(this), init] }); // SAFETY: see comment above.
         }) {

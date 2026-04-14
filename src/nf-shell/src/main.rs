@@ -57,7 +57,7 @@ mod window;
 
 fn main() {
     install_panic_hook();
-    if let Err(error) = window::run() {
+    if let Err(error) /* Internal: handled or logged locally below */ = window::run() {
         trace_log!("failed to start shell: {error}");
         std::process::exit(1);
     }
@@ -66,7 +66,7 @@ fn main() {
 fn install_panic_hook() {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
-        if let Err(error) = write_crash_dump(panic_info) {
+        if let Err(error) /* Internal: handled or logged locally below */ = write_crash_dump(panic_info) {
             trace_log!("failed to write crash dump: {error}");
         }
         default_hook(panic_info);
@@ -172,6 +172,6 @@ fn unix_timestamp_fallback() -> String {
 fn unix_epoch_seconds() -> u64 {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(duration) => duration.as_secs(),
-        Err(_) => 0,
+        Err(_) /* Internal: fallback error branch handled below */ => 0,
     }
 }

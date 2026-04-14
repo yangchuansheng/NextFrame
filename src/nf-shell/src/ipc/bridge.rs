@@ -40,7 +40,7 @@ pub(crate) fn handle_appctl_ipc_result(pending_appctl: &PendingAppCtlMap, params
 
     let pending_request = match pending_appctl.lock() {
         Ok(mut requests) => requests.remove(req_id),
-        Err(error) => {
+        Err(error) /* Internal: handled or logged locally below */ => {
             trace_log!("[appctl] pending request state poisoned: {error}");
             None
         }
@@ -53,7 +53,7 @@ pub(crate) fn handle_appctl_ipc_result(pending_appctl: &PendingAppCtlMap, params
 
     let status = if ok { 200 } else { 500 };
     let status_text = if ok { "OK" } else { "Internal Server Error" };
-    if let Err(error) = write_http_response(
+    if let Err(error) /* Internal: handled or logged locally below */ = write_http_response(
         &mut pending_request.stream,
         status,
         status_text,

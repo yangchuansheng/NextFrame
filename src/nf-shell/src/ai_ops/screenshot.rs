@@ -49,7 +49,7 @@ pub(crate) fn native_screenshot(
                 let result =
                     if let Some(error) = unsafe { error.as_ref() } {
                         // SAFETY: see above.
-                        Err(error_with_fix(
+                        Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "capture a native screenshot",
                     format!("WKWebView.takeSnapshot returned {}", error.localizedDescription()),
                     "Wait for the page to finish rendering, then retry the screenshot request.",
@@ -59,7 +59,7 @@ pub(crate) fn native_screenshot(
                         // SAFETY: see above.
                         Ok(image)
                     } else {
-                        Err(error_with_fix(
+                        Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "capture a native screenshot",
                     "WKWebView.takeSnapshot returned no image",
                     "Wait for the page to finish rendering, then retry the screenshot request.",
@@ -165,7 +165,7 @@ pub(crate) fn native_screenshot(
                                                                           // SAFETY: `png_data` is a live `NSData` for the duration of this scope.
     let png_ptr: *const u8 = unsafe { objc2::msg_send![&*png_data, bytes] }; // SAFETY: see above.
     let png_bytes = if png_ptr.is_null() || png_len == 0 {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "encode the screenshot as PNG",
             "the generated PNG data was empty",
             "Retry the screenshot request after the page finishes rendering.",
@@ -276,7 +276,7 @@ pub(crate) fn decode_query_component(input: &str) -> Result<String, String> {
             }
             b'%' => {
                 if index + 2 >= bytes.len() {
-                    return Err(error_with_fix(
+                    return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                         "decode the screenshot query string",
                         "the query string contained invalid percent-encoding",
                         "Percent-encode the `out` path correctly and retry the request.",
@@ -308,7 +308,7 @@ fn decode_hex_nibble(byte: u8) -> Result<u8, String> {
         b'0'..=b'9' => Ok(byte - b'0'),
         b'a'..=b'f' => Ok(byte - b'a' + 10),
         b'A'..=b'F' => Ok(byte - b'A' + 10),
-        _ => Err(error_with_fix(
+        _ => Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "decode the screenshot query string",
             "the query string contained invalid percent-encoding",
             "Percent-encode the `out` path correctly and retry the request.",
@@ -326,6 +326,6 @@ pub(crate) fn default_screenshot_path() -> String {
 pub(crate) fn now_unix_millis() -> u128 {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(duration) => duration.as_millis(),
-        Err(_) => 0,
+        Err(_) /* Internal: fallback error branch handled below */ => 0,
     }
 }

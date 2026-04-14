@@ -61,7 +61,7 @@ pub fn collect_frame_files(cli: &CommonArgs) -> Result<Vec<PathBuf>, String> {
         return if cli.dir.is_some() {
             Ok(Vec::new())
         } else {
-            Err(error_with_fix(
+            Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "collect frame files",
                 "no frame files were provided",
                 "Pass one or more HTML frame files or use `--dir <frames-dir>`.",
@@ -73,7 +73,7 @@ pub fn collect_frame_files(cli: &CommonArgs) -> Result<Vec<PathBuf>, String> {
     } else {
         for path in &files {
             if !path.exists() {
-                return Err(error_with_fix(
+                return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                     "collect frame files",
                     format!("frame file was not found: {}", path.display()),
                     "Pass an existing HTML frame file path and retry.",
@@ -85,7 +85,7 @@ pub fn collect_frame_files(cli: &CommonArgs) -> Result<Vec<PathBuf>, String> {
         return if cli.dir.is_some() {
             Ok(Vec::new())
         } else {
-            Err(error_with_fix(
+            Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "collect frame files",
                 "none of the requested frame files exist",
                 "Verify the HTML frame file paths and retry the command.",
@@ -183,7 +183,7 @@ pub fn build_segment_plans(frame_files: &[PathBuf]) -> Result<Vec<SegmentPlan>, 
             }
             let audio_duration_sec = match probe_audio_duration(metadata.audio_path.as_deref()) {
                 Ok(dur) => dur,
-                Err(err) => {
+                Err(err) /* Fix: propagate or serialize the formatted error below */ => {
                     trace_log!("  warn {}: {err}", metadata.html_path.display());
                     0.0
                 }

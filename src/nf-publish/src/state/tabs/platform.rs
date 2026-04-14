@@ -38,7 +38,7 @@ pub(crate) fn navigate_tab_to_url(tab_id: usize, url: &str) -> Result<(), String
     })?;
     let kind = {
         let Ok(tabs) = state.browser_tabs.lock() else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "read the browser tab state",
                 "the tab state lock is poisoned",
                 "Retry the command. If it keeps failing, restart nf-publish.",
@@ -57,7 +57,7 @@ pub(crate) fn navigate_tab_to_url(tab_id: usize, url: &str) -> Result<(), String
     if let BrowserTabKind::Workspace(index) = kind
         && !workspace_allows_url(index, &normalized)
     {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "navigate the workspace tab",
             format!("workspace tab {index} only allows {}", TABS[index].url),
             "Open the target URL in a dynamic tab instead of a locked workspace tab.",
@@ -124,7 +124,7 @@ pub(crate) fn navigate_active_input(input: &str) -> Result<usize, String> {
     let active = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
     let kind = {
         let Ok(tabs) = state.browser_tabs.lock() else {
-            return Err(error_with_fix(
+            return Err(/* Fix: user-facing error formatted below */ error_with_fix(
                 "read the browser tab state",
                 "the tab state lock is poisoned",
                 "Retry the command. If it keeps failing, restart nf-publish.",

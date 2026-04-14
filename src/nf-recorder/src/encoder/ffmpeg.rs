@@ -13,7 +13,7 @@ pub fn probe_audio_duration(audio_path: Option<&Path>) -> Result<f64, String> {
         return Ok(0.0);
     };
     if !path.exists() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "inspect the audio track duration",
             format!("audio file does not exist: {}", path.display()),
             "Point the timeline audio source at an existing local file and retry.",
@@ -38,7 +38,7 @@ pub fn probe_audio_duration(audio_path: Option<&Path>) -> Result<f64, String> {
             )
         })?;
     if !output.status.success() {
-        return Err(error_with_fix(
+        return Err(/* Fix: user-facing error formatted below */ error_with_fix(
             "inspect the audio track duration",
             format!(
                 "ffprobe failed for {} with exit {}",
@@ -79,7 +79,7 @@ pub fn concat_segments(segment_paths: &[PathBuf], output_path: &Path) -> Result<
     if output.status.success() {
         return Ok(());
     }
-    Err(error_with_fix(
+    Err(/* Fix: user-facing error formatted below */ error_with_fix(
         "concatenate the recorded segments",
         String::from_utf8_lossy(&output.stderr),
         "Inspect the ffmpeg error output, then retry after fixing the segment inputs.",
@@ -211,7 +211,7 @@ pub(super) fn mux_audio_track(
     if output.status.success() {
         return Ok(());
     }
-    Err(error_with_fix(
+    Err(/* Fix: user-facing error formatted below */ error_with_fix(
         "mux audio into the recorded output",
         format!(
             "ffmpeg failed for {}: {}",
