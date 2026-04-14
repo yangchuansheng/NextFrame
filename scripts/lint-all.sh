@@ -5,11 +5,14 @@ cd "$ROOT_DIR" || exit 1
 
 FAIL=0
 LINT_DIRS=(
-  src/crates
   src/nf-bridge
+  src/nf-cli
+  src/nf-core
+  src/nf-publish
   src/nf-recorder
   src/nf-runtime
-  src/nf-shell
+  src/nf-shell-mac
+  src/nf-source
   src/nf-tts
 )
 
@@ -48,7 +51,7 @@ LOG_COUNT=$(grep -rn 'console\.log' src/nf-runtime/web/src/ --include='*.js' 2>/
 if [ "$LOG_COUNT" -gt 0 ]; then echo "FAIL: $LOG_COUNT console.log found"; FAIL=1; else echo "PASS"; fi
 
 echo "=== 8. TODO/FIXME ==="
-TODO_COUNT=$(grep -rn 'TODO\|FIXME\|HACK\|XXX' src/nf-bridge/src/ src/nf-shell/src/ src/nf-recorder/src/ src/nf-runtime/web/src/ --include='*.rs' --include='*.js' 2>/dev/null | wc -l | tr -d ' ')
+TODO_COUNT=$(grep -rn -P '//\s*(TODO|FIXME|HACK|XXX)\b|/\*\s*(TODO|FIXME|HACK|XXX)\b' "${LINT_DIRS[@]}" --include='*.rs' --include='*.js' 2>/dev/null | grep -v '/target/' | grep -v '/node_modules/' | wc -l | tr -d ' ')
 if [ "$TODO_COUNT" -gt 0 ]; then echo "FAIL: $TODO_COUNT TODO/FIXME found"; FAIL=1; else echo "PASS"; fi
 
 echo "=== 9. scene cross-import ==="

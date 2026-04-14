@@ -296,8 +296,8 @@ fn whisper_script_path() -> Result<PathBuf> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     for parent in exe.ancestors() {
         for relative in [
+            "src/nf-source/transcribe/scripts/whisper_transcribe.py",
             "src/crates/nf-transcribe/scripts/whisper_transcribe.py",
-            "crates/nf-transcribe/scripts/whisper_transcribe.py",
         ] {
             let candidate = parent.join(relative);
             if candidate.exists() {
@@ -307,7 +307,7 @@ fn whisper_script_path() -> Result<PathBuf> {
     }
 
     bail!(
-        "src/crates/nf-transcribe/scripts/whisper_transcribe.py not found (set SPLICE_WHISPER_SCRIPT)"
+        "src/nf-source/transcribe/scripts/whisper_transcribe.py not found (set SPLICE_WHISPER_SCRIPT)"
     )
 }
 
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn whisper_script_resolves_from_source_tree() -> Result<()> {
         let path = whisper_script_path()?;
-        assert!(path.ends_with("src/crates/nf-transcribe/scripts/whisper_transcribe.py"));
+        assert!(path.ends_with("scripts/whisper_transcribe.py"));
         Ok(())
     }
 }
