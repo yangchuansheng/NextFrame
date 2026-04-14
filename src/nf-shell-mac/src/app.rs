@@ -172,6 +172,18 @@ pub fn run() {
     window.setTitle(&NSString::from_str("NextFrame"));
     window.center();
 
+    // Window background matches app background — prevents gray flash during resize
+    unsafe {
+        let bg_color: *mut AnyObject = msg_send![
+            objc2::class!(NSColor),
+            colorWithRed: 0.020f64,
+            green: 0.020f64,
+            blue: 0.027f64,
+            alpha: 1.0f64
+        ]; // #050507
+        let _: () = msg_send![&window, setBackgroundColor: bg_color];
+    }
+
     // Transparent titlebar
     unsafe {
         // SAFETY: `window` is a live NSWindow and both setters are standard NSWindow configuration.
