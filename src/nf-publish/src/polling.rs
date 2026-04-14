@@ -6,8 +6,9 @@ use objc2_web_kit::WKWebView;
 
 use crate::commands::run_command;
 use crate::state::{
-    APP_STATE, LEGACY_CMD, LEGACY_RESULT, LEGACY_SCREENSHOT, POLL_MS, TABS, all_tab_ids,
-    check_session, cmd_file, current_webview, result_file, screenshot_file, webview_for_tab,
+    APP_STATE, LEGACY_CMD, LEGACY_RESULT, LEGACY_SCREENSHOT, POLL_MS, SessionStatus, TABS,
+    all_tab_ids, check_session, cmd_file, current_webview, result_file, screenshot_file,
+    webview_for_tab,
 };
 
 /// Try to read and process a command file. Returns the command string if found.
@@ -70,51 +71,45 @@ fn evaluate_session_for_tab(tab: usize, webview: &WKWebView) {
     let handler = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
         if !error.is_null() {
             crate::state::log_crash("WARN", "session_check", &format!("tab {tab} JS error"));
-            check_session(tab, "expired");
+            check_session(tab, SessionStatus::Expired);
             return;
         }
-        let status = if result.is_null() {
+        let raw = if result.is_null() {
             "expired".to_owned()
         } else {
             // SAFETY: this JS wrapper normalizes non-null results to NSString.
             let s: &NSString = unsafe { &*(result as *const NSString) }; // SAFETY: see comment above.
             s.to_string()
         };
-        match status.as_str() {
-            "alive" => check_session(tab, "alive"),
-            "expired" => check_session(tab, "expired"),
-            "__session_pending" => {
+        let status = SessionStatus::from_js_result(&raw);
+        match status {
+            SessionStatus::Alive => check_session(tab, SessionStatus::Alive),
+            SessionStatus::Expired => check_session(tab, SessionStatus::Expired),
+            SessionStatus::Pending => {
                 // fetch() is async — schedule a follow-up read after 3 seconds
                 dispatch::Queue::main().exec_after(std::time::Duration::from_secs(3), move || {
                     let read_js = NSString::from_str("window.__sessionCheck||'expired'");
                     // SAFETY: `wv_ptr` was captured from a live WKWebView and this follow-up runs on the main queue while that tab exists.
                     let wv = unsafe { &*(wv_ptr as *const WKWebView) }; // SAFETY: see comment above.
                     let handler2 = RcBlock::new(move |result: *mut AnyObject, _: *mut NSError| {
-                        let s = if !result.is_null() {
+                        let raw = if !result.is_null() {
                             // SAFETY: this JS wrapper normalizes non-null results to NSString.
                             let ns: &NSString = unsafe { &*(result as *const NSString) }; // SAFETY: see comment above.
                             ns.to_string()
                         } else {
                             "expired".to_owned()
                         };
-                        match s.as_str() {
-                            "alive" => check_session(tab, "alive"),
-                            "pending" => { /* still pending, will catch next cycle */ }
-                            _ => check_session(tab, "expired"),
+                        let followup = SessionStatus::from_js_result(&raw);
+                        match followup {
+                            SessionStatus::Alive => check_session(tab, SessionStatus::Alive),
+                            SessionStatus::Pending => { /* still pending, will catch next cycle */ }
+                            SessionStatus::Expired => check_session(tab, SessionStatus::Expired),
                         }
                     });
                     unsafe { // SAFETY: `wv` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
                         wv.evaluateJavaScript_completionHandler(&read_js, Some(&handler2));
                     }
                 });
-            }
-            other => {
-                crate::state::log_crash(
-                    "WARN",
-                    "session_check",
-                    &format!("tab {tab} unexpected: {other}"),
-                );
-                check_session(tab, "expired");
             }
         }
     });

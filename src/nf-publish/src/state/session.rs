@@ -4,6 +4,39 @@ use super::{
     persistence, tabs, timestamp_now, trim_history, url_host, webview_for_tab,
 };
 
+/// Session health status returned by JS evaluation in WKWebView tabs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SessionStatus {
+    /// The platform session cookie is valid and the user is logged in.
+    Alive,
+    /// The session has expired or the user is logged out.
+    Expired,
+    /// A JS Promise is still resolving; the result will arrive in a later poll cycle.
+    Pending,
+}
+
+impl SessionStatus {
+    /// Parses the raw string returned by `evaluateJavaScript` into a typed status.
+    /// JS wrappers in `polling.rs` normalize results to `"alive"`, `"expired"`,
+    /// or `"__session_pending"`.
+    pub(crate) fn from_js_result(s: &str) -> Self {
+        match s {
+            "alive" => Self::Alive,
+            "__session_pending" | "pending" => Self::Pending,
+            _ => Self::Expired,
+        }
+    }
+
+    /// Returns the persistence string stored in `SessionState.status`.
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Alive => "alive",
+            Self::Expired => "expired",
+            Self::Pending => "pending",
+        }
+    }
+}
+
 /// Converts persisted session status strings into bookmark-bar status dots.
 /// `"alive"` becomes `Some(true)`, `"expired"` becomes `Some(false)`, and unknown stays `None`.
 pub(crate) fn session_statuses(sessions: &[SessionState]) -> Vec<Option<bool>> {
@@ -19,13 +52,14 @@ pub(crate) fn session_statuses(sessions: &[SessionState]) -> Vec<Option<bool>> {
 
 /// Updates the stored session state for a workspace tab after a session health check.
 /// Changes are persisted and may trigger automatic recovery navigation for alive sessions.
-pub(crate) fn check_session(tab: usize, status: &str) {
+pub(crate) fn check_session(tab: usize, status: SessionStatus) {
     let Some(state) = APP_STATE.get() else { return };
     let is_alive = match status {
-        "alive" => true,
-        "expired" => false,
-        _ => return,
+        SessionStatus::Alive => true,
+        SessionStatus::Expired => false,
+        SessionStatus::Pending => return,
     };
+    let status_str = status.as_str();
     let now = timestamp_now();
     let (changed, snapshot) = {
         let Ok(mut statuses) = state.session_status.lock() else {
@@ -40,7 +74,7 @@ pub(crate) fn check_session(tab: usize, status: &str) {
         let previous = statuses[tab];
         let session = &mut sessions[tab];
         session.label = TABS[tab].label.to_owned();
-        session.status = Some(status.to_owned());
+        session.status = Some(status_str.to_owned());
         session.last_check = Some(now.clone());
         if is_alive {
             session.last_alive = Some(now.clone());
@@ -50,7 +84,7 @@ pub(crate) fn check_session(tab: usize, status: &str) {
         let changed = previous != Some(is_alive);
         if changed {
             session.history.push(SessionHistoryEntry {
-                event: status.to_owned(),
+                event: status_str.to_owned(),
                 ts: now.clone(),
             });
         }
@@ -62,7 +96,7 @@ pub(crate) fn check_session(tab: usize, status: &str) {
     tabs::refresh_sidebar_button_title(tab);
     if changed {
         let platform = TABS.get(tab).map(|value| value.label).unwrap_or("?");
-        log_activity("session", platform, status);
+        log_activity("session", platform, status_str);
     }
 
     if is_alive
@@ -128,5 +162,43 @@ mod tests {
             session_statuses(&sessions),
             vec![Some(true), Some(false), None, None]
         );
+    }
+
+    #[test]
+    fn from_js_result_parses_alive() {
+        assert_eq!(SessionStatus::from_js_result("alive"), SessionStatus::Alive);
+    }
+
+    #[test]
+    fn from_js_result_parses_expired() {
+        assert_eq!(
+            SessionStatus::from_js_result("expired"),
+            SessionStatus::Expired
+        );
+    }
+
+    #[test]
+    fn from_js_result_parses_session_pending() {
+        assert_eq!(
+            SessionStatus::from_js_result("__session_pending"),
+            SessionStatus::Pending
+        );
+    }
+
+    #[test]
+    fn from_js_result_parses_pending() {
+        assert_eq!(
+            SessionStatus::from_js_result("pending"),
+            SessionStatus::Pending
+        );
+    }
+
+    #[test]
+    fn from_js_result_treats_unknown_as_expired() {
+        assert_eq!(
+            SessionStatus::from_js_result("something_else"),
+            SessionStatus::Expired
+        );
+        assert_eq!(SessionStatus::from_js_result(""), SessionStatus::Expired);
     }
 }

@@ -34,7 +34,7 @@ pub(crate) use persistence::{
 #[cfg(test)]
 pub(crate) use persistence::save_browser_session_snapshot;
 #[allow(unused_imports)]
-pub(crate) use session::{check_session, session_statuses};
+pub(crate) use session::{SessionStatus, check_session, session_statuses};
 #[allow(unused_imports)]
 pub(crate) use tabs::{
     BrowserTabInfo, BrowserTabView, all_tab_ids, all_tab_infos, close_tab, create_dynamic_tab,
