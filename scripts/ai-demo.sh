@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SAMPLE_PATH="$ROOT_DIR/poc/samples/welcome.nfproj"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nextframe-ai-demo.XXXXXX")"
 TMP_TIMELINE="$TMP_DIR/welcome-from-ai.nfproj"

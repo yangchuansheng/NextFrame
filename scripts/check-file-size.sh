@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fail if any .rs source file exceeds 500 lines (test files excluded)
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR" || exit 1
 
 MAX=500
