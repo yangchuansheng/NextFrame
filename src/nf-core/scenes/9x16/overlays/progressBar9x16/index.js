@@ -34,7 +34,8 @@ export function render(t, params, vp) {
   const height = Math.max(1, Number.isFinite(params.height) ? params.height : 2);
   const left = scaleW(vp, 82, 1080);
   const width = vp.width - left * 2;
-  const top = scaleH(vp, 1560, 1920);
+  // Reference: old clip-slide .progress-bar top:748 (×2=1496) in 540×960
+  const top = scaleH(vp, 1496, 1920);
   const fill = Math.round(width * progress);
   const tickCount = 5;
   const tickSize = scaleW(vp, 3, 1080);

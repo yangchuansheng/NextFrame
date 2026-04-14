@@ -36,10 +36,11 @@ export function render(t, params, vp) {
   const seriesColor = params.seriesColor || TOKENS.interview.gold;
   const titleColor = params.titleColor || TOKENS.interview.text;
   const alpha = fadeIn(t, 0, 0.55);
-  const seriesY = scaleH(vp, 60, 1920);
-  const titleY = scaleH(vp, 110, 1920);
-  const sidePad = scaleW(vp, 72, 1080);
-  const seriesSize = scaleW(vp, 16, 1080);
+  // Reference: old clip-slide .std-header top:0 height:130 (×2=260) in 540×960
+  const seriesY = scaleH(vp, 170, 1920);
+  const titleY = scaleH(vp, 200, 1920);
+  const sidePad = scaleW(vp, 80, 1080);
+  const seriesSize = scaleW(vp, 22, 1080);
   const titleSize = scaleW(vp, 36, 1080);
   return `<div style="position:absolute;inset:0;pointer-events:none;opacity:${alpha}">
   <div style="position:absolute;left:0;top:${seriesY}px;width:${vp.width}px;text-align:center">

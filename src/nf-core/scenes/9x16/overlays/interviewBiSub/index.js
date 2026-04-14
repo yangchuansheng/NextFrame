@@ -24,7 +24,8 @@ export const meta = {
     en: { type: "string", default: "", label: "英文字幕(静态)", group: "content" },
     zhColor: { type: "color", default: TOKENS.interview.gold, label: "中文颜色", group: "color" },
     enColor: { type: "color", default: "rgba(245,236,224,0.6)", label: "英文颜色", group: "color" },
-    yPct: { type: "number", default: 72, label: "垂直位置(%)", group: "layout", range: [20, 95], step: 1 },
+    // Reference: subs-zone sits between video bottom (820px) and time-info (1186px), center ~950px = 49.5%
+    yPct: { type: "number", default: 50, label: "垂直位置(%)", group: "layout", range: [20, 95], step: 1 },
   },
   ai: {
     when: "访谈视频字幕。支持两种模式：1) srt 数组（时间同步），2) 静态 zh/en 字符串。",

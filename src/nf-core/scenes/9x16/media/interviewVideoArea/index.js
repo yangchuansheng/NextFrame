@@ -33,9 +33,10 @@ export function render(t, params, vp) {
   const placeholderTextColor = params.placeholderTextColor || TOKENS.interview.muted;
   const placeholderText = esc(params.placeholderText || "视频区域");
   const borderRadius = Number.isFinite(params.borderRadius) ? params.borderRadius : 12;
-  const top = scaleH(vp, 220, 1920);
-  const height = scaleH(vp, 600, 1920);
-  const pad = scaleW(vp, 40, 1080);
+  // Reference: old clip-slide .video-area top:138 height:269 (×2=276,538) in 540×960
+  const top = scaleH(vp, 276, 1920);
+  const height = scaleH(vp, 538, 1920);
+  const pad = scaleW(vp, 80, 1080);
   const width = vp.width - pad * 2;
   const radius = scaleW(vp, borderRadius, 1080);
   const alpha = fadeIn(t, 0, 0.45);

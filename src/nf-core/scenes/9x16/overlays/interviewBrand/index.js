@@ -41,8 +41,9 @@ export function render(t, params, vp) {
   const brandColor = params.brandColor || TOKENS.interview.gold;
   const subColor = params.subColor || "rgba(245,236,224,0.22)";
   const alpha = fadeIn(t, 0.12, 0.55);
-  const dividerY = scaleH(vp, 1670, 1920);
-  const top = scaleH(vp, 1718, 1920);
+  // Reference: old clip-slide .brand-bar top:795 (×2=1590), .deco-line-h at 790 (×2=1580)
+  const dividerY = scaleH(vp, 1580, 1920);
+  const top = scaleH(vp, 1590, 1920);
   const side = scaleW(vp, 80, 1080);
   const brandSize = scaleW(vp, 20, 1080);
   const subSize = scaleW(vp, 11, 1080);

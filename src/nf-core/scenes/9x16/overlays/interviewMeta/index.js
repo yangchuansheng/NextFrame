@@ -52,9 +52,10 @@ export function render(t, params, vp) {
   const tagText = params.tagText || TOKENS.interview.tagText;
   const tagBg = params.tagBg || TOKENS.interview.tagBg;
   const alpha = fadeIn(t, 0.08, 0.5);
-  const metaY = scaleH(vp, 1218, 1920);
-  const watchingY = scaleH(vp, 1290, 1920);
-  const tagsY = scaleH(vp, 1360, 1920);
+  // Reference: old clip-slide .time-info top:593 .topic-zone top:612 (×2=1186,1224)
+  const metaY = scaleH(vp, 1186, 1920);
+  const watchingY = scaleH(vp, 1224, 1920);
+  const tagsY = scaleH(vp, 1310, 1920);
   const left = scaleW(vp, 82, 1080);
   const right = scaleW(vp, 82, 1080);
   const metaSize = scaleW(vp, 13, 1080);
