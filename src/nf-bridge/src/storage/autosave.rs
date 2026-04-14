@@ -64,7 +64,8 @@ pub(crate) fn handle_autosave_list(_params: &Value) -> Result<Value, String> {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(json!([])),
         Err(error) => {
-            return Err(format!( // Fix: included in the error string below
+            return Err(format!(
+                // Fix: included in the error string below
                 "failed to inspect autosave directory '{}': {error}",
                 autosave_dir.display()
             ));
@@ -72,7 +73,8 @@ pub(crate) fn handle_autosave_list(_params: &Value) -> Result<Value, String> {
     };
 
     if !metadata.is_dir() {
-        return Err(format!( // Fix: included in the error string below
+        return Err(format!(
+            // Fix: included in the error string below
             "autosave path is not a directory: {}",
             autosave_dir.display()
         ));
@@ -107,7 +109,8 @@ pub(crate) fn handle_autosave_clear(params: &Value) -> Result<Value, String> {
         Ok(()) => true,
         Err(error) if error.kind() == ErrorKind::NotFound => false,
         Err(error) => {
-            return Err(format!( // Fix: included in the error string below
+            return Err(format!(
+                // Fix: included in the error string below
                 "failed to clear autosave '{}': {error}",
                 autosave_path.display()
             ));

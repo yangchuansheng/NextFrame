@@ -57,5 +57,8 @@ fn dispatch_episode_create_with_nonexistent_project_returns_error() {
     assert!(!response.ok);
     assert_eq!(response.id, "req-episode.create");
     assert_eq!(response.result, Value::Null);
-    assert_error_contains(response.error.as_deref(), "project 'missing-project' not found");
+    assert_error_contains(
+        response.error.as_deref(),
+        "project 'missing-project' not found",
+    );
 }

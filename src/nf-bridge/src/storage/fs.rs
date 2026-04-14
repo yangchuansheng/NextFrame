@@ -119,7 +119,8 @@ pub(crate) fn handle_fs_write_base64(params: &Value) -> Result<Value, String> {
 pub(crate) fn validate_path(raw_path: &str) -> Result<PathBuf, String> {
     let normalized = raw_path.trim();
     if normalized.is_empty() {
-        return Err( // Fix: included in the error string below
+        return Err(
+            // Fix: included in the error string below
             "failed to validate path: value is empty. Fix: provide a non-empty path.".to_string(),
         );
     }

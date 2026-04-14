@@ -78,5 +78,8 @@ fn dispatch_export_mux_audio_without_audio_sources_keeps_existing_output() {
         fs::read_to_string(&output_path).expect("read output video"),
         "silent-video"
     );
-    assert!(!video_path.exists(), "expected intermediate source video to be removed");
+    assert!(
+        !video_path.exists(),
+        "expected intermediate source video to be removed"
+    );
 }

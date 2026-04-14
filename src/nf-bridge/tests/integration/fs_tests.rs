@@ -147,7 +147,10 @@ fn dispatch_fs_write_with_empty_path_returns_error() {
     assert!(!response.ok);
     assert_eq!(response.id, "req-fs.write");
     assert_eq!(response.result, Value::Null);
-    assert_error_contains(response.error.as_deref(), "failed to validate path: value is empty");
+    assert_error_contains(
+        response.error.as_deref(),
+        "failed to validate path: value is empty",
+    );
 }
 
 #[test]
@@ -173,7 +176,10 @@ fn dispatch_fs_write_base64_decodes_data_url_payload() {
             "bytesWritten": 12,
         })
     );
-    assert_eq!(fs::read(&path).expect("read decoded bytes"), b"hello base64");
+    assert_eq!(
+        fs::read(&path).expect("read decoded bytes"),
+        b"hello base64"
+    );
 }
 
 #[test]

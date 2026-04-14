@@ -1,35 +1,31 @@
-# NextFrame Standards — Index
+# NextFrame Standards
 
-12 份规范，覆盖产品全生命周期。AI 和人都读这里。
+Two layers: **general** (any Rust/JS project) + **project** (NextFrame specific).
+Plus a scorecard for automated quality audits.
 
-## 地基（不定死就翻车）
+## General Standards（通用，任何项目适用）
 
-| # | 文件 | 内容 |
-|---|------|------|
-| 01 | data-contract.md | Timeline JSON Schema、版本兼容、迁移策略 |
-| 02 | module-interface.md | 31 个 IPC 方法契约、错误码体系 |
-| 03 | component-contract.md | 场景组件接口规范、params schema |
+| # | File | Scope |
+|---|------|-------|
+| G1 | general/code-standards.md | Code quality + comments + naming + lint rules |
+| G2 | general/architecture.md | Module layering + dependencies + file size + contracts |
+| G3 | general/testing.md | Test pyramid + coverage + AI-friendly testing |
+| G4 | general/agent-experience.md | AI self-description + self-validation + self-repair + CLAUDE.md/AGENTS.md + readability |
+| G5 | general/release.md | Versioning + changelog + build + distribution |
+| G6 | general/spec-structure.md | Documentation hierarchy + ADR + BDD + lifecycle |
 
-## 架构（不定好就欠债）
+## Project Standards（NextFrame 特有）
 
-| # | 文件 | 内容 |
-|---|------|------|
-| 04 | ai-interaction.md | AI 操作协议、5 步节奏、自描述/自验证/自纠错 |
-| 05 | visual-language.md | 配色 token、字体梯度、间距系统、动画曲线（待定设计） |
-| 06 | performance.md | 帧渲染/IPC/启动时间预算 |
+| # | File | Scope |
+|---|------|-------|
+| P1 | project/data-contract.md | Timeline JSON schema + version compat + migration |
+| P2 | project/module-interface.md | 31 IPC methods + Shell HTTP API + error format |
+| P3 | project/component-contract.md | Scene component interface + params + describe() |
+| P4 | project/visual-language.md | Color tokens + typography + spacing + animation |
+| P5 | project/performance.md | Frame render / IPC / startup time budgets |
 
-## 流程（长期必须）
+## Quality Scorecard
 
-| # | 文件 | 内容 |
-|---|------|------|
-| 07 | testing.md | 测试金字塔：单测/集成/截图验证覆盖要求 |
-| 08 | release.md | 版本号、changelog、构建、分发 |
-| 09 | code-quality.md | 模块分层 + 文件规则 + 编码规则 + 门禁脚本 |
-
-## AI 开发（让 AI 不可能犯错）
-
-| # | 文件 | 内容 |
-|---|------|------|
-| 10 | ai-dev-environment.md | 3 层防线：编译期拦截 + 运行时可观测 + 验证期断言 |
-| 11 | comments.md | 英文注释、why not what、密度、模块头 |
-| 12 | agent-readability.md | CLAUDE.md 规范、Gold Standard、域知识内嵌、不重名 |
+| File | Purpose |
+|------|---------|
+| scorecard.md | 15-dimension audit framework + report template |
