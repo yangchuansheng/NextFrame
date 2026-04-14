@@ -1,4 +1,4 @@
-// Build HTML from src/nf-core/scenes discovery instead of legacy runtime scenes-v2.
+// Build HTML from src/nf-core/scenes discovery and inline scene modules.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
