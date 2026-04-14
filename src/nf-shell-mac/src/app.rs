@@ -108,6 +108,18 @@ define_class!(
             if msg == WINDOW_DRAG_MESSAGE {
                 start_window_drag(window);
             } else if msg == "zoom_window" {
+                // Use zoom with animation context for smooth transition
+                unsafe {
+                    let _: () = objc2::msg_send![
+                        objc2::class!(NSAnimationContext),
+                        runAnimationGroup: &*block2::RcBlock::new(move |ctx: *mut AnyObject| {
+                            let _: () = objc2::msg_send![ctx, setDuration: 0.25f64];
+                        }),
+                        completionHandler: &*block2::RcBlock::new(|| {
+                            // noop — zoom handles its own completion
+                        })
+                    ];
+                }
                 window.zoom(None);
             }
         }
@@ -358,10 +370,11 @@ fn register_resize_observer(window: &NSWindow) {
         // SAFETY: The default notification center is process-global and the observed window outlives the app run loop.
         let center: *mut AnyObject = msg_send![objc2::class!(NSNotificationCenter), defaultCenter];
 
+        // Only reposition AFTER animations/resize complete — not during.
+        // NSWindowDidResizeNotification fires every frame during zoom → causes jank.
         let names = [
-            "NSWindowDidResizeNotification",
-            "NSWindowDidBecomeKeyNotification",
             "NSWindowDidEndLiveResizeNotification",
+            "NSWindowDidBecomeKeyNotification",
             "NSWindowDidExitFullScreenNotification",
         ];
 
