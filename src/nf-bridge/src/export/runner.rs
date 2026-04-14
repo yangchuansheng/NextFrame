@@ -46,7 +46,7 @@ pub(crate) fn run_embedded_recorder(
         return canceled_export_error();
     }
 
-    if let Some(mode) = env::var("NF_BRIDGE_TEST_EXPORT_MODE").ok() {
+    if let Ok(mode) = env::var("NF_BRIDGE_TEST_EXPORT_MODE") {
         return run_test_export(mode.as_str(), &request, &mut log_file);
     }
 
