@@ -1,292 +1,266 @@
-// 智能切片 Tab — Source videos + clips display
+// 智能切片 Tab — matches clips-d-final.html prototype
 let scSources = [];
 let scActiveSource = 0;
 let scClips = [];
 let scSentences = {};
 
+function scEscape(v) { return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function scTc(s) { if (typeof s !== 'number') return '00:00.0'; const m = Math.floor(s / 60); return String(m).padStart(2,'0') + ':' + (s % 60).toFixed(1).padStart(4,'0'); }
+function scNfUrl(path) { if (!path) return ''; const i = path.indexOf('/projects/'); return i >= 0 ? 'nfdata://localhost/' + encodeURI(path.substring(i + '/projects/'.length)) : path; }
+
 function loadSmartClips() {
   if (typeof bridgeCall !== 'function' || !window.currentEpisodePath) return;
-  const srcDir = window.currentEpisodePath + '/sources';
+  const ep = window.currentEpisodePath;
+  const srcDir = ep + '/sources';
 
-  // Load sources + clips in parallel
   Promise.all([
     bridgeCall('fs.listDir', { path: srcDir }).catch(function() { return { entries: [] }; }),
-    bridgeCall('source.clips', { episode: window.currentEpisodePath }).catch(function() { return { clips: [] }; })
-  ]).then(function(results) {
-    const entries = results[0].entries || [];
-    scClips = results[1].clips || [];
+    bridgeCall('source.clips', { episode: ep }).catch(function() { return { clips: [] }; })
+  ]).then(function(r) {
+    const entries = r[0].entries || [];
+    scClips = r[1].clips || [];
 
-    // Find video files and pair with sentences
-    const videoExts = ['.mp4', '.mov', '.webm', '.mkv'];
-    const videos = entries.filter(function(e) {
-      return e.name && videoExts.some(function(ext) { return e.name.endsWith(ext); });
-    });
-    const sentFiles = entries.filter(function(e) {
-      return e.name && e.name.endsWith('-sentences.json');
-    });
+    const vExts = ['.mp4','.mov','.webm','.mkv'];
+    const videos = entries.filter(function(e) { return e.name && vExts.some(function(x) { return e.name.endsWith(x); }); });
+    const sents = entries.filter(function(e) { return e.name && e.name.endsWith('-sentences.json'); });
 
     scSources = videos.map(function(v) {
-      const baseName = v.name.replace(/\.[^.]+$/, '');
-      const sentFile = sentFiles.find(function(s) { return s.name.startsWith(baseName); });
-      return {
-        name: v.name,
-        path: srcDir + '/' + v.name,
-        sentencesPath: sentFile ? srcDir + '/' + sentFile.name : null
-      };
+      const base = v.name.replace(/\.[^.]+$/, '');
+      const sf = sents.find(function(s) { return s.name.startsWith(base); });
+      return { name: v.name, path: srcDir + '/' + v.name, sentencesPath: sf ? srcDir + '/' + sf.name : null };
     });
 
-    renderSourceList();
-    if (scSources.length > 0) selectSmartSource(0);
-    else { renderSourceDetail(); renderClipCards(); }
+    scRenderSidebar();
+    if (scSources.length > 0) scSelectSource(0);
+    else scRenderMain();
   });
 }
 
-function renderSourceList() {
-  const sidebar = document.querySelector('#pl-tab-asset .pl-sidebar');
-  if (!sidebar) return;
-  let html = '<div style="padding:16px 16px 12px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--t50)">源视频</div>';
-  if (scSources.length === 0) {
-    html += '<div style="padding:16px;font-size:13px;color:var(--t50)">暂无源视频</div>';
-  }
-  scSources.forEach(function(src, i) {
-    html += '<div class="sc-src-item' + (i === scActiveSource ? ' active' : '') + '" data-nf-action="select-source" onclick="selectSmartSource(' + i + ')">' +
-      '<div class="sc-src-name">' + escapeHtml(src.name) + '</div>' +
-      '<div class="sc-src-meta"><span>' + escapeHtml(src.duration || '—') + '</span><span>' + escapeHtml(src.resolution || '—') + '</span></div>' +
-      '<div class="sc-src-clips-count">' + scClips.length + ' clips</div>' +
-    '</div>';
-  });
-  sidebar.innerHTML = html;
-}
-
-function selectSmartSource(i) {
+function scSelectSource(i) {
   scActiveSource = i;
-  renderSourceList();
-  renderSourceDetail();
-  // Load sentences for this source
+  scRenderSidebar();
   const src = scSources[i];
   if (src && src.sentencesPath) {
-    bridgeCall('fs.read', { path: src.sentencesPath }).then(function(data) {
-      const raw = data.contents || data.content || '';
-      let parsed;
-      try { parsed = typeof raw === 'object' ? raw : JSON.parse(raw); } catch(e) { parsed = {}; }
-      scSentences = parsed;
-      renderSourceDetail();
-      renderClipCards();
-    }).catch(function() { scSentences = {}; });
+    bridgeCall('fs.read', { path: src.sentencesPath }).then(function(d) {
+      const raw = d.contents || d.content || '';
+      try { scSentences = typeof raw === 'object' ? raw : JSON.parse(raw); } catch(e) { scSentences = {}; }
+      scRenderMain();
+    }).catch(function() { scSentences = {}; scRenderMain(); });
   } else {
     scSentences = {};
-    renderClipCards();
+    scRenderMain();
   }
 }
 
-function renderSourceDetail() {
-  const main = document.querySelector('#pl-tab-asset .pl-main');
-  if (!main) return;
+function scRenderSidebar() {
+  const el = document.querySelector('#pl-tab-asset .pl-sidebar');
+  if (!el) return;
+  let h = '<div style="padding:16px 16px 12px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--t50)">源视频</div>';
+  if (!scSources.length) { h += '<div style="padding:16px;font-size:13px;color:var(--t50)">暂无源视频</div>'; }
+  scSources.forEach(function(s, idx) {
+    h += '<div class="sc-src-item' + (idx === scActiveSource ? ' active' : '') + '" data-nf-action="select-source" onclick="scSelectSource(' + idx + ')">' +
+      '<div class="sc-src-name">' + scEscape(s.name) + '</div>' +
+      '<div class="sc-src-meta"><span>' + scEscape(s.duration || '—') + '</span><span>' + scEscape(s.resolution || '—') + '</span></div>' +
+      '<div class="sc-src-clips-count">' + (scSentences.total_sentences || 0) + ' 句 · ' + scClips.length + ' clips</div>' +
+    '</div>';
+  });
+  el.innerHTML = h;
+}
+
+function scRenderMain() {
+  const el = document.querySelector('#pl-tab-asset .pl-main');
+  if (!el) return;
   const src = scSources[scActiveSource];
-  if (!src) {
-    main.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">选择一个源视频</div>';
-    return;
-  }
+  if (!src) { el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">暂无源视频</div>'; return; }
 
-  const srcPath = toNfdataUrl(src.path);
-  let html = '';
+  const allSents = (scSentences && scSentences.sentences) || [];
+  let h = '';
 
-  // Header
-  html += '<div class="glass sc-detail-header"><div class="sc-detail-top">' +
-    '<div class="sc-detail-name">' + escapeHtml(src.name) + '</div>' +
-    '<button class="sc-preview-btn" data-nf-action="preview-source" onclick="openSmartPlayer(-1)">&#9654; 预览原视频</button>' +
+  // Detail header (glass)
+  h += '<div class="glass sc-detail-header"><div class="sc-detail-top">' +
+    '<div class="sc-detail-name">' + scEscape(src.name) + '</div>' +
+    '<button class="sc-preview-btn" data-nf-action="preview-source" onclick="scOpenPlayer(-1)">&#9654; 预览原视频</button>' +
   '</div>' +
-  '<div class="sc-detail-path">' + escapeHtml(decodeURI(srcPath).replace('nfdata://localhost/', '~/NextFrame/projects/')) + '</div>' +
+  '<div class="sc-detail-path">' + scEscape(decodeURI(scNfUrl(src.path)).replace('nfdata://localhost/', '~/NextFrame/projects/')) + '</div>' +
   '<div class="sc-detail-tags">' +
-    '<span class="sc-tag sc-tag-warm">' + escapeHtml(src.duration || '—') + '</span>' +
-    '<span class="sc-tag sc-tag-default">' + escapeHtml(src.resolution || '—') + '</span>' +
-    (scSentences.total_sentences ? '<span class="sc-tag sc-tag-accent">' + scSentences.total_sentences + ' sentences</span>' : '') +
+    (allSents.length ? '<span class="sc-tag sc-tag-accent">' + allSents.length + ' sentences</span>' : '') +
     '<span class="sc-tag sc-tag-accent">' + scClips.length + ' clips</span>' +
   '</div></div>';
 
-  // Timeline overview
+  // Timeline (glass)
   if (scClips.length > 0) {
-    html += '<div class="glass sc-timeline"><div class="sc-tl-label">时间轴 · 切片分布</div><div class="sc-tl-bar">';
-    const colors = ['var(--accent)', '#60a5fa', 'var(--green)', '#f472b6', 'var(--warm)'];
-    scClips.forEach(function(clip, i) {
-      // Estimate position (we don't have exact timecodes from source.clips, use even spacing)
+    const colors = ['var(--accent)','#60a5fa','var(--green)','#f472b6','var(--warm)'];
+    h += '<div class="glass sc-timeline"><div class="sc-tl-label">时间轴 · 切片分布</div><div class="sc-tl-bar">';
+    scClips.forEach(function(c, i) {
       const left = (i / scClips.length * 80 + 5);
       const width = Math.max(3, 70 / scClips.length);
-      html += '<div class="sc-tl-region" style="left:' + left + '%;width:' + width + '%;background:' + colors[i % colors.length] + '" title="' + escapeHtml(clip.name) + '"><span class="sc-tl-region-label">' + (i + 1) + '</span></div>';
+      h += '<div class="sc-tl-region" style="left:' + left + '%;width:' + width + '%;background:' + colors[i % colors.length] + '" title="' + scEscape(c.name) + '"><span class="sc-tl-region-label">' + (i+1) + '</span></div>';
     });
-    html += '</div><div class="sc-tl-ticks"><span class="sc-tl-tick">0:00</span><span class="sc-tl-tick">end</span></div></div>';
+    h += '</div><div class="sc-tl-ticks"><span class="sc-tl-tick">0:00</span><span class="sc-tl-tick">end</span></div></div>';
   }
 
-  // Clip cards container
-  html += '<div class="sc-clip-scroll" id="sc-clip-list"></div>';
-
-  main.innerHTML = html;
-  renderClipCards();
-}
-
-function renderClipCards() {
-  const container = document.getElementById('sc-clip-list');
-  if (!container) return;
-  if (scClips.length === 0) {
-    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--t50)">暂无切片</div>';
-    return;
+  // Clip cards
+  h += '<div class="sc-clip-scroll">';
+  if (!scClips.length) {
+    h += '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--t50)">暂无切片</div>';
   }
-
-  const allSentences = (scSentences && scSentences.sentences) || [];
-  let html = '';
-
   scClips.forEach(function(clip, i) {
-    const videoUrl = toNfdataUrl(clip.path || '');
+    const url = scNfUrl(clip.path || '');
     const sizeMB = clip.size ? (clip.size / 1024 / 1024).toFixed(1) + 'MB' : '';
+    // Get sentences for this clip (distribute evenly for now)
+    const perClip = Math.max(1, Math.floor(allSents.length / Math.max(1, scClips.length)));
+    const clipSents = allSents.slice(i * perClip, (i + 1) * perClip).slice(0, 4);
 
-    html += '<div class="sc-clip-card" id="sc-clip-' + i + '">';
-
-    // Top: num + name + duration + timecode
-    html += '<div class="sc-clip-top">' +
-      '<div class="sc-clip-num">' + (i + 1) + '</div>' +
-      '<div class="sc-clip-name">' + escapeHtml(clip.name) + '</div>' +
-      (sizeMB ? '<div class="sc-clip-dur">' + escapeHtml(sizeMB) + '</div>' : '') +
+    h += '<div class="sc-clip-card glass" id="sc-clip-' + i + '">';
+    // Top row
+    h += '<div class="sc-clip-top"><div class="sc-clip-num">' + (i+1) + '</div>' +
+      '<div class="sc-clip-name">' + scEscape(clip.name) + '</div>' +
+      (sizeMB ? '<div class="sc-clip-dur">' + scEscape(sizeMB) + '</div>' : '') +
     '</div>';
 
-    // Body: video preview + sentences
-    html += '<div class="sc-clip-body">';
+    // Body: video + sentences
+    h += '<div class="sc-clip-body">';
 
     // Video thumbnail
-    html += '<div class="sc-clip-video" data-nf-action="preview-clip" onclick="openSmartPlayer(' + i + ')">' +
-      (videoUrl ? '<video src="' + escapeHtml(videoUrl) + '" preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>' : '') +
+    h += '<div class="sc-clip-video" data-nf-action="preview-clip" onclick="scOpenPlayer(' + i + ')">' +
+      (url ? '<video src="' + scEscape(url) + '" preload="metadata"></video>' : '') +
       '<div class="sc-play-overlay"><div class="sc-play-circle">&#9654;</div></div>' +
     '</div>';
 
-    // Sentences (show first few from source if available)
-    html += '<div class="sc-sentences">';
-    // For now show a few sample sentences
-    const sampleSents = allSentences.slice(i * 3, i * 3 + 3);
-    if (sampleSents.length > 0) {
-      sampleSents.forEach(function(sent) {
-        const startTc = formatSmartTc(sent.start);
-        const dur = ((sent.end - sent.start)).toFixed(1);
-        html += '<div class="sc-sent-row">' +
-          '<span class="sc-sent-tc">' + startTc + '</span>' +
+    // Sentences with multi-lang
+    h += '<div class="sc-sentences">';
+    if (clipSents.length > 0) {
+      clipSents.forEach(function(s) {
+        const dur = ((s.end || 0) - (s.start || 0)).toFixed(1);
+        h += '<div class="sc-sent-row">' +
+          '<span class="sc-sent-tc">' + scTc(s.start) + '</span>' +
           '<div class="sc-sent-content">' +
-            '<div class="sc-sent-lang-row"><span class="sc-sent-lang-label">EN</span><span class="sc-sent-text">' + escapeHtml(sent.text) + '</span></div>' +
-            (sent.zh ? '<div class="sc-sent-lang-row"><span class="sc-sent-lang-label">中</span><span class="sc-sent-trans">' + escapeHtml(sent.zh) + '</span></div>' : '') +
-            (sent.ja ? '<div class="sc-sent-lang-row"><span class="sc-sent-lang-label">日</span><span class="sc-sent-trans">' + escapeHtml(sent.ja) + '</span></div>' : '') +
+            '<div class="sc-sent-lang-row"><span class="sc-sent-lang-label">EN</span><span class="sc-sent-text">' + scEscape(s.text) + '</span></div>' +
+            (s.zh ? '<div class="sc-sent-lang-row"><span class="sc-sent-lang-label">中</span><span class="sc-sent-trans">' + scEscape(s.zh) + '</span></div>' : '') +
+            (s.ja ? '<div class="sc-sent-lang-row"><span class="sc-sent-lang-label">日</span><span class="sc-sent-trans">' + scEscape(s.ja) + '</span></div>' : '') +
           '</div>' +
           '<span class="sc-sent-dur">' + dur + 's</span>' +
         '</div>';
       });
     } else {
-      html += '<div style="padding:8px;font-size:12px;color:var(--t50)">无字幕数据</div>';
+      h += '<div style="padding:8px;font-size:12px;color:var(--t50)">无字幕数据</div>';
     }
-    html += '</div></div>';
+    h += '</div></div>';
 
     // Meta bar
-    html += '<div class="sc-meta-bar">' +
-      '<span class="sc-meta-tag">clip ' + (i + 1) + '</span>' +
-      '<button class="sc-more-btn" data-nf-action="clip-meta" onclick="openSmartMeta(' + i + ')">更多 ↗</button>' +
-    '</div>';
-
-    html += '</div>';
+    h += '<div class="sc-meta-bar"><span class="sc-meta-tag">clip ' + (i+1) + '</span>' +
+      '<button class="sc-more-btn" data-nf-action="clip-meta" onclick="scOpenMeta(' + i + ')">更多 ↗</button></div>';
+    h += '</div>';
   });
+  h += '</div>';
 
-  container.innerHTML = html;
+  el.innerHTML = h;
 }
 
 // Player modal
-function openSmartPlayer(clipIdx) {
+function scOpenPlayer(clipIdx) {
   let modal = document.getElementById('sc-player-modal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'sc-player-modal';
     modal.className = 'sc-modal-overlay';
-    modal.onclick = function(e) { if (e.target === modal) closeSmartPlayer(); };
+    modal.onclick = function(e) { if (e.target === modal) scClosePlayer(); };
     document.body.appendChild(modal);
   }
 
   let videoUrl, title;
   if (clipIdx < 0) {
-    // Source video
     const src = scSources[scActiveSource];
     if (!src) return;
-    videoUrl = toNfdataUrl(src.path);
+    videoUrl = scNfUrl(src.path);
     title = src.name;
   } else {
     const clip = scClips[clipIdx];
     if (!clip) return;
-    videoUrl = toNfdataUrl(clip.path);
+    videoUrl = scNfUrl(clip.path);
     title = clip.name;
   }
 
+  const allSents = (scSentences && scSentences.sentences) || [];
+  const perClip = Math.max(1, Math.floor(allSents.length / Math.max(1, scClips.length)));
+  const clipSents = clipIdx >= 0 ? allSents.slice(clipIdx * perClip, (clipIdx + 1) * perClip) : [];
+
   modal.innerHTML = '<div class="sc-modal-player glass">' +
     '<div style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#0a0a0f">' +
-      '<video id="sc-modal-video" src="' + escapeHtml(videoUrl) + '" controls autoplay style="width:100%;height:100%;object-fit:contain"></video>' +
+      '<video id="sc-modal-video" src="' + scEscape(videoUrl) + '" controls autoplay style="width:100%;height:100%;object-fit:contain"></video>' +
     '</div>' +
-    '<div class="sc-modal-subtitle" id="sc-modal-subs"><div class="sc-modal-sub-lang-row"><span class="sc-modal-sub-original" style="color:var(--t50);text-align:center">播放中...</span></div></div>' +
-    '<div class="sc-modal-transport"><div style="display:flex;align-items:center;justify-content:center;padding:8px 0"><span class="sc-modal-clip-name">' + escapeHtml(title) + '</span></div></div>' +
-    '<button class="sc-modal-close" onclick="closeSmartPlayer()">&times;</button>' +
+    '<div class="sc-modal-subtitle" id="sc-modal-subs"></div>' +
+    '<div class="sc-modal-transport"><div style="display:flex;align-items:center;justify-content:center;padding:8px 0"><span class="sc-modal-clip-name">' + scEscape(title) + '</span></div></div>' +
+    '<button class="sc-modal-close" onclick="scClosePlayer()">&times;</button>' +
   '</div>';
   modal.classList.add('open');
+
+  // Setup subtitle sync
+  const video = document.getElementById('sc-modal-video');
+  if (video && clipSents.length > 0) {
+    let raf = null;
+    function tick() {
+      const t = video.currentTime;
+      const subsEl = document.getElementById('sc-modal-subs');
+      if (!subsEl) return;
+      let active = null;
+      clipSents.forEach(function(s) { if (t >= (s.start || 0) && t < (s.end || 0)) active = s; });
+      if (active) {
+        let sh = '<div class="sc-modal-sub-lang-row"><span class="sc-modal-sub-lang-label">EN</span><span class="sc-modal-sub-original">' + scEscape(active.text) + '</span></div>';
+        if (active.zh) sh += '<div class="sc-modal-sub-lang-row"><span class="sc-modal-sub-lang-label">中</span><span class="sc-modal-sub-trans">' + scEscape(active.zh) + '</span></div>';
+        if (active.ja) sh += '<div class="sc-modal-sub-lang-row"><span class="sc-modal-sub-lang-label">日</span><span class="sc-modal-sub-trans">' + scEscape(active.ja) + '</span></div>';
+        subsEl.innerHTML = sh;
+      } else {
+        subsEl.innerHTML = '<div class="sc-modal-sub-lang-row"><span class="sc-modal-sub-original" style="color:var(--t50)">···</span></div>';
+      }
+      if (!video.paused && !video.ended) raf = requestAnimationFrame(tick);
+    }
+    video.onplay = function() { raf = requestAnimationFrame(tick); };
+    video.onpause = function() { if (raf) cancelAnimationFrame(raf); };
+    video.onended = function() { if (raf) cancelAnimationFrame(raf); };
+  }
 }
 
-function closeSmartPlayer() {
+function scClosePlayer() {
   const modal = document.getElementById('sc-player-modal');
   if (!modal) return;
-  const video = document.getElementById('sc-modal-video');
-  if (video) video.pause();
+  const v = document.getElementById('sc-modal-video');
+  if (v) v.pause();
   modal.classList.remove('open');
 }
 
 // Meta modal
-function openSmartMeta(clipIdx) {
-  const clip = scClips[clipIdx];
+function scOpenMeta(i) {
+  const clip = scClips[i];
   if (!clip) return;
-
   let modal = document.getElementById('sc-meta-modal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'sc-meta-modal';
     modal.className = 'sc-meta-overlay';
-    modal.onclick = function(e) { if (e.target === modal) closeSmartMeta(); };
+    modal.onclick = function(e) { if (e.target === modal) scCloseMeta(); };
     document.body.appendChild(modal);
   }
-
-  let html = '<div class="sc-meta-modal glass">' +
-    '<div class="sc-meta-title">' + escapeHtml(clip.name) + ' · 元信息</div>' +
-    '<button class="sc-modal-close" onclick="closeSmartMeta()">&times;</button>';
-
-  // Show all available metadata
-  const keys = Object.keys(clip);
-  keys.forEach(function(k) {
+  let h = '<div class="sc-meta-modal glass"><div class="sc-meta-title">' + scEscape(clip.name) + ' · 元信息</div>' +
+    '<button class="sc-modal-close" onclick="scCloseMeta()">&times;</button>';
+  Object.keys(clip).forEach(function(k) {
     const v = clip[k];
-    const display = Array.isArray(v) ? v.join(', ') : (typeof v === 'object' ? JSON.stringify(v) : String(v));
-    html += '<div class="sc-meta-row"><span class="sc-meta-key">' + escapeHtml(k) + '</span><span class="sc-meta-val">' + escapeHtml(display) + '</span></div>';
+    const d = Array.isArray(v) ? v.join(', ') : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+    h += '<div class="sc-meta-row"><span class="sc-meta-key">' + scEscape(k) + '</span><span class="sc-meta-val">' + scEscape(d) + '</span></div>';
   });
-
-  html += '</div>';
-  modal.innerHTML = html;
+  h += '</div>';
+  modal.innerHTML = h;
   modal.classList.add('open');
 }
 
-function closeSmartMeta() {
+function scCloseMeta() {
   const modal = document.getElementById('sc-meta-modal');
   if (modal) modal.classList.remove('open');
 }
 
-function formatSmartTc(s) {
-  if (typeof s !== 'number') return '00:00.0';
-  const m = Math.floor(s / 60);
-  const sec = (s % 60).toFixed(1).padStart(4, '0');
-  return String(m).padStart(2, '0') + ':' + sec;
-}
-
-// Use shared escapeHtml from pipeline.js
-if (typeof escapeHtml !== 'function') {
-  window.escapeHtml = function(v) { return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
-}
-
 window.loadSmartClips = loadSmartClips;
-window.selectSmartSource = selectSmartSource;
-window.openSmartPlayer = openSmartPlayer;
-window.closeSmartPlayer = closeSmartPlayer;
-window.openSmartMeta = openSmartMeta;
-window.closeSmartMeta = closeSmartMeta;
+window.scSelectSource = scSelectSource;
+window.scOpenPlayer = scOpenPlayer;
+window.scClosePlayer = scClosePlayer;
+window.scOpenMeta = scOpenMeta;
+window.scCloseMeta = scCloseMeta;

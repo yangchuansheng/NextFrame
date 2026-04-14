@@ -493,6 +493,8 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
     webview::pump_run_loop_pub(std::time::Duration::from_secs(3));
     check!("smart clips sources", webview::eval_js(wv, "scSources.length + ' sources, clips=' + scClips.length"));
     check!("smart clips debug", webview::eval_js(wv, "JSON.stringify(scSources.map(s=>s.name))"));
+    check!("smart clips cards", webview::eval_js(wv, "document.querySelectorAll('.sc-clip-card').length + ' cards'"));
+    check!("smart clips overflow", webview::eval_js(wv, "var s=document.querySelector('.sc-clip-scroll');s?(s.scrollHeight+'h,'+s.clientHeight+'c'):'no scroll'"));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-clips.png");
 
     // Editor tab — atoms from pipeline.json

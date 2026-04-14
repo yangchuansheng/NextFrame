@@ -433,10 +433,17 @@ async function composePreview() {
     timeline: edTimelineData
   });
   const result = await bridgeCall('compose.generate', {
-    timelinePath: buildEditorTimelinePath(),
-    open: true
+    timelinePath: buildEditorTimelinePath()
   });
   if (result && result.path) {
+    var frame = renderEditorPreviewContent('iframe', function(el) {
+      var relativePath = result.path.replace(/.*\/NextFrame\/projects\//, '');
+      el.src = 'nfdata://localhost/' + encodeURI(relativePath) + '?t=' + Date.now();
+      el.title = 'Preview';
+      el.allow = 'autoplay';
+    });
+    window.edPreviewIframe = frame;
+    ensurePlayhead();
     updateEditorPreviewState(0, getEditorTimelineDuration());
   }
   return result;
