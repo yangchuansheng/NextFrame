@@ -1,5 +1,6 @@
 import {
   createRoot, toNumber, clamp,
+  makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -11,9 +12,9 @@ export default {
   tags: ["vignette", "overlay", "background", "canvas"],
   description: "全屏 canvas 暗角遮罩。1920x1080 专用",
   params: {
-    intensity: { type: "number", default: 0.6,         desc: "暗角强度 0~1" },
-    color:     { type: "string", default: "#000000",   desc: "暗角颜色" },
-    radius:    { type: "number", default: 0.7,         desc: "亮区半径比例 0~1" },
+    intensity: { type: "number", required: false, default: 0.6, desc: "暗角强度 0~1" },
+    color:     { type: "color", required: false, default: "#000000", desc: "暗角颜色" },
+    radius:    { type: "number", required: false, default: 0.7, desc: "亮区半径比例 0~1" },
   },
 
   get defaultParams() {
@@ -61,6 +62,24 @@ export default {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+
+    return makeDescribeResult({
+      t,
+      duration: 0.4,
+      elements: [
+        {
+          type: "overlay",
+          style: "vignette",
+          intensity: clamp(toNumber(p.intensity, 0.6), 0, 1),
+          color: p.color || "#000000",
+          radius: clamp(toNumber(p.radius, 0.7), 0.1, 1),
+        },
+      ],
+    });
   },
 
   destroy(els) {

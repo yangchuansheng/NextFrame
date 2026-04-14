@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
-  SANS_FONT_STACK,
+  SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,11 +12,11 @@ export default {
   tags: ["card", "callout", "portrait"],
   description: "竖屏卡片，emoji + 标题 + 描述。1080x1920 专用",
   params: {
-    icon:        { type: "string", default: "💡",            desc: "emoji 图标" },
-    title:       { type: "string", default: "Key Insight",   desc: "卡片标题" },
-    description: { type: "string", default: "Details here.", desc: "描述文字" },
-    bgColor:     { type: "string", default: "rgba(255,255,255,0.06)", desc: "卡片背景色" },
-    borderColor: { type: "string", default: "rgba(255,255,255,0.12)", desc: "边框颜色" },
+    icon:        { type: "string", required: false, default: "💡", desc: "emoji 图标" },
+    title:       { type: "string", required: true, default: "Key Insight", desc: "卡片标题" },
+    description: { type: "string", required: false, default: "Details here.", desc: "描述文字" },
+    bgColor:     { type: "color", required: false, default: "rgba(255,255,255,0.06)", desc: "卡片背景色" },
+    borderColor: { type: "color", required: false, default: "rgba(255,255,255,0.12)", desc: "边框颜色" },
   },
 
   get defaultParams() {
@@ -63,6 +63,24 @@ export default {
     els.card.style.opacity = t;
     const scale = 0.95 + t * 0.05;
     els.card.style.transform = `scale(${scale}) translateY(${(1 - t) * 20}px)`;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+
+    return makeDescribeResult({
+      t,
+      duration: 0.5,
+      elements: [
+        {
+          type: "callout-card",
+          icon: String(p.icon || ""),
+          title: String(p.title || ""),
+          description: String(p.description || ""),
+        },
+      ],
+      textContent: [p.title, p.description],
+    });
   },
 
   destroy(els) {

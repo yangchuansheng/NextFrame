@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
-  toNumber, SANS_FONT_STACK,
+  toNumber, SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,11 +12,11 @@ export default {
   tags: ["number", "counter", "data", "ppt"],
   description: "4:3 PPT 居中大数字，从 0 滚到目标值。PPT 横屏专用",
   params: {
-    value:  { type: "number", default: 1000,     desc: "目标数值" },
-    prefix: { type: "string", default: "",       desc: "前缀(如 $)" },
-    suffix: { type: "string", default: "",       desc: "后缀(如 %)" },
-    label:  { type: "string", default: "Total",  desc: "底部标签" },
-    color:  { type: "string", default: "#60a5fa", desc: "数字颜色" },
+    value:  { type: "number", required: true, default: 1000, desc: "目标数值" },
+    prefix: { type: "string", required: false, default: "", desc: "前缀(如 $)" },
+    suffix: { type: "string", required: false, default: "", desc: "后缀(如 %)" },
+    label:  { type: "string", required: false, default: "Total", desc: "底部标签" },
+    color:  { type: "color", required: false, default: "#60a5fa", desc: "数字颜色" },
   },
 
   get defaultParams() {
@@ -61,6 +61,26 @@ export default {
 
     const lt = smoothstep(0.6, 1.0, localT);
     labelEl.style.opacity = lt;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const value = toNumber(p.value, 1000);
+
+    return makeDescribeResult({
+      t,
+      duration: 1.2,
+      elements: [
+        {
+          type: "metric",
+          value,
+          prefix: String(p.prefix || ""),
+          suffix: String(p.suffix || ""),
+          label: String(p.label || ""),
+        },
+      ],
+      textContent: [`${p.prefix || ""}${value}${p.suffix || ""}`, p.label],
+    });
   },
 
   destroy(els) {

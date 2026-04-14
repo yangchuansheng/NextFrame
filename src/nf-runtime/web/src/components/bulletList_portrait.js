@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep,
-  toNumber, normalizeArray, SANS_FONT_STACK,
+  toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,10 +12,10 @@ export default {
   tags: ["list", "bullet", "portrait"],
   description: "竖屏要点列表，左对齐，逐条动画。1080x1920 专用",
   params: {
-    items:       { type: "array",  default: ["Point A", "Point B", "Point C"], desc: "要点数组" },
-    fontSize:    { type: "number", default: 28,      desc: "字号(px)" },
-    bulletColor: { type: "string", default: "#a0c4ff", desc: "圆点颜色" },
-    stagger:     { type: "number", default: 0.12,    desc: "逐条延迟(秒)" },
+    items:       { type: "array", required: true, default: ["Point A", "Point B", "Point C"], desc: "要点数组" },
+    fontSize:    { type: "number", required: false, default: 28, desc: "字号(px)" },
+    bulletColor: { type: "color", required: false, default: "#a0c4ff", desc: "圆点颜色" },
+    stagger:     { type: "number", required: false, default: 0.12, desc: "逐条延迟(秒)" },
   },
 
   get defaultParams() {
@@ -62,6 +62,22 @@ export default {
       rows[i].style.opacity = t;
       rows[i].style.transform = `translateX(${(1 - t) * -20}px)`;
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const items = normalizeArray(p.items, ["Point A", "Point B", "Point C"]);
+    const stagger = toNumber(p.stagger, 0.12);
+
+    return makeDescribeResult({
+      t,
+      duration: 0.4 + Math.max(0, items.length - 1) * stagger,
+      elements: items.map((item) => ({
+        type: "bullet",
+        text: String(item),
+      })),
+      textContent: items,
+    });
   },
 
   destroy(els) {

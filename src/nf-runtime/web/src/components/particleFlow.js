@@ -1,5 +1,6 @@
 import {
   createRoot, toNumber, clamp, hashFloat,
+  makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -11,11 +12,11 @@ export default {
   tags: ["particle", "flow", "background", "canvas"],
   description: "Canvas 粒子流背景动画。1920x1080 专用",
   params: {
-    count:    { type: "number", default: 80,        desc: "粒子数量" },
-    color:    { type: "string", default: "#ffffff", desc: "粒子颜色" },
-    maxSize:  { type: "number", default: 3,         desc: "最大粒子半径(px)" },
-    speed:    { type: "number", default: 0.5,       desc: "流动速度" },
-    opacity:  { type: "number", default: 0.4,       desc: "整体不透明度" },
+    count:    { type: "number", required: false, default: 80, desc: "粒子数量" },
+    color:    { type: "color", required: false, default: "#ffffff", desc: "粒子颜色" },
+    maxSize:  { type: "number", required: false, default: 3, desc: "最大粒子半径(px)" },
+    speed:    { type: "number", required: false, default: 0.5, desc: "流动速度" },
+    opacity:  { type: "number", required: false, default: 0.4, desc: "整体不透明度" },
   },
 
   get defaultParams() {
@@ -77,6 +78,24 @@ export default {
     }
 
     ctx.globalAlpha = 1;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+
+    return makeDescribeResult({
+      t,
+      duration: 0.4,
+      elements: [
+        {
+          type: "background",
+          style: "particle-flow",
+          count: clamp(Math.round(toNumber(p.count, 80)), 1, 500),
+          color: p.color || "#ffffff",
+          speed: toNumber(p.speed, 0.5),
+        },
+      ],
+    });
   },
 
   destroy(els) {

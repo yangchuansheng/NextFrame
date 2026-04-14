@@ -1,5 +1,5 @@
 import {
-  createRoot, toNumber, normalizeArray, clamp,
+  createRoot, toNumber, normalizeArray, clamp, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -11,9 +11,9 @@ export default {
   tags: ["aurora", "gradient", "background", "canvas"],
   description: "Canvas 极光渐变背景动画。1920x1080 专用",
   params: {
-    colors: { type: "array",  default: ["#0f0c29", "#302b63", "#24243e", "#0f0c29"], desc: "渐变色数组" },
-    speed:  { type: "number", default: 0.3,  desc: "动画速度" },
-    layers: { type: "number", default: 3,    desc: "光带层数" },
+    colors: { type: "array", required: false, default: ["#0f0c29", "#302b63", "#24243e", "#0f0c29"], desc: "渐变色数组" },
+    speed:  { type: "number", required: false, default: 0.3,  desc: "动画速度" },
+    layers: { type: "number", required: false, default: 3,    desc: "光带层数" },
   },
 
   get defaultParams() {
@@ -76,6 +76,26 @@ export default {
       ctx.fill();
       ctx.restore();
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const colors = normalizeArray(p.colors, ["#0f0c29", "#302b63", "#24243e", "#0f0c29"]);
+    const layers = clamp(Math.round(toNumber(p.layers, 3)), 1, 6);
+
+    return makeDescribeResult({
+      t,
+      duration: 0.6,
+      elements: [
+        {
+          type: "background",
+          style: "aurora-gradient",
+          layerCount: layers,
+          colors,
+          speed: toNumber(p.speed, 0.3),
+        },
+      ],
+    });
   },
 
   destroy(els) {

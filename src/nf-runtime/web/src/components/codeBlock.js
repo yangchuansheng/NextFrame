@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, toNumber,
-  escapeHtml, normalizeLines, MONO_FONT_STACK,
+  escapeHtml, normalizeLines, MONO_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,10 +12,10 @@ export default {
   tags: ["code", "terminal", "dev"],
   description: "暗色终端代码窗口，逐行淡入。1920x1080 专用",
   params: {
-    code:     { type: "string", default: 'console' + '.log("hello");', desc: "代码内容" },
-    language: { type: "string", default: "",     desc: "语言标识" },
-    fontSize: { type: "number", default: 22,     desc: "字号(px)" },
-    title:    { type: "string", default: "",     desc: "窗口标题" },
+    code:     { type: "string", required: true, default: 'console' + '.log("hello");', desc: "代码内容" },
+    language: { type: "string", required: false, default: "", desc: "语言标识" },
+    fontSize: { type: "number", required: false, default: 22, desc: "字号(px)" },
+    title:    { type: "string", required: false, default: "", desc: "窗口标题" },
   },
 
   get defaultParams() {
@@ -82,6 +82,26 @@ export default {
       const t = smoothstep(i * stagger + 0.2, i * stagger + 0.5, localT);
       lineEls[i].style.opacity = t;
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const lines = normalizeLines(p.code);
+
+    return makeDescribeResult({
+      t,
+      duration: 0.5 + Math.max(0, lines.length - 1) * 0.12,
+      elements: [
+        p.title ? { type: "window-title", text: String(p.title) } : null,
+        p.language ? { type: "language-badge", text: String(p.language) } : null,
+        ...lines.map((line, index) => ({
+          type: "code-line",
+          line: index + 1,
+          text: String(line),
+        })),
+      ],
+      textContent: [p.title, p.language, lines],
+    });
   },
 
   destroy(els) {

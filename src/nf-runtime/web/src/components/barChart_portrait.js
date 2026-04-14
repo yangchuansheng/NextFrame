@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
-  toNumber, normalizeArray, SANS_FONT_STACK,
+  toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 const DEFAULT_COLORS = ["#a0c4ff", "#ffc6ff", "#bdb2ff", "#caffbf", "#fdffb6"];
@@ -14,10 +14,10 @@ export default {
   tags: ["chart", "bar", "data", "portrait"],
   description: "竖屏柱状图(SVG)，viewBox 1080x1920。1080x1920 专用",
   params: {
-    data:      { type: "array",  default: [80, 55, 95, 40, 70], desc: "数值数组" },
-    labels:    { type: "array",  default: ["A", "B", "C", "D", "E"], desc: "标签数组" },
-    colors:    { type: "array",  default: DEFAULT_COLORS, desc: "柱颜色数组" },
-    labelSize: { type: "number", default: 28, desc: "标签字号(px)" },
+    data:      { type: "array", required: true, default: [80, 55, 95, 40, 70], desc: "数值数组" },
+    labels:    { type: "array", required: false, default: ["A", "B", "C", "D", "E"], desc: "标签数组" },
+    colors:    { type: "array", required: false, default: DEFAULT_COLORS, desc: "柱颜色数组" },
+    labelSize: { type: "number", required: false, default: 28, desc: "标签字号(px)" },
   },
 
   get defaultParams() {
@@ -119,6 +119,25 @@ export default {
       const valT = smoothstep(delay + 0.3, delay + 0.5, localT);
       valueEls[i].setAttribute("opacity", String(valT));
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const values = normalizeArray(p.data, [80, 55, 95, 40, 70]);
+    const labels = normalizeArray(p.labels, ["A", "B", "C", "D", "E"]);
+    const colors = normalizeArray(p.colors, DEFAULT_COLORS);
+
+    return makeDescribeResult({
+      t,
+      duration: 0.5 + Math.max(0, values.length - 1) * 0.08,
+      elements: values.map((value, index) => ({
+        type: "bar",
+        label: String(labels[index] || `Item ${index + 1}`),
+        value: toNumber(value, 0),
+        color: colors[index % colors.length] || DEFAULT_COLORS[0],
+      })),
+      textContent: labels,
+    });
   },
 
   destroy(els) {

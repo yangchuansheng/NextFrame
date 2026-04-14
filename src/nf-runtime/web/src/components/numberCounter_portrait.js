@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
-  toNumber, SANS_FONT_STACK,
+  toNumber, SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,11 +12,11 @@ export default {
   tags: ["number", "counter", "data", "portrait"],
   description: "竖屏大数字计数器，居中显示。1080x1920 专用",
   params: {
-    value:  { type: "number", default: 100,       desc: "目标数值" },
-    prefix: { type: "string", default: "",        desc: "前缀(如$)" },
-    suffix: { type: "string", default: "",        desc: "后缀(如%)" },
-    label:  { type: "string", default: "METRIC",  desc: "下方标签" },
-    color:  { type: "string", default: "#a0c4ff", desc: "数字颜色" },
+    value:  { type: "number", required: true, default: 100, desc: "目标数值" },
+    prefix: { type: "string", required: false, default: "", desc: "前缀(如$)" },
+    suffix: { type: "string", required: false, default: "", desc: "后缀(如%)" },
+    label:  { type: "string", required: false, default: "METRIC", desc: "下方标签" },
+    color:  { type: "color", required: false, default: "#a0c4ff", desc: "数字颜色" },
   },
 
   get defaultParams() {
@@ -70,6 +70,26 @@ export default {
     numRow.style.opacity = fadeIn;
     const labelT = smoothstep(0.3, 0.6, localT);
     labelEl.style.opacity = labelT;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const value = toNumber(p.value, 100);
+
+    return makeDescribeResult({
+      t,
+      duration: 0.7,
+      elements: [
+        {
+          type: "metric",
+          value,
+          prefix: String(p.prefix || ""),
+          suffix: String(p.suffix || ""),
+          label: String(p.label || ""),
+        },
+      ],
+      textContent: [`${p.prefix || ""}${value}${p.suffix || ""}`, p.label],
+    });
   },
 
   destroy(els) {

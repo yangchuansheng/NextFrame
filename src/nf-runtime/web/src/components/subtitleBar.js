@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, toNumber,
-  SANS_FONT_STACK,
+  SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,9 +12,9 @@ export default {
   tags: ["subtitle", "caption", "text", "lower-third"],
   description: "底部居中字幕条，打字机效果。1920x1080 专用",
   params: {
-    text:     { type: "string", default: "Subtitle text here", desc: "字幕文字" },
-    fontSize: { type: "number", default: 24,                   desc: "字号(px)" },
-    bgColor:  { type: "string", default: "rgba(0,0,0,0.6)",   desc: "背景色" },
+    text:     { type: "string", required: true, default: "Subtitle text here", desc: "字幕文字" },
+    fontSize: { type: "number", required: false, default: 24, desc: "字号(px)" },
+    bgColor:  { type: "color", required: false, default: "rgba(0,0,0,0.6)", desc: "背景色" },
   },
 
   get defaultParams() {
@@ -62,6 +62,23 @@ export default {
       const charCount = Math.min(fullText.length, Math.floor(elapsed / charTime));
       textEl.textContent = fullText.slice(0, charCount);
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const text = String(p.text || "");
+
+    return makeDescribeResult({
+      t,
+      duration: 0.3 + text.length * 0.04,
+      elements: [
+        {
+          type: "subtitle-bar",
+          text,
+        },
+      ],
+      textContent: [text],
+    });
   },
 
   destroy(els) {

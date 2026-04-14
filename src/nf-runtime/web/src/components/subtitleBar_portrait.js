@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep,
-  toNumber, SANS_FONT_STACK,
+  toNumber, SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,9 +12,9 @@ export default {
   tags: ["subtitle", "text", "caption", "portrait"],
   description: "竖屏字幕条，底部居中，半透明背景。1080x1920 专用",
   params: {
-    text:     { type: "string", default: "Subtitle text here", desc: "字幕文字" },
-    fontSize: { type: "number", default: 24,                   desc: "字号(px)" },
-    bgColor:  { type: "string", default: "rgba(0,0,0,0.6)",   desc: "背景色" },
+    text:     { type: "string", required: true, default: "Subtitle text here", desc: "字幕文字" },
+    fontSize: { type: "number", required: false, default: 24, desc: "字号(px)" },
+    bgColor:  { type: "color", required: false, default: "rgba(0,0,0,0.6)", desc: "背景色" },
   },
 
   get defaultParams() {
@@ -44,6 +44,23 @@ export default {
     const t = smoothstep(0, 0.3, localT);
     els.bar.style.opacity = t;
     els.bar.style.transform = `translateY(${(1 - t) * 10}px)`;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const text = String(p.text || "");
+
+    return makeDescribeResult({
+      t,
+      duration: 0.3,
+      elements: [
+        {
+          type: "subtitle-bar",
+          text,
+        },
+      ],
+      textContent: [text],
+    });
   },
 
   destroy(els) {

@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, easeOutBack,
-  SANS_FONT_STACK,
+  SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,11 +12,11 @@ export default {
   tags: ["card", "callout", "info"],
   description: "居中卡片标注，emoji + 标题 + 描述。1920x1080 专用",
   params: {
-    icon:        { type: "string", default: "💡",                    desc: "emoji 图标" },
-    title:       { type: "string", default: "Key Insight",           desc: "标题" },
-    description: { type: "string", default: "Something noteworthy.", desc: "描述文字" },
-    bgColor:     { type: "string", default: "rgba(255,255,255,0.06)", desc: "卡片背景色" },
-    borderColor: { type: "string", default: "rgba(255,255,255,0.12)", desc: "边框颜色" },
+    icon:        { type: "string", required: false, default: "💡", desc: "emoji 图标" },
+    title:       { type: "string", required: true, default: "Key Insight", desc: "标题" },
+    description: { type: "string", required: false, default: "Something noteworthy.", desc: "描述文字" },
+    bgColor:     { type: "color", required: false, default: "rgba(255,255,255,0.06)", desc: "卡片背景色" },
+    borderColor: { type: "color", required: false, default: "rgba(255,255,255,0.12)", desc: "边框颜色" },
   },
 
   get defaultParams() {
@@ -65,6 +65,24 @@ export default {
     const scale = 0.9 + 0.1 * easeOutBack(t);
     els.card.style.opacity = t;
     els.card.style.transform = `scale(${Math.min(scale, 1.02)})`;
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+
+    return makeDescribeResult({
+      t,
+      duration: 0.6,
+      elements: [
+        {
+          type: "callout-card",
+          icon: String(p.icon || ""),
+          title: String(p.title || ""),
+          description: String(p.description || ""),
+        },
+      ],
+      textContent: [p.title, p.description],
+    });
   },
 
   destroy(els) {

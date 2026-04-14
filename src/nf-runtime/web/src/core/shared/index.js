@@ -31,6 +31,62 @@ export function normalizeArray(value, fallback = []) {
   return Array.isArray(value) ? value : fallback;
 }
 
+function appendTextContent(result, value) {
+  if (value == null || value === "") {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      appendTextContent(result, item);
+    }
+    return;
+  }
+
+  if (typeof value === "object") {
+    for (const key of ["text", "title", "subtitle", "label", "description", "desc", "language", "name"]) {
+      appendTextContent(result, value[key]);
+    }
+    return;
+  }
+
+  result.push(String(value));
+}
+
+export function collectTextContent(...values) {
+  const result = [];
+  for (const value of values) {
+    appendTextContent(result, value);
+  }
+  return [...new Set(result.filter(Boolean))];
+}
+
+export function makeDescribeResult(options = {}) {
+  const {
+    t = 0,
+    duration = 0,
+    progress: explicitProgress,
+    phase: explicitPhase,
+    elements = [],
+    textContent = [],
+  } = options;
+  const numericT = Number(t);
+  const safeDuration = Number(duration);
+  const rawProgress = explicitProgress != null
+    ? Number(explicitProgress)
+    : safeDuration > 0
+      ? numericT / safeDuration
+      : 1;
+  const progress = Math.max(0, Math.min(1, Number.isFinite(rawProgress) ? rawProgress : 0));
+
+  return {
+    phase: explicitPhase || (progress < 1 ? "entering" : "active"),
+    progress,
+    elements: Array.isArray(elements) ? elements.filter(Boolean) : [],
+    text_content: collectTextContent(textContent),
+  };
+}
+
 export function getSafeZone(W, H) {
   const isVertical = H > W;
   return {
@@ -150,6 +206,8 @@ Object.assign(globalThis, {
   toBoolean,
   normalizeLines,
   normalizeArray,
+  collectTextContent,
+  makeDescribeResult,
   getSafeZone,
   getStageSize,
   createRoot,

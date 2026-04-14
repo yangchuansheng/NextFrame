@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep,
-  toNumber, SANS_FONT_STACK, makeLinearGradient,
+  toNumber, SANS_FONT_STACK, makeLinearGradient, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -12,11 +12,11 @@ export default {
   tags: ["text", "title", "heading", "portrait"],
   description: "竖屏大标题，渐变色，逐字 stagger。1080x1920 专用",
   params: {
-    text:     { type: "string", default: "HEADLINE", desc: "标题文字" },
-    subtitle: { type: "string", default: "",         desc: "副标题" },
-    fontSize: { type: "number", default: 56,         desc: "标题字号(px)" },
-    gradient: { type: "array",  default: ["#ffffff", "#a0c4ff"], desc: "渐变色数组" },
-    stagger:  { type: "number", default: 0.08,       desc: "逐字延迟(秒)" },
+    text:     { type: "string", required: true, default: "HEADLINE", desc: "标题文字" },
+    subtitle: { type: "string", required: false, default: "", desc: "副标题" },
+    fontSize: { type: "number", required: false, default: 56, desc: "标题字号(px)" },
+    gradient: { type: "array", required: false, default: ["#ffffff", "#a0c4ff"], desc: "渐变色数组" },
+    stagger:  { type: "number", required: false, default: 0.08, desc: "逐字延迟(秒)" },
   },
 
   get defaultParams() {
@@ -75,6 +75,23 @@ export default {
       const t = smoothstep(delay, delay + 0.5, localT);
       subtitleEl.style.opacity = t;
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const text = String(p.text || "HEADLINE");
+    const subtitle = String(p.subtitle || "");
+    const stagger = toNumber(p.stagger, 0.08);
+
+    return makeDescribeResult({
+      t,
+      duration: text.length * stagger + (subtitle ? 0.7 : 0.4),
+      elements: [
+        { type: "headline", text },
+        subtitle ? { type: "subtitle", text: subtitle } : null,
+      ],
+      textContent: [text, subtitle],
+    });
   },
 
   destroy(els) {

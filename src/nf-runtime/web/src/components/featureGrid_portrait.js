@@ -1,6 +1,6 @@
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
-  toNumber, normalizeArray, SANS_FONT_STACK,
+  toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,
 } from '../core/shared/index.js';
 
 export default {
@@ -14,6 +14,7 @@ export default {
   params: {
     features: {
       type: "array",
+      required: true,
       default: [
         { icon: "🚀", title: "Fast", desc: "Blazing speed" },
         { icon: "🔒", title: "Secure", desc: "End-to-end" },
@@ -22,7 +23,7 @@ export default {
       ],
       desc: "功能数组 [{icon,title,desc}]",
     },
-    columns: { type: "number", default: 2, desc: "列数" },
+    columns: { type: "number", required: false, default: 2, desc: "列数" },
   },
 
   get defaultParams() {
@@ -82,6 +83,23 @@ export default {
       cells[i].style.opacity = t;
       cells[i].style.transform = `scale(${0.9 + t * 0.1})`;
     }
+  },
+
+  describe(data, props, t = 0) {
+    const p = { ...this.defaultParams, ...(data || {}), ...(props || {}) };
+    const features = normalizeArray(p.features, []);
+
+    return makeDescribeResult({
+      t,
+      duration: 0.45 + Math.max(0, features.length - 1) * 0.1,
+      elements: features.map((feature) => ({
+        type: "feature-card",
+        icon: String(feature?.icon || ""),
+        title: String(feature?.title || ""),
+        description: String(feature?.desc || ""),
+      })),
+      textContent: features,
+    });
   },
 
   destroy(els) {
