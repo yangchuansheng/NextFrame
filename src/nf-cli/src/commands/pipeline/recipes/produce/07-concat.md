@@ -44,12 +44,12 @@ open episode.mp4
 
 回顾整个流程：
 ```
-nextframe produce ratio     → 定了比例
-nextframe produce check     → 确认了素材和组件
-nextframe produce scene     → 做了缺失组件
-nextframe produce timeline  → 写了时间轴
-nextframe produce validate  → 通过了参数检查
-nextframe produce build     → 构建了 HTML + 看了截图
-nextframe produce record    → 录制了 MP4
-nextframe produce concat    → 拼接了完整一期
+nextframe state-prompt produce ratio     → 定了比例
+nextframe state-prompt produce check     → 确认了素材和组件
+nextframe state-prompt produce scene     → 做了缺失组件
+nextframe state-prompt produce timeline  → 写了时间轴
+nextframe state-prompt produce validate  → 通过了参数检查
+nextframe state-prompt produce build     → 构建了 HTML + 看了截图
+nextframe state-prompt produce record    → 录制了 MP4
+nextframe state-prompt produce concat    → 拼接了完整一期
 ```

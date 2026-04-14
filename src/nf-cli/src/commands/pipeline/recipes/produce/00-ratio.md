@@ -45,6 +45,6 @@ cat src/nf-core/scenes/shared/design.js
 ## 下一步
 
 ```bash
-nextframe produce check
+nextframe state-prompt produce check
 ```
 确认素材和组件是否齐全。

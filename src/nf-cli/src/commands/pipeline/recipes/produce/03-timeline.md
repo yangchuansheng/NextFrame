@@ -157,5 +157,5 @@ console.log('Written: timeline.json, duration:', dur, 'layers:', timeline.layers
 ## 下一步
 
 ```bash
-nextframe produce validate
+nextframe state-prompt produce validate
 ```

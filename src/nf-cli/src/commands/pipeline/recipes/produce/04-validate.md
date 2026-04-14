@@ -39,7 +39,7 @@ nextframe validate timeline.json
 ### "unknown scene interviewBiSub"
 组件不存在。回 Step 2 创建：
 ```bash
-nextframe produce scene
+nextframe state-prompt produce scene
 ```
 
 ### "BAD_AUDIO: audio object missing .src"
@@ -63,5 +63,5 @@ nextframe produce scene
 0 errors 后：
 
 ```bash
-nextframe produce build
+nextframe state-prompt produce build
 ```
