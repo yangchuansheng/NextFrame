@@ -2072,7 +2072,7 @@ html, body {
       <div class="tb-pl-tab" data-stage="audio" onclick="switchTab(this)">音频</div>
       <div class="tb-pl-tab" data-stage="clips" onclick="switchTab(this)">素材</div>
       <div class="tb-pl-tab" data-stage="atoms" onclick="switchTab(this)">原子</div>
-      <div class="tb-pl-tab" data-stage="assembly" onclick="showView('editor')">剪辑</div>
+      <div class="tb-pl-tab" data-stage="assembly" onclick="switchTab(this)">剪辑</div>
       <div class="tb-pl-tab" data-stage="output" onclick="switchTab(this)">产出</div>
     </div>
 
@@ -2617,17 +2617,33 @@ html, body {
       </div>
     </div>
 
-    <!-- Edit tab (placeholder — full editor is view-editor) -->
+    <!-- Edit tab — full editor inline -->
     <div class="pl-tab-content" id="pl-tab-edit">
-      <div class="pl-body">
-        <div class="pl-main glass" style="flex:1;display:flex;align-items:center;justify-content:center">
-          <div style="text-align:center;color:var(--t50)">
-            <div style="font-size:32px;margin-bottom:var(--sp-8);opacity:0.5">&#127916;</div>
-            <div style="font-size:15px;font-weight:500">拼装/剪辑</div>
-            <div style="font-size:13px;margin-top:var(--sp-4)">
-              <a style="color:var(--accent);cursor:pointer;text-decoration:none" onclick="showView('editor')">进入编辑器</a>
+      <div class="ed-body">
+        <div class="ed-panel-left glass">
+          <div class="ed-clip-header"><span class="ed-clip-header-label">CLIPS</span><span class="ed-clip-count" id="ed-clip-count2">5</span></div>
+          <div class="ed-clip-list" id="ed-clip-list2"></div>
+        </div>
+        <div class="ed-panel-center">
+          <div class="ed-preview-panel glass">
+            <div class="ed-preview-inner">
+              <div class="ed-preview-canvas"><div class="ed-preview-gradient"></div><div class="ed-play-btn">&#9654;</div><span class="ed-preview-tc">00:00.0 / 00:45.2</span></div>
+              <div class="ed-transport">
+                <div class="ed-transport-btns">
+                  <button class="ed-t-btn">&#x23EE;</button><button class="ed-t-btn">&#x23EA;</button><button class="ed-t-btn play-main">&#9654;</button><button class="ed-t-btn">&#x23E9;</button><button class="ed-t-btn">&#x23ED;</button>
+                </div>
+                <span class="ed-transport-tc">00:14.4</span>
+                <div class="ed-transport-progress"><div class="ed-transport-fill"></div></div>
+              </div>
             </div>
           </div>
+          <div class="ed-timeline-panel glass">
+            <div class="ed-tl-header"><span class="ed-tl-title">TIMELINE</span><div class="ed-tl-meta"><span class="ed-tl-meta-tag">45.2s</span><span class="ed-tl-meta-tag">5 layers</span><span class="ed-tl-meta-tag">30fps</span></div></div>
+            <div class="ed-tl-body" id="ed-tl-body2"></div>
+          </div>
+        </div>
+        <div class="ed-panel-right glass">
+          <div class="ed-insp-inner" id="ed-insp-inner2"></div>
         </div>
       </div>
     </div>
@@ -2694,71 +2710,7 @@ html, body {
     </div>
   </div><!-- /view-pipeline -->
 
-  <!-- ══════════════════════════════════════
-       VIEW: EDITOR — Three-panel timeline editor
-       ══════════════════════════════════════ -->
-  <div class="view" id="view-editor">
-    <div class="ed-body">
-      <!-- Left: Clip Sidebar -->
-      <div class="ed-panel-left glass">
-        <div class="ed-clip-header">
-          <span class="ed-clip-header-label">CLIPS</span>
-          <span class="ed-clip-count" id="ed-clip-count">5</span>
-        </div>
-        <div class="ed-clip-list" id="ed-clip-list">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-
-      <!-- Center: Preview + Timeline -->
-      <div class="ed-panel-center">
-        <div class="ed-preview-panel glass">
-          <div class="ed-preview-inner">
-            <div class="ed-preview-canvas">
-              <div class="ed-preview-gradient"></div>
-              <div class="ed-play-btn">&#9654;</div>
-              <span class="ed-preview-tc">00:00.0 / 00:45.2</span>
-            </div>
-            <div class="ed-transport">
-              <div class="ed-transport-btns">
-                <button class="ed-t-btn">&#x23EE;</button>
-                <button class="ed-t-btn">&#x23EA;</button>
-                <button class="ed-t-btn play-main">&#9654;</button>
-                <button class="ed-t-btn">&#x23E9;</button>
-                <button class="ed-t-btn">&#x23ED;</button>
-              </div>
-              <span class="ed-transport-tc">00:14.4</span>
-              <div class="ed-transport-progress"><div class="ed-transport-fill"></div></div>
-            </div>
-          </div>
-        </div>
-        <div class="ed-timeline-panel glass">
-          <div class="ed-tl-header">
-            <span class="ed-tl-title">TIMELINE</span>
-            <div class="ed-tl-meta">
-              <span class="ed-tl-meta-tag">45.2s</span>
-              <span class="ed-tl-meta-tag">5 layers</span>
-              <span class="ed-tl-meta-tag">30fps</span>
-            </div>
-          </div>
-          <div class="ed-tl-body" id="ed-tl-body">
-            <!-- Populated by JS -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Right: Inspector -->
-      <div class="ed-panel-right glass">
-        <div class="ed-insp-inner" id="ed-insp-inner">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-    </div>
-    <div class="ed-footer">
-      <span>5 clips &middot; 45.2s &middot; 1356 frames</span>
-      <span>NextFrame v0.5</span>
-    </div>
-  </div><!-- /view-editor -->
+  <!-- editor is now inside pipeline pl-tab-edit, no separate view -->
 
 </div><!-- /app -->
 
@@ -2962,14 +2914,6 @@ function showView(viewName, data) {
     bc1.classList.remove('tb-bc-current');
     sep2.style.display = '';
     bc2.textContent = data?.episodeName || '剧集';
-  } else if (viewName === 'editor') {
-    bc.style.display = 'flex';
-    bc1.textContent = data?.projectName || '项目';
-    bc1.dataset.view = 'project';
-    bc1.style.cursor = 'pointer';
-    bc1.classList.remove('tb-bc-current');
-    sep2.style.display = '';
-    bc2.textContent = '剪辑';
   }
 }
 // Expose globally for onclick handlers
