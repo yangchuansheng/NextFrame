@@ -1,4 +1,4 @@
-/* === export-log.js — Recording report tab on home page === */
+// Home export log tab renderer for recording history, JSONL loading, and performance summaries.
 
 let exportLogCache = [];
 

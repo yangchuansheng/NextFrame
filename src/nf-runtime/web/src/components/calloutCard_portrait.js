@@ -1,3 +1,4 @@
+// Portrait callout card component with an icon, title, description, and scale-in reveal.
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
   SANS_FONT_STACK, makeDescribeResult,

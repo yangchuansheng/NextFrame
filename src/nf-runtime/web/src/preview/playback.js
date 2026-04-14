@@ -1,4 +1,4 @@
-/* === preview/playback.js === */
+// Preview playback controls for playhead updates, clip selection, and inspector synchronization.
 function setPlayheadTime(time) {
   currentTime = TOTAL_DURATION > 0
     ? Math.min(Math.max(finiteNumber(time, 0), 0), TOTAL_DURATION)

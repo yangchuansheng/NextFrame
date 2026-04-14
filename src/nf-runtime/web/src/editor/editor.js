@@ -1,4 +1,4 @@
-/* === editor.js === */
+// Editor route loader for episodes, segments, timeline preview, exports, and file watching.
 async function goEditor(project, episode, segment) {
   if (typeof project === "string") {
     currentProject = project || null;

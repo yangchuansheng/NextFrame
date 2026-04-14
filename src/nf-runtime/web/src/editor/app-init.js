@@ -1,4 +1,4 @@
-/* === app.js === */
+// App view switching helpers for navigation, transitions, and home view initialization.
 function switchView(id) {
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   const target = document.getElementById(id);

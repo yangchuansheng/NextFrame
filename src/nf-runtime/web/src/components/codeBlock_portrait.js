@@ -1,3 +1,4 @@
+// Portrait code block component with a card layout and fade-up reveal.
 import {
   createRoot, createNode, smoothstep, escapeHtml,
   toNumber, MONO_FONT_STACK, SANS_FONT_STACK, makeDescribeResult,

@@ -1,4 +1,4 @@
-/* === File watcher (polling) === */
+// Polling file watcher that reloads the current timeline when the segment file changes.
 let _watchPath = null;
 let _watchMtime = 0;
 let _watchInterval = null;

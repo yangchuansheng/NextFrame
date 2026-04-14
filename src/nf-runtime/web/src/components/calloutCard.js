@@ -1,3 +1,4 @@
+// 16:9 callout card component with an icon, title, description, and scale-in reveal.
 import {
   createRoot, createNode, smoothstep, easeOutBack,
   SANS_FONT_STACK, makeDescribeResult,

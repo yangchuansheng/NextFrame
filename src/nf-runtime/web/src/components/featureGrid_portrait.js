@@ -1,3 +1,4 @@
+// Portrait feature grid component with animated icon cards, titles, and descriptions.
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
   toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,

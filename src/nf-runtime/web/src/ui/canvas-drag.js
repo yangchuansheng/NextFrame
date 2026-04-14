@@ -1,4 +1,4 @@
-/* === canvas-drag.js === */
+// Canvas dragging helpers for moving the editor preview surface with the mouse.
 let dragging = false;
 let dragStartX = 0;
 let dragStartY = 0;

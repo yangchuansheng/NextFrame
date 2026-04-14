@@ -1,4 +1,4 @@
-/* === pipeline/media.js === */
+// Pipeline media playback helpers for audio, karaoke sync, and inline or modal video preview.
 let _plAudio = null;
 let _plAudioBtn = null;
 let _plAudioChars = [];

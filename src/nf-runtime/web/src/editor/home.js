@@ -1,4 +1,4 @@
-/* === home.js === */
+// Home view loaders and renderers for project cards, list rows, and retry-based project fetches.
 function renderHomeState(projects, message) {
   const grid = document.getElementById("project-grid");
   const list = document.getElementById("project-list");

@@ -1,4 +1,4 @@
-/* === pipeline/clips-stage.js — sidebar + detail layout (v0.4 prototype match) === */
+// Pipeline clips stage renderer for source grouping, clip timelines, and detailed clip inspection.
 
 /* ─── Utility: safe number ─── */
 function pipelineClipNumber(value, fallback) {

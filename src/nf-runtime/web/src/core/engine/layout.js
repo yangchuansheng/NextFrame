@@ -1,6 +1,4 @@
-/**
- * NextFrame Engine v2 — layout, sizing, stage setup
- */
+// Engine layout helpers for timeline metrics, stage sizing, and layer state construction.
 
 function applyLayerStyle(el, layer, state) {
   const s = el.style;

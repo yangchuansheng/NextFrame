@@ -1,4 +1,4 @@
-/* === preview/timeline.js === */
+// Timeline rendering helpers for rulers, tracks, clips, scrubbing, and empty editor states.
 function renderTimelineRuler(duration) {
   const safeDuration = Math.max(0, finiteNumber(duration, 0));
   const wholeSeconds = Math.floor(safeDuration);

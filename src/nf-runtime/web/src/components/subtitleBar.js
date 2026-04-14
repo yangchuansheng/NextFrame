@@ -1,3 +1,4 @@
+// 16:9 subtitle bar component with bottom placement and typewriter text reveal.
 import {
   createRoot, createNode, smoothstep, toNumber,
   SANS_FONT_STACK, makeDescribeResult,

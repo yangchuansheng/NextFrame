@@ -1,6 +1,4 @@
-/**
- * NextFrame Engine v2 — frame rendering and layer mutation
- */
+// Engine frame renderer for scene updates, effect application, and layer style diffing.
 
 function setIfChanged(el, prop, value) {
   if (el._nfPrev?.[prop] !== value) {

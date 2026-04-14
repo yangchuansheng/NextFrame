@@ -1,3 +1,4 @@
+// Canvas aurora gradient background component with layered moving wave bands.
 import {
   createRoot, toNumber, normalizeArray, clamp, makeDescribeResult,
 } from '../core/shared/index.js';

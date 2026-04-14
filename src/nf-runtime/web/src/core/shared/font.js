@@ -1,3 +1,4 @@
+// Shared font stacks and text sizing helpers for scene layout and overflow fitting.
 export const SANS_FONT_STACK = '-apple-system, "SF Pro Display", "PingFang SC", sans-serif';
 export const MONO_FONT_STACK = '"SF Mono", "Fira Code", Menlo, monospace';
 export const SERIF_FONT_STACK = '"Iowan Old Style", "Times New Roman", "Songti SC", serif';

@@ -1,3 +1,4 @@
+// Web runtime app bootstrap for bridge IPC setup, app initialization, and global action wiring.
 (function() {
   const ipcPending = new Map();
   const ipcExpired = new Set();

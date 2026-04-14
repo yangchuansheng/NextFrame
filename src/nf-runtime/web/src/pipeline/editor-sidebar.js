@@ -1,4 +1,4 @@
-/* === pipeline/editor-sidebar.js === */
+// Editor sidebar renderer for pipeline segments, clip summaries, and active clip selection.
 function populateEditorClipSidebar() {
   const list = document.getElementById("editor-clip-list");
   const count = document.getElementById("editor-clip-count");

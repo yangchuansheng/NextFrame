@@ -1,3 +1,4 @@
+// 4:3 SVG bar chart component with animated bar growth, labels, and value reveal.
 import {
   createRoot, smoothstep, easeOutCubic,
   toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,

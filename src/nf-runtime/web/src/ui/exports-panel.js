@@ -1,4 +1,4 @@
-/* === exports-panel.js === */
+// Exports panel controls for listing renders, opening the player modal, and playback state.
 function getPlayerVideo() {
   const container = document.getElementById("player-canvas-inner");
   if (!container) {

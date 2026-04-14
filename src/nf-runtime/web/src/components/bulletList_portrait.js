@@ -1,3 +1,4 @@
+// Portrait bullet list component with left-aligned rows and staggered slide-in animation.
 import {
   createRoot, createNode, smoothstep,
   toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,

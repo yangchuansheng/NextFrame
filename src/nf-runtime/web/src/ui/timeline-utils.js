@@ -1,4 +1,4 @@
-/* === timeline.js === */
+// Timeline playback helpers for play state, playhead timing, and duration readouts.
 function setPlayButtonIcons() {
   const icon = isPlaying ? "\u23F8" : "\u25B6";
   const primary = document.getElementById("btn-play");

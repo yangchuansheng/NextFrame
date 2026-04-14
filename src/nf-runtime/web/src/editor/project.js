@@ -1,4 +1,4 @@
-/* === project.js === */
+// Project view loaders and renderers for episode cards, project stats, and pipeline entry points.
 function renderProjectState(projectName, episodes, message) {
   const displayName = projectName || "Projects";
   const projectPath = readProjectPath(projectName);

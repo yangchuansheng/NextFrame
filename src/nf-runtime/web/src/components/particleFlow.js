@@ -1,3 +1,4 @@
+// Canvas particle flow background component with deterministic motion and density controls.
 import {
   createRoot, toNumber, clamp, hashFloat,
   makeDescribeResult,

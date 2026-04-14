@@ -1,4 +1,4 @@
-/* === preview/dom-preview.js === */
+// DOM preview lifecycle helpers for engine setup, stage fitting, and inspector updates.
 function getCurrentSegmentPath() {
   return currentSegmentPath || findSegmentEntry(currentSegment)?.path || null;
 }

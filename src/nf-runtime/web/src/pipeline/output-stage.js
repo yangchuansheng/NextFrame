@@ -1,4 +1,4 @@
-/* === pipeline/output-stage.js === */
+// Pipeline output stage renderer for version cards, publish status, specs, and output metadata.
 function renderPipelineOutput(data) {
   const outputs = (data.outputs || []).slice().sort(function(left, right) {
     return right.id - left.id;

@@ -1,4 +1,4 @@
-/* === pipeline/navigation.js === */
+// Pipeline navigation handlers for breadcrumb clicks, spacebar playback, and escape behavior.
 function initBreadcrumbNavigation() {
   const projectLabel = document.getElementById("bc-show-label");
   if (projectLabel) {

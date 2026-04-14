@@ -1,3 +1,4 @@
+// Shared color and content helpers for gradients, asset URLs, HTML sanitizing, and markdown rendering.
 function normalizeArray(value, fallback = []) {
   return Array.isArray(value) ? value : fallback;
 }

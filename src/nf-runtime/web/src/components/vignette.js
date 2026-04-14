@@ -1,3 +1,4 @@
+// Canvas vignette overlay component with adjustable intensity, color, and inner radius.
 import {
   createRoot, toNumber, clamp,
   makeDescribeResult,

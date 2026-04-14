@@ -1,4 +1,4 @@
-/* === breadcrumbs.js === */
+// Breadcrumb dropdown rendering and overlay controls for project, episode, and segment navigation.
 function getOverlay() {
   overlay ??= document.getElementById("overlay");
   return overlay;

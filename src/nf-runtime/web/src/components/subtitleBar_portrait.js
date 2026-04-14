@@ -1,3 +1,4 @@
+// Portrait subtitle bar component with a translucent background and fade-up reveal.
 import {
   createRoot, createNode, smoothstep,
   toNumber, SANS_FONT_STACK, makeDescribeResult,

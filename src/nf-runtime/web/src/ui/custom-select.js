@@ -1,4 +1,4 @@
-/* === custom-select.js === */
+// Custom select dropdown helpers for open state, option picking, and outside-click closing.
 function toggleCustomSelect(element) {
   document.querySelectorAll(".custom-select.open").forEach((select) => {
     if (select !== element) {

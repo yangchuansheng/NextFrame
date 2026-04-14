@@ -1,4 +1,4 @@
-/* === settings-panel.js === */
+// Settings panel toggle helper for showing and hiding the settings overlay.
 function toggleSettings() {
   document.getElementById("exports-overlay").classList.remove("show");
   document.getElementById("exports-panel").classList.remove("show");

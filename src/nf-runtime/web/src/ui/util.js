@@ -1,4 +1,4 @@
-/* === util.js === */
+// Shared editor utility helpers for escaping, formatting, paths, and timeline math.
 function finiteNumber(value, fallback) {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;

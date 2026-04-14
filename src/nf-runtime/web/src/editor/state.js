@@ -1,4 +1,4 @@
-/* === state.js === */
+// Shared editor runtime state for constants, playback flags, caches, and current selection data.
 const DESKTOP_CONNECT_MESSAGE = "Connect via desktop app to load projects";
 const NO_PROJECTS_MESSAGE = "No projects — create one with `nextframe project-new <name>`";
 const IPC_HOME_TIMEOUT_MS = 1500;

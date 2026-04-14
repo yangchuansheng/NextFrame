@@ -1,3 +1,4 @@
+// 16:9 metric counter component with animated value rollup and supporting label.
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
   toNumber, SANS_FONT_STACK, makeDescribeResult,

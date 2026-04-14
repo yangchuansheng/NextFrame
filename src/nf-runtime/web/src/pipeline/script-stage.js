@@ -1,4 +1,4 @@
-/* === pipeline/script-stage.js === */
+// Pipeline script stage renderer for principles, segment filters, and narration detail rows.
 function renderPipelineScript(data) {
   const script = data && data.script;
   if (!script || !script.segments || script.segments.length === 0) {

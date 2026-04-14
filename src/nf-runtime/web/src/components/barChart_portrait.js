@@ -1,3 +1,4 @@
+// Portrait SVG bar chart component with staggered bar growth, labels, and value reveal.
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
   toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,

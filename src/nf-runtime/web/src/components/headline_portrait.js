@@ -1,3 +1,4 @@
+// Portrait headline component with gradient letters, staggered text reveal, and optional subtitle.
 import {
   createRoot, createNode, smoothstep,
   toNumber, SANS_FONT_STACK, makeLinearGradient, makeDescribeResult,

@@ -1,4 +1,4 @@
-/* === pipeline/atoms-stage.js === */
+// Pipeline atoms stage renderer with type counts, filters, and media or component asset cards.
 function renderPipelineAtoms(data) {
   const atoms = data.atoms || [];
   const counts = { all: atoms.length, component: 0, video: 0, image: 0 };

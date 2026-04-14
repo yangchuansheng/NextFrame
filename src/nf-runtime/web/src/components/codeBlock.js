@@ -1,3 +1,4 @@
+// 16:9 terminal-style code block component with staggered line fade-in animation.
 import {
   createRoot, createNode, smoothstep, toNumber,
   escapeHtml, normalizeLines, MONO_FONT_STACK, makeDescribeResult,

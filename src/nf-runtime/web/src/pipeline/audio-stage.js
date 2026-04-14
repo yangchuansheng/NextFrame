@@ -1,4 +1,4 @@
-/* === pipeline/audio-stage.js === */
+// Pipeline audio stage renderer for generated narration, karaoke timing, and segment playback.
 function renderPipelineAudio(data) {
   const voice = escHtml(data.audio.voice);
   const speed = data.audio.speed;

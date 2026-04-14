@@ -1,3 +1,4 @@
+// 16:9 bullet list component with left-aligned rows and staggered slide-in animation.
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
   toNumber, normalizeArray, SANS_FONT_STACK, makeDescribeResult,

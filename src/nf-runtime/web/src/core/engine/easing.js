@@ -1,6 +1,4 @@
-/**
- * NextFrame Engine v2 — easing, effects, transitions, keyframes
- */
+// Engine easing helpers for effects, transitions, and keyframe interpolation.
 
 const clamp = typeof globalThis.clamp === 'function'
   ? globalThis.clamp
