@@ -43,14 +43,15 @@ export const meta = {
 };
 
 export function render(t, params, vp) {
-  // Resolve params with defaults
-  var p = {};
-  for (var k in meta.params) { p[k] = params[k] !== undefined ? params[k] : meta.params[k].default; }
+  const p = {};
+  for (const k in meta.params) {
+    p[k] = params[k] !== undefined ? params[k] : meta.params[k].default;
+  }
 
-  var esc = function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  const esc = function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
 
   // Top bar: brand left, series+epTitle center, dim right
-  var topBar = '<div style="position:absolute;top:0;left:0;right:0;height:60px;display:flex;align-items:center;padding:0 40px;border-bottom:1px solid '+p.ruleColor+';z-index:100">' +
+  const topBar = '<div style="position:absolute;top:0;left:0;right:0;height:60px;display:flex;align-items:center;padding:0 40px;border-bottom:1px solid '+p.ruleColor+';z-index:100">' +
     '<div style="font:900 20px system-ui,-apple-system,sans-serif;letter-spacing:.14em;color:'+p.brandColor+'">'+esc(p.brand)+'</div>' +
     '<div style="flex:1;text-align:center;font:600 18px system-ui,sans-serif;color:rgba(245,236,224,.75)">' +
       '<span style="color:'+p.seriesColor+';font-weight:800">'+esc(p.series)+'</span>' +
@@ -60,9 +61,10 @@ export function render(t, params, vp) {
   '</div>';
 
   // Watermark
-  var wm = p.watermark ? '<div style="position:absolute;top:40px;right:40px;font:900 120px system-ui;color:'+p.watermarkColor+';text-shadow:0 0 80px rgba(218,119,86,.06);z-index:1;letter-spacing:-.02em">'+esc(p.watermark)+'</div>' : '';
+  const wm = p.watermark ? '<div style="position:absolute;top:40px;right:40px;font:900 120px system-ui;color:'+p.watermarkColor+';text-shadow:0 0 80px rgba(218,119,86,.06);z-index:1;letter-spacing:-.02em">'+esc(p.watermark)+'</div>' : '';
+  const frameStyle = 'position:absolute;inset:0;width:'+vp.width+'px;height:'+vp.height+'px';
 
-  return topBar + wm;
+  return '<div style="'+frameStyle+'">' + topBar + wm + '</div>';
 }
 
 export function screenshots() {
@@ -74,7 +76,7 @@ export function screenshots() {
 }
 
 export function lint(params, vp) {
-  var errors = [];
+  const errors = [];
   if (!params.brand) errors.push("brand 不能为空。Fix: 传入品牌名如 'OPC · 王宇轩'");
   return { ok: errors.length === 0, errors: errors };
 }
