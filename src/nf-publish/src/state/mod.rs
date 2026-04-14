@@ -2,21 +2,31 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use chrono::{Local, SecondsFormat};
-use objc2::msg_send;
 use objc2::runtime::AnyObject;
-use objc2_app_kit::{NSButton, NSColor, NSTextField, NSView};
-use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
+use objc2_app_kit::{NSButton, NSTextField, NSView};
 use objc2_web_kit::{WKWebView, WKWebViewConfiguration};
 use serde::{Deserialize, Serialize};
 
 use crate::delegates::{PilotNavDelegate, PilotUIDelegate};
-use crate::ui::{rebuild_bookmarks_bar, rebuild_tab_strip};
 
+mod events;
+mod navigation;
 mod persistence;
 mod session;
 mod tabs;
 
+#[allow(unused_imports)]
+pub(crate) use events::{log_activity, log_crash, read_activity_log};
+pub(crate) use events::{timestamp_now, trim_history};
+#[allow(unused_imports)]
+pub(crate) use navigation::{
+    active_tab_id, address_field, back_button, bookmarks_bar_view, browser_tabs_snapshot,
+    browser_target, current_url_for_webview, dynamic_tab_icon, forward_button, make_request,
+    normalize_user_url, reload_button, remove_view_from_superview, short_title, tab_strip_view,
+    tab_title_from_state, title_for_webview, url_host, webview_host_view,
+};
+#[allow(unused_imports)]
+pub(crate) use navigation::{current_webview, tab_index_for_webview, webview_for_tab};
 #[allow(unused_imports)]
 pub(crate) use persistence::{
     LoadedBrowserSession, SavedDynamicTab, SessionHistoryEntry, SessionState, load_browser_session,
@@ -200,26 +210,18 @@ body {{
     )
 }
 
-/// Returns the per-tab command file path used by the polling bridge.
-/// Each tab gets an isolated `/tmp` command channel keyed by tab id.
 pub(crate) fn cmd_file(tab: usize) -> String {
     format!("/tmp/wp-cmd-{tab}.js")
 }
 
-/// Returns the per-tab result file path used to report command output.
-/// The polling loop writes command status and JSON responses here.
 pub(crate) fn result_file(tab: usize) -> String {
     format!("/tmp/wp-result-{tab}.txt")
 }
 
-/// Returns the per-tab screenshot file path for native capture commands.
-/// Screenshots are written into `/tmp` with the tab id embedded in the name.
 pub(crate) fn screenshot_file(tab: usize) -> String {
     format!("/tmp/wp-screenshot-{tab}.png")
 }
 
-/// Returns the per-tab upload path file used by command workflows.
-/// External automation writes selected upload targets into this channel.
 pub(crate) fn upload_file(tab: usize) -> String {
     format!("/tmp/wp-upload-path-{tab}.txt")
 }
@@ -345,270 +347,3 @@ unsafe impl Send for AppState {}
 unsafe impl Sync for AppState {}
 
 pub(crate) static APP_STATE: OnceLock<AppState> = OnceLock::new();
-
-fn timestamp_now() -> String {
-    Local::now().to_rfc3339_opts(SecondsFormat::Secs, false)
-}
-
-fn trim_history(history: &mut Vec<SessionHistoryEntry>) {
-    let excess = history.len().saturating_sub(100);
-    if excess > 0 {
-        history.drain(0..excess);
-    }
-}
-
-fn active_tab_id() -> Option<usize> {
-    let state = APP_STATE.get()?;
-    Some(state.current_tab.load(Ordering::Relaxed))
-}
-
-fn browser_tabs_snapshot() -> Vec<BrowserTab> {
-    let Some(state) = APP_STATE.get() else {
-        return Vec::new();
-    };
-    let Ok(tabs) = state.browser_tabs.lock() else {
-        return Vec::new();
-    };
-    tabs.clone()
-}
-
-fn webview_ptr_for_tab(tab_id: usize) -> Option<*const WKWebView> {
-    let state = APP_STATE.get()?;
-    let Ok(tabs) = state.browser_tabs.lock() else {
-        return None;
-    };
-    tabs.iter()
-        .find(|tab| tab.id == tab_id)
-        .map(|tab| tab.webview_ptr)
-}
-
-/// Returns the currently active webview, if application state is initialized.
-/// This resolves the active tab id first and then looks up its webview pointer.
-pub(crate) fn current_webview() -> Option<&'static WKWebView> {
-    let tab_id = active_tab_id()?;
-    webview_for_tab(tab_id)
-}
-
-/// Returns the webview backing the given runtime tab id.
-/// Missing app state or stale tab ids yield `None`.
-pub(crate) fn webview_for_tab(tab_id: usize) -> Option<&'static WKWebView> {
-    let ptr = webview_ptr_for_tab(tab_id)?;
-    Some(unsafe { &*ptr })
-}
-
-/// Finds the runtime tab id associated with a specific `WKWebView`.
-/// This is used by delegate callbacks to map WebKit events back to tabs.
-pub(crate) fn tab_index_for_webview(wv: &WKWebView) -> Option<usize> {
-    let state = APP_STATE.get()?;
-    let ptr = wv as *const WKWebView;
-    let Ok(tabs) = state.browser_tabs.lock() else {
-        return None;
-    };
-    tabs.iter()
-        .find(|tab| tab.webview_ptr == ptr)
-        .map(|tab| tab.id)
-}
-
-fn bookmarks_bar_view() -> Option<&'static NSView> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.bookmarks_bar_ptr })
-}
-
-fn tab_strip_view() -> Option<&'static NSView> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.tab_strip_ptr })
-}
-
-fn webview_host_view() -> Option<&'static NSView> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.webview_host_ptr })
-}
-
-fn address_field() -> Option<&'static NSTextField> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.address_field_ptr })
-}
-
-fn back_button() -> Option<&'static NSButton> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.back_button_ptr })
-}
-
-fn forward_button() -> Option<&'static NSButton> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.forward_button_ptr })
-}
-
-fn reload_button() -> Option<&'static NSButton> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.reload_button_ptr })
-}
-
-fn browser_target() -> Option<&'static AnyObject> {
-    let state = APP_STATE.get()?;
-    Some(unsafe { &*state.browser_target_ptr })
-}
-
-fn short_title(title: &str) -> String {
-    let compact = title.replace('\n', " ").trim().to_owned();
-    if compact.is_empty() {
-        return "New Tab".to_owned();
-    }
-    let chars: Vec<char> = compact.chars().collect();
-    if chars.len() <= 18 {
-        compact
-    } else {
-        format!("{}…", chars[..18].iter().collect::<String>())
-    }
-}
-
-fn dynamic_tab_icon(tab: &BrowserTab) -> &'static str {
-    let url = if !tab.current_url.trim().is_empty() {
-        &tab.current_url
-    } else {
-        &tab.last_committed_url
-    };
-    let host = url_host(url).to_ascii_lowercase();
-
-    if host.contains("douyin") {
-        "🎵"
-    } else if host.contains("xiaohongshu") {
-        "📕"
-    } else if host.contains("bilibili") {
-        "📺"
-    } else if host.contains("weixin") || host.contains("qq.com") {
-        "💬"
-    } else if host.contains("kuaishou") {
-        "🎬"
-    } else if host.contains("zhihu") {
-        "💡"
-    } else if host.contains("scys") {
-        "💰"
-    } else if host.contains("feishu") || host.contains("lark") {
-        "📄"
-    } else if host.contains("github") {
-        "🐙"
-    } else if host.contains("google") {
-        "🔍"
-    } else {
-        "🌐"
-    }
-}
-
-fn tab_title_from_state(tab: &BrowserTab) -> String {
-    match tab.kind {
-        BrowserTabKind::Workspace(index) => {
-            let icon = BOOKMARK_COLORS.get(index).map(|c| c.3).unwrap_or("●");
-            format!("{} {}", icon, TABS[index].label)
-        }
-        BrowserTabKind::Dynamic => format!("{} {}", dynamic_tab_icon(tab), short_title(&tab.title)),
-    }
-}
-
-fn url_host(url: &str) -> String {
-    url.split("://")
-        .nth(1)
-        .unwrap_or("")
-        .split('/')
-        .next()
-        .unwrap_or("")
-        .split(':')
-        .next()
-        .unwrap_or("")
-        .to_owned()
-}
-
-fn normalize_user_url(input: &str) -> Option<String> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    if trimmed.starts_with("about:") || trimmed.contains("://") {
-        return Some(trimmed.to_owned());
-    }
-    if trimmed.contains(' ') {
-        return None;
-    }
-    Some(format!("https://{trimmed}"))
-}
-
-fn title_for_webview(webview: &WKWebView) -> String {
-    unsafe { webview.title() }
-        .map(|value| value.to_string())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "New Tab".to_owned())
-}
-
-fn current_url_for_webview(webview: &WKWebView) -> String {
-    unsafe { webview.URL() }
-        .and_then(|url| url.absoluteString())
-        .map(|value| value.to_string())
-        .unwrap_or_default()
-}
-
-fn make_request(url: &str) -> Result<objc2::rc::Retained<objc2_foundation::NSURLRequest>, String> {
-    let nsurl = objc2_foundation::NSURL::URLWithString(&NSString::from_str(url))
-        .ok_or_else(|| format!("invalid URL: {url}"))?;
-    Ok(objc2_foundation::NSURLRequest::requestWithURL(&nsurl))
-}
-
-fn remove_view_from_superview(view: &AnyObject) {
-    let _ = unsafe {
-        objc2::exception::catch(std::panic::AssertUnwindSafe(|| {
-            let _: () = unsafe { msg_send![view, removeFromSuperview] };
-        }))
-    };
-}
-
-/// Appends a structured activity event to the persistent JSONL activity log.
-/// Failures are ignored so telemetry never blocks the main app flow.
-pub(crate) fn log_activity(event_type: &str, platform: &str, details: &str) {
-    use std::io::Write;
-
-    let ts = timestamp_now();
-    let entry = serde_json::json!({
-        "ts": ts,
-        "type": event_type,
-        "platform": platform,
-        "details": details,
-    });
-    let path = persistence::state_dir().join("activity.jsonl");
-    if let Ok(mut file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-    {
-        let _ = writeln!(file, "{}", entry);
-        let _ = file.flush();
-    }
-}
-
-/// Records an error or crash entry to stderr, the crash log, and activity telemetry.
-/// This centralizes diagnostic reporting for Rust and Objective-C failures.
-pub(crate) fn log_crash(level: &str, location: &str, message: &str) {
-    use std::io::Write;
-
-    let ts = timestamp_now();
-    let line = format!("[{ts}] {level} {location}: {message}");
-    eprintln!("{line}");
-    let path = persistence::state_dir().join("crash.log");
-    if let Ok(mut file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-    {
-        let _ = writeln!(file, "{}", line);
-        let _ = file.flush();
-    }
-    log_activity("crash", location, &format!("{level}: {message}"));
-}
-
-/// Returns the last `last_n` activity log lines as a newline-delimited string.
-/// Missing log files produce an empty string.
-pub(crate) fn read_activity_log(last_n: usize) -> String {
-    let path = persistence::state_dir().join("activity.jsonl");
-    let content = std::fs::read_to_string(&path).unwrap_or_default();
-    let lines: Vec<&str> = content.lines().collect();
-    let start = lines.len().saturating_sub(last_n);
-    lines[start..].join("\n")
-}
