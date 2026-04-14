@@ -18,16 +18,16 @@ window.__ipc = window.__ipc || {};
   };
 });
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="src/styles/editor.css">
 
 </head>
 <body>
 
-<!-- Film Grain -->
-<svg style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.035;z-index:9999;mix-blend-mode:overlay">
-  <filter id="grain"><feTurbulence baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter>
-  <rect width="100%" height="100%" filter="url(#grain)"/>
-</svg>
+<!-- Aurora background -->
+<div class="aurora"></div>
 
 <!-- Click-away overlay -->
 <div class="overlay" id="overlay"></div>
@@ -36,7 +36,7 @@ window.__ipc = window.__ipc || {};
      VIEW 1: HOME
      ============================================================ -->
 <div class="view active" id="view-home" data-nf-page="home">
-  <div class="topbar">
+  <div class="topbar glass">
     <div class="logo" onclick="goHome()">
       <div class="logo-mark"></div>
       <span class="logo-text">NextFrame</span>
@@ -89,7 +89,7 @@ window.__ipc = window.__ipc || {};
      VIEW 2: PROJECT
      ============================================================ -->
 <div class="view" id="view-project" data-nf-page="project">
-  <div class="topbar">
+  <div class="topbar glass">
     <div class="back-link" onclick="goHome()">&#x2190;</div>
     <div class="logo" onclick="goHome()">
       <div class="logo-mark"></div>
@@ -127,7 +127,7 @@ window.__ipc = window.__ipc || {};
      VIEW 4: PIPELINE (v0.4 — Video Production Workflow)
      ============================================================ -->
 <div class="view" id="view-pipeline" data-nf-page="pipeline">
-  <div class="topbar topbar-editor">
+  <div class="topbar topbar-editor glass">
     <div class="logo" onclick="goHome()" style="margin-right:12px">
       <div class="logo-mark" style="width:18px;height:18px;border-radius:5px"></div>
     </div>
@@ -165,7 +165,7 @@ window.__ipc = window.__ipc || {};
      VIEW 3: EDITOR
      ============================================================ -->
 <div class="view" id="view-editor" data-nf-page="editor" data-nf-state="windowed">
-  <div class="topbar topbar-editor">
+  <div class="topbar topbar-editor glass">
     <div class="logo" onclick="goHome()" style="margin-right:12px">
       <div class="logo-mark" style="width:18px;height:18px;border-radius:5px"></div>
     </div>
@@ -355,7 +355,7 @@ window.__ipc = window.__ipc || {};
 
   <div class="editor-body">
   <!-- Clip sidebar (v0.4) -->
-  <div class="editor-clip-sidebar" id="editor-clip-sidebar" data-nf-role="sidebar">
+  <div class="editor-clip-sidebar glass" id="editor-clip-sidebar" data-nf-role="sidebar">
     <div class="editor-clip-header">
       <span>CLIPS</span>
       <span id="editor-clip-count" style="font-family:var(--font-mono);font-size:11px;color:rgba(228,228,232,0.5);text-transform:none;letter-spacing:0">0</span>
@@ -385,7 +385,7 @@ window.__ipc = window.__ipc || {};
       </div>
 
       <!-- Playback bar -->
-      <div class="playback-bar">
+      <div class="playback-bar glass">
         <div class="playback-left">
           <div class="timecode"><span class="tc-current" id="tc-current" data-nf-time="2.4">00:02.400</span> / <span id="tc-total" data-nf-time="26">00:26.000</span></div>
         </div>
@@ -402,7 +402,7 @@ window.__ipc = window.__ipc || {};
     </div>
 
     <!-- Inspector -->
-    <div class="inspector" id="inspector" data-nf-role="sidebar">
+    <div class="inspector glass" id="inspector" data-nf-role="sidebar">
       <div class="insp-header">
         <span class="insp-name" id="insp-scene-name">No clip selected</span>
         <span class="insp-tag" id="insp-clip-id">--</span>
@@ -462,7 +462,7 @@ window.__ipc = window.__ipc || {};
   </div><!-- /editor-body -->
 
   <!-- Timeline -->
-  <div class="timeline" id="timeline" data-nf-role="timeline" data-nf-state="paused">
+  <div class="timeline glass" id="timeline" data-nf-role="timeline" data-nf-state="paused">
     <div class="tl-header">
       <span class="tl-header-label">Timeline</span>
       <button class="tl-header-btn" data-nf-action="toggle-snap">Snap</button>
