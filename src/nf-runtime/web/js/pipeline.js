@@ -367,6 +367,40 @@ function formatTimecode(ms) {
 function renderAudioTabInner(segments) {
   const el = document.querySelector('#pl-tab-audio .pl-main');
   if (!el) return;
+
+  // Update sidebar: stats + segment nav with status dots
+  const sidebar = document.querySelector('#pl-tab-audio .pl-sidebar');
+  if (sidebar) {
+    let generatedCount = 0;
+    segments.forEach(function(seg, index) {
+      const sn = Number(seg.segment) || (index + 1);
+      if (pipelineAudioState[sn] && pipelineAudioState[sn].exists) generatedCount++;
+    });
+    let sbHtml = '<div class="pl-sb-section"><div class="pl-sb-title">音频设置</div>' +
+      '<div class="pl-sb-info-row"><span class="pl-sb-label">引擎</span><span class="pl-sb-value">Edge TTS</span></div>' +
+      '<div class="pl-sb-info-row"><span class="pl-sb-label">语音</span><span class="pl-sb-value">zh-CN-XiaoxiaoNeural</span></div>' +
+      '<div class="pl-sb-info-row"><span class="pl-sb-label">语速</span><span class="pl-sb-value">1.0x</span></div>' +
+      '<div class="pl-sb-stats" style="display:flex;gap:16px;margin-top:12px">' +
+        '<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">' + generatedCount + '</div><div style="font-size:11px;color:var(--t50)">已生成</div></div>' +
+        '<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--t80)">' + segments.length + '</div><div style="font-size:11px;color:var(--t50)">总段数</div></div>' +
+      '</div></div>';
+    sbHtml += '<div class="pl-sb-section"><div class="pl-sb-title">段落导航</div>';
+    segments.forEach(function(seg, index) {
+      const sn = Number(seg.segment) || (index + 1);
+      const narr = getAudioSegmentNarration(seg, index) || '';
+      const preview = narr.substring(0, 12) + (narr.length > 12 ? '...' : '');
+      const hasAudio = pipelineAudioState[sn] && pipelineAudioState[sn].exists;
+      const dotColor = hasAudio ? 'var(--green)' : 'var(--t50)';
+      sbHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer" onclick="document.getElementById(\'audio-card-' + sn + '\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">' +
+        '<div style="width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--t80)">' + sn + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--t80);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(preview) + '</div></div>' +
+        '<div style="width:8px;height:8px;border-radius:50%;background:' + dotColor + ';flex-shrink:0"></div>' +
+      '</div>';
+    });
+    sbHtml += '</div>';
+    sidebar.innerHTML = sbHtml;
+  }
+
   let html = '<div style="padding:16px;overflow-y:auto;height:100%">';
   segments.forEach(function(seg, index) {
     const segmentNumber = Number(seg.segment) || (index + 1);
@@ -385,14 +419,20 @@ function renderAudioTabInner(segments) {
     html += '<div style="margin-bottom:12px"><span style="font-size:13px;font-weight:600;color:var(--accent)">段 ' + segmentNumber + '</span></div>';
     html += '<div style="font-size:14px;color:var(--t80);line-height:1.7;margin-bottom:16px">' + escapeHtml(narration) + '</div>';
 
-    // Audio head: play + status + duration
-    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">';
+    // Audio head: play/pause + status + duration
+    const isPlaying = activeKaraokeAudio && !activeKaraokeAudio.paused && activeKaraokeSegment === segmentNumber;
+    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">';
     if (hasAudio) {
-      html += '<button data-nf-action="play-audio" onclick="playKaraokeAudio(' + segmentNumber + ')" style="width:32px;height:32px;border-radius:50%;border:none;background:var(--accent);color:#000;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">&#9654;</button>';
+      html += '<button data-nf-action="play-audio" id="play-btn-' + segmentNumber + '" onclick="toggleKaraokeAudio(' + segmentNumber + ')" style="width:32px;height:32px;border-radius:50%;border:none;background:var(--accent);color:#000;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">' + (isPlaying ? '&#9646;&#9646;' : '&#9654;') + '</button>';
     }
     html += '<span style="font-size:12px;font-weight:600;color:' + statusColor + ';padding:2px 8px;border-radius:4px;background:' + (hasAudio ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.06)') + '">' + statusLabel + '</span>';
     if (duration > 0) html += '<span style="font-family:var(--mono);font-size:13px;color:var(--t80);margin-left:auto">' + duration.toFixed(1) + 's</span>';
     html += '</div>';
+    // File path
+    if (hasAudio && state.mp3) {
+      const rawPath = state.mp3.replace('nfdata://localhost/', '~/NextFrame/projects/');
+      html += '<div style="font-family:var(--mono);font-size:11px;color:var(--t50);margin-bottom:12px;word-break:break-all">' + escapeHtml(rawPath) + '</div>';
+    }
 
     // Sentence breakdown with karaoke
     if (hasAudio && sentences.length > 0) {
@@ -451,6 +491,17 @@ function generateTTS(segmentNumber) {
 
 let activeKaraokeAudio = null;
 let activeKaraokeRaf = null;
+let activeKaraokeSegment = null;
+
+function toggleKaraokeAudio(segmentNumber) {
+  if (activeKaraokeAudio && activeKaraokeSegment === segmentNumber && !activeKaraokeAudio.paused) {
+    activeKaraokeAudio.pause();
+    const btn = document.getElementById('play-btn-' + segmentNumber);
+    if (btn) btn.innerHTML = '&#9654;';
+    return;
+  }
+  playKaraokeAudio(segmentNumber);
+}
 
 function playKaraokeAudio(segmentNumber) {
   // Stop any playing audio
@@ -470,6 +521,8 @@ function playKaraokeAudio(segmentNumber) {
 
   const audio = new Audio(state.mp3);
   activeKaraokeAudio = audio;
+  activeKaraokeSegment = segmentNumber;
+  const btn = document.getElementById('play-btn-' + segmentNumber);
   const chars = card.querySelectorAll('.ch');
   const progressFills = card.querySelectorAll('.s-progress-fill');
   const sentenceRows = card.querySelectorAll('.sentence-row');
@@ -508,8 +561,15 @@ function playKaraokeAudio(segmentNumber) {
     if (!audio.paused && !audio.ended) activeKaraokeRaf = requestAnimationFrame(tick);
   }
 
-  audio.play().then(function() { activeKaraokeRaf = requestAnimationFrame(tick); }).catch(function() {});
-  audio.onended = function() { activeKaraokeAudio = null; };
+  audio.play().then(function() {
+    if (btn) btn.innerHTML = '&#9646;&#9646;';
+    activeKaraokeRaf = requestAnimationFrame(tick);
+  }).catch(function() {});
+  audio.onended = function() {
+    activeKaraokeAudio = null;
+    activeKaraokeSegment = null;
+    if (btn) btn.innerHTML = '&#9654;';
+  };
 }
 
 function playSegmentAudio(mp3Path) {
@@ -741,6 +801,7 @@ window.startPipelineExport = startPipelineExport;
 window.cancelPipelineExport = cancelPipelineExport;
 window.previewSegmentVideo = previewSegmentVideo;
 window.playKaraokeAudio = playKaraokeAudio;
+window.toggleKaraokeAudio = toggleKaraokeAudio;
 window.scrollToSegment = scrollToSegment;
 window.saveNarration = saveNarration;
 window.generateTTS = generateTTS;
