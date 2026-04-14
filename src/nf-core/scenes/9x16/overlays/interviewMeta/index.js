@@ -1,97 +1,73 @@
-import { TOKENS, esc, fadeIn, scaleH, scaleW } from "../../../shared/design.js";
+import { TOKENS, GRID, TYPE, esc, scaleW, scaleH, fadeIn, decoLine } from "../../../shared/design.js";
 
 export const meta = {
-  id: "interviewMeta",
-  version: 2,
-  ratio: "9:16",
-  category: "overlays",
+  id: "interviewMeta", version: 3, ratio: "9:16", category: "overlays",
   label: "Interview Meta",
-  description: "Metadata row, watching line, and left-aligned editorial tags.",
-  tech: "dom",
-  duration_hint: 20,
-  loopable: true,
-  z_hint: "top",
+  description: "Time info + topic zone + tags, matching old clip-slide layout: time at 1186, topic at 1224, tags below.",
+  tech: "dom", duration_hint: 20, loopable: true, z_hint: "top",
   tags: ["overlays", "interview", "meta", "tags", "9x16"],
-  mood: ["editorial"],
-  theme: ["interview", "tech"],
   default_theme: "dark-interview",
-  themes: {
-    "dark-interview": {
-      metaColor: TOKENS.interview.muted,
-      watchingColor: TOKENS.interview.warm,
-      descColor: TOKENS.interview.secondary,
-      tagBorder: TOKENS.interview.tagBorder,
-      tagText: TOKENS.interview.tagText,
-      tagBg: TOKENS.interview.tagBg,
-    },
-  },
+  themes: { "dark-interview": {} },
   params: {
-    metaLine: { type: "string", default: "原片 2:22:18 | 内容来源 00:08 - 01:21", label: "元数据行文字", group: "content" },
-    watchingDesc: { type: "string", default: "Dario: 技术指数如期而至，但大众未觉终局将近", label: "正在看描述", group: "content" },
-    tags: { type: "string", default: "Dwarkesh访谈,Dario Amodei,原声 1:21", label: "标签", group: "content" },
-    metaColor: { type: "color", default: TOKENS.interview.muted, label: "元数据文字颜色", group: "color" },
-    watchingColor: { type: "color", default: TOKENS.interview.warm, label: "正在看颜色", group: "color" },
-    descColor: { type: "color", default: TOKENS.interview.secondary, label: "描述颜色", group: "color" },
-    tagBorder: { type: "color", default: TOKENS.interview.tagBorder, label: "标签边框颜色", group: "color" },
-    tagText: { type: "color", default: TOKENS.interview.tagText, label: "标签文字颜色", group: "color" },
-    tagBg: { type: "color", default: TOKENS.interview.tagBg, label: "标签背景色", group: "color" },
+    origRange: { type: "string", default: "", label: "Time range text", group: "content" },
+    topicLabel: { type: "string", default: "正在聊", label: "Topic label", group: "content" },
+    topic: { type: "string", default: "", label: "Topic text", group: "content" },
+    tags: { type: "string", default: "", label: "Tags (comma-separated)", group: "content" },
   },
+  ai: { when: "Shows time info, topic, and tags between video area and progress bar." },
 };
 
 export function render(t, params, vp) {
-  const metaLine = esc(params.metaLine || "原片 2:22:18 | 内容来源 00:08 - 01:21");
-  const watchingDesc = esc(params.watchingDesc || "");
+  const origRange = esc(params.origRange || "");
+  const topicLabel = esc(params.topicLabel || "正在聊");
+  const topic = esc(params.topic || "");
   const tagsRaw = params.tags || "";
   const tagList = Array.isArray(tagsRaw)
     ? tagsRaw
-    : String(tagsRaw).split(",").map((item) => item.trim()).filter(Boolean);
-  const metaColor = params.metaColor || TOKENS.interview.muted;
-  const watchingColor = params.watchingColor || TOKENS.interview.warm;
-  const descColor = params.descColor || TOKENS.interview.secondary;
-  const tagBorder = params.tagBorder || TOKENS.interview.tagBorder;
-  const tagText = params.tagText || TOKENS.interview.tagText;
-  const tagBg = params.tagBg || TOKENS.interview.tagBg;
+    : String(tagsRaw).split(",").map((s) => s.trim()).filter(Boolean);
   const alpha = fadeIn(t, 0.08, 0.5);
-  // Reference: old clip-slide .time-info top:593 .topic-zone top:612 (×2=1186,1224)
-  const metaY = scaleH(vp, 1186, 1920);
-  const watchingY = scaleH(vp, 1224, 1920);
-  const tagsY = scaleH(vp, 1310, 1920);
-  const left = scaleW(vp, 82, 1080);
-  const right = scaleW(vp, 82, 1080);
-  const metaSize = scaleW(vp, 13, 1080);
-  const labelSize = scaleW(vp, 12, 1080);
-  const descSize = scaleW(vp, 15, 1080);
-  const tagSize = scaleW(vp, 13, 1080);
-  const tagPadX = scaleW(vp, 14, 1080);
-  const tagPadY = scaleW(vp, 7, 1080);
-  const tagGap = scaleW(vp, 12, 1080);
-  const tagsHtml = tagList
-    .map(
-      (tag) =>
-        `<span style="display:inline-flex;align-items:center;padding:${tagPadY}px ${tagPadX}px;border-radius:${scaleW(vp, 8, 1080)}px;background:${tagBg};border:1px solid ${tagBorder};font-family:'SF Pro Text','PingFang SC',sans-serif;font-size:${tagSize}px;font-weight:600;color:${tagText};white-space:nowrap">${esc(tag)}</span>`,
-    )
-    .join("");
-  return `<div style="position:absolute;inset:0;pointer-events:none;opacity:${alpha}">
-  <div style="position:absolute;left:0;right:0;top:${metaY}px;text-align:center">
-    <span style="font-family:'SF Pro Text','PingFang SC',sans-serif;font-size:${metaSize}px;font-weight:500;color:${metaColor};letter-spacing:0.08em">${metaLine}</span>
-  </div>
-  <div style="position:absolute;left:${left}px;right:${right}px;top:${watchingY}px">
-    <span style="font-family:'SF Pro Text','PingFang SC',sans-serif;font-size:${labelSize}px;font-weight:700;color:${watchingColor};letter-spacing:0.08em">正在看</span>
-    <span style="font-family:'PingFang SC','Noto Sans SC',sans-serif;font-size:${descSize}px;font-weight:600;color:${descColor};margin-left:${scaleW(vp, 10, 1080)}px">${watchingDesc}</span>
-  </div>
-  <div style="position:absolute;left:${left}px;right:${right}px;top:${tagsY}px;display:flex;gap:${tagGap}px;flex-wrap:wrap;justify-content:flex-start">${tagsHtml}</div>
-</div>`;
+  const pad = scaleW(vp, GRID.sidePad);
+  // Time info row
+  const timeY = scaleH(vp, GRID.timeInfo);
+  const timeSize = scaleW(vp, TYPE.timeInfo.size);
+  // Topic zone
+  const topicY = scaleH(vp, GRID.topic.top);
+  const labelSize = scaleW(vp, TYPE.topicLabel.size);
+  const textSize = scaleW(vp, TYPE.topicText.size);
+  // Tags
+  const tagsY = topicY + scaleW(vp, 90);
+  const tagSize = scaleW(vp, TYPE.tag.size);
+  const tagPadX = scaleW(vp, 20);
+  const tagPadY = scaleW(vp, 8);
+  const tagGap = scaleW(vp, 12);
+  const tagRadius = scaleW(vp, 8);
+
+  const tagsHtml = tagList.slice(0, 3).map((tag) =>
+    `<span style="flex-shrink:0;display:inline-flex;align-items:center;padding:${tagPadY}px ${tagPadX}px;border-radius:${tagRadius}px;background:${TOKENS.interview.tagBg};border:1px solid ${TOKENS.interview.tagBorder};font:${TYPE.tag.weight} ${tagSize}px ${TYPE.tag.font};color:${TOKENS.interview.tagText};letter-spacing:${TYPE.tag.spacing};white-space:nowrap">${esc(tag)}</span>`
+  ).join("");
+
+  return `<div style="position:absolute;inset:0;pointer-events:none;opacity:${alpha}">` +
+    // Deco line above meta zone
+    decoLine(vp, GRID.decoLine2) +
+    // Time info (centered)
+    (origRange ? `<div style="position:absolute;left:${pad}px;right:${pad}px;top:${timeY}px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="font:${TYPE.timeInfo.weight} ${timeSize}px ${TYPE.timeInfo.font};color:rgba(232,196,122,0.4);letter-spacing:${TYPE.timeInfo.spacing}">${origRange}</span></div>` : "") +
+    // Topic label + text
+    `<div style="position:absolute;left:${pad}px;right:${pad}px;top:${topicY}px">` +
+    `<div style="display:flex;align-items:center;gap:${scaleW(vp, 16)}px">` +
+    `<span style="font:${TYPE.topicLabel.weight} ${labelSize}px ${TYPE.topicLabel.font};color:${TOKENS.interview.gold};letter-spacing:${TYPE.topicLabel.spacing}">${topicLabel}</span>` +
+    `<span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(232,196,122,0.25),transparent)"></span>` +
+    `</div>` +
+    (topic ? `<div style="margin-top:${scaleW(vp, 16)}px;font:${TYPE.topicText.weight} ${textSize}px/${TYPE.topicText.lineHeight} ${TYPE.topicText.font};color:${TOKENS.interview.textDim};max-height:${scaleW(vp, 80)}px;overflow:hidden">${topic}</div>` : "") +
+    `</div>` +
+    // Tags
+    (tagsHtml ? `<div style="position:absolute;left:${pad}px;right:${pad}px;top:${tagsY}px;display:flex;gap:${tagGap}px;flex-wrap:nowrap;overflow:hidden">${tagsHtml}</div>` : "") +
+    `</div>`;
 }
 
 export function screenshots() {
-  return [
-    { t: 0.1, label: "元数据淡入" },
-    { t: 10, label: "标签显示中" },
-  ];
+  return [{ t: 0.1, label: "Meta fade in" }, { t: 10, label: "Meta visible" }];
 }
 
 export function lint(params) {
-  const errors = [];
-  if (!params.metaLine) errors.push("metaLine 元数据行不能为空。Fix: 传入原片时长和内容来源时间");
-  return { ok: errors.length === 0, errors };
+  return { ok: true, errors: [] };
 }
