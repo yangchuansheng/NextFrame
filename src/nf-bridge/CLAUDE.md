@@ -1,17 +1,17 @@
-# nf-bridge — JSON IPC backend for NextFrame shell, storage, and export flows.
+# nf-bridge — JSON IPC backend for shell, project storage, and export flows.
 
 ## Build
-`cargo check -p nf-bridge`
+cargo check -p nf-bridge
+cargo test -p nf-bridge
 
-## Core Constraints
-- Public entrypoint is `dispatch(Request) -> Response`; add new IPC methods in `src/lib.rs`.
-- Handlers return `Result<Value, String>` with actionable errors for the shell and agents.
-- Validate params with `util::validation` and resolve paths through `storage::fs` helpers.
-- Keep filesystem/project/timeline behavior covered by integration tests in `tests/integration/`.
+## Structure
+- `src/lib.rs`: request/response types and IPC dispatch table.
+- `src/domain/`: project, episode, segment, scene, and timeline handlers.
+- `src/storage/`: filesystem, autosave, and recent-item persistence.
+- `src/export/` + `src/codec/`: recorder orchestration and ffmpeg helpers.
+- `src/util/`: validation, dialogs, preview, logging, and shared helpers.
 
-## Module Structure
-- `lib.rs`: request/response types, initialization, IPC dispatch table
-- `domain/`: project, episode, segment, scene, timeline handlers
-- `storage/`: fs, autosave, and recent-item persistence
-- `export/` + `codec/`: recorder orchestration and ffmpeg helpers
-- `util/`: validation, dialogs, logging, preview, path/time helpers
+## Rules
+- Add public IPC methods in `dispatch_inner` and keep `domain.camelCase` names.
+- Validate params with `util::validation` and resolve paths through `storage::fs`.
+- Keep filesystem, project, and timeline flows covered by `tests/integration/`.
