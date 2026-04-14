@@ -164,6 +164,13 @@ function enterExit(localT, dur) {
   return Math.min(fadeIn, 1 - fadeOut);
 }
 
+// ─── Recorder protocol ───
+window.__duration = DURATION;
+window.__onFrame = function(data) {
+  currentT = data.time;
+  renderFrame();
+};
+
 // ─── Playback ───
 let playing = true, startTime = performance.now(), currentT = 0;
 const progressFill = document.getElementById('progress-fill');
@@ -173,8 +180,7 @@ const playBtn = document.getElementById('play-btn');
 playBtn.onclick = () => { playing = !playing; if (playing) { startTime = performance.now() - currentT*1000; playBtn.textContent = '⏸'; } else playBtn.textContent = '▶'; };
 document.getElementById('progress').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); currentT = Math.max(0, Math.min(1, (e.clientX-r.left)/r.width)) * DURATION; startTime = performance.now() - currentT*1000; };
 
-function loop() {
-  if (playing) currentT = ((performance.now() - startTime) / 1000) % DURATION;
+function renderFrame() {
   progressFill.style.width = (currentT / DURATION * 100) + '%';
   timeEl.textContent = currentT.toFixed(2) + ' / ' + DURATION.toFixed(2);
 
@@ -207,7 +213,11 @@ function loop() {
       }
     }
   });
+}
 
+function loop() {
+  if (playing) currentT = ((performance.now() - startTime) / 1000) % DURATION;
+  renderFrame();
   requestAnimationFrame(loop);
 }
 loop();
