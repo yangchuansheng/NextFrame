@@ -4,7 +4,9 @@
 mod app;
 mod ipc;
 mod protocol;
+mod verify;
 mod webview;
+mod window;
 
 fn main() {
     // Tracing

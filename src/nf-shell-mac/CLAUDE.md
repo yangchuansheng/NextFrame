@@ -8,7 +8,9 @@ cargo clippy -p nf-shell-mac -- -D warnings
 
 ## Structure
 - `src/main.rs` — entry point, app lifecycle
-- `src/app.rs` — window creation, traffic lights, toolbar, resize handling, menu bar
+- `src/app.rs` — NSApplication boot + NSWindow creation + run loop
+- `src/window.rs` — window drag bridge, traffic light positioning, resize observer
+- `src/verify.rs` — self-verification (--verify) and eval-script (--eval-script) modes
 - `src/webview.rs` — WKWebView configuration, navigation, content loading
 - `src/ipc.rs` — JavaScript <-> Rust message bridge (postMessage / evaluateJavaScript)
 - `src/protocol.rs` — custom URL scheme handler for local file serving
