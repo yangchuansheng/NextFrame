@@ -10,6 +10,7 @@ const SUBCOMMANDS = {
   // lint-scenes: DEPRECATED — replaced by scene-validate (ADR-008 format)
   // "lint-scenes": () => import("../src/commands/render/lint-scenes.js"),
   scenes: () => import("../src/commands/render/scenes.js"),
+  "bundle-scenes": () => import("../src/commands/render/bundle-scenes.js"),
   "scene-new": () => import("../src/commands/render/scene-new.js"),
   "scene-preview": () => import("../src/commands/render/scene-preview.js"),
   "scene-validate": () => import("../src/commands/render/scene-validate.js"),
@@ -23,6 +24,7 @@ const SUBCOMMANDS = {
   "project-config": () => import("../src/commands/project/project-config.js"),
   "episode-new": () => import("../src/commands/project/episode-new.js"),
   "episode-list": () => import("../src/commands/project/episode-list.js"),
+  produce: () => import("../src/commands/pipeline/produce.js"),
   "pipeline-get": () => import("../src/commands/pipeline/pipeline-get.js"),
   "script-set": () => import("../src/commands/pipeline/script-set.js"),
   "script-get": () => import("../src/commands/pipeline/script-get.js"),

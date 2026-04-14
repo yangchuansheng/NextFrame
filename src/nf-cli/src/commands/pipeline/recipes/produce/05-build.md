@@ -1,12 +1,12 @@
 # Step 5: Build + 截图审查
 
-## CLI
+## 构建
 
 ```bash
 nextframe build timeline.json
 ```
 
-## 输出
+输出 JSON 包含 `previews` 数组（3 张截图路径）：
 
 ```json
 {
@@ -22,40 +22,71 @@ nextframe build timeline.json
 }
 ```
 
-## AI 必须读截图（不跳过）
+如果没有 `previews`（puppeteer 不可用），手动截图：
 
 ```bash
-# Read 每张截图，检查：
+nextframe preview timeline.json --auto --json --out=/tmp/preview
+# 然后读截图
 ```
 
+## 必须读截图（不能跳过）
+
+对每张截图检查以下项目：
+
 ### 开头帧 (frame-0.5s.png)
-- 标题和视频区不重叠
-- 背景有网格点 + 光晕
-- 品牌在底部
+
+- [ ] 背景不是纯黑 — 应该有网格点 + 金色光晕（9:16）或暖棕渐变（16:9）
+- [ ] 标题可见且清晰
+- [ ] 标题文字没有和视频区重叠（标题在 260px 以内，视频从 276px 开始）
+- [ ] 品牌名在底部可见
 
 ### 中间帧 (frame-40.7s.png)
-- 字幕显示正确（有中文 + 英文）
-- 说话人颜色区分（金色 vs 白色）
-- 进度条在中间位置
+
+- [ ] 字幕区有内容（不是空的）
+- [ ] 中文字幕是金色或白色（说话人颜色区分）
+- [ ] 英文字幕在中文下方，灰色斜体
+- [ ] 进度条在大约一半位置
+- [ ] 如果有视频区 — 黑色占位框在正确位置（录制时会叠加真实视频）
 
 ### 结尾帧 (frame-80.8s.png)
-- 进度条接近满
-- 最后一条字幕内容正确
 
-## 截图有问题的处理
+- [ ] 进度条接近满
+- [ ] 字幕仍在显示（最后一句）
+- [ ] 整体布局没有崩（元素没跑出屏幕）
 
-1. 标题和视频重叠 → 检查 GRID.header 和 GRID.video 间距
-2. 字幕没出现 → 检查 segments 数据是否正确传入
-3. 空白区域 → 检查 scene render() 返回值
-4. 改完 → 回 Step 4 重新 validate + build
+## 截图有问题？
 
-## 门禁
+### 标题和视频重叠
+原因：标题字号太大或位置太低。
+修复：检查 scene 里 title Y 位置 < GRID.header.height (260px)
 
-- 3 张截图 AI 全部确认 OK
-- 如果 --no-preview 跳过截图 → 不允许进 Step 6
+### 字幕没出现
+原因 1：segments 数据没传入 → 检查 timeline params.segments
+原因 2：时间 t 不在任何 segment 范围内 → 检查 fine.json 的 s/e 值
+原因 3：scene 没用 findActiveSub → 回 Step 2 检查 scene 代码
 
-## 跳过截图（仅 CI 用）
+### 背景空白
+原因：scene render() 返回空字符串或 scene 没被 build 打包
+修复：检查 `nextframe scenes` 是否列出该 scene
+
+### 所有元素都不可见
+原因：所有 scene 在 t=0 时 opacity=0（fadeIn 动画）
+修复：检查截图时间 > 0.3s（开头帧用 0.5s 就是为了过掉 fadeIn）
+
+**改完 → 回 Step 4 重新 validate + build → 再看截图**
+
+## 跳过截图（仅 CI）
 
 ```bash
 nextframe build timeline.json --no-preview
+```
+
+生产流程不要跳过。
+
+## 下一步
+
+3 张截图全部确认 OK 后：
+
+```bash
+nextframe produce record
 ```
