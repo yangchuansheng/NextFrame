@@ -16,7 +16,7 @@ use objc2_web_kit::{
     WKUserScriptInjectionTime, WKWebViewConfiguration,
 };
 
-use crate::webview;
+use crate::{protocol, webview};
 
 const WINDOW_WIDTH: f64 = 1440.0;
 const WINDOW_HEIGHT: f64 = 900.0;
@@ -204,12 +204,18 @@ pub fn run() {
     );
 
     // Create WKWebView with IPC + drag bridges
+    let scheme_handlers = protocol::create_handlers(mtm);
     let mut drag_handler: Option<Retained<WindowDragHandler>> = None;
     let mut ipc_handler: Option<Retained<crate::ipc::BridgeHandler>> = None;
-    let wv = match webview::create(mtm, NSSize::new(WINDOW_WIDTH, WINDOW_HEIGHT), |config| {
-        drag_handler = Some(install_window_drag_bridge(mtm, config, &window));
-        ipc_handler = Some(crate::ipc::install(mtm, config, std::ptr::null()));
-    }) {
+    let wv = match webview::create(
+        mtm,
+        NSSize::new(WINDOW_WIDTH, WINDOW_HEIGHT),
+        &scheme_handlers,
+        |config| {
+            drag_handler = Some(install_window_drag_bridge(mtm, config, &window));
+            ipc_handler = Some(crate::ipc::install(mtm, config, std::ptr::null()));
+        },
+    ) {
         Ok(wv) => wv,
         Err(e) => {
             tracing::error!("failed to create webview: {e}");
@@ -224,6 +230,7 @@ pub fn run() {
     window.makeKeyAndOrderFront(None);
 
     let _drag_handler = drag_handler;
+    let _scheme_handlers = scheme_handlers;
 
     // Set webview pointer for IPC (must happen after WKWebView is created)
     if let Some(ref handler) = ipc_handler {

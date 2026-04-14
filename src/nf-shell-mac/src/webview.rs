@@ -1,42 +1,37 @@
 //! WKWebView creation for NextFrame desktop.
 
-use std::path::PathBuf;
-
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use block2::RcBlock;
 use objc2::rc::Retained;
-use objc2::runtime::AnyObject;
+use objc2::runtime::{AnyObject, ProtocolObject};
 use objc2::{AnyThread, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{NSBitmapImageRep, NSImage};
-use objc2_foundation::{NSError, NSPoint, NSRect, NSSize, NSString, NSURL};
+use objc2_foundation::{NSError, NSPoint, NSRect, NSSize, NSString, NSURL, NSURLRequest};
 use objc2_web_kit::{
-    WKSnapshotConfiguration, WKWebView, WKWebViewConfiguration, WKWebsiteDataStore,
+    WKSnapshotConfiguration, WKURLSchemeHandler, WKWebView, WKWebViewConfiguration,
+    WKWebsiteDataStore,
 };
 
-/// Resolve the web directory relative to the executable.
-fn web_dir() -> PathBuf {
-    // In dev: executable is at target/debug/nextframe
-    // web is at src/nf-runtime/web/
-    let exe = std::env::current_exe().unwrap_or_default();
-    let project_root = exe
-        .ancestors()
-        .find(|p| p.join("Cargo.toml").exists())
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    project_root.join("src/nf-runtime/web")
-}
+use crate::protocol::{NF_SCHEME, NFDATA_SCHEME, SchemeHandlers};
 
 /// Create a WKWebView that loads the home page from disk.
 pub fn create(
     mtm: MainThreadMarker,
     size: NSSize,
+    scheme_handlers: &SchemeHandlers,
     configure: impl FnOnce(&WKWebViewConfiguration),
 ) -> Result<Retained<WKWebView>, String> {
     // SAFETY: mtm proves main-thread, required by WKWebViewConfiguration::new.
     let config = unsafe { WKWebViewConfiguration::new(mtm) };
+    register_scheme_handler(&config, NF_SCHEME, ProtocolObject::from_ref(&*scheme_handlers.nf));
+    register_scheme_handler(
+        &config,
+        NFDATA_SCHEME,
+        ProtocolObject::from_ref(&*scheme_handlers.nfdata),
+    );
     configure(&config);
 
     // SAFETY: mtm proves main-thread, required by nonPersistentDataStore.
@@ -66,38 +61,32 @@ pub fn create(
         let _: () = objc2::msg_send![&web_view, _setDrawsBackground: false];
     }
 
-    // Load from local file
-    let dir = web_dir();
-    let index_path = dir.join("index.html");
-
-    if index_path.exists() {
-        let file_url = NSURL::URLWithString(&NSString::from_str(&format!(
-            "file://{}",
-            index_path.display()
-        )));
-        let dir_url =
-            NSURL::URLWithString(&NSString::from_str(&format!("file://{}/", dir.display())));
-
-        if let (Some(file), Some(dir)) = (file_url, dir_url) {
-            // SAFETY: loadFileURL:allowingReadAccessToURL: is a standard WKWebView method.
-            unsafe {
-                web_view.loadFileURL_allowingReadAccessToURL(&file, &dir);
-            }
-            tracing::info!("loading {}", index_path.display());
-        } else {
-            tracing::warn!("failed to create NSURLs, falling back to inline HTML");
+    let start_url = NSURL::URLWithString(&NSString::from_str("nf://localhost/index.html"));
+    if let Some(start_url) = start_url {
+        let request = NSURLRequest::requestWithURL(&start_url);
+        let navigation = unsafe { web_view.loadRequest(&request) };
+        if navigation.is_none() {
+            tracing::warn!("WKWebView refused nf:// load, using fallback");
             load_fallback(&web_view);
         }
     } else {
-        tracing::warn!(
-            "index.html not found at {}, using fallback",
-            index_path.display()
-        );
+        tracing::warn!("failed to create nf:// start URL, using fallback");
         load_fallback(&web_view);
     }
 
     tracing::info!("WKWebView created");
     Ok(web_view)
+}
+
+fn register_scheme_handler(
+    config: &WKWebViewConfiguration,
+    scheme: &str,
+    handler: &ProtocolObject<dyn WKURLSchemeHandler>,
+) {
+    let scheme = NSString::from_str(scheme);
+    unsafe {
+        config.setURLSchemeHandler_forURLScheme(Some(handler), &scheme);
+    }
 }
 
 /// Execute JavaScript and return the string result.
