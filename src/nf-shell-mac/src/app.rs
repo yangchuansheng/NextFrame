@@ -4,7 +4,8 @@ use objc2::msg_send;
 use objc2::rc::Retained;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSWindow, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSView, NSWindow,
+    NSWindowButton, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 
@@ -12,6 +13,7 @@ use crate::webview;
 
 const WINDOW_WIDTH: f64 = 1440.0;
 const WINDOW_HEIGHT: f64 = 900.0;
+const TOPBAR_HEIGHT: f64 = 48.0;
 
 /// Boot the macOS app: create window, embed WKWebView, run event loop.
 pub fn run() {
@@ -67,6 +69,19 @@ pub fn run() {
         let _: () = msg_send![&window, setTitleVisibility: 1i64]; // NSWindowTitleHidden = 1
     }
 
+    // Enable window dragging from topbar area via movableByWindowBackground
+    // The HTML topbar has -webkit-app-region: drag set on it
+    // SAFETY: setMovableByWindowBackground: is valid for NSWindow.
+    unsafe {
+        let _: () = msg_send![&window, setMovableByWindowBackground: true];
+    }
+
+    // Center traffic lights using Zed approach:
+    // 1. Get real titlebar height from contentLayoutRect
+    // 2. Resize NSTitlebarContainerView to match our topbar
+    // 3. Center buttons within container
+    reposition_traffic_lights(&window);
+
     // Create WKWebView and set as content
     match webview::create(mtm, NSSize::new(WINDOW_WIDTH, WINDOW_HEIGHT)) {
         Ok(wv) => {
@@ -80,7 +95,10 @@ pub fn run() {
 
     window.makeKeyAndOrderFront(None);
 
-    // SAFETY: activateIgnoringOtherApps: and run are valid NSApplication methods.
+    // Reapply after content is set (system may reset)
+    reposition_traffic_lights(&window);
+
+    // SAFETY: activateIgnoringOtherApps: is valid for NSApplication.
     unsafe {
         let _: () = msg_send![&app, activateIgnoringOtherApps: true];
     }
@@ -88,4 +106,46 @@ pub fn run() {
     tracing::info!("NextFrame window ready");
 
     app.run();
+}
+
+/// Reposition traffic lights to vertically center in topbar.
+/// Uses the Zed/syllo approach: find NSTitlebarContainerView, resize it,
+/// then center the button bar within it.
+fn reposition_traffic_lights(window: &NSWindow) {
+    // Get close button → its superview (button bar) → superview (NSTitlebarContainerView)
+    let close_btn = match window.standardWindowButton(NSWindowButton::CloseButton) {
+        Some(b) => b,
+        None => return,
+    };
+
+    // Navigate up: close_btn → button_bar → titlebar_container
+    // SAFETY: superview is valid for any NSView in the hierarchy.
+    let button_bar: Option<Retained<NSView>> = unsafe { close_btn.superview() };
+    let Some(ref bar) = button_bar else { return };
+
+    // SAFETY: superview is valid for any NSView in the hierarchy.
+    let container: Option<Retained<NSView>> = unsafe { bar.superview() };
+    let Some(ref container) = container else { return };
+
+    // Resize container to match our topbar height
+    let container_frame = container.frame();
+    let window_frame = window.frame();
+    // SAFETY: setFrame: is valid for NSView.
+    unsafe {
+        let _: () = msg_send![
+            container,
+            setFrame: NSRect::new(
+                NSPoint::new(container_frame.origin.x, window_frame.size.height - TOPBAR_HEIGHT),
+                NSSize::new(container_frame.size.width, TOPBAR_HEIGHT),
+            )
+        ];
+    }
+
+    // Center button bar vertically within container
+    let bar_frame = bar.frame();
+    let bar_y = (TOPBAR_HEIGHT - bar_frame.size.height) / 2.0;
+    // SAFETY: setFrameOrigin: is valid for NSView.
+    unsafe {
+        let _: () = msg_send![bar, setFrameOrigin: NSPoint::new(bar_frame.origin.x, bar_y)];
+    }
 }
