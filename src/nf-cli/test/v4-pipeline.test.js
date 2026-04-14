@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,11 +10,12 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const CLI = resolve(ROOT, "bin/nextframe.js");
 
-function runCli(args, expectedStatus = 0) {
+function runCli(args, expectedStatus = 0, options = {}) {
   const result = spawnSync("node", [CLI, ...args], {
     cwd: ROOT,
     encoding: "utf8",
     timeout: 120_000,
+    env: options.env,
   });
   assert.equal(result.status, expectedStatus, result.stderr || result.stdout);
   return result;
@@ -109,3 +110,102 @@ test("v4-pipeline commands manage pipeline.json and keep project state isolated"
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("audio-synth generates vox artifacts and registers ready audio metadata", () => {
+  const root = mkdtempSync(join(tmpdir(), "nextframe-v4-audio-synth-"));
+  const fakeBinDir = join(root, "bin");
+  try {
+    mkdirSync(fakeBinDir, { recursive: true });
+    writeFakeVox(fakeBinDir);
+
+    runCli(["project-new", "series-a", `--root=${root}`]);
+    runCli(["episode-new", "series-a", "ep01", `--root=${root}`]);
+    runCli([
+      "script-set",
+      "series-a",
+      "ep01",
+      "--segment=1",
+      '--narration=Intro line. Second line.',
+      `--root=${root}`,
+    ]);
+
+    const env = { ...process.env, PATH: `${fakeBinDir}:${process.env.PATH || ""}` };
+    const result = runCli([
+      "audio-synth",
+      "series-a",
+      "ep01",
+      "--segment=1",
+      "--voice=Xiaoxiao",
+      "--backend=edge",
+      `--root=${root}`,
+      "--json",
+    ], 0, { env });
+    const payload = JSON.parse(result.stdout);
+    const pipeline = JSON.parse(readFileSync(join(root, "series-a", "ep01", "pipeline.json"), "utf8"));
+
+    assert.equal(payload.ok, true);
+    assert.equal(payload.duration, 2.5);
+    assert.equal(payload.mp3, join(root, "series-a", "ep01", "audio", "seg-1", "seg-1", "seg-1.mp3"));
+    assert.equal(payload.timeline, join(root, "series-a", "ep01", "audio", "seg-1", "seg-1", "seg-1.timeline.json"));
+    assert.equal(payload.srt, join(root, "series-a", "ep01", "audio", "seg-1", "seg-1", "seg-1.srt"));
+
+    assert.equal(pipeline.audio.voice, "Xiaoxiao");
+    assert.equal(pipeline.audio.segments[0].status, "ready");
+    assert.equal(pipeline.audio.segments[0].duration, 2.5);
+    assert.equal(pipeline.audio.segments[0].file, "audio/seg-1/seg-1/seg-1.mp3");
+    assert.equal(pipeline.audio.segments[0].sentences[0].text, "Intro line.");
+    assert.equal(pipeline.audio.segments[0].sentences[0].words[0].text, "Intro");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function writeFakeVox(binDir) {
+  const script = join(binDir, "vox");
+  writeFileSync(script, `#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+
+const args = process.argv.slice(2);
+if (args[0] !== "synth") process.exit(1);
+
+const text = args[1];
+let dir = ".";
+let output = "out.mp3";
+
+for (let index = 2; index < args.length; index += 1) {
+  if (args[index] === "-d") {
+    dir = args[index + 1];
+    index += 1;
+    continue;
+  }
+  if (args[index] === "-o") {
+    output = args[index + 1];
+    index += 1;
+  }
+}
+
+const stem = output.replace(/\\.mp3$/i, "");
+const artifactDir = path.join(dir, stem);
+fs.mkdirSync(artifactDir, { recursive: true });
+fs.writeFileSync(path.join(artifactDir, output), "mp3");
+fs.writeFileSync(path.join(artifactDir, stem + ".timeline.json"), JSON.stringify({
+  segments: [
+    {
+      text: "Intro line.",
+      start_ms: 0,
+      end_ms: 1250,
+      words: [{ word: "Intro", start_ms: 0, end_ms: 600 }],
+    },
+    {
+      text: "Second line.",
+      start_ms: 1250,
+      end_ms: 2500,
+      words: [{ word: "Second", start_ms: 1250, end_ms: 1900 }],
+    },
+  ],
+}, null, 2) + "\\n");
+fs.writeFileSync(path.join(artifactDir, stem + ".srt"), "1\\n00:00:00,000 --> 00:00:01,250\\n" + text + "\\n");
+`);
+  chmodSync(script, 0o755);
+}

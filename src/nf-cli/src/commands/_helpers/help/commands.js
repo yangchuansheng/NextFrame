@@ -11,11 +11,11 @@ const command = (name, summary, usage, params, constraints, fix = DEFAULT_FIX) =
 ];
 
 export const TOP_LEVEL_COMMANDS = [
-  group("Timeline", "new validate build lint-scenes scenes preview frame describe-frame render"),
+  group("Timeline", "new validate build scenes preview frame describe-frame render"),
   group("Scene Dev", "scene-new scene-preview scene-validate"),
   group("Layer CRUD", "layer-list layer-add layer-move layer-resize layer-set layer-remove"),
   group("Project Hierarchy", "project-new project-list project-config episode-new episode-list segment-new segment-list"),
-  group("Pipeline", "pipeline-get script-set script-get audio-set audio-get atom-add atom-list atom-remove output-add output-list output-publish"),
+  group("Pipeline", "pipeline-get script-set script-get audio-set audio-get audio-synth atom-add atom-list atom-remove output-add output-list output-publish"),
   group("Source Library", "source-download source-transcribe source-align source-cut source-list source-link"),
   group("Desktop App", "app app-pipeline app-eval app-screenshot"),
 ];
@@ -45,8 +45,7 @@ export const COMMAND_SPECS = Object.fromEntries([
   command("scene-preview", "Open a scene's preview.html in the browser for visual verification.", `nextframe scene-preview <name> [--ratio=16:9]`, `<name> scene id (searches across categories)`, `BLOCKING step — must visually confirm no overflow, smooth animation, correct colors.`),
   command("scene-validate", "Validate a scene against ADR-008 contract (16 checks).", `nextframe scene-validate <name> [--ratio=16:9] [--json]`, `<name> scene id
     --json emit structured result`, `Checks meta fields, render output, screenshots, lint, preview.html existence. All must pass before commit.`),
-  command("lint-scenes", "Audit scene component metadata, lifecycle methods, and stage-size rules.", `nextframe lint-scenes [--json]`, `--json emit per-file lint results as JSON`, `Reads scene modules from the runtime scene directory.
-    Use this after adding or editing a scene component.`),
+  // lint-scenes: DEPRECATED — replaced by scene-validate (ADR-008 format)
   command("scenes", "List all available scenes or inspect one scene contract, including params.", `nextframe scenes [--json]
     nextframe scenes <id> [--json]`, `<id> inspect a single scene
     --json emit structured scene metadata`, `Use this before layer-add so the AI does not guess scene ids or params.
@@ -177,6 +176,12 @@ export const COMMAND_SPECS = Object.fromEntries([
   command("audio-get", "Read the whole audio stage or one audio segment.", `nextframe audio-get <project> <episode> [--segment=N] [--root=PATH] [--json]`, `--segment=N optional 1-based segment index
     --root=PATH projects root, default ~/NextFrame/projects
     --json emit structured JSON`, `When --segment is omitted, the full audio stage is returned.`),
+  command("audio-synth", "Generate TTS audio plus subtitles for one script segment and register the result.", `nextframe audio-synth <project> <episode> --segment=N [--voice=NAME] [--backend=edge|volcengine] [--root=PATH] [--json]`, `--segment=N required 1-based script segment index
+    --voice=NAME optional TTS voice override; also stored on pipeline.audio.voice
+    --backend=edge|volcengine optional vox backend override
+    --root=PATH projects root, default ~/NextFrame/projects
+    --json emit the synthesized artifact paths and duration`, `Requires the vox binary to be installed and available on PATH.
+    The selected script segment must already contain narration text.`),
   command("atom-add", "Add one pipeline atom of type component, video, or image.", `nextframe atom-add <project> <episode> --type=component|video|image --name=TEXT [--scene=ID] [--segment=N] [--params=JSON] [--file=PATH] [--duration=N] [--root=PATH] [--json]`, `--type=component|video|image required atom type
     --name=TEXT required human-readable atom name
     --scene=ID required for component atoms

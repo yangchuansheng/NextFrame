@@ -7,7 +7,8 @@ const SUBCOMMANDS = {
   new: () => import("../src/commands/timeline/new.js"),
   validate: () => import("../src/commands/timeline/validate.js"),
   build: () => import("../src/commands/timeline/build.js"),
-  "lint-scenes": () => import("../src/commands/render/lint-scenes.js"),
+  // lint-scenes: DEPRECATED — replaced by scene-validate (ADR-008 format)
+  // "lint-scenes": () => import("../src/commands/render/lint-scenes.js"),
   scenes: () => import("../src/commands/render/scenes.js"),
   "scene-new": () => import("../src/commands/render/scene-new.js"),
   "scene-preview": () => import("../src/commands/render/scene-preview.js"),
@@ -26,6 +27,7 @@ const SUBCOMMANDS = {
   "script-get": () => import("../src/commands/pipeline/script-get.js"),
   "audio-set": () => import("../src/commands/pipeline/audio-set.js"),
   "audio-get": () => import("../src/commands/pipeline/audio-get.js"),
+  "audio-synth": () => import("../src/commands/pipeline/audio-synth.js"),
   "atom-add": () => import("../src/commands/pipeline/atom-add.js"),
   "atom-list": () => import("../src/commands/pipeline/atom-list.js"),
   "atom-remove": () => import("../src/commands/pipeline/atom-remove.js"),

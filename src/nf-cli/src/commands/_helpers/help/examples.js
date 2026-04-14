@@ -15,10 +15,7 @@ export const COMMAND_EXAMPLES = Object.fromEntries([
     nextframe build demo ep01 intro
     nextframe build ./timeline.json -o ./dist/intro.html
   `),
-  examples("lint-scenes", `
-    nextframe lint-scenes
-    nextframe lint-scenes --json
-  `),
+  // lint-scenes: DEPRECATED
   examples("scenes", `
     nextframe scenes
     nextframe scenes headline --json
@@ -106,6 +103,10 @@ export const COMMAND_EXAMPLES = Object.fromEntries([
   examples("audio-get", `
     nextframe audio-get series alpha
     nextframe audio-get series alpha --segment=1 --json
+  `),
+  examples("audio-synth", `
+    nextframe audio-synth series alpha --segment=1 --voice=Xiaoxiao
+    nextframe audio-synth series alpha --segment=2 --backend=volcengine --json
   `),
   examples("atom-add", `
     nextframe atom-add series alpha --type=component --name="Hero chart" --scene=barChartReveal --segment=1 --params={"value":42}
