@@ -42,16 +42,11 @@ export function render(t, params, vp) {
   const br = p.borderRadius || 0;
   const fit = p.objectFit || "cover";
 
-  // Video tag with currentTime sync via inline script
-  const videoId = "nf-video-" + Math.abs(src.length * 31 + x * 7 + y);
+  // data-nf-persist tells build.js to NOT destroy this element on re-render
+  // data-nf-time tells build.js what currentTime to seek to
+  const persistKey = "vc-" + src.replace(/[^a-zA-Z0-9]/g, "").slice(-20);
   return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-radius:${br}px;overflow:hidden;background:#000">
-  <video id="${videoId}" src="${src}" style="width:100%;height:100%;object-fit:${fit}" playsinline preload="auto"></video>
-  <script>
-    (function(){
-      var v=document.getElementById("${videoId}");
-      if(v){v.currentTime=${t.toFixed(3)};v.muted=true;}
-    })();
-  </script>
+  <video data-nf-persist="${persistKey}" data-nf-time="${t.toFixed(3)}" src="${src}" style="width:100%;height:100%;object-fit:${fit}" playsinline preload="auto"></video>
 </div>`;
 }
 

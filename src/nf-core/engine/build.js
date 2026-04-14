@@ -260,7 +260,51 @@ function buildRuntime() {
         "</div>"
       );
     }
-    stage.innerHTML = html.join("");
+    // Persistent video elements: don't destroy & recreate, just update currentTime
+    const existingVideos = {};
+    stage.querySelectorAll("video[data-nf-persist]").forEach(function(v) {
+      existingVideos[v.getAttribute("data-nf-persist")] = v.parentElement.parentElement;
+    });
+
+    // Build new DOM, but reuse persistent video layers
+    const frag = document.createElement("div");
+    frag.innerHTML = html.join("");
+    const newChildren = Array.from(frag.children);
+
+    // Check which layers have persistent video
+    const usedPersist = new Set();
+    for (const child of newChildren) {
+      const vid = child.querySelector("video[data-nf-persist]");
+      if (vid) {
+        const key = vid.getAttribute("data-nf-persist");
+        if (existingVideos[key]) {
+          // Reuse existing layer — just update currentTime
+          const existingLayer = existingVideos[key];
+          const existingVid = existingLayer.querySelector("video[data-nf-persist]");
+          const newTime = parseFloat(vid.getAttribute("data-nf-time") || "0");
+          if (existingVid && Math.abs(existingVid.currentTime - newTime) > 0.1) {
+            existingVid.currentTime = newTime;
+          }
+          existingLayer.style.zIndex = child.style.zIndex;
+          usedPersist.add(key);
+        }
+      }
+    }
+
+    // Remove layers that are no longer visible (but keep persistent ones that are still active)
+    Array.from(stage.children).forEach(function(child) {
+      const vid = child.querySelector("video[data-nf-persist]");
+      if (vid && usedPersist.has(vid.getAttribute("data-nf-persist"))) return; // keep
+      child.remove();
+    });
+
+    // Add new layers (skip ones already persisted)
+    for (const child of newChildren) {
+      const vid = child.querySelector("video[data-nf-persist]");
+      if (vid && existingVideos[vid.getAttribute("data-nf-persist")]) continue; // already in DOM
+      stage.appendChild(child);
+    }
+
     replayInlineScripts(stage);
     lastVisible = visible;
     updateControls(t, visible);
@@ -294,6 +338,16 @@ function buildRuntime() {
     rafId = requestAnimationFrame(tick);
   }
 
+  // Sync all persistent video elements
+  function syncVideos(t, playing) {
+    stage.querySelectorAll("video[data-nf-persist]").forEach(function(v) {
+      if (playing && v.paused) v.play().catch(function(){});
+      if (!playing && !v.paused) v.pause();
+      // Only seek if drift > 0.3s
+      if (Math.abs(v.currentTime - t) > 0.3) v.currentTime = t;
+    });
+  }
+
   function play() {
     if (isPlaying || duration <= 0 || recorderMode) return;
     if (currentTime >= duration) {
@@ -312,6 +366,7 @@ function buildRuntime() {
         });
       }
     }
+    syncVideos(currentTime, true);
     updateControls(currentTime, []);
     rafId = requestAnimationFrame(tick);
   }
@@ -321,6 +376,7 @@ function buildRuntime() {
     if (audioEl) currentTime = clampTime(audioEl.currentTime);
     else currentTime = clampTime(clockBaseTime + (performance.now() - clockBaseNow) / 1000);
     stopPlayback();
+    syncVideos(currentTime, false);
     compose(currentTime);
   }
 
