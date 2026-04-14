@@ -12,7 +12,7 @@ extern crate self as recorder;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
-pub struct CommonArgs {
+pub(crate) struct CommonArgs {
     pub frames: Vec<PathBuf>,
     pub dir: Option<PathBuf>,
     pub out: PathBuf,
@@ -35,7 +35,7 @@ pub struct CommonArgs {
     pub disable_audio: bool,
 }
 
-pub mod api;
+mod api;
 pub(crate) mod capture;
 pub(crate) mod clock;
 pub(crate) mod encoder;
@@ -46,5 +46,8 @@ pub(crate) mod plan;
 pub(crate) mod progress;
 pub(crate) mod record;
 pub(crate) mod server;
-pub mod util;
+mod util;
 pub(crate) mod webview;
+
+pub use api::{OUTPUT_JSON_ENV, RecordArgs, RecordOutput, overlay_output, record_segments};
+pub use util::absolute_path;

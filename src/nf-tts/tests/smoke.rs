@@ -1,5 +1,4 @@
-use nf_tts::config::VoxConfig;
-use nf_tts::output::manifest::{Manifest, ManifestEntry};
+use nf_tts::{Manifest, ManifestEntry, VoxConfig};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};

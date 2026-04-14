@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nextframe_recorder::api::{record_segments, RecordArgs, RecordOutput};
+use nextframe_recorder::{RecordArgs, RecordOutput, record_segments};
 
 use super::recorder_bridge::{resolve_recorder_frame_path_from_url, RecorderRequest};
 use crate::util::time::trim_float;
