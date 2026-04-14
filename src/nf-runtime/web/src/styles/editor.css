@@ -25,6 +25,8 @@ input, select, button, textarea {
 
 button { cursor: pointer; }
 
+code { font-family: var(--mono); font-size: 0.92em; }
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1583,10 +1585,15 @@ button { cursor: pointer; }
 .pl-chip-green { background: var(--green-bg); border-color: var(--green-bg); }
 .pl-chip-green .pl-chip-val { color: var(--green); }
 .pl-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.08); margin: 0 4px; flex-shrink: 0; }
+.pl-divider-h { height: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.pl-toolbar-wide { gap: 20px; }
+.pl-seg-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t50); margin-right: 8px; }
 
 .pl-seg-pill { font-size: 12px; padding: 4px 14px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--t50); cursor: pointer; transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
 .pl-seg-pill:hover { background: rgba(255,255,255,0.04); color: var(--t100); }
 .pl-seg-pill.active { background: var(--accent-20); color: var(--accent); border-color: var(--accent-20); }
+
+.pl-table-wrap { width: 100%; overflow-y: auto; }
 
 /* ─── Shared: table ─── */
 .pl-table { width: 100%; border-collapse: collapse; }
@@ -1610,6 +1617,7 @@ button { cursor: pointer; }
 
 /* ─── Meta item ─── */
 .pl-meta-item { margin-bottom: 8px; }
+.pl-meta-item:last-child { margin-bottom: 0; }
 .pl-meta-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t50); margin-bottom: 2px; }
 .pl-meta-value { font-size: 13px; color: var(--t80); line-height: 1.5; }
 .pl-meta-value.italic { font-style: italic; }
@@ -1707,7 +1715,7 @@ tr.seg-pending .s-text { color: var(--t50); }
 .clips-row-tag.accent { background: var(--accent-20); color: var(--accent); }
 .clips-row-tag.success { background: var(--green-bg); color: var(--green); }
 .clips-dim-label { font-size: 12px; color: var(--t50); font-family: var(--mono); }
-.clips-empty-note { font-size: 12px; color: var(--t50); font-style: italic; }
+.clips-empty-note { font-size: 12px; color: var(--t50); font-style: italic; padding: 12px; }
 
 /* ─── Sidebar thumbnail play/fullscreen buttons ─── */
 .clips-src-thumb { position: relative; }
@@ -1771,6 +1779,7 @@ tr.seg-pending .s-text { color: var(--t50); }
 .cd-subs-tag { font-size: 12px; padding: 2px 8px; border-radius: 3px; font-weight: 500; }
 .cd-subs-tag.on { background: var(--green-bg); color: var(--green); }
 .cd-subs-tag.off { background: rgba(255,255,255,0.06); color: var(--t50); }
+.cd-subs-count { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--t50); }
 .cd-sub-lines { display: flex; flex-direction: column; gap: 3px; }
 .cd-sub-line { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--warm-06); border: 1px solid var(--warm-06); border-radius: 4px; transition: background 0.15s; }
 .cd-sub-line:hover { background: var(--warm-06); }
@@ -1778,13 +1787,15 @@ tr.seg-pending .s-text { color: var(--t50); }
 .cd-sub-text { font-size: 13px; color: var(--t100); }
 .cd-sub-text .char { display: inline; }
 .cd-sub-dur { font-family: var(--mono); font-size: 12px; color: var(--warm); margin-left: auto; flex-shrink: 0; }
-.cd-sub-none { font-size: 12px; color: var(--t50); font-style: italic; }
+.cd-sub-none { font-size: 12px; color: var(--t50); font-style: italic; padding: 0 10px 4px; }
 
 /* Metadata key-value */
 .cd-meta { padding: 10px 20px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .cd-meta-item {}
 .cd-meta-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t50); margin-bottom: 2px; }
 .cd-meta-value { font-family: var(--mono); font-size: 13px; color: var(--t100); }
+.cd-meta-value.accent { color: var(--accent); }
+.cd-meta-value.dim { color: var(--t50); }
 .cd-path { font-family: var(--mono); font-size: 12px; color: var(--t50); padding: 6px 20px; user-select: all; word-break: break-all; }
 
 @media (max-width: 960px) {
@@ -1825,6 +1836,7 @@ tr.seg-pending .s-text { color: var(--t50); }
 .editor-clip-tag { font-size: 12px; padding: 1px 8px; border-radius: 3px; }
 .editor-clip-tag.seg { background: var(--accent-20); color: var(--accent); }
 .editor-clip-tag.dur { background: rgba(255,255,255,0.08); color: var(--t50); font-family: var(--mono); }
+.editor-clip-empty { padding: 20px; color: var(--t50); font-size: 12px; text-align: center; }
 
 /* ─── Legacy pipeline classes (kept for compat, will remove) ─── */
 .pl-script {

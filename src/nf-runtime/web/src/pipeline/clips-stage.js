@@ -189,7 +189,7 @@ function renderClipDetail(video, sourceVideo) {
   if (subs.length > 0) {
     subHtml = '<div class="cd-subs">' +
       '<div class="cd-subs-label">SUBTITLES <span class="cd-subs-tag on">\u5361\u62C9OK \u2713</span>' +
-      '<span style="margin-left:auto;font-family:var(--mono,\'SF Mono\',Menlo,monospace);font-size:11px;color:rgba(228,228,232,0.5)">' + subs.length + ' \u53E5</span></div>' +
+      '<span class="cd-subs-count">' + subs.length + ' \u53E5</span></div>' +
       '<div class="cd-sub-lines">';
     subs.forEach(function(sub) {
       const subStart = pipelineClipNumber(sub.start != null ? sub.start : sub.s, 0);
@@ -210,7 +210,7 @@ function renderClipDetail(video, sourceVideo) {
   } else {
     subHtml = '<div class="cd-subs">' +
       '<div class="cd-subs-label">SUBTITLES <span class="cd-subs-tag off">\u65E0\u5B57\u5E55</span></div>' +
-      '<div class="cd-sub-none" style="padding:0 10px 4px">\u6682\u65E0\u5B57\u5E55 \u2014 nextframe sub-import</div>' +
+      '<div class="cd-sub-none">\u6682\u65E0\u5B57\u5E55 \u2014 nextframe sub-import</div>' +
     '</div>';
   }
 
@@ -225,7 +225,7 @@ function renderClipDetail(video, sourceVideo) {
     : '';
 
   return (
-    '<div class="clip-detail show" style="border-bottom:1px solid rgba(255,255,255,0.06)">' +
+    '<div class="clip-detail show">' +
       /* Large 16:9 preview */
       '<div class="cd-preview-wrap">' +
         '<div class="cd-preview">' +
@@ -256,9 +256,9 @@ function renderClipDetail(video, sourceVideo) {
         '<div class="cd-meta-item"><div class="cd-meta-label">IN</div><div class="cd-meta-value" data-nf-time="' + escHtml(String(inPt.toFixed(3))) + '">' + escHtml(formatPipelineClipTime(inPt)) + '</div></div>' +
         '<div class="cd-meta-item"><div class="cd-meta-label">OUT</div><div class="cd-meta-value" data-nf-time="' + escHtml(String(outPt.toFixed(3))) + '">' + escHtml(formatPipelineClipTime(outPt)) + '</div></div>' +
         '<div class="cd-meta-item"><div class="cd-meta-label">FRAMES</div><div class="cd-meta-value">' + escHtml(String(frames)) + '</div></div>' +
-        '<div class="cd-meta-item"><div class="cd-meta-label">\u65F6\u95F4\u8F74</div><div class="cd-meta-value" style="color:' + (video.hasTimeline ? '#7c6aef' : 'rgba(228,228,232,0.25)') + '">' +
+        '<div class="cd-meta-item"><div class="cd-meta-label">\u65F6\u95F4\u8F74</div><div class="cd-meta-value ' + (video.hasTimeline ? 'accent' : 'dim') + '">' +
           (video.hasTimeline ? '\u2713 \u5DF2\u5BF9\u9F50' : '\u672A\u5BF9\u9F50') + '</div></div>' +
-        (video.segment != null ? '<div class="cd-meta-item"><div class="cd-meta-label">\u6BB5\u843D</div><div class="cd-meta-value" style="color:#7c6aef">' + escHtml(String(video.segment)) + '</div></div>' : '') +
+        (video.segment != null ? '<div class="cd-meta-item"><div class="cd-meta-label">\u6BB5\u843D</div><div class="cd-meta-value accent">' + escHtml(String(video.segment)) + '</div></div>' : '') +
       '</div>' +
 
       /* Absolute path */
@@ -280,10 +280,10 @@ function renderPipelineClips(data) {
       '<div class="pipeline-clips">' +
         '<div class="clips-sources">' +
           '<div class="clips-sources-header">SOURCES · 0</div>' +
-          '<div class="clips-empty-note" style="padding:12px;">No source videos</div>' +
+          '<div class="clips-empty-note">No source videos</div>' +
         '</div>' +
         '<div class="clips-main">' +
-          '<div class="pipeline-empty">No source videos found. Add atoms with <span style="font-family:\'SF Mono\', Menlo, monospace;">isSource: true</span>.</div>' +
+          '<div class="pipeline-empty">No source videos found. Add atoms with <code>isSource: true</code>.</div>' +
         '</div>' +
       '</div>'
     );

@@ -14,7 +14,7 @@ function populateEditorClipSidebar() {
         } catch (_error) {}
       }).catch(function() {});
     }
-    list.innerHTML = '<div style="padding:20px;color:rgba(228,228,232,0.25);font-size:12px;text-align:center">暂无片段</div>';
+    list.innerHTML = '<div class="editor-clip-empty">暂无片段</div>';
     if (count) {
       count.textContent = "0";
     }
