@@ -540,6 +540,209 @@ html, body {
 .section:nth-child(2) .project-card:nth-child(5) { animation-delay: 420ms; }
 
 /* ══════════════════════════════════════
+   TOPBAR ICON BUTTON
+   ══════════════════════════════════════ */
+.tb-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-xs);
+  color: var(--t65);
+  cursor: pointer;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  margin-right: 4px;
+}
+.tb-icon-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--t80);
+}
+
+/* ══════════════════════════════════════
+   SETTINGS PANEL — slides from right, opaque
+   ══════════════════════════════════════ */
+.settings-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.40);
+  z-index: 500;
+}
+.settings-overlay.open { display: block; }
+
+.settings-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 420px;
+  max-height: 520px;
+  background: #141416;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: var(--r);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.60), 0 4px 16px rgba(0,0,0,0.40);
+  z-index: 501;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.settings-header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.settings-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--t65);
+}
+.settings-close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--t50);
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.settings-close:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--t80);
+}
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.settings-body::-webkit-scrollbar { width: 4px; }
+.settings-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+.settings-section {
+  margin-bottom: 24px;
+}
+.settings-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--t50);
+  margin-bottom: 12px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  min-height: 36px;
+}
+.settings-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t80);
+}
+.settings-value {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t65);
+}
+/* ── Custom Select (nf-select) — opaque dropdown per DESIGN.md ── */
+.nf-select {
+  position: relative;
+  flex-shrink: 0;
+}
+.nf-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t80);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+  user-select: none;
+}
+.nf-select-trigger:hover {
+  border-color: rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+}
+.nf-select-arrow {
+  font-size: 10px;
+  color: var(--t50);
+  transition: transform 0.2s var(--ease);
+}
+.nf-select.open .nf-select-arrow {
+  transform: rotate(180deg);
+}
+.nf-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 100%;
+  background: #141416;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: var(--r-xs);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.50);
+  padding: 4px;
+  z-index: 600;
+  opacity: 0;
+  transform: scale(0.95) translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.nf-select.open .nf-select-dropdown {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+.nf-select-option {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t65);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  white-space: nowrap;
+}
+.nf-select-option:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--t80);
+}
+.nf-select-option.active {
+  color: var(--accent);
+  background: var(--accent-06);
+}
+
+/* ══════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════ */
 @media (max-width: 800px) {
@@ -581,9 +784,105 @@ html, body {
 
     <div class="tb-spacer"></div>
 
+    <!-- Settings -->
+    <button class="tb-icon-btn" onclick="toggleSettings()" title="Settings">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6.5 2h3l.4 1.5a5 5 0 0 1 1.2.7L12.8 3.5l1.5 2.6-1.3 1a5 5 0 0 1 0 1.4l1.3 1-1.5 2.6-1.7-.7a5 5 0 0 1-1.2.7L9.5 14h-3l-.4-1.5a5 5 0 0 1-1.2-.7L3.2 12.5 1.7 9.9l1.3-1a5 5 0 0 1 0-1.4l-1.3-1 1.5-2.6 1.7.7a5 5 0 0 1 1.2-.7Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" fill="none"/>
+        <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2" fill="none"/>
+      </svg>
+    </button>
+
     <!-- Avatar -->
     <div class="tb-avatar">Z</div>
   </header>
+
+  <!-- ── Settings Panel (slide from right) ── -->
+  <div class="settings-overlay" id="settings-overlay" onclick="toggleSettings()"></div>
+  <div class="settings-panel" id="settings-panel">
+    <div class="settings-header">
+      <span class="settings-title">SETTINGS</span>
+      <button class="settings-close" onclick="toggleSettings()">&times;</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">GENERAL</div>
+        <div class="settings-row">
+          <span class="settings-label">Language</span>
+          <div class="nf-select" data-value="zh">
+            <div class="nf-select-trigger" onclick="toggleSelect(this)">
+              <span class="nf-select-value">简体中文</span>
+              <span class="nf-select-arrow">&#9662;</span>
+            </div>
+            <div class="nf-select-dropdown">
+              <div class="nf-select-option" data-val="en" onclick="pickOption(this)">English</div>
+              <div class="nf-select-option active" data-val="zh" onclick="pickOption(this)">简体中文</div>
+              <div class="nf-select-option" data-val="ja" onclick="pickOption(this)">日本語</div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Project Path</span>
+          <span class="settings-value">~/NextFrame/projects</span>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">EXPORT</div>
+        <div class="settings-row">
+          <span class="settings-label">Resolution</span>
+          <div class="nf-select" data-value="1080p">
+            <div class="nf-select-trigger" onclick="toggleSelect(this)">
+              <span class="nf-select-value">1920×1080</span>
+              <span class="nf-select-arrow">&#9662;</span>
+            </div>
+            <div class="nf-select-dropdown">
+              <div class="nf-select-option active" onclick="pickOption(this)">1920×1080</div>
+              <div class="nf-select-option" onclick="pickOption(this)">3840×2160</div>
+              <div class="nf-select-option" onclick="pickOption(this)">1280×720</div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">FPS</span>
+          <div class="nf-select" data-value="30">
+            <div class="nf-select-trigger" onclick="toggleSelect(this)">
+              <span class="nf-select-value">30</span>
+              <span class="nf-select-arrow">&#9662;</span>
+            </div>
+            <div class="nf-select-dropdown">
+              <div class="nf-select-option active" onclick="pickOption(this)">30</div>
+              <div class="nf-select-option" onclick="pickOption(this)">24</div>
+              <div class="nf-select-option" onclick="pickOption(this)">60</div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Codec</span>
+          <div class="nf-select" data-value="h264">
+            <div class="nf-select-trigger" onclick="toggleSelect(this)">
+              <span class="nf-select-value">h264</span>
+              <span class="nf-select-arrow">&#9662;</span>
+            </div>
+            <div class="nf-select-dropdown">
+              <div class="nf-select-option active" onclick="pickOption(this)">h264</div>
+              <div class="nf-select-option" onclick="pickOption(this)">h265</div>
+              <div class="nf-select-option" onclick="pickOption(this)">ProRes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">ABOUT</div>
+        <div class="settings-row">
+          <span class="settings-label">Version</span>
+          <span class="settings-value">NextFrame v0.5</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Shell</span>
+          <span class="settings-value">objc2 + AppKit</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Main Content ── -->
   <main class="main">
@@ -815,6 +1114,36 @@ html, body {
     </div>
   </main>
 </div>
+
+<script>
+function toggleSettings() {
+  document.getElementById('settings-overlay').classList.toggle('open');
+  document.getElementById('settings-panel').classList.toggle('open');
+}
+
+function toggleSelect(trigger) {
+  const sel = trigger.closest('.nf-select');
+  document.querySelectorAll('.nf-select.open').forEach(s => {
+    if (s !== sel) s.classList.remove('open');
+  });
+  sel.classList.toggle('open');
+}
+
+function pickOption(opt) {
+  const sel = opt.closest('.nf-select');
+  sel.querySelector('.nf-select-value').textContent = opt.textContent;
+  sel.querySelectorAll('.nf-select-option').forEach(o => o.classList.remove('active'));
+  opt.classList.add('active');
+  sel.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.nf-select')) {
+    document.querySelectorAll('.nf-select.open').forEach(s => s.classList.remove('open'));
+  }
+});
+
+</script>
 
 </body>
 </html>
