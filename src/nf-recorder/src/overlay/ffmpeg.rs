@@ -6,16 +6,21 @@ use std::process::Command;
 use super::spec::VideoOverlaySpec;
 use crate::error_with_fix;
 
-const OVERLAY_X: usize = 80;
-const OVERLAY_Y: usize = 276;
-const OVERLAY_WIDTH: usize = 920;
-const OVERLAY_HEIGHT: usize = 538;
+// Design-space constants for 1080×1920 layout (dpr=1 / CSS pixels)
+const OVERLAY_X_CSS: f64 = 80.0;
+const OVERLAY_Y_CSS: f64 = 276.0;
+const OVERLAY_WIDTH_CSS: f64 = 920.0;
+const OVERLAY_HEIGHT_CSS: f64 = 538.0;
 
-pub(super) fn build_overlay_filter() -> String {
+pub(super) fn build_overlay_filter(dpr: f64) -> String {
+    let x = (OVERLAY_X_CSS * dpr).round() as usize;
+    let y = (OVERLAY_Y_CSS * dpr).round() as usize;
+    let w = (OVERLAY_WIDTH_CSS * dpr).round() as usize;
+    let h = (OVERLAY_HEIGHT_CSS * dpr).round() as usize;
     format!(
-        "[1:v]scale={OVERLAY_WIDTH}:{OVERLAY_HEIGHT}:force_original_aspect_ratio=decrease,\
-         pad={OVERLAY_WIDTH}:{OVERLAY_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black[vid];\
-         [0:v][vid]overlay={OVERLAY_X}:{OVERLAY_Y}[out]"
+        "[1:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
+         pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black[vid];\
+         [0:v][vid]overlay={x}:{y}[out]"
     )
 }
 
@@ -106,12 +111,12 @@ pub fn overlay_video_layers(recorded: &Path, layers: &[VideoOverlaySpec]) -> Res
 }
 
 /// Overlay a source video into the recorded clip's black video area.
-/// Video area: x:80 y:276 w:920 h:538 in 1080x1920 output.
-pub fn overlay_video(recorded: &Path, video: &Path) -> Result<(), String> {
-    trace_log!("overlay: {} -> video area", video.display());
+/// Video area design coords: x:80 y:276 w:920 h:538 (scaled by dpr for actual output).
+pub fn overlay_video(recorded: &Path, video: &Path, dpr: f64) -> Result<(), String> {
+    trace_log!("overlay: {} -> video area (dpr={:.2})", video.display(), dpr);
     let temp_out = recorded.with_extension("overlay.mp4");
 
-    let filter = build_overlay_filter();
+    let filter = build_overlay_filter(dpr);
 
     let status = Command::new("ffmpeg")
         .args(["-y"])

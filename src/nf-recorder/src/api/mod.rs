@@ -89,8 +89,8 @@ pub fn record_segments(args: RecordArgs) -> Result<RecordOutput, String> {
     }
 }
 
-pub fn overlay_output(recorded: &Path, video: &Path) -> Result<(), String> {
-    overlay_video(recorded, video)
+pub fn overlay_output(recorded: &Path, video: &Path, dpr: f64) -> Result<(), String> {
+    overlay_video(recorded, video, dpr)
 }
 
 fn validate_args(args: &RecordArgs) -> Result<(), String> {

@@ -320,7 +320,7 @@ fn overlay_video_returns_error_for_missing_input_file() {
     let missing_video = temp_dir.join("missing.mp4");
     fs::write(&recorded, b"recorded").unwrap();
 
-    let err = overlay_video(&recorded, &missing_video).expect_err("missing input should fail");
+    let err = overlay_video(&recorded, &missing_video, 2.0).expect_err("missing input should fail");
 
     assert!(
         err.contains("failed to overlay the source video with ffmpeg:"),

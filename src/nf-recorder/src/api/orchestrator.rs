@@ -150,7 +150,7 @@ pub(super) fn record_single(
                         index + 1,
                         audio.display()
                     );
-                    overlay_video(&summary.path, audio)?;
+                    overlay_video(&summary.path, audio, cli.dpr)?;
                 }
             }
 

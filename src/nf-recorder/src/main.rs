@@ -254,8 +254,9 @@ fn run() -> Result<(), String> {
             trace_log!("mode: clip (HTML + video overlay)");
             trace_log!("video: {}", video.display());
 
+            let dpr = args.common.dpr;
             let output = record_segments(args.common.into())?;
-            overlay_output(&output.output_path, &video)?;
+            overlay_output(&output.output_path, &video, dpr)?;
             output
         }
     };
