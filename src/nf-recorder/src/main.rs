@@ -48,7 +48,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use nf_recorder::{
+use nextframe_recorder::{
     OUTPUT_JSON_ENV, RecordArgs, RecordOutput, absolute_path, overlay_output, record_segments,
 };
 

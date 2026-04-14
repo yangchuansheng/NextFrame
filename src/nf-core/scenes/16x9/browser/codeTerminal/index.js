@@ -146,19 +146,15 @@ export function render(t, params, vp) {
     (p.title ? '<span style="font:500 ' + (fs - 6) + 'px system-ui,sans-serif;color:' + p.lineNumColor + '">' + escHtml(p.title) + '</span>' : '') +
     '</div>';
 
-  // Code lines
-  html += '<div style="padding:' + padV + 'px 0">';
+  // Code lines — single pre block for maximum WKWebView compatibility
+  const globalOp = Math.max(0, Math.min(1, ease3(t / Math.max(p.enterDur || 0.3, 0.01))));
+  const codeLines = [];
   for (let idx = 0; idx < lines.length; idx++) {
-    const appearAt = idx * (p.enterStagger || 0.15);
-    const op = ease3((t - appearAt) / (p.enterDur || 0.3));
-    const opClamped = Math.max(0, Math.min(1, op));
-    const lineContent = colorize(lines[idx], p);
-    html += '<div style="display:flex;align-items:baseline;padding:0 ' + padH + 'px;height:' + lineH + 'px;opacity:' + opClamped + '">' +
-      '<span style="min-width:' + lineNumW + 'px;font:400 ' + (fs - 8) + 'px \'SF Mono\',Menlo,monospace;color:' + p.lineNumColor + ';user-select:none;margin-right:20px">' + (idx + 1) + '</span>' +
-      '<code style="font:400 ' + fs + 'px \'SF Mono\',Menlo,monospace;color:' + p.codeColor + ';white-space:pre;tab-size:2">' + lineContent + '</code>' +
-      '</div>';
+    const num = String(idx + 1).padStart(3, ' ');
+    const numHtml = '<span style="color:' + p.lineNumColor + '">' + num + '</span>  ';
+    codeLines.push(numHtml + colorize(lines[idx], p));
   }
-  html += '</div></div>';
+  html += '<pre style="margin:0;padding:' + padV + 'px ' + padH + 'px;font:400 ' + fs + 'px \'SF Mono\',Menlo,monospace;color:' + p.codeColor + ';line-height:' + lineH + 'px;white-space:pre;tab-size:2;opacity:' + globalOp + '">' + codeLines.join('\n') + '</pre></div>';
   return html;
 }
 

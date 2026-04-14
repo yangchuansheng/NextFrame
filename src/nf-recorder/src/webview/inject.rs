@@ -61,9 +61,11 @@ impl WebViewHost {
                 "Implement the recorder template protocol in `window.__onFrame` and retry.",
             ));
         }
-        // 8ms flush: enough for video.currentTime seek to decode a frame.
-        // For pages without video, this is a ~7ms overhead vs the old 1ms flush,
-        // but it ensures embedded video frames are visible in the capture.
-        self.flush_render(Duration::from_millis(8))
+        // 50ms flush: WKWebView needs time to execute JS compose(), run layout,
+        // paint to render tree, and composite layers. 8ms was too short for pages
+        // with many DOM elements (e.g. 16-line code terminal + text panel).
+        // 50ms adds ~17ms overhead per frame vs 33ms budget at 30fps, but ensures
+        // all DOM updates are reflected in CALayer.render captures.
+        self.flush_render(Duration::from_millis(50))
     }
 }
