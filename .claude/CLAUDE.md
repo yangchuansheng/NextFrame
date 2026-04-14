@@ -34,13 +34,20 @@ Recording (separate binary): `nextframe-recorder slide <html> --out <mp4> --widt
 
 ## Architecture (two languages, clear boundary)
 
-**JS side** (src/nf-cli/, src/nf-runtime/): timeline editing, scene rendering, HTML generation. Scene components are pure functions: `(ctx, t, params) → canvas draws`. All registered in `src/nf-cli/src/scenes/index.js` with metadata in `meta.js`.
+**JS side:**
+- `src/nf-core/` — engine core (timeline, animation, scenes, filters). Scene components are pure functions: `(ctx, t, params) → canvas draws`.
+- `src/nf-cli/` — thin CLI shell (commands only, imports from nf-core)
+- `src/nf-runtime/` — browser runtime (web-v2/)
 
-**Rust side** (src/nf-shell, nf-bridge, nf-recorder, nf-tts, nf-publish, src/crates/): desktop shell, IPC, recording, TTS, publishing, source pipeline. All crates communicate via JSON IPC through nf-bridge.
+**Rust side:**
+- `src/nf-shell-mac/` — macOS desktop shell (objc2 + AppKit + WebKit)
+- `src/nf-bridge/` — JSON IPC for project, timeline, storage, export
+- `src/nf-recorder/` — WKWebView parallel recording → VideoToolbox → MP4
+- `src/nf-tts/` — TTS CLI (Edge + Volcengine backends)
+- `src/nf-publish/` — multi-platform publisher (WKWebView tabs)
+- `src/nf-source/` — source pipeline: download → transcribe → align → cut
 
-**Data flow**: CLI writes JSON timeline → build bundles into HTML → recorder opens HTML in WKWebView → captures frames → VideoToolbox encodes MP4.
-
-**Source pipeline** (src/crates/nf-*): download (yt-dlp) → transcribe (Whisper) → align (WhisperX) → cut (ffmpeg by sentence-id ranges) → link to project. Canonical data in source.json per source directory.
+**Data flow**: CLI writes JSON timeline → nf-core build bundles into HTML → recorder opens HTML in WKWebView → captures frames → VideoToolbox encodes MP4.
 
 ## Before You Write Code (mandatory)
 
@@ -63,9 +70,13 @@ Recording (separate binary): `nextframe-recorder slide <html> --out <mp4> --widt
 
 ## Key Paths
 
-- Scene components: `src/nf-cli/src/scenes/` (render fns + meta.js for all param schemas)
+- Engine core: `src/nf-core/engine/` (timeline, build, validate, keyframes)
+- Animation: `src/nf-core/animation/` (effects/ + transitions/)
+- Scene components: `src/nf-core/scenes/` (7 categories + meta.js + index.js)
 - CLI commands: `src/nf-cli/src/commands/` (timeline/, render/, project/, pipeline/, app/)
+- Source pipeline: `src/nf-source/` (core/, download/, transcribe/, align/, cut/, source/)
 - IPC dispatch: `src/nf-bridge/src/lib.rs` → `dispatch` / `dispatch_inner`
 - Standards: `spec/standards/00-index.md`
-- Architecture docs: `spec/architecture/`
+- ADRs: `spec/cockpit-app/data/dev/adrs.json` (5 decisions)
+- Competitor research: `spec/cockpit-app/analysis/competitors/` (11 dimensions, 300+ tools)
 - Vision & analysis: `spec/cockpit-app/analysis/`
