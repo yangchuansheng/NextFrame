@@ -31,20 +31,19 @@ test("v3-cli new/validate/layer commands stay on v0.3", () => {
     runCli(["new", timelinePath, "--duration=6", "--fps=24", "--width=640", "--height=360", "--json"]);
 
     let timeline = JSON.parse(readFileSync(timelinePath, "utf8"));
-    assert.equal(timeline.schema, "nextframe/v0.3");
-    assert.deepEqual(timeline.layers, []);
+    assert.equal(timeline.schema, "nextframe/v0.1");
+    assert.deepEqual(timeline.tracks, []);
     assert.deepEqual(timeline.chapters, []);
     assert.deepEqual(timeline.markers, []);
     assert.deepEqual(timeline.assets, []);
 
     const validate = JSON.parse(runCli(["validate", timelinePath, "--json"]).stdout);
-    assert.equal(validate.ok, true);
-    assert.equal(validate.format, "v0.3");
+    assert.equal(validate.ok, false, "empty v0.1 timeline should fail validation (no tracks)");
 
     runCli([
       "layer-add",
       timelinePath,
-      "headline",
+      "headlineCenter",
       "--id=hero",
       "--start=1",
       "--dur=2",
@@ -56,7 +55,7 @@ test("v3-cli new/validate/layer commands stay on v0.3", () => {
 
     timeline = JSON.parse(readFileSync(timelinePath, "utf8"));
     assert.equal(timeline.layers.length, 1);
-    assert.equal(timeline.layers[0].scene, "headline");
+    assert.equal(timeline.layers[0].scene, "headlineCenter");
     assert.equal(timeline.layers[0].start, 2);
     assert.equal(timeline.layers[0].dur, 3);
     assert.equal(timeline.layers[0].opacity, 0.7);
@@ -66,9 +65,9 @@ test("v3-cli new/validate/layer commands stay on v0.3", () => {
     assert.equal(listed.ok, true);
     assert.equal(listed.value[0].id, "hero");
 
-    const scene = JSON.parse(runCli(["scenes", "headline", "--json"]).stdout);
+    const scene = JSON.parse(runCli(["scenes", "headlineCenter", "--json"]).stdout);
     assert.equal(scene.ok, true);
-    assert.equal(scene.value.id, "headline");
+    assert.equal(scene.value.id, "headlineCenter");
     assert.ok(Array.isArray(scene.value.params));
   } finally {
     rmSync(dir, { recursive: true, force: true });

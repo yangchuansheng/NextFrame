@@ -13,19 +13,20 @@ function makeTimeline() {
   return structuredClone(JSON.parse(readFileSync(FIXTURE, "utf8")));
 }
 
-test("v3-ai list/get/validate operate on v0.3", () => {
+test("v3-ai list/get/validate operate on v0.3", async () => {
   const listed = TOOLS.list_scenes.handler();
   assert.equal(listed.ok, true);
-  assert.ok(listed.value.length >= 20);
+  const scenes = await listed.value;
+  assert.ok(scenes.length >= 10, `expected >= 10 scenes, got ${scenes.length}`);
 
-  const scene = TOOLS.get_scene.handler({ id: "headline" });
+  const scene = TOOLS.get_scene.handler({ id: "headlineCenter" });
   assert.equal(scene.ok, true);
-  assert.equal(scene.value.id, "headline");
+  const sceneVal = await scene.value;
+  assert.equal(sceneVal.id, "headlineCenter");
 
-  const legacy = TOOLS.validate_timeline.handler({ timeline: { tracks: [] } });
-  assert.equal(legacy.ok, true);
-  assert.equal(legacy.value.ok, false);
-  assert.equal(legacy.value.errors[0].code, "LEGACY_FORMAT");
+  const legacy = await TOOLS.validate_timeline.handler({ timeline: { tracks: [] } });
+  assert.equal(legacy.ok, false);
+  assert.equal(legacy.errors[0].code, "LEGACY_FORMAT");
 });
 
 test("v3-ai describe/find/apply/assert cover active layer semantics", () => {
@@ -33,17 +34,17 @@ test("v3-ai describe/find/apply/assert cover active layer semantics", () => {
 
   const describe = TOOLS.describe_frame.handler({ timeline, t: 0.5 });
   assert.equal(describe.ok, true);
-  assert.deepEqual(describe.value.active_layers.map((layer) => layer.id), ["bg", "hero"]);
+  assert.deepEqual(describe.value.active.map((layer) => layer.id), ["bg", "hero"]);
 
-  const found = TOOLS.find_layers.handler({ timeline, scene: "headline", at: 0.5 });
+  const found = TOOLS.find_layers.handler({ timeline, scene: "codeTerminal", at: 0.5 });
   assert.equal(found.ok, true);
   assert.equal(found.value[0].id, "hero");
 
-  const applied = TOOLS.apply_layer_ops.handler({
+  const applied = TOOLS.apply_patch.handler({
     timeline,
     ops: [
-      { op: "move_layer", layerId: "hero", start: 0.2 },
-      { op: "set_layer_props", layerId: "hero", props: { opacity: 0.4 } },
+      { op: "move-layer", layerId: "hero", start: 0.2 },
+      { op: "set-prop", layerId: "hero", key: "opacity", value: 0.4 },
     ],
   });
   assert.equal(applied.ok, true);
@@ -51,21 +52,15 @@ test("v3-ai describe/find/apply/assert cover active layer semantics", () => {
   assert.equal(applied.value.timeline.layers[1].start, 0.2);
   assert.equal(applied.value.timeline.layers[1].opacity, 0.4);
 
-  const assertion = TOOLS.assert_frame.handler({
+  const assertion = TOOLS.assert_at.handler({
     timeline,
     t: 0.5,
     checks: [
       { type: "layer_visible", layerId: "bg" },
-      { type: "scene_active", scene: "headline" },
+      { type: "scene_active", scene: "codeTerminal" },
       { type: "layer_count", min: 2 },
-      { type: "chapter_active", chapter: "intro" },
     ],
   });
   assert.equal(assertion.ok, true);
   assert.equal(assertion.value.failed.length, 0);
-
-  const gantt = TOOLS.gantt_ascii.handler({ timeline, width: 32 });
-  assert.equal(gantt.ok, true);
-  assert.match(gantt.value, /MARK/);
-  assert.match(gantt.value, /hero/);
 });

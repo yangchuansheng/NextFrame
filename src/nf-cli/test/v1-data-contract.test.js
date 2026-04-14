@@ -26,21 +26,21 @@ test("legacy validator requires version and clip contract fields", () => {
   assert.ok(result.errors.some((error) => error.code === "MISSING_DUR"));
 });
 
-test("v0.3 validator requires version and params and flags legacy input", () => {
-  const missingVersion = validateV3({
+test("v0.3 validator requires version and params and flags legacy input", async () => {
+  const missingVersion = await validateV3({
     schema: "nextframe/v0.3",
     width: 640,
     height: 360,
     fps: 30,
     duration: 5,
     layers: [
-      { id: "hero", scene: "headline", start: 0, dur: 5 },
+      { id: "hero", scene: "headlineCenter", start: 0, dur: 5 },
     ],
   });
   assert.equal(missingVersion.ok, false);
   assert.ok(missingVersion.errors.some((error) => error.code === "MISSING_FIELD" && error.message === "version is required"));
 
-  const missingParams = validateV3({
+  const missingParams = await validateV3({
     version: "0.3",
     schema: "nextframe/v0.3",
     width: 640,
@@ -48,13 +48,13 @@ test("v0.3 validator requires version and params and flags legacy input", () => 
     fps: 30,
     duration: 5,
     layers: [
-      { id: "hero", scene: "headline", start: 0, dur: 5 },
+      { id: "hero", scene: "headlineCenter", start: 0, dur: 5 },
     ],
   });
   assert.equal(missingParams.ok, false);
   assert.ok(missingParams.errors.some((error) => error.code === "MISSING_PARAMS"));
 
-  const legacy = validateV3({ version: "0.1", tracks: [] });
+  const legacy = await validateV3({ version: "0.1", tracks: [] });
   assert.equal(legacy.ok, false);
   assert.equal(legacy.errors[0].code, "LEGACY_FORMAT");
 });

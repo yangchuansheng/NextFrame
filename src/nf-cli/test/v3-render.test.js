@@ -23,6 +23,12 @@ const HAS_CHROME = [
 
 const HAS_FFMPEG = spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status === 0;
 
+// frame/preview/render commands need napi-canvas which may not be installed
+const HAS_NAPI_CANVAS = (() => {
+  const r = spawnSync("node", ["-e", "import('./src/targets/napi-canvas.js')"], { cwd: ROOT, stdio: "ignore", timeout: 5000 });
+  return r.status === 0;
+})();
+
 function runCli(args, expectedStatus = 0) {
   const result = spawnSync("node", [CLI, ...args], {
     cwd: ROOT,
@@ -33,17 +39,25 @@ function runCli(args, expectedStatus = 0) {
   return result;
 }
 
-const maybeTest = HAS_CHROME ? test : test.skip;
-const maybeRenderTest = HAS_CHROME && HAS_FFMPEG ? test : test.skip;
+const maybeBuildTest = test;
+const maybeFrameTest = HAS_CHROME && HAS_NAPI_CANVAS ? test : test.skip;
+const maybeRenderTest = HAS_CHROME && HAS_FFMPEG && HAS_NAPI_CANVAS ? test : test.skip;
 
-maybeTest("v3-render build/frame/preview use browser runtime", () => {
+maybeBuildTest("v3-render build generates HTML from timeline", () => {
   const dir = mkdtempSync(join(tmpdir(), "nextframe-v3-render-"));
   try {
     const htmlPath = join(dir, "timeline.html");
-    const pngPath = join(dir, "frame.png");
-
     runCli(["build", FIXTURE, `--output=${htmlPath}`]);
     assert.equal(existsSync(htmlPath), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+maybeFrameTest("v3-render frame/preview use browser runtime", () => {
+  const dir = mkdtempSync(join(tmpdir(), "nextframe-v3-render-"));
+  try {
+    const pngPath = join(dir, "frame.png");
 
     runCli(["frame", FIXTURE, "0.5", pngPath]);
     assert.equal(existsSync(pngPath), true);

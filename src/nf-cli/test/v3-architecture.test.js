@@ -19,16 +19,14 @@ test("v3-architecture public entrypoints expose only v0.3 layer model", () => {
 
   const toolNames = Object.keys(TOOLS).sort();
   assert.deepEqual(toolNames, [
-    "apply_layer_ops",
-    "assert_frame",
+    "apply_patch",
+    "assert_at",
     "describe_frame",
     "find_layers",
-    "gantt_ascii",
     "get_layer",
     "get_scene",
     "list_layers",
     "list_scenes",
-    "render_ascii",
     "validate_timeline",
   ]);
 });
