@@ -1,3 +1,4 @@
+// Project runtime bindings.
 function loadEpisodes() {
   if (typeof bridgeCall !== 'function' || !window.currentProjectPath) return;
   bridgeCall('episode.list', { project: window.currentProjectPath }).then(function(data) {

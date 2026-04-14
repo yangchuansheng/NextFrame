@@ -1,5 +1,6 @@
 // Pipeline runtime bindings.
 let pipelineRenderEntries = [];
+let pipelineSegments = [];
 let pipelinePreviewState = {};
 let pipelineExportState = null;
 let pipelineExportPollTimer = null;
@@ -175,7 +176,7 @@ function loadPipelineData() {
 }
 
 function renderScriptTab(segments) {
-  pipelineRenderEntries = pipelineRenderEntries;
+  pipelineSegments = segments;
   const el = document.querySelector('#pl-tab-script .pl-main');
   if (!el) return;
   if (segments.length === 0) {
@@ -363,7 +364,7 @@ function cancelPipelineExport() {
 function previewSegmentVideo(segmentName) {
   if (typeof bridgeCall !== 'function' || !segmentName) return;
   pipelinePreviewState[segmentName] = { loading: true };
-  renderScriptTab(Array.isArray(window.__nfPipelineSegments) ? window.__nfPipelineSegments : []);
+  renderScriptTab(pipelineSegments);
 
   bridgeCall('segment.videoUrl', normalizeSegmentPreviewParams(segmentName)).catch(function(error) {
     if (!error || String(error).indexOf('invalid params') === -1) {
@@ -377,7 +378,7 @@ function previewSegmentVideo(segmentName) {
       path: data.path || '',
       error: '',
     };
-    renderScriptTab(Array.isArray(window.__nfPipelineSegments) ? window.__nfPipelineSegments : []);
+    renderScriptTab(pipelineSegments);
   }).catch(function(error) {
     pipelinePreviewState[segmentName] = {
       loading: false,
@@ -385,18 +386,13 @@ function previewSegmentVideo(segmentName) {
       path: '',
       error: error && error.message ? error.message : String(error || 'failed to load segment video'),
     };
-    renderScriptTab(Array.isArray(window.__nfPipelineSegments) ? window.__nfPipelineSegments : []);
+    renderScriptTab(pipelineSegments);
   });
-}
-
-function renderScriptTabWithCache(segments) {
-  window.__nfPipelineSegments = segments;
-  renderScriptTab(segments);
 }
 
 // Editor runtime exports.
 window.loadPipelineData = loadPipelineData;
-window.renderScriptTab = renderScriptTabWithCache;
+window.renderScriptTab = renderScriptTab;
 window.renderAudioTab = renderAudioTab;
 window.renderAtomsTab = renderAtomsTab;
 window.renderOutputTab = renderOutputTab;
