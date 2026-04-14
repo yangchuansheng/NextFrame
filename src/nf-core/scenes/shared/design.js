@@ -66,6 +66,44 @@ export const TYPE = {
   clipLabel:   { size: 14, weight: 500, spacing: "0.08em", font: "'SF Mono','JetBrains Mono',monospace" },
 };
 
+// ── Subtitle data contract ────────────────────────────────────
+// Scenes accept fine.json segments DIRECTLY — no format conversion.
+// AI copies data from transcription pipeline output → timeline params.
+//
+// Schema: params.segments = fine.json.segments (array)
+//   segment: { s: number, e: number, speaker: string, en: string,
+//              cn: [{ text: string, s: number, e: number }] }
+//
+// Two-level lookup (matching old subs-zone.js findActive):
+//   1. Find segment where t >= segment.s && t < segment.e → gives EN + speaker
+//   2. Within segment.cn[], find entry where t >= cn.s && t < cn.e → gives CN text
+//
+// This means:
+//   - English changes per SEGMENT (one sentence per speaker turn)
+//   - Chinese changes per CN SUB-CUE (may be split into shorter phrases)
+//   - Speaker color changes per SEGMENT
+//
+// Multi-track: for clip sequences (clip_01 + bridge_01 + clip_02),
+// each layer has its own segments array with local timing (relative to layer.start).
+
+export function findActiveSub(segments, t) {
+  if (!Array.isArray(segments)) return null;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (t >= seg.s && t < seg.e) {
+      const cnArr = Array.isArray(seg.cn) ? seg.cn : [];
+      for (let j = 0; j < cnArr.length; j++) {
+        const c = cnArr[j];
+        if (t >= c.s && t < c.e) {
+          return { en: seg.en || "", cn: c.text || "", speaker: seg.speaker || "" };
+        }
+      }
+      return { en: seg.en || "", cn: "", speaker: seg.speaker || "" };
+    }
+  }
+  return null;
+}
+
 // ── Utility functions ─────────────────────────────────────────
 export function esc(value) {
   return String(value ?? "")
