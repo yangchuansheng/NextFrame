@@ -176,7 +176,6 @@ impl SegmentEncoder {
         )?;
         self.append_pixel_buffer(pixel_buffer)
     }
-<<<<<<< HEAD
 
     /// Finalizes the writer and muxes the optional audio track into the output segment.
     pub fn finish(self) -> Result<(), String> {
@@ -453,8 +452,6 @@ impl SegmentEncoder {
         self.frame_count += 1;
         Ok(())
     }
-=======
->>>>>>> wt-split-recorder-bb31c753
 }
 
 pub fn mux_audio(
