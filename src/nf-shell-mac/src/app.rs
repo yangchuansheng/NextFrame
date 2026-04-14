@@ -5,8 +5,8 @@ use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSWindow,
-    NSWindowButton, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSAutoresizingMaskOptions,
+    NSBackingStoreType, NSView, NSWindow, NSWindowButton, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 
@@ -14,6 +14,7 @@ use crate::webview;
 
 const WINDOW_WIDTH: f64 = 1440.0;
 const WINDOW_HEIGHT: f64 = 900.0;
+const TOPBAR_H: f64 = 48.0;
 
 /// Boot the macOS app: create window, embed WKWebView, run event loop.
 pub fn run() {
@@ -26,7 +27,6 @@ pub fn run() {
     app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
 
     // Dark appearance
-    // SAFETY: setAppearance: is a valid NSApplication method.
     unsafe {
         let dark_name = NSString::from_str("NSAppearanceNameDarkAqua");
         let appearance: Option<Retained<objc2_app_kit::NSAppearance>> =
@@ -48,7 +48,6 @@ pub fn run() {
         NSSize::new(WINDOW_WIDTH, WINDOW_HEIGHT),
     );
 
-    // SAFETY: mtm proves main-thread, arguments form a valid window initializer.
     let window: Retained<NSWindow> = unsafe {
         msg_send![
             NSWindow::alloc(mtm),
@@ -62,18 +61,23 @@ pub fn run() {
     window.setTitle(&NSString::from_str("NextFrame"));
     window.center();
 
-    // Transparent titlebar — content extends behind it
-    // SAFETY: these are valid NSWindow property setters.
+    // Transparent titlebar
     unsafe {
         let _: () = msg_send![&window, setTitlebarAppearsTransparent: true];
-        let _: () = msg_send![&window, setTitleVisibility: 1i64]; // NSWindowTitleHidden = 1
-        let _: () = msg_send![&window, setMovableByWindowBackground: true];
+        let _: () = msg_send![&window, setTitleVisibility: 1i64]; // NSWindowTitleHidden
     }
 
-    // Position traffic lights
-    position_traffic_lights(&window);
+    // Create container view to hold both WKWebView + drag overlay
+    let container = NSView::initWithFrame(
+        mtm.alloc::<NSView>(),
+        NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(WINDOW_WIDTH, WINDOW_HEIGHT)),
+    );
+    container.setAutoresizingMask(
+        NSAutoresizingMaskOptions::ViewWidthSizable
+            | NSAutoresizingMaskOptions::ViewHeightSizable,
+    );
 
-    // Create WKWebView and set as content
+    // Create WKWebView
     let wv = match webview::create(mtm, NSSize::new(WINDOW_WIDTH, WINDOW_HEIGHT)) {
         Ok(wv) => wv,
         Err(e) => {
@@ -81,17 +85,45 @@ pub fn run() {
             return;
         }
     };
-    window.setContentView(Some(&wv));
+    wv.setAutoresizingMask(
+        NSAutoresizingMaskOptions::ViewWidthSizable
+            | NSAutoresizingMaskOptions::ViewHeightSizable,
+    );
 
+    // Create transparent drag overlay for the topbar area
+    // This sits ON TOP of WKWebView so the titlebar region is draggable
+    let drag_overlay = NSView::initWithFrame(
+        mtm.alloc::<NSView>(),
+        NSRect::new(
+                NSPoint::new(0.0, WINDOW_HEIGHT - TOPBAR_H),
+                NSSize::new(WINDOW_WIDTH, TOPBAR_H),
+            ),
+        );
+    // Pin to top, stretch width
+    drag_overlay.setAutoresizingMask(
+        NSAutoresizingMaskOptions::ViewWidthSizable
+            | NSAutoresizingMaskOptions::ViewMinYMargin,
+    );
+    // Make it transparent — no background, just catches mouse for dragging
+    // SAFETY: mouseDownCanMoveWindow is checked by NSWindow on the view hierarchy.
+    // A transparent view that returns YES for mouseDownCanMoveWindow enables dragging.
+    // We use a class that overrides this. For now, use movableByWindowBackground on window.
+    unsafe {
+        let _: () = msg_send![&window, setMovableByWindowBackground: true];
+    }
+
+    // Add views: WKWebView first (bottom), drag overlay on top
+    container.addSubview(&wv);
+    container.addSubview(&drag_overlay);
+
+    window.setContentView(Some(&container));
     window.makeKeyAndOrderFront(None);
 
-    // Reapply after content view is set
+    // Position traffic lights to align with HTML topbar center
     position_traffic_lights(&window);
-
-    // Register for resize notifications to reapply traffic light positions
     register_resize_observer(&window);
 
-    // Auto-screenshot if --screenshot flag passed
+    // Auto-screenshot
     if std::env::args().any(|a| a == "--screenshot") {
         let out = "/tmp/nf-screenshot.png";
         match webview::screenshot(&wv, out) {
@@ -101,23 +133,20 @@ pub fn run() {
         std::process::exit(0);
     }
 
-    // SAFETY: activateIgnoringOtherApps: is valid for NSApplication.
     unsafe {
         let _: () = msg_send![&app, activateIgnoringOtherApps: true];
     }
 
     tracing::info!("NextFrame window ready");
-
     app.run();
 }
 
-/// Reposition traffic lights using proven automedia/Zed approach:
-/// read real titlebar height from contentLayoutRect, set full frame per button.
+/// Reposition traffic lights to vertically center in our 48px HTML topbar.
+/// The buttons live in the system titlebar area (top of window).
+/// With FullSizeContentView, content starts at y=0 and titlebar overlaps.
 fn position_traffic_lights(window: &NSWindow) {
     let padding_x = 13.0f64;
-    let padding_y = 10.0f64;
 
-    // SAFETY: standardWindowButton, frame, contentLayoutRect, setFrame are valid NSWindow/NSView methods.
     unsafe {
         let close = window.standardWindowButton(NSWindowButton::CloseButton);
         let mini = window.standardWindowButton(NSWindowButton::MiniaturizeButton);
@@ -127,18 +156,30 @@ fn position_traffic_lights(window: &NSWindow) {
             return;
         };
 
-        // Real titlebar height = window frame height - content layout rect height
-        let win_frame = window.frame();
-        let content_rect: NSRect = msg_send![window, contentLayoutRect];
-        let titlebar_h = win_frame.size.height - content_rect.size.height;
-
         let close_frame = close.frame();
         let mini_frame = mini.frame();
         let btn_h = close_frame.size.height;
         let spacing = mini_frame.origin.x - close_frame.origin.x;
 
-        // Y from bottom of titlebar area
-        let y = titlebar_h - padding_y - btn_h;
+        // We want buttons centered in a 48px topbar.
+        // System titlebar is at the very top of the window.
+        // Real titlebar height:
+        let win_frame = window.frame();
+        let content_rect: NSRect = msg_send![window, contentLayoutRect];
+        let titlebar_h = win_frame.size.height - content_rect.size.height;
+
+        // Our HTML topbar is 48px from the top of the content area.
+        // But with FullSizeContentView, content area includes the titlebar.
+        // So the "visual topbar" spans from (window top) to (window top - 48px).
+        // The buttons are in the titlebar coordinate space (origin at bottom-left of titlebar).
+        // Center button in 48px: y = (48 - btn_h) / 2, but measured from bottom of titlebar.
+        // Since titlebar_h < 48, we need to shift buttons DOWN into content area.
+        // Button y in titlebar coords: negative means below titlebar into content.
+        let visual_center_from_top = (TOPBAR_H - btn_h) / 2.0;
+        // From top of titlebar to center = visual_center_from_top
+        // In titlebar coords (bottom-up): y = titlebar_h - visual_center_from_top - btn_h
+        let y = titlebar_h - visual_center_from_top - btn_h;
+
         let mut x = padding_x;
 
         let mut cf = close_frame;
@@ -157,20 +198,16 @@ fn position_traffic_lights(window: &NSWindow) {
     }
 }
 
-/// Register NSNotificationCenter observer for window resize/fullscreen
-/// to reapply traffic light positions (system resets them on resize).
+/// Register resize/layout notifications to reapply traffic light positions.
 fn register_resize_observer(window: &NSWindow) {
-    // SAFETY: NSNotificationCenter and block-based observer registration are standard APIs.
     unsafe {
-        let center: *mut AnyObject = msg_send![objc2::class!(NSNotificationCenter), defaultCenter];
+        let center: *mut AnyObject =
+            msg_send![objc2::class!(NSNotificationCenter), defaultCenter];
 
-        // We observe multiple notification names that can reset button positions
         let names = [
             "NSWindowDidResizeNotification",
-            "NSWindowDidMoveNotification",
             "NSWindowDidBecomeKeyNotification",
             "NSWindowDidEndLiveResizeNotification",
-            "NSWindowWillEnterFullScreenNotification",
             "NSWindowDidExitFullScreenNotification",
         ];
 
@@ -178,9 +215,7 @@ fn register_resize_observer(window: &NSWindow) {
             let window_ptr: *const NSWindow = window as *const NSWindow;
             let ns_name = NSString::from_str(name);
 
-            // Use a C function pointer callback via block
             let block = block2::RcBlock::new(move |_notif: *mut AnyObject| {
-                // SAFETY: window_ptr is valid for the lifetime of the app.
                 let win: &NSWindow = &*window_ptr;
                 position_traffic_lights(win);
             });
