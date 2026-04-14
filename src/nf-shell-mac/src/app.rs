@@ -404,7 +404,9 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
             "document.querySelector('[data-stage=\"audio\"]')?.click();'clicked'"
         )
     );
-    webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
+    webview::pump_run_loop_pub(std::time::Duration::from_secs(2));
+    check!("audio elements", webview::eval_js(wv, "var audios=document.querySelectorAll('#pl-tab-audio audio');audios.length+' audios, src='+(audios[0]?.src||'none').substring(0,80)"));
+    check!("audio error", webview::eval_js(wv, "var a=document.querySelector('#pl-tab-audio audio');a?(a.error?'err:'+a.error.code:'no-error, readyState='+a.readyState):'no audio el'"));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-audio.png");
 
     check!(

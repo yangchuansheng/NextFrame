@@ -20,7 +20,7 @@ function escapeHtml(value) {
 function toNfdataUrl(path) {
   if (!path) return '';
   const idx = path.indexOf('/projects/');
-  if (idx >= 0) return 'nfdata://localhost' + path.substring(idx);
+  if (idx >= 0) return 'nfdata://localhost/' + encodeURI(path.substring(idx + '/projects/'.length));
   return path;
 }
 
