@@ -4,6 +4,7 @@ use objc2::runtime::AnyObject;
 use objc2_foundation::{NSError, NSString};
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
 use crate::eval::eval_js;
 use crate::state::{log_activity, read_activity_log, tab_index_for_webview};
 
@@ -93,9 +94,13 @@ fn write_dump(
         if !error.is_null() {
             // SAFETY: WebKit passes a valid NSError pointer when `error` is non-null.
             let err = unsafe { &*error }; // SAFETY: see comment above.
-            write_result(
+            write_error(
                 &result_path,
-                format!("error: {}", err.localizedDescription()),
+                error_with_fix(
+                    "evaluate the query JavaScript",
+                    err.localizedDescription(),
+                    "Check the script and make sure the page is still loaded before retrying.",
+                ),
             );
             return;
         }
@@ -109,11 +114,19 @@ fn write_dump(
                 &result_path,
                 format!("ok: {} ({} bytes)", target_path, content.len()),
             ),
-            Err(err) => write_result(&result_path, format!("error: {write_error_label}: {err}")),
+            Err(err) => write_error(
+                &result_path,
+                error_with_fix(
+                    &format!("write the {write_error_label} output"),
+                    err,
+                    "Check that the destination path is writable and retry the command.",
+                ),
+            ),
         }
     });
     // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
     }
@@ -154,7 +167,17 @@ fn waitfor_element(webview: &WKWebView, selector: &str, timeout_ms: u64, result_
                     if let Some(text) = found {
                         write_result(&rp, format!("ok: {text}"));
                     } else if attempt >= max_attempts {
-                        write_result(&rp, "error: timeout");
+                        write_error(
+                            &rp,
+                            error_with_fix(
+                                "wait for the target element",
+                                format!(
+                                    "the element did not appear within {} ms",
+                                    max_attempts * interval_ms
+                                ),
+                                "Increase the timeout or verify the selector matches a visible element.",
+                            ),
+                        );
                     } else {
                         schedule_check(
                             wv_ptr,
@@ -294,7 +317,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
             "document.body.innerText",
             format!("/tmp/wp-text-{tab_idx}.txt"),
             result_path,
-            "error: null",
+            "error: failed to read page text: the page returned null. Fix: Reload the page and retry after the DOM is ready.",
             "write",
         );
         true
@@ -305,7 +328,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
             "(function(){var t=document.body.innerText;var apps=document.querySelectorAll('wujie-app');for(var i=0;i<apps.length;i++){if(apps[i].shadowRoot){var el=apps[i].shadowRoot.querySelector('div');if(el)t+='\\n---SHADOW---\\n'+el.innerText;}}return t;})()",
             format!("/tmp/wp-text-{tab_idx}.txt"),
             result_path,
-            "error: null",
+            "error: failed to read page text: the page returned null. Fix: Reload the page and retry after the DOM is ready.",
             "write",
         );
         true
@@ -316,7 +339,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
             "document.documentElement.outerHTML",
             format!("/tmp/wp-html-{tab_idx}.html"),
             result_path,
-            "error: null result",
+            "error: failed to read page HTML: the page returned null. Fix: Reload the page and retry after the DOM is ready.",
             "write failed",
         );
         true
@@ -327,7 +350,7 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: String
             "(function(){var h=document.documentElement.outerHTML;var apps=document.querySelectorAll('wujie-app');for(var i=0;i<apps.length;i++){if(apps[i].shadowRoot){h+='\\n<!-- SHADOW_ROOT_'+i+' -->\\n'+apps[i].shadowRoot.innerHTML;}}return h;})()",
             format!("/tmp/wp-html-{tab_idx}.html"),
             result_path,
-            "error: null result",
+            "error: failed to read page HTML: the page returned null. Fix: Reload the page and retry after the DOM is ready.",
             "write failed",
         );
         true

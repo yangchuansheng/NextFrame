@@ -4,6 +4,7 @@ use objc2::runtime::AnyObject;
 use objc2_foundation::{NSError, NSString};
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
 use crate::eval::{take_screenshot, take_screenshot_with_callback};
 use crate::state::TABS;
 
@@ -127,7 +128,8 @@ fn run_check_command(webview: &WKWebView, result_path: String) {
                     write_check_result(&rp2, &platform2, &status, Some(&url2));
                 });
                 // SAFETY: `wv` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-                unsafe { // SAFETY: see comment above.
+                unsafe {
+                    // SAFETY: see comment above.
                     // SAFETY: see comment above.
                     wv.evaluateJavaScript_completionHandler(&read_js, Some(&handler2));
                 }
@@ -139,7 +141,8 @@ fn run_check_command(webview: &WKWebView, result_path: String) {
         write_check_result(&rp, &platform_for_result, &status, Some(&url_for_result));
     });
     // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.evaluateJavaScript_completionHandler(&js, Some(&handler));
     }
@@ -181,15 +184,26 @@ pub(super) fn handle_command(
                     if !error.is_null() {
                         // SAFETY: WebKit passes a valid NSError pointer when `error` is non-null.
                         let err = unsafe { &*error }; // SAFETY: see comment above.
-                        write_result(
+                        write_error(
                             &result_path,
-                            format!("error: {}", err.localizedDescription()),
+                            error_with_fix(
+                                "evaluate the screenshot JavaScript",
+                                err.localizedDescription(),
+                                "Check the page state and retry after the target element is rendered.",
+                            ),
                         );
                         return;
                     }
                     let rect = js_string(result);
                     if rect == "__NOT_FOUND__" || rect == "null" || rect.starts_with("error") {
-                        write_result(&result_path, format!("error: element {rect}"));
+                        write_error(
+                            &result_path,
+                            error_with_fix(
+                                "locate the screenshot target element",
+                                format!("element lookup returned `{rect}`"),
+                                "Check the selector and make sure the target element is visible before retrying.",
+                            ),
+                        );
                         return;
                     }
                     match parse_rect(&rect) {
@@ -211,7 +225,8 @@ pub(super) fn handle_command(
                     }
                 });
                 // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-                unsafe { // SAFETY: see comment above.
+                unsafe {
+                    // SAFETY: see comment above.
                     // SAFETY: see comment above.
                     webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
                 }

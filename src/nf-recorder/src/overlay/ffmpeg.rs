@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::Command;
 
 use super::spec::VideoOverlaySpec;
+use crate::error_with_fix;
 
 const OVERLAY_X: usize = 80;
 const OVERLAY_Y: usize = 276;
@@ -60,7 +61,7 @@ pub fn overlay_video_layers(recorded: &Path, layers: &[VideoOverlaySpec]) -> Res
         return Ok(());
     }
 
-    println!("  overlay: compositing {} video layer(s)", layers.len());
+    trace_log!("overlay: compositing {} video layer(s)", layers.len());
     let temp_out = recorded.with_extension("overlay.mp4");
     let filter = build_video_layer_filter(layers);
     let mut command = Command::new("ffmpeg");
@@ -77,25 +78,37 @@ pub fn overlay_video_layers(recorded: &Path, layers: &[VideoOverlaySpec]) -> Res
         .args(["-movflags", "+faststart"])
         .arg(&temp_out)
         .output()
-        .map_err(|err| format!("ffmpeg failed to start: {err}"))?;
+        .map_err(|err| {
+            error_with_fix(
+                "start ffmpeg for video-layer overlay",
+                err,
+                "Install ffmpeg and make sure it is available on PATH.",
+            )
+        })?;
 
     if !status.status.success() {
         let stderr = String::from_utf8_lossy(&status.stderr);
-        return Err(format!(
-            "ffmpeg video-layer overlay failed:\n{}",
-            &stderr[stderr.len().saturating_sub(500)..]
+        return Err(error_with_fix(
+            "overlay video layers with ffmpeg",
+            &stderr[stderr.len().saturating_sub(500)..],
+            "Inspect the ffmpeg stderr output, verify the input files, and retry.",
         ));
     }
 
-    fs::rename(&temp_out, recorded)
-        .map_err(|err| format!("failed to rename overlay output: {err}"))?;
+    fs::rename(&temp_out, recorded).map_err(|err| {
+        error_with_fix(
+            "replace the recorded output with the overlay result",
+            err,
+            "Check that the output path is writable and retry the recording job.",
+        )
+    })?;
     Ok(())
 }
 
 /// Overlay a source video into the recorded clip's black video area.
 /// Video area: x:80 y:276 w:920 h:538 in 1080x1920 output.
 pub fn overlay_video(recorded: &Path, video: &Path) -> Result<(), String> {
-    println!("  overlay: {} → video area", video.display());
+    trace_log!("overlay: {} -> video area", video.display());
     let temp_out = recorded.with_extension("overlay.mp4");
 
     let filter = build_overlay_filter();
@@ -111,22 +124,34 @@ pub fn overlay_video(recorded: &Path, video: &Path) -> Result<(), String> {
         .args(["-c:a", "copy"])
         .arg(&temp_out)
         .output()
-        .map_err(|err| format!("ffmpeg failed to start: {err}"))?;
+        .map_err(|err| {
+            error_with_fix(
+                "start ffmpeg for video overlay",
+                err,
+                "Install ffmpeg and make sure it is available on PATH.",
+            )
+        })?;
 
     if !status.status.success() {
         let stderr = String::from_utf8_lossy(&status.stderr);
-        return Err(format!(
-            "ffmpeg overlay failed:\n{}",
-            &stderr[stderr.len().saturating_sub(300)..]
+        return Err(error_with_fix(
+            "overlay the source video with ffmpeg",
+            &stderr[stderr.len().saturating_sub(300)..],
+            "Inspect the ffmpeg stderr output, verify the input files, and retry.",
         ));
     }
 
-    fs::rename(&temp_out, recorded)
-        .map_err(|err| format!("failed to rename overlay output: {err}"))?;
+    fs::rename(&temp_out, recorded).map_err(|err| {
+        error_with_fix(
+            "replace the recorded output with the overlay result",
+            err,
+            "Check that the output path is writable and retry the recording job.",
+        )
+    })?;
 
     let size_mb = fs::metadata(recorded)
         .map(|meta| meta.len() as f64 / 1024.0 / 1024.0)
         .unwrap_or(0.0);
-    println!("  ✓ overlay done: {:.1} MB\n", size_mb);
+    trace_log!("overlay done: {:.1} MB", size_mb);
     Ok(())
 }

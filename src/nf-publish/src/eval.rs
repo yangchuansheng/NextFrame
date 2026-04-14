@@ -7,22 +7,45 @@ use objc2_web_kit::WKWebView;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::error::{ensure_fix, error_with_fix};
+
 fn encode_and_write_screenshot(image: &NSImage, screenshot_path: &str) -> Result<usize, String> {
-    let tiff = image
-        .TIFFRepresentation()
-        .ok_or_else(|| "screenshot failed".to_owned())?;
-    let bitmap = NSBitmapImageRep::imageRepWithData(&tiff)
-        .ok_or_else(|| "failed to decode screenshot".to_owned())?;
+    let tiff = image.TIFFRepresentation().ok_or_else(|| {
+        error_with_fix(
+            "capture the screenshot",
+            "AppKit did not produce TIFF data for the snapshot",
+            "Retry after the page finishes rendering.",
+        )
+    })?;
+    let bitmap = NSBitmapImageRep::imageRepWithData(&tiff).ok_or_else(|| {
+        error_with_fix(
+            "decode the screenshot image",
+            "AppKit could not decode the snapshot TIFF data",
+            "Retry after the page finishes rendering.",
+        )
+    })?;
     // SAFETY: `NSDictionary::new()` returns an empty immutable dictionary object that can be viewed as the typed properties dictionary WebKit expects here.
     let dict: &NSDictionary<NSString> =
         unsafe { &*(NSDictionary::new().as_ref() as *const _ as *const _) }; // SAFETY: see comment above.
     // SAFETY: `bitmap` is a valid NSBitmapImageRep and `representationUsingType:properties:` accepts the empty properties dictionary for PNG encoding.
     let png =
         unsafe { bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, dict) } // SAFETY: see comment above.
-            .ok_or_else(|| "failed to encode screenshot".to_owned())?;
+            .ok_or_else(|| {
+                error_with_fix(
+                    "encode the screenshot as PNG",
+                    "AppKit returned no PNG data",
+                    "Retry after the page finishes rendering.",
+                )
+            })?;
     // SAFETY: `png` is NSData returned by AppKit and remains alive for this scope, so exposing its bytes is valid.
     let bytes = unsafe { png.as_bytes_unchecked() }; // SAFETY: see comment above.
-    std::fs::write(screenshot_path, bytes).map_err(|err| format!("write failed: {err}"))?;
+    std::fs::write(screenshot_path, bytes).map_err(|err| {
+        error_with_fix(
+            "write the screenshot PNG",
+            err,
+            "Check that the screenshot path is writable and retry.",
+        )
+    })?;
     Ok(bytes.len())
 }
 
@@ -37,7 +60,11 @@ pub(crate) fn take_screenshot_with_callback<F>(
     let callback = Rc::new(RefCell::new(Some(callback)));
     let handler = RcBlock::new(move |image: *mut NSImage, _error: *mut NSError| {
         let result = if image.is_null() {
-            Err("screenshot failed".to_owned())
+            Err(error_with_fix(
+                "capture the screenshot",
+                "WebKit returned no image",
+                "Retry after the page finishes rendering.",
+            ))
         } else {
             // SAFETY: WebKit passes a valid NSImage pointer when `image` is non-null for this completion handler invocation.
             let image = unsafe { &*image }; // SAFETY: see comment above.
@@ -48,7 +75,8 @@ pub(crate) fn take_screenshot_with_callback<F>(
         }
     });
     // SAFETY: `webview` is a live WKWebView and the completion block outlives the async snapshot operation.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.takeSnapshotWithConfiguration_completionHandler(None, &handler);
     }
@@ -64,7 +92,12 @@ pub(crate) fn take_screenshot(webview: &WKWebView, result_path: String, screensh
             let _ = std::fs::write(&res_path, format!("ok: {} ({len} bytes)", ss_path));
         }
         Err(err) => {
-            let _ = std::fs::write(&res_path, format!("error: {err}"));
+            let message = ensure_fix(
+                err,
+                "capture the screenshot",
+                "Retry after the page finishes rendering and ensure the output path is writable.",
+            );
+            let _ = std::fs::write(&res_path, format!("error: {message}"));
         }
     });
 }
@@ -84,8 +117,12 @@ pub(crate) fn eval_js(webview: &WKWebView, js: &str, result_path: String) {
         if !error.is_null() {
             // SAFETY: WebKit passes a valid NSError pointer when `error` is non-null.
             let err = unsafe { &*error }; // SAFETY: see comment above.
-            let desc = err.localizedDescription();
-            let _ = std::fs::write(&res_path, format!("error: {desc}"));
+            let message = error_with_fix(
+                "evaluate JavaScript in the webview",
+                err.localizedDescription(),
+                "Check the script for syntax errors and make sure the page is still loaded.",
+            );
+            let _ = std::fs::write(&res_path, format!("error: {message}"));
         } else if !result.is_null() {
             // SAFETY: this wrapper stringifies JS results, so non-null `result` is an NSString.
             let s: &NSString = unsafe { &*(result as *const NSString) }; // SAFETY: see comment above.
@@ -95,7 +132,8 @@ pub(crate) fn eval_js(webview: &WKWebView, js: &str, result_path: String) {
         }
     });
     // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and block.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
     }

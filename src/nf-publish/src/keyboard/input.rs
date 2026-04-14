@@ -9,6 +9,8 @@ use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
 use objc2_foundation::{NSError, NSPoint, NSString};
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
+
 use super::{catch_objc, native_click_at};
 
 pub(crate) fn send_key_to_webview(
@@ -133,7 +135,11 @@ fn named_key_spec(key: &str) -> Option<(String, c_ushort)> {
 pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), String> {
     let key = key.trim();
     if key.is_empty() {
-        return Err("empty key".to_owned());
+        return Err(error_with_fix(
+            "parse the key command",
+            "the key argument was empty",
+            "Pass a key such as `enter`, `cmd+v`, or `a`.",
+        ));
     }
 
     let mut modifiers = NSEventModifierFlags::empty();
@@ -154,22 +160,39 @@ pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), Str
             "shift" => modifiers = modifiers.union(NSEventModifierFlags::Shift),
             "alt" | "option" => modifiers = modifiers.union(NSEventModifierFlags::Option),
             "ctrl" | "control" => modifiers = modifiers.union(NSEventModifierFlags::Control),
-            _ => return Err(format!("unsupported modifier: {part}")),
+            _ => {
+                return Err(error_with_fix(
+                    "parse the key modifier",
+                    format!("unsupported modifier `{part}`"),
+                    "Use only `cmd`, `shift`, `alt`, or `ctrl` modifiers.",
+                ));
+            }
         }
     }
 
-    let key_part = key_part.ok_or_else(|| "missing key".to_owned())?;
-    let (chars, keycode, inferred_modifiers) =
-        if let Some((chars, keycode)) = named_key_spec(key_part) {
-            (chars, keycode, NSEventModifierFlags::empty())
-        } else if let Some(ch) = (key_part.chars().count() == 1)
-            .then(|| key_part.chars().next())
-            .flatten()
-        {
-            key_spec_for_text(ch)
-        } else {
-            return Err(format!("unsupported key: {key_part}"));
-        };
+    let key_part = key_part.ok_or_else(|| {
+        error_with_fix(
+            "parse the key command",
+            "the key itself is missing",
+            "Pass a key such as `enter`, `cmd+v`, or `a`.",
+        )
+    })?;
+    let (chars, keycode, inferred_modifiers) = if let Some((chars, keycode)) =
+        named_key_spec(key_part)
+    {
+        (chars, keycode, NSEventModifierFlags::empty())
+    } else if let Some(ch) = (key_part.chars().count() == 1)
+        .then(|| key_part.chars().next())
+        .flatten()
+    {
+        key_spec_for_text(ch)
+    } else {
+        return Err(error_with_fix(
+            "parse the key command",
+            format!("unsupported key `{key_part}`"),
+            "Use a single character or one of the supported named keys such as `enter`, `tab`, `left`, or `space`.",
+        ));
+    };
 
     send_key_to_webview(
         webview,
@@ -182,7 +205,8 @@ pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), Str
 
 pub(crate) fn paste_text_native(webview: &WKWebView, text: &str) -> Result<(), String> {
     // SAFETY: `NSPasteboard` responds to these standard pasteboard selectors and the temporary NSString values live for the duration of the calls.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         let pb: Retained<AnyObject> = msg_send![objc2::class!(NSPasteboard), generalPasteboard];
         let _: () = msg_send![&*pb, clearContents];
@@ -379,7 +403,8 @@ pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
     });
 
     // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
     }

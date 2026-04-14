@@ -11,10 +11,13 @@ use objc2_foundation::{
     NSURL,
 };
 
+use crate::error_with_fix;
+
 use super::FrameSize;
 
 // SAFETY: These imported framework constants are process-global and valid for the life of the process.
-unsafe extern "C" { // SAFETY: see above.
+unsafe extern "C" {
+    // SAFETY: see above.
     // SAFETY: see above.
     static AVVideoAverageBitRateKey: &'static NSString;
     static AVVideoCodecKey: &'static NSString;
@@ -146,32 +149,43 @@ fn select_h264_profile_level(frame_size: FrameSize, fps: usize) -> H264ProfileLe
 fn profile_level_nsobject(frame_size: FrameSize, fps: usize) -> &'static NSObject {
     match select_h264_profile_level(frame_size, fps) {
         // SAFETY: This imported AVFoundation profile constant is a valid process-global NSString.
-        H264ProfileLevel::High31 | H264ProfileLevel::High40 | H264ProfileLevel::High51 => unsafe { // SAFETY: see above.
+        H264ProfileLevel::High31 | H264ProfileLevel::High40 | H264ProfileLevel::High51 => unsafe {
+            // SAFETY: see above.
             AVVideoProfileLevelH264HighAutoLevel
         }, // SAFETY: see above.
     }
 }
 
 pub(super) fn lookup_class(name: &'static std::ffi::CStr) -> Result<&'static AnyClass, String> {
-    AnyClass::get(name)
-        .ok_or_else(|| format!("Objective-C class not found: {}", name.to_string_lossy()))
+    AnyClass::get(name).ok_or_else(|| {
+        error_with_fix(
+            "resolve the Objective-C runtime class",
+            format!("class `{}` was not found", name.to_string_lossy()),
+            "Run on macOS with the required AVFoundation classes available.",
+        )
+    })
 }
 
 pub(super) fn nsurl_from_path(path: &Path) -> Retained<NSURL> {
     NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()))
 }
 
-pub(super) fn writer_error_string(writer: &AnyObject, context: &str) -> String {
+pub(super) fn writer_error_string(writer: &AnyObject, action: &str, fix: &str) -> String {
     // SAFETY: `writer` is an `AVAssetWriter`, so `error` returns either null or a live `NSError *`.
     let error: *mut NSError = unsafe { msg_send![writer, error] }; // SAFETY: see above.
-    ns_error_ptr_to_string(error, context)
+    ns_error_ptr_to_string(error, action, fix)
 }
 
-pub(super) fn ns_error_ptr_to_string(error: *mut NSError, context: &str) -> String {
+pub(super) fn ns_error_ptr_to_string(error: *mut NSError, action: &str, fix: &str) -> String {
     // SAFETY: Objective-C error out-pointers are either null or valid for this formatting scope.
-    match unsafe { error.as_ref() } { // SAFETY: see above.
-        Some(error) => format!("{context}: {}", ns_error_to_string(error)),
-        None => context.to_string(),
+    match unsafe { error.as_ref() } {
+        // SAFETY: see above.
+        Some(error) => error_with_fix(action, ns_error_to_string(error), fix),
+        None => error_with_fix(
+            action,
+            "the Apple framework returned no additional error details",
+            fix,
+        ),
     }
 }
 

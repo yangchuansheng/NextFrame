@@ -1,4 +1,5 @@
 //! command navigation commands
+use crate::error::error_with_fix;
 use crate::state::{
     all_tab_ids, go_back, go_forward, log_crash, navigate_active_input, navigate_tab_to_url,
     reload_tab,
@@ -11,10 +12,13 @@ fn parse_optional_tab_id(input: &str) -> Result<Option<usize>, String> {
     if trimmed.is_empty() {
         Ok(None)
     } else {
-        trimmed
-            .parse::<usize>()
-            .map(Some)
-            .map_err(|_| format!("invalid tab id: {trimmed}"))
+        trimmed.parse::<usize>().map(Some).map_err(|_| {
+            error_with_fix(
+                "parse the tab id",
+                format!("`{trimmed}` is not a valid tab id"),
+                "Use a numeric tab id from the `tabs` command output.",
+            )
+        })
     }
 }
 

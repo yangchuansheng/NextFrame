@@ -4,7 +4,7 @@ use std::time::Instant;
 use serde_json::Value;
 use wry::WebView;
 
-use super::{PendingAppCtlMap, PendingAppCtlRequest};
+use super::{error_with_fix, PendingAppCtlMap, PendingAppCtlRequest};
 
 pub(crate) fn queue_appctl_script(
     webview: &WebView,
@@ -16,9 +16,13 @@ pub(crate) fn queue_appctl_script(
 ) -> Result<(), String> {
     let req_id = next_appctl_request_id(next_request_id);
     let script = appctl_eval_script(&req_id, source)?;
-    let owned_stream = stream
-        .try_clone()
-        .map_err(|error| format!("failed to clone response stream: {error}"))?;
+    let owned_stream = stream.try_clone().map_err(|error| {
+        error_with_fix(
+            "clone the app-control response stream",
+            error,
+            "Check the local HTTP connection and retry the request.",
+        )
+    })?;
 
     match pending_appctl.lock() {
         Ok(mut requests) => {
@@ -32,7 +36,11 @@ pub(crate) fn queue_appctl_script(
             );
         }
         Err(error) => {
-            return Err(format!("pending request state poisoned: {error}"));
+            return Err(error_with_fix(
+                "lock the pending app-control request state",
+                error,
+                "Restart nf-shell to rebuild the app-control request state.",
+            ));
         }
     }
 
@@ -40,7 +48,11 @@ pub(crate) fn queue_appctl_script(
         if let Ok(mut requests) = pending_appctl.lock() {
             requests.remove(&req_id);
         }
-        return Err(format!("failed to evaluate app control script: {error}"));
+        return Err(error_with_fix(
+            "evaluate the app-control script",
+            error,
+            "Check that the desktop app is still responsive and the injected script is valid.",
+        ));
     }
 
     Ok(())
@@ -52,10 +64,20 @@ fn next_appctl_request_id(counter: &mut u64) -> String {
 }
 
 fn appctl_eval_script(req_id: &str, source: &str) -> Result<String, String> {
-    let req_id_json = serde_json::to_string(req_id)
-        .map_err(|error| format!("failed to encode reqId: {error}"))?;
-    let source_json = serde_json::to_string(source)
-        .map_err(|error| format!("failed to encode script source: {error}"))?;
+    let req_id_json = serde_json::to_string(req_id).map_err(|error| {
+        error_with_fix(
+            "encode the app-control request id",
+            error,
+            "Retry the request after confirming the request id contains valid UTF-8 text.",
+        )
+    })?;
+    let source_json = serde_json::to_string(source).map_err(|error| {
+        error_with_fix(
+            "encode the app-control script source",
+            error,
+            "Retry the request after confirming the script source is valid UTF-8 text.",
+        )
+    })?;
     Ok(format!(
         r#"(function() {{
   var __nfReqId = {req_id_json};
@@ -81,8 +103,13 @@ fn appctl_eval_script(req_id: &str, source: &str) -> Result<String, String> {
 }
 
 pub(crate) fn build_navigate_script(payload: &Value) -> Result<String, String> {
-    let payload_json = serde_json::to_string(payload)
-        .map_err(|error| format!("failed to encode navigate payload: {error}"))?;
+    let payload_json = serde_json::to_string(payload).map_err(|error| {
+        error_with_fix(
+            "encode the navigate payload",
+            error,
+            "Check the JSON payload fields and retry the navigation request.",
+        )
+    })?;
     Ok(format!(
         r#"(async function() {{
   var payload = {payload_json};

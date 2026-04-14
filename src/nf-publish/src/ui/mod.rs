@@ -12,6 +12,7 @@ use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString, NSUR
 use objc2_web_kit::{WKWebView, WKWebViewConfiguration};
 
 use crate::delegates::{PilotNavDelegate, PilotUIDelegate};
+use crate::error::error_with_fix;
 
 pub(crate) use menu::{rebuild_bookmarks_bar, rebuild_tab_strip};
 pub(crate) use toolbar::create_browser_layout;
@@ -30,7 +31,13 @@ pub(crate) struct BrowserLayout {
 fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
     // SAFETY: `objc2::exception::catch` only wraps the provided closure and is designed for this FFI boundary.
     let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) }; // SAFETY: see comment above.
-    result.map_err(|e| format!("ObjC exception: {e:?}"))
+    result.map_err(|e| {
+        error_with_fix(
+            "update the macOS publish UI",
+            format!("Objective-C raised an exception: {e:?}"),
+            "Retry after the window finishes updating. If it keeps failing, restart nf-publish.",
+        )
+    })
 }
 
 fn srgb(r: f64, g: f64, b: f64, a: f64) -> Retained<NSColor> {
@@ -82,7 +89,8 @@ fn remove_all_subviews(view: &NSView) {
 
 fn make_hairline(mtm: MainThreadMarker, x: f64, y: f64, w: f64, h: f64) -> Retained<NSView> {
     // SAFETY: `mtm` guarantees main-thread AppKit access and `alloc()` returns an uninitialized NSView ready for `initWithFrame:`.
-    let view = unsafe { // SAFETY: see comment above.
+    let view = unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         NSView::initWithFrame(
             mtm.alloc(),
@@ -107,7 +115,8 @@ pub(crate) fn move_traffic_lights(window: &objc2_app_kit::NSWindow) {
     let padding_y = 10.0f64;
 
     // SAFETY: `window` is a live NSWindow on the main thread and the queried standard buttons/contentLayoutRect selectors are valid NSWindow APIs.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         let close = window.standardWindowButton(NSWindowButton::CloseButton);
         let mini = window.standardWindowButton(NSWindowButton::MiniaturizeButton);
@@ -154,7 +163,8 @@ pub(crate) fn create_webview(
     // SAFETY: `mtm` guarantees main-thread WebKit construction and `config` stays alive for the life of the app state.
     let webview = unsafe { WKWebView::initWithFrame_configuration(mtm.alloc(), frame, config) }; // SAFETY: see comment above.
     // SAFETY: `webview` is freshly created and both delegates are Objective-C objects implementing the protocols WebKit expects.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.setUIDelegate(Some(ProtocolObject::from_ref(ui_delegate)));
         webview.setNavigationDelegate(Some(ProtocolObject::from_ref(nav_delegate)));
@@ -165,7 +175,8 @@ pub(crate) fn create_webview(
     if let Some(url) = NSURL::URLWithString(&NSString::from_str(url)) {
         let request = NSURLRequest::requestWithURL(&url);
         // SAFETY: `request` is a valid NSURLRequest and `loadRequest:` is the standard WKWebView navigation entry point.
-        unsafe { // SAFETY: see comment above.
+        unsafe {
+            // SAFETY: see comment above.
             // SAFETY: see comment above.
             webview.loadRequest(&request);
         }

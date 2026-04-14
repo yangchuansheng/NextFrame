@@ -5,6 +5,7 @@ use objc2::runtime::AnyObject;
 use objc2_foundation::{NSError, NSString};
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
 use crate::eval::eval_js;
 use crate::keyboard::{add_tag, paste_text_native, send_key_command, type_text_native};
 use crate::state::{log_crash, switch_tab, tab_index_for_webview};
@@ -53,7 +54,14 @@ fn handle_selector_action(
     let handler = RcBlock::new(move |result: *mut AnyObject, _error: *mut NSError| {
         let coords = js_string(result);
         if coords == "not_found" || coords.starts_with("error") || coords == "null" {
-            write_result(&result_path, format!("error: element {coords}"));
+            write_error(
+                &result_path,
+                error_with_fix(
+                    "locate the target element",
+                    format!("element lookup returned `{coords}`"),
+                    "Check the selector and make sure the target element is visible before retrying.",
+                ),
+            );
             return;
         }
         match parse_coords(&coords) {
@@ -69,7 +77,8 @@ fn handle_selector_action(
         }
     });
     // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
     }
@@ -95,7 +104,8 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
             if let Some(responder) = window.firstResponder() {
                 match catch_objc(|| {
                     // SAFETY: `responder` is the current NSResponder from this window and `moveToEndOfLine:` is a standard text-editing selector.
-                    let _: () = unsafe { // SAFETY: see comment above.
+                    let _: () = unsafe {
+                        // SAFETY: see comment above.
                         // SAFETY: see comment above.
                         msg_send![&*responder, moveToEndOfLine: std::ptr::null::<AnyObject>()]
                     };
@@ -152,10 +162,24 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                 native_click_at(webview, x, y);
                 write_result(result_path, format!("ok: clicked {x},{y}"));
             } else {
-                write_result(result_path, "error: invalid coordinates");
+                write_error(
+                    result_path,
+                    error_with_fix(
+                        "parse the click coordinates",
+                        format!("`{coords}` does not contain valid numeric coordinates"),
+                        "Use `click x y` with numeric values such as `click 120 240`.",
+                    ),
+                );
             }
         } else {
-            write_result(result_path, "error: usage: click x y");
+            write_error(
+                result_path,
+                error_with_fix(
+                    "parse the click command",
+                    "missing x and y coordinates",
+                    "Use `click x y` with numeric values such as `click 120 240`.",
+                ),
+            );
         }
         true
     } else if let Some(selector) = cmd.strip_prefix("hover ") {
@@ -199,7 +223,14 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                         || coords == "from:not_found"
                         || coords == "to:not_found"
                     {
-                        write_result(&result_path, format!("error: element {coords}"));
+                        write_error(
+                            &result_path,
+                            error_with_fix(
+                                "locate the drag target elements",
+                                format!("element lookup returned `{coords}`"),
+                                "Check both selectors and make sure both target elements are visible before retrying.",
+                            ),
+                        );
                         return;
                     }
                     let parts: Vec<&str> = coords.split('|').collect();
@@ -218,14 +249,31 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                                     Err(err) => write_error(&result_path, err),
                                 }
                             }
-                            _ => write_result(&result_path, format!("error: bad coords {coords}")),
+                            _ => write_error(
+                                &result_path,
+                                error_with_fix(
+                                    "parse the drag coordinates",
+                                    format!(
+                                        "element lookup returned invalid coordinates `{coords}`"
+                                    ),
+                                    "Retry after ensuring the page returns numeric `x,y` coordinates.",
+                                ),
+                            ),
                         }
                         return;
                     }
-                    write_result(&result_path, format!("error: bad coords {coords}"));
+                    write_error(
+                        &result_path,
+                        error_with_fix(
+                            "parse the drag coordinates",
+                            format!("element lookup returned invalid coordinates `{coords}`"),
+                            "Retry after ensuring the page returns numeric `x,y` coordinates.",
+                        ),
+                    );
                 });
                 // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-                unsafe { // SAFETY: see comment above.
+                unsafe {
+                    // SAFETY: see comment above.
                     // SAFETY: see comment above.
                     webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
                 }
@@ -256,7 +304,14 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
         let handler = RcBlock::new(move |result: *mut AnyObject, _error: *mut NSError| {
             let coords = js_string(result);
             if coords == "not_found" || coords.starts_with("error") || coords == "null" {
-                write_result(&result_path, format!("error: element {coords}"));
+                write_error(
+                    &result_path,
+                    error_with_fix(
+                        "locate the target element",
+                        format!("element lookup returned `{coords}`"),
+                        "Check the selector and make sure the target element is visible before retrying.",
+                    ),
+                );
                 return;
             }
             if let Ok((x, y)) = parse_coords(&coords) {
@@ -276,10 +331,18 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
                 }
                 return;
             }
-            write_result(&result_path, format!("error: bad coords {coords}"));
+            write_error(
+                &result_path,
+                error_with_fix(
+                    "parse the input coordinates",
+                    format!("element lookup returned invalid coordinates `{coords}`"),
+                    "Retry after ensuring the page returns numeric `x,y` coordinates.",
+                ),
+            );
         });
         // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-        unsafe { // SAFETY: see comment above.
+        unsafe {
+            // SAFETY: see comment above.
             // SAFETY: see comment above.
             webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
         }
@@ -315,7 +378,8 @@ pub(super) fn handle_command(webview: &WKWebView, cmd: &str, result_path: &str) 
             write_result(&result_path, format!("ok: dismissed {count}"));
         });
         // SAFETY: `webview` is a live WKWebView and `evaluateJavaScript:completionHandler:` accepts this NSString and completion block.
-        unsafe { // SAFETY: see comment above.
+        unsafe {
+            // SAFETY: see comment above.
             // SAFETY: see comment above.
             webview.evaluateJavaScript_completionHandler(&js_str, Some(&handler));
         }

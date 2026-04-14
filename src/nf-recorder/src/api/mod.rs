@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::CommonArgs;
+use crate::error_with_fix;
 use crate::overlay::overlay_video;
 use crate::plan::collect_frame_files;
 use crate::util::absolute_path;
@@ -94,10 +95,18 @@ pub fn overlay_output(recorded: &Path, video: &Path) -> Result<(), String> {
 
 fn validate_args(args: &RecordArgs) -> Result<(), String> {
     if args.fps == 0 {
-        return Err("--fps must be greater than 0".into());
+        return Err(error_with_fix(
+            "validate the recorder arguments",
+            "`--fps` must be greater than 0",
+            "Pass a positive integer such as `--fps 30`.",
+        ));
     }
     if args.dpr <= 0.0 {
-        return Err("--dpr must be greater than 0".into());
+        return Err(error_with_fix(
+            "validate the recorder arguments",
+            "`--dpr` must be greater than 0",
+            "Pass a positive scale such as `--dpr 2`.",
+        ));
     }
     Ok(())
 }

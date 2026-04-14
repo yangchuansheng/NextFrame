@@ -1,6 +1,7 @@
 //! state tab platform helpers
 use super::super::persistence;
 use super::{create_dynamic_tab, set_tab_loading_state};
+use crate::error::error_with_fix;
 use crate::state::{
     APP_STATE, BrowserTabKind, TABS, active_tab_id, make_request, normalize_user_url, url_host,
     webview_for_tab,
@@ -21,31 +22,59 @@ fn workspace_allows_url(workspace: usize, url: &str) -> bool {
 }
 
 pub(crate) fn navigate_tab_to_url(tab_id: usize, url: &str) -> Result<(), String> {
-    let normalized = normalize_user_url(url).ok_or_else(|| format!("invalid input: {url}"))?;
-    let state = APP_STATE
-        .get()
-        .ok_or_else(|| "app state not initialized".to_owned())?;
+    let normalized = normalize_user_url(url).ok_or_else(|| {
+        error_with_fix(
+            "normalize the navigation URL",
+            format!("`{url}` is not a valid URL or search input"),
+            "Enter a full URL such as `https://example.com` or a valid hostname.",
+        )
+    })?;
+    let state = APP_STATE.get().ok_or_else(|| {
+        error_with_fix(
+            "navigate the browser tab",
+            "the app state is not initialized",
+            "Retry after nf-publish finishes launching.",
+        )
+    })?;
     let kind = {
         let Ok(tabs) = state.browser_tabs.lock() else {
-            return Err("failed to lock tabs".to_owned());
+            return Err(error_with_fix(
+                "read the browser tab state",
+                "the tab state lock is poisoned",
+                "Retry the command. If it keeps failing, restart nf-publish.",
+            ));
         };
         tabs.iter().find(|tab| tab.id == tab_id).map(|tab| tab.kind)
     }
-    .ok_or_else(|| format!("tab {tab_id} not found"))?;
+    .ok_or_else(|| {
+        error_with_fix(
+            "navigate the browser tab",
+            format!("tab {tab_id} was not found"),
+            "List tabs again and retry with a valid tab id.",
+        )
+    })?;
 
     if let BrowserTabKind::Workspace(index) = kind
         && !workspace_allows_url(index, &normalized)
     {
-        return Err(format!(
-            "workspace tab {index} only allows {}",
-            TABS[index].url
+        return Err(error_with_fix(
+            "navigate the workspace tab",
+            format!("workspace tab {index} only allows {}", TABS[index].url),
+            "Open the target URL in a dynamic tab instead of a locked workspace tab.",
         ));
     }
 
     let request = make_request(&normalized)?;
-    let webview = webview_for_tab(tab_id).ok_or_else(|| format!("tab {tab_id} missing webview"))?;
+    let webview = webview_for_tab(tab_id).ok_or_else(|| {
+        error_with_fix(
+            "navigate the browser tab",
+            format!("tab {tab_id} has no attached webview"),
+            "Retry after the tab finishes initializing or reopen the tab.",
+        )
+    })?;
     // SAFETY: `webview` is a live WKWebView and `request` is a valid NSURLRequest created from a normalized URL.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.loadRequest(&request);
     }
@@ -78,18 +107,38 @@ fn update_tab_url_hint(tab_id: usize, url: &str) {
 }
 
 pub(crate) fn navigate_active_input(input: &str) -> Result<usize, String> {
-    let normalized = normalize_user_url(input).ok_or_else(|| format!("invalid input: {input}"))?;
-    let state = APP_STATE
-        .get()
-        .ok_or_else(|| "app state not initialized".to_owned())?;
+    let normalized = normalize_user_url(input).ok_or_else(|| {
+        error_with_fix(
+            "normalize the navigation input",
+            format!("`{input}` is not a valid URL or search input"),
+            "Enter a full URL such as `https://example.com` or a valid hostname.",
+        )
+    })?;
+    let state = APP_STATE.get().ok_or_else(|| {
+        error_with_fix(
+            "navigate the active tab",
+            "the app state is not initialized",
+            "Retry after nf-publish finishes launching.",
+        )
+    })?;
     let active = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
     let kind = {
         let Ok(tabs) = state.browser_tabs.lock() else {
-            return Err("failed to lock tabs".to_owned());
+            return Err(error_with_fix(
+                "read the browser tab state",
+                "the tab state lock is poisoned",
+                "Retry the command. If it keeps failing, restart nf-publish.",
+            ));
         };
         tabs.iter().find(|tab| tab.id == active).map(|tab| tab.kind)
     }
-    .ok_or_else(|| "active tab not found".to_owned())?;
+    .ok_or_else(|| {
+        error_with_fix(
+            "navigate the active tab",
+            "the active tab was not found",
+            "Open or switch to a valid tab, then retry the command.",
+        )
+    })?;
 
     match kind {
         BrowserTabKind::Workspace(index) if !workspace_allows_url(index, &normalized) => {
@@ -104,12 +153,23 @@ pub(crate) fn navigate_active_input(input: &str) -> Result<usize, String> {
 }
 
 pub(crate) fn go_back(target: Option<usize>) -> Result<(), String> {
-    let tab_id = target
-        .or_else(active_tab_id)
-        .ok_or_else(|| "no active tab".to_owned())?;
-    let webview = webview_for_tab(tab_id).ok_or_else(|| format!("tab {tab_id} missing webview"))?;
+    let tab_id = target.or_else(active_tab_id).ok_or_else(|| {
+        error_with_fix(
+            "go back in the browser tab",
+            "there is no active tab",
+            "Open or switch to a tab before retrying the command.",
+        )
+    })?;
+    let webview = webview_for_tab(tab_id).ok_or_else(|| {
+        error_with_fix(
+            "go back in the browser tab",
+            format!("tab {tab_id} has no attached webview"),
+            "Retry after the tab finishes initializing or reopen the tab.",
+        )
+    })?;
     // SAFETY: `webview` is a live WKWebView and `goBack` is a valid navigation selector on WKWebView.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.goBack();
     }
@@ -118,12 +178,23 @@ pub(crate) fn go_back(target: Option<usize>) -> Result<(), String> {
 }
 
 pub(crate) fn go_forward(target: Option<usize>) -> Result<(), String> {
-    let tab_id = target
-        .or_else(active_tab_id)
-        .ok_or_else(|| "no active tab".to_owned())?;
-    let webview = webview_for_tab(tab_id).ok_or_else(|| format!("tab {tab_id} missing webview"))?;
+    let tab_id = target.or_else(active_tab_id).ok_or_else(|| {
+        error_with_fix(
+            "go forward in the browser tab",
+            "there is no active tab",
+            "Open or switch to a tab before retrying the command.",
+        )
+    })?;
+    let webview = webview_for_tab(tab_id).ok_or_else(|| {
+        error_with_fix(
+            "go forward in the browser tab",
+            format!("tab {tab_id} has no attached webview"),
+            "Retry after the tab finishes initializing or reopen the tab.",
+        )
+    })?;
     // SAFETY: `webview` is a live WKWebView and `goForward` is a valid navigation selector on WKWebView.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.goForward();
     }
@@ -132,12 +203,23 @@ pub(crate) fn go_forward(target: Option<usize>) -> Result<(), String> {
 }
 
 pub(crate) fn reload_tab(target: Option<usize>) -> Result<(), String> {
-    let tab_id = target
-        .or_else(active_tab_id)
-        .ok_or_else(|| "no active tab".to_owned())?;
-    let webview = webview_for_tab(tab_id).ok_or_else(|| format!("tab {tab_id} missing webview"))?;
+    let tab_id = target.or_else(active_tab_id).ok_or_else(|| {
+        error_with_fix(
+            "reload the browser tab",
+            "there is no active tab",
+            "Open or switch to a tab before retrying the command.",
+        )
+    })?;
+    let webview = webview_for_tab(tab_id).ok_or_else(|| {
+        error_with_fix(
+            "reload the browser tab",
+            format!("tab {tab_id} has no attached webview"),
+            "Retry after the tab finishes initializing or reopen the tab.",
+        )
+    })?;
     // SAFETY: `webview` is a live WKWebView and `reload` is a valid navigation selector on WKWebView.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.reload();
     }

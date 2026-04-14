@@ -13,6 +13,8 @@ use objc2_core_graphics::{
 use objc2_foundation::{NSPoint as CGPoint, NSRect as CGRect, NSSize as CGSize};
 use objc2_quartz_core::CALayer;
 
+use crate::error_with_fix;
+
 /// Retries allowed when the snapshot fallback still returns an all-black frame.
 pub const BLACK_FRAME_MAX_RETRIES: usize = 3;
 
@@ -33,15 +35,23 @@ pub fn is_nsimage_black(image: &NSImage) -> Result<bool, String> {
         return Ok(true);
     }
     if samples_per_pixel < 3 || bits_per_pixel < 24 {
-        return Err(format!(
-            "unsupported snapshot bitmap format: samplesPerPixel={}, bitsPerPixel={}",
-            samples_per_pixel, bits_per_pixel
+        return Err(error_with_fix(
+            "inspect the snapshot bitmap",
+            format!(
+                "unsupported bitmap format with samplesPerPixel={} and bitsPerPixel={}",
+                samples_per_pixel, bits_per_pixel
+            ),
+            "Capture the frame using a standard RGBA snapshot format and retry.",
         ));
     }
 
     let data = bitmap.bitmapData();
     if data.is_null() {
-        return Err("NSBitmapImageRep returned a null bitmapData pointer".into());
+        return Err(error_with_fix(
+            "inspect the snapshot bitmap",
+            "NSBitmapImageRep returned a null bitmapData pointer",
+            "Retry the capture after the page finishes rendering.",
+        ));
     }
     let bytes_per_row = bitmap.bytesPerRow() as usize;
     let format = bitmap.bitmapFormat();
@@ -69,10 +79,17 @@ pub fn is_nsimage_black(image: &NSImage) -> Result<bool, String> {
 /// Extracts a `CGImage` from an `NSImage`.
 pub fn cgimage_from_nsimage(image: &NSImage) -> Result<Retained<CGImage>, String> {
     // SAFETY: `image` is live, and AppKit allows null rect/context/hints for this conversion call.
-    unsafe { // SAFETY: see above.
+    unsafe {
+        // SAFETY: see above.
         image
             .CGImageForProposedRect_context_hints(std::ptr::null_mut(), None, None)
-            .ok_or("NSImage did not yield a CGImage".into())
+            .ok_or_else(|| {
+                error_with_fix(
+                    "convert the snapshot image to CGImage",
+                    "NSImage did not yield a CGImage",
+                    "Retry the capture after the page finishes rendering.",
+                )
+            })
     }
 }
 
@@ -83,17 +100,27 @@ pub fn layer_render_cgimage(
     height: usize,
 ) -> Result<Retained<CGImage>, String> {
     if width == 0 || height == 0 {
-        return Err("layer render target size must be non-zero".into());
+        return Err(error_with_fix(
+            "render the webview layer",
+            "the render target size is zero",
+            "Pass a non-zero capture width and height before retrying.",
+        ));
     }
 
     let bytes_per_row = width * 4;
     let mut buffer = vec![0u8; bytes_per_row * height];
-    let color_space =
-        CGColorSpace::new_device_rgb().ok_or("CGColorSpace::new_device_rgb returned nil")?;
+    let color_space = CGColorSpace::new_device_rgb().ok_or_else(|| {
+        error_with_fix(
+            "create the RGB color space",
+            "CoreGraphics returned no device RGB color space",
+            "Retry the capture after the graphics stack is initialized.",
+        )
+    })?;
     let bitmap_info =
         CGImageByteOrderInfo::Order32Little.0 | CGImageAlphaInfo::PremultipliedFirst.0;
     // SAFETY: `buffer` owns the target bytes, and the dimensions and format match this bitmap context.
-    let context = unsafe { // SAFETY: see above.
+    let context = unsafe {
+        // SAFETY: see above.
         CGBitmapContextCreate(
             buffer.as_mut_ptr().cast::<c_void>(),
             width,
@@ -104,7 +131,13 @@ pub fn layer_render_cgimage(
             bitmap_info,
         )
     }
-    .ok_or("failed to create CGBitmapContext")?;
+    .ok_or_else(|| {
+        error_with_fix(
+            "create the bitmap render context",
+            "CoreGraphics returned no bitmap context",
+            "Reduce the capture size or retry after graphics resources are available.",
+        )
+    })?;
 
     let bounds = layer.bounds();
     let scale_x = if bounds.size.width > 0.0 {
@@ -124,8 +157,13 @@ pub fn layer_render_cgimage(
     // SAFETY: `layer` and `context` are live, and `renderInContext:` accepts a valid bitmap context.
     let _: () = unsafe { msg_send![layer, renderInContext: &*context] }; // SAFETY: see above.
 
-    let image = CGBitmapContextCreateImage(Some(&context))
-        .ok_or("CGBitmapContextCreateImage returned nil")?;
+    let image = CGBitmapContextCreateImage(Some(&context)).ok_or_else(|| {
+        error_with_fix(
+            "extract the rendered frame image",
+            "CoreGraphics returned no CGImage from the bitmap context",
+            "Retry the capture after the page finishes rendering.",
+        )
+    })?;
     Ok(image.into())
 }
 
@@ -135,12 +173,18 @@ pub fn is_cgimage_mostly_black(image: &CGImage) -> Result<bool, String> {
     let thumbnail_height = CGImage::height(Some(image)).clamp(1, BLACK_FRAME_THUMBNAIL_SIZE);
     let bytes_per_row = thumbnail_width * 4;
     let mut buffer = vec![0u8; bytes_per_row * thumbnail_height];
-    let color_space =
-        CGColorSpace::new_device_rgb().ok_or("CGColorSpace::new_device_rgb returned nil")?;
+    let color_space = CGColorSpace::new_device_rgb().ok_or_else(|| {
+        error_with_fix(
+            "create the RGB color space",
+            "CoreGraphics returned no device RGB color space",
+            "Retry the capture after the graphics stack is initialized.",
+        )
+    })?;
     let bitmap_info =
         CGImageByteOrderInfo::Order32Little.0 | CGImageAlphaInfo::PremultipliedFirst.0;
     // SAFETY: `buffer` owns the thumbnail bytes, and the dimensions and format match this context.
-    let context = unsafe { // SAFETY: see above.
+    let context = unsafe {
+        // SAFETY: see above.
         CGBitmapContextCreate(
             buffer.as_mut_ptr().cast::<c_void>(),
             thumbnail_width,
@@ -151,7 +195,13 @@ pub fn is_cgimage_mostly_black(image: &CGImage) -> Result<bool, String> {
             bitmap_info,
         )
     }
-    .ok_or("failed to create thumbnail CGBitmapContext")?;
+    .ok_or_else(|| {
+        error_with_fix(
+            "create the thumbnail render context",
+            "CoreGraphics returned no bitmap context",
+            "Reduce the capture size or retry after graphics resources are available.",
+        )
+    })?;
 
     CGContext::draw_image(
         Some(context.as_ref()),

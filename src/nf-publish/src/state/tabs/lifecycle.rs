@@ -3,6 +3,7 @@ use objc2::rc::Retained;
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
 use crate::state::{
     APP_STATE, BrowserTab, BrowserTabKind, SavedDynamicTab, TABS, cmd_file,
     current_url_for_webview, log_crash, new_tab_html, remove_view_from_superview, result_file,
@@ -36,18 +37,21 @@ pub(crate) fn switch_tab(index: usize) {
     };
 
     // SAFETY: `catch` is the intended Objective-C boundary here, and the stored webview pointers come from retained WKWebView instances in app state.
-    let result = unsafe { // SAFETY: see comment above.
+    let result = unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         objc2::exception::catch(std::panic::AssertUnwindSafe(|| {
             if let Some(prev_ptr) = prev_ptr {
                 // SAFETY: `prev_ptr` points to the previously visible retained WKWebView for this tab set.
-                unsafe { // SAFETY: see comment above.
+                unsafe {
+                    // SAFETY: see comment above.
                     // SAFETY: see comment above.
                     (&*prev_ptr).setHidden(true);
                 }
             }
             // SAFETY: `next_ptr` points to the retained WKWebView selected as the new active tab.
-            unsafe { // SAFETY: see comment above.
+            unsafe {
+                // SAFETY: see comment above.
                 // SAFETY: see comment above.
                 (&*next_ptr).setHidden(false);
             }
@@ -125,10 +129,20 @@ pub(crate) fn create_dynamic_tab(
 ) -> Result<usize, String> {
     let is_new_tab = initial_url.is_none() || initial_url == Some("about:blank");
     let initial_url = initial_url.unwrap_or("about:blank");
-    let state = APP_STATE
-        .get()
-        .ok_or_else(|| "app state not initialized".to_owned())?;
-    let host = webview_host_view().ok_or_else(|| "missing webview host".to_owned())?;
+    let state = APP_STATE.get().ok_or_else(|| {
+        error_with_fix(
+            "create the browser tab",
+            "the app state is not initialized",
+            "Retry after nf-publish finishes launching.",
+        )
+    })?;
+    let host = webview_host_view().ok_or_else(|| {
+        error_with_fix(
+            "create the browser tab",
+            "the webview host view is missing",
+            "Retry after the main window finishes initializing.",
+        )
+    })?;
     // SAFETY: these pointers are initialized once from retained startup objects and remain valid for the app lifetime.
     let config = unsafe { &*state.config_ptr }; // SAFETY: see comment above.
     // SAFETY: these pointers are initialized once from retained startup objects and remain valid for the app lifetime.
@@ -137,7 +151,11 @@ pub(crate) fn create_dynamic_tab(
     let nav_delegate = unsafe { &*state.nav_delegate_ptr }; // SAFETY: see comment above.
     let frame = host.frame();
     let Some(mtm) = objc2_foundation::MainThreadMarker::new() else {
-        return Err("main thread not available".to_owned());
+        return Err(error_with_fix(
+            "create the browser tab",
+            "the main thread is not available",
+            "Retry the command from the main UI thread.",
+        ));
     };
     let webview = create_webview(
         mtm,
@@ -151,14 +169,16 @@ pub(crate) fn create_dynamic_tab(
         nav_delegate,
     );
     // SAFETY: `webview` is a live WKWebView and `setCustomUserAgent:` accepts the shared NSString created from the stored user agent.
-    unsafe { // SAFETY: see comment above.
+    unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         webview.setCustomUserAgent(Some(&NSString::from_str(state.user_agent)));
     }
     if is_new_tab {
         let html = NSString::from_str(&new_tab_html());
         // SAFETY: `webview` is a live WKWebView and `loadHTMLString:baseURL:` accepts this temporary NSString and a `None` base URL.
-        unsafe { // SAFETY: see comment above.
+        unsafe {
+            // SAFETY: see comment above.
             // SAFETY: see comment above.
             webview.loadHTMLString_baseURL(&html, None);
         }
@@ -172,7 +192,11 @@ pub(crate) fn create_dynamic_tab(
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     {
         let Ok(mut tabs) = state.browser_tabs.lock() else {
-            return Err("failed to lock tabs".to_owned());
+            return Err(error_with_fix(
+                "update the browser tab state",
+                "the tab state lock is poisoned",
+                "Retry the command. If it keeps failing, restart nf-publish.",
+            ));
         };
         tabs.push(BrowserTab {
             id: new_id,
@@ -209,13 +233,21 @@ pub(crate) fn create_dynamic_tab(
 
 pub(crate) fn close_tab(tab_id: usize) -> Result<(), String> {
     if tab_id < TABS.len() {
-        let state = APP_STATE
-            .get()
-            .ok_or_else(|| "app state not initialized".to_owned())?;
+        let state = APP_STATE.get().ok_or_else(|| {
+            error_with_fix(
+                "close the browser tab",
+                "the app state is not initialized",
+                "Retry after nf-publish finishes launching.",
+            )
+        })?;
         let current = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
         {
             let Ok(mut tabs) = state.browser_tabs.lock() else {
-                return Err("failed to lock tabs".to_owned());
+                return Err(error_with_fix(
+                    "update the browser tab state",
+                    "the tab state lock is poisoned",
+                    "Retry the command. If it keeps failing, restart nf-publish.",
+                ));
             };
             if let Some(tab) = tabs.iter_mut().find(|tab| tab.id == tab_id) {
                 tab.visible = false;
@@ -243,16 +275,28 @@ pub(crate) fn close_tab(tab_id: usize) -> Result<(), String> {
         return Ok(());
     }
 
-    let state = APP_STATE
-        .get()
-        .ok_or_else(|| "app state not initialized".to_owned())?;
+    let state = APP_STATE.get().ok_or_else(|| {
+        error_with_fix(
+            "close the browser tab",
+            "the app state is not initialized",
+            "Retry after nf-publish finishes launching.",
+        )
+    })?;
     let current = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
     let (removed_ptr, next_active, snapshot) = {
         let Ok(mut tabs) = state.browser_tabs.lock() else {
-            return Err("failed to lock tabs".to_owned());
+            return Err(error_with_fix(
+                "update the browser tab state",
+                "the tab state lock is poisoned",
+                "Retry the command. If it keeps failing, restart nf-publish.",
+            ));
         };
         let Some(position) = tabs.iter().position(|tab| tab.id == tab_id) else {
-            return Err(format!("tab {tab_id} not found"));
+            return Err(error_with_fix(
+                "close the browser tab",
+                format!("tab {tab_id} was not found"),
+                "List tabs again and retry with a valid tab id.",
+            ));
         };
         let removed = tabs.remove(position);
         let next_active = if current == tab_id {

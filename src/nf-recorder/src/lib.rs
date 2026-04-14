@@ -1,14 +1,49 @@
 //! Shared recorder modules used by the CLI and benchmarks.
+use std::io::{self, Write};
 
-/// Logging macro that auto-prepends file:line for AI-readable logs.
+use chrono::{SecondsFormat, Utc};
+use serde_json::{Value, json};
+
+pub(crate) fn emit_trace(module: impl AsRef<str>, event: impl AsRef<str>, data: Value) {
+    let line = json!({
+        "ts": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        "module": module.as_ref(),
+        "event": event.as_ref(),
+        "data": data,
+    })
+    .to_string();
+    let _ = writeln!(io::stderr().lock(), "{line}");
+}
+
+pub(crate) fn emit_message(module_path: &str, message: String) {
+    emit_trace(
+        infer_module_name(module_path),
+        "message",
+        json!({ "message": message }),
+    );
+}
+
+pub(crate) fn infer_module_name(module_path: &str) -> String {
+    let mut segments = module_path.split("::");
+    let crate_name = segments.next().unwrap_or(module_path);
+    segments.next().map(str::to_owned).unwrap_or_else(|| {
+        crate_name
+            .rsplit('_')
+            .next()
+            .unwrap_or(crate_name)
+            .to_owned()
+    })
+}
+
 macro_rules! trace_log {
-    ($($arg:tt)*) => {
-        eprintln!("[{}:{}] {}", file!(), line!(), format_args!($($arg)*))
-    };
+    ($($arg:tt)*) => {{
+        $crate::emit_message(module_path!(), format!($($arg)*));
+    }};
 }
 
 extern crate self as recorder;
 
+use std::fmt::Display;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -51,3 +86,11 @@ pub(crate) mod webview;
 
 pub use api::{OUTPUT_JSON_ENV, RecordArgs, RecordOutput, overlay_output, record_segments};
 pub use util::absolute_path;
+
+pub(crate) fn error_with_fix(action: &str, reason: impl Display, fix: &str) -> String {
+    format!("failed to {action}: {reason}. Fix: {fix}")
+}
+
+pub(crate) fn internal_error_with_fix(action: &str, reason: impl Display, fix: &str) -> String {
+    error_with_fix(action, format!("Internal: {reason}"), fix)
+}

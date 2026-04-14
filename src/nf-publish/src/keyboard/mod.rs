@@ -9,13 +9,21 @@ use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
 use objc2_foundation::NSPoint;
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
+
 pub(crate) use input::{add_tag, jitter, paste_text_native, send_key_command, type_text_native};
 pub(crate) use shortcuts::install_browser_shortcuts;
 
 fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
     // SAFETY: `objc2::exception::catch` is the intended wrapper around Objective-C message sends in this module.
     let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) }; // SAFETY: see comment above.
-    result.map_err(|e| format!("ObjC exception: {e:?}"))
+    result.map_err(|e| {
+        error_with_fix(
+            "send native keyboard input",
+            format!("Objective-C raised an exception: {e:?}"),
+            "Retry after the browser window becomes active. If it keeps failing, restart nf-publish.",
+        )
+    })
 }
 
 fn native_click_at(webview: &WKWebView, x: f64, y: f64) {

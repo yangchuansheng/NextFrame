@@ -8,6 +8,7 @@ use std::time::Instant;
 use super::cli::{build_cli_args, resolve_parallel_executable};
 use super::probe::probe_page;
 use crate::api::{OUTPUT_JSON_ENV, RecordArgs, RecordOutput};
+use crate::error_with_fix;
 use crate::overlay::{PerfLogContext, write_perf_log};
 use crate::util::create_temp_dir;
 
@@ -66,9 +67,11 @@ pub(super) fn record_parallel_single(
     }
     let actual_procs = ranges.len();
 
-    println!(
-        "\n  parallel (frame-slice): {} processes, {} total frames, {:.1}s duration\n",
-        actual_procs, total_frames, duration,
+    trace_log!(
+        "parallel (frame-slice): {} processes, {} total frames, {:.1}s duration",
+        actual_procs,
+        total_frames,
+        duration,
     );
 
     let started_at = Instant::now();
@@ -108,11 +111,15 @@ pub(super) fn record_parallel_single(
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let child = cmd
-            .spawn()
-            .map_err(|err| format!("failed to spawn recorder process {}: {err}", idx + 1))?;
-        println!(
-            "  [{}] spawned (pid {}, frames {}..{})",
+        let child = cmd.spawn().map_err(|err| {
+            error_with_fix(
+                &format!("spawn recorder process {}", idx + 1),
+                err,
+                "Check that the recorder binary exists and the system can launch subprocesses.",
+            )
+        })?;
+        trace_log!(
+            "[{}] spawned (pid {}, frames {}..{})",
             idx + 1,
             child.id(),
             range_start,
@@ -126,15 +133,19 @@ pub(super) fn record_parallel_single(
 
     let mut failed = false;
     for (idx, child) in children.into_iter().enumerate() {
-        let output = child
-            .wait_with_output()
-            .map_err(|err| format!("failed to wait for process {}: {err}", idx + 1))?;
+        let output = child.wait_with_output().map_err(|err| {
+            error_with_fix(
+                &format!("wait for recorder process {}", idx + 1),
+                err,
+                "Check that the recorder subprocess is still running and retry the command.",
+            )
+        })?;
 
         if output.status.success() {
-            println!("  [{}] done", idx + 1);
+            trace_log!("[{}] done", idx + 1);
         } else {
             trace_log!(
-                "  [{}] FAILED (exit {}): {}",
+                "[{}] FAILED (exit {}): {}",
                 idx + 1,
                 output.status,
                 String::from_utf8_lossy(&output.stderr).trim()
@@ -145,7 +156,11 @@ pub(super) fn record_parallel_single(
 
     if failed {
         let _ = fs::remove_dir_all(&temp_root);
-        return Err("one or more parallel frame-slice processes failed".into());
+        return Err(error_with_fix(
+            "complete the frame-slice recording job",
+            "one or more recorder subprocesses exited with a failure",
+            "Inspect the subprocess stderr output and retry the recording job.",
+        ));
     }
 
     let mut total_frames_recorded = 0usize;
@@ -159,17 +174,18 @@ pub(super) fn record_parallel_single(
         }
     }
 
-    println!("\n  concat {} slices...", actual_procs);
+    trace_log!("concat {} slices", actual_procs);
     super::super::orchestrator::concat_output(&group_outputs, out, duration)?;
     if let Some(audio_path) = final_audio.as_deref() {
         let muxed_out = out.with_extension("muxed.mp4");
         let _ = fs::remove_file(&muxed_out);
-        println!("  mux original audio once...");
+        trace_log!("mux original audio once");
         crate::encoder::mux_audio(out, Some(audio_path), duration, &muxed_out)?;
         fs::rename(&muxed_out, out).map_err(|err| {
-            format!(
-                "failed to replace concat output with remuxed file {}: {err}",
-                muxed_out.display()
+            error_with_fix(
+                "replace the concatenated output with the remuxed file",
+                format!("{}: {err}", muxed_out.display()),
+                "Check that the output path is writable and retry the recording job.",
             )
         })?;
     }
@@ -181,9 +197,9 @@ pub(super) fn record_parallel_single(
         .unwrap_or(0.0);
     let frame_files = [html_file.to_path_buf()];
 
-    println!("\n  ✓ {}", out.display());
-    println!(
-        "  {:.1} MB | {} processes | {:.1}s total | {:.1} effective fps\n",
+    trace_log!("output ready: {}", out.display());
+    trace_log!(
+        "{:.1} MB | {} processes | {:.1}s total | {:.1} effective fps",
         output_size_mb,
         actual_procs,
         elapsed.as_secs_f64(),

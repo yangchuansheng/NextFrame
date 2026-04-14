@@ -11,6 +11,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use super::path::{ResolvedRequestPath, resolve_request_path};
+use crate::error_with_fix;
 
 /// Serves files from a root directory over localhost for `WKWebView` loading.
 pub struct HttpFileServer {
@@ -23,19 +24,35 @@ impl HttpFileServer {
     /// Starts a non-blocking localhost file server rooted at `root`.
     pub fn start(root: PathBuf) -> Result<Self, String> {
         let root = root.canonicalize().map_err(|err| {
-            format!(
-                "failed to canonicalize server root {}: {err}",
-                root.display()
+            error_with_fix(
+                "resolve the HTTP server root",
+                format!("{}: {err}", root.display()),
+                "Check that the recorder input directory exists and is readable.",
             )
         })?;
-        let listener = TcpListener::bind(("127.0.0.1", 0))
-            .map_err(|err| format!("failed to bind HTTP server: {err}"))?;
-        listener
-            .set_nonblocking(true)
-            .map_err(|err| format!("failed to mark HTTP listener nonblocking: {err}"))?;
+        let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(|err| {
+            error_with_fix(
+                "bind the local HTTP file server",
+                err,
+                "Retry after freeing local ports and ensuring loopback networking is available.",
+            )
+        })?;
+        listener.set_nonblocking(true).map_err(|err| {
+            error_with_fix(
+                "configure the HTTP listener",
+                err,
+                "Retry after ensuring the local HTTP server can be configured.",
+            )
+        })?;
         let port = listener
             .local_addr()
-            .map_err(|err| format!("failed to inspect HTTP listener address: {err}"))?
+            .map_err(|err| {
+                error_with_fix(
+                    "inspect the HTTP listener address",
+                    err,
+                    "Retry after the local HTTP server has started successfully.",
+                )
+            })?
             .port();
         let stop = Arc::new(AtomicBool::new(false));
         let stop_flag = Arc::clone(&stop);
@@ -83,13 +100,23 @@ fn run_server(listener: TcpListener, root: PathBuf, stop: Arc<AtomicBool>) {
 fn handle_connection(mut stream: TcpStream, root: &Path) -> Result<(), String> {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
-        .map_err(|err| format!("failed to set read timeout: {err}"))?;
+        .map_err(|err| {
+            error_with_fix(
+                "configure the HTTP connection timeout",
+                err,
+                "Retry after ensuring the local HTTP connection is healthy.",
+            )
+        })?;
     let mut request_bytes = Vec::new();
     let mut buffer = [0u8; 4096];
     loop {
-        let read = stream
-            .read(&mut buffer)
-            .map_err(|err| format!("failed to read HTTP request: {err}"))?;
+        let read = stream.read(&mut buffer).map_err(|err| {
+            error_with_fix(
+                "read the HTTP request",
+                err,
+                "Retry the request after ensuring the client sends a complete HTTP request.",
+            )
+        })?;
         if read == 0 {
             return Ok(());
         }
@@ -151,40 +178,74 @@ fn handle_connection(mut stream: TcpStream, root: &Path) -> Result<(), String> {
         }
     };
 
-    let mut file =
-        File::open(&path).map_err(|err| format!("failed to open {}: {err}", path.display()))?;
+    let mut file = File::open(&path).map_err(|err| {
+        error_with_fix(
+            "open the requested file",
+            format!("{}: {err}", path.display()),
+            "Check that the file exists and is readable from the recorder root.",
+        )
+    })?;
     let total_len = file
         .metadata()
-        .map_err(|err| format!("failed to stat {}: {err}", path.display()))?
+        .map_err(|err| {
+            error_with_fix(
+                "read the requested file metadata",
+                format!("{}: {err}", path.display()),
+                "Check that the file exists and is readable from the recorder root.",
+            )
+        })?
         .len();
     let content_type = mime_type(&path);
 
     if let Some(range) = range_header.and_then(|value| parse_range_header(&value, total_len)) {
-        file.seek(SeekFrom::Start(range.0))
-            .map_err(|err| format!("failed to seek {}: {err}", path.display()))?;
+        file.seek(SeekFrom::Start(range.0)).map_err(|err| {
+            error_with_fix(
+                "seek within the requested file",
+                format!("{}: {err}", path.display()),
+                "Retry the request with a valid Range header or fetch the full file instead.",
+            )
+        })?;
         let mut body = vec![0u8; (range.1 - range.0 + 1) as usize];
-        file.read_exact(&mut body)
-            .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
+        file.read_exact(&mut body).map_err(|err| {
+            error_with_fix(
+                "read the requested file bytes",
+                format!("{}: {err}", path.display()),
+                "Check that the file is readable and retry the request.",
+            )
+        })?;
         let headers = format!(
             "HTTP/1.1 206 Partial Content\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{total_len}\r\nAccept-Ranges: bytes\r\nConnection: close\r\n\r\n",
             body.len(),
             range.0,
             range.1
         );
-        stream
-            .write_all(headers.as_bytes())
-            .map_err(|err| format!("failed to write partial response headers: {err}"))?;
+        stream.write_all(headers.as_bytes()).map_err(|err| {
+            error_with_fix(
+                "write the partial-response headers",
+                err,
+                "Retry the request after ensuring the client connection is still open.",
+            )
+        })?;
         if method != "HEAD" {
-            stream
-                .write_all(&body)
-                .map_err(|err| format!("failed to write partial response body: {err}"))?;
+            stream.write_all(&body).map_err(|err| {
+                error_with_fix(
+                    "write the partial-response body",
+                    err,
+                    "Retry the request after ensuring the client connection is still open.",
+                )
+            })?;
         }
         return Ok(());
     }
 
     let mut body = Vec::with_capacity(total_len as usize);
-    file.read_to_end(&mut body)
-        .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
+    file.read_to_end(&mut body).map_err(|err| {
+        error_with_fix(
+            "read the requested file bytes",
+            format!("{}: {err}", path.display()),
+            "Check that the file is readable and retry the request.",
+        )
+    })?;
     write_response(
         &mut stream,
         200,
@@ -219,13 +280,21 @@ fn write_response(
         "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         body.len()
     );
-    stream
-        .write_all(headers.as_bytes())
-        .map_err(|err| format!("failed to write HTTP headers: {err}"))?;
+    stream.write_all(headers.as_bytes()).map_err(|err| {
+        error_with_fix(
+            "write the HTTP response headers",
+            err,
+            "Retry the request after ensuring the client connection is still open.",
+        )
+    })?;
     if include_body {
-        stream
-            .write_all(body)
-            .map_err(|err| format!("failed to write HTTP body: {err}"))?;
+        stream.write_all(body).map_err(|err| {
+            error_with_fix(
+                "write the HTTP response body",
+                err,
+                "Retry the request after ensuring the client connection is still open.",
+            )
+        })?;
     }
     Ok(())
 }

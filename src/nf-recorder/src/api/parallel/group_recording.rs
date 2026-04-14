@@ -7,6 +7,7 @@ use std::time::Instant;
 use super::cli::{RECORDER_PATH_ENV, build_cli_args, resolve_parallel_executable};
 use super::probe::probe_page;
 use crate::api::{OUTPUT_JSON_ENV, RecordArgs, RecordOutput};
+use crate::error_with_fix;
 use crate::overlay::{PerfLogContext, write_perf_log};
 use crate::util::create_temp_dir;
 
@@ -52,7 +53,11 @@ pub(super) fn record_parallel(
     };
 
     if num_procs <= 1 {
-        return Err("--parallel 1 is equivalent to serial mode; omit --parallel".into());
+        return Err(error_with_fix(
+            "configure parallel recording",
+            "`--parallel 1` is equivalent to serial mode",
+            "Omit `--parallel` or pass a value greater than 1.",
+        ));
     }
 
     let exe = resolve_parallel_executable()?;
@@ -62,8 +67,8 @@ pub(super) fn record_parallel(
     let actual_procs = groups.len();
     let group_sizes: Vec<usize> = groups.iter().map(|group| group.len()).collect();
 
-    println!(
-        "\n  parallel: {} processes, {} files ({})\n",
+    trace_log!(
+        "parallel: {} processes, {} files ({})",
         actual_procs,
         frame_files.len(),
         group_sizes
@@ -106,11 +111,15 @@ pub(super) fn record_parallel(
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let child = cmd
-            .spawn()
-            .map_err(|err| format!("failed to spawn recorder process {}: {err}", idx + 1))?;
-        println!(
-            "  [{}] spawned (pid {}, {} slides)",
+        let child = cmd.spawn().map_err(|err| {
+            error_with_fix(
+                &format!("spawn recorder process {}", idx + 1),
+                err,
+                "Check that the recorder binary exists and the system can launch subprocesses.",
+            )
+        })?;
+        trace_log!(
+            "[{}] spawned (pid {}, {} slides)",
             idx + 1,
             child.id(),
             group.len()
@@ -123,15 +132,19 @@ pub(super) fn record_parallel(
 
     let mut failed = false;
     for (idx, child) in children.into_iter().enumerate() {
-        let output = child
-            .wait_with_output()
-            .map_err(|err| format!("failed to wait for process {}: {err}", idx + 1))?;
+        let output = child.wait_with_output().map_err(|err| {
+            error_with_fix(
+                &format!("wait for recorder process {}", idx + 1),
+                err,
+                "Check that the recorder subprocess is still running and retry the command.",
+            )
+        })?;
 
         if output.status.success() {
-            println!("  [{}] done", idx + 1);
+            trace_log!("[{}] done", idx + 1);
         } else {
             trace_log!(
-                "  [{}] FAILED (exit {}): {}",
+                "[{}] FAILED (exit {}): {}",
                 idx + 1,
                 output.status,
                 String::from_utf8_lossy(&output.stderr).trim()
@@ -142,18 +155,22 @@ pub(super) fn record_parallel(
 
     if failed {
         let _ = fs::remove_dir_all(&temp_root);
-        return Err(format!(
-            "one or more parallel recorder processes failed; set {RECORDER_PATH_ENV} to the recorder CLI binary when using library-driven parallel mode"
+        return Err(error_with_fix(
+            "complete the parallel recording job",
+            "one or more recorder subprocesses exited with a failure",
+            &format!(
+                "Inspect the subprocess stderr output and set {RECORDER_PATH_ENV} to the recorder CLI binary when using library-driven parallel mode."
+            ),
         ));
     }
 
     for (idx, path) in group_outputs.iter().enumerate() {
         if !path.exists() {
             let _ = fs::remove_dir_all(&temp_root);
-            return Err(format!(
-                "group {} output missing: {}",
-                idx + 1,
-                path.display()
+            return Err(error_with_fix(
+                &format!("collect output from recorder process {}", idx + 1),
+                format!("expected output file is missing: {}", path.display()),
+                "Inspect the subprocess stderr output and retry the recording job.",
             ));
         }
     }
@@ -163,17 +180,17 @@ pub(super) fn record_parallel(
     let mut duration_sec = 0.0f64;
     for (idx, result_path) in group_result_files.iter().enumerate() {
         let bytes = fs::read(result_path).map_err(|err| {
-            format!(
-                "failed to read group {} result {}: {err}",
-                idx + 1,
-                result_path.display()
+            error_with_fix(
+                &format!("read result from recorder process {}", idx + 1),
+                format!("{}: {err}", result_path.display()),
+                "Check that the temp directory is readable and retry the recording job.",
             )
         })?;
         let group_output: RecordOutput = serde_json::from_slice(&bytes).map_err(|err| {
-            format!(
-                "failed to decode group {} result {}: {err}",
-                idx + 1,
-                result_path.display()
+            error_with_fix(
+                &format!("decode result from recorder process {}", idx + 1),
+                format!("{}: {err}", result_path.display()),
+                "Retry after ensuring the recorder subprocess writes valid JSON output.",
             )
         })?;
         total_frames += group_output.total_frames;
@@ -181,7 +198,7 @@ pub(super) fn record_parallel(
         duration_sec += group_output.duration_sec;
     }
 
-    println!("\n  concat {} groups...", actual_procs);
+    trace_log!("concat {} groups", actual_procs);
     let concat_result =
         super::super::orchestrator::concat_output(&group_outputs, out, duration_sec);
     let _ = fs::remove_dir_all(&temp_root);
@@ -193,9 +210,9 @@ pub(super) fn record_parallel(
         .unwrap_or(0.0);
     let measured_fps = total_frames as f64 / elapsed.as_secs_f64().max(0.001);
 
-    println!("\n  ✓ {}", out.display());
-    println!(
-        "  {:.1} MB | {} processes | {:.1}s total\n",
+    trace_log!("output ready: {}", out.display());
+    trace_log!(
+        "{:.1} MB | {} processes | {:.1}s total",
         output_size_mb,
         actual_procs,
         elapsed.as_secs_f64()

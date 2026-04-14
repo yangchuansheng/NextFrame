@@ -1,6 +1,7 @@
 //! command tab helpers
 use objc2_web_kit::WKWebView;
 
+use crate::error::error_with_fix;
 use crate::state::{all_tab_infos, close_tab, create_dynamic_tab, switch_tab};
 
 use super::{write_error, write_result};
@@ -30,7 +31,14 @@ pub(super) fn handle_command(_webview: &WKWebView, cmd: &str, result_path: &str)
                 Ok(()) => write_result(result_path, format!("ok: closed tab {tab_id}")),
                 Err(err) => write_error(result_path, err),
             },
-            Err(_) => write_result(result_path, "error: invalid tab id"),
+            Err(_) => write_error(
+                result_path,
+                error_with_fix(
+                    "parse the tab id",
+                    format!("`{}` is not a valid tab id", idx.trim()),
+                    "Use a numeric tab id from the `tabs` command output.",
+                ),
+            ),
         }
         true
     } else if let Some(idx) = cmd.strip_prefix("tab ") {

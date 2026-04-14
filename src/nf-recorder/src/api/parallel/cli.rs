@@ -4,6 +4,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use crate::api::RecordArgs;
+use crate::error_with_fix;
 
 pub(super) const RECORDER_PATH_ENV: &str = "NEXTFRAME_RECORDER_PATH";
 
@@ -12,20 +13,31 @@ pub(super) fn resolve_parallel_executable() -> Result<PathBuf, String> {
         if path.is_file() {
             return Ok(path);
         }
-        return Err(format!(
-            "{RECORDER_PATH_ENV} does not point to a file: {}",
-            path.display()
+        return Err(error_with_fix(
+            "resolve the recorder executable",
+            format!(
+                "{RECORDER_PATH_ENV} does not point to a file: {}",
+                path.display()
+            ),
+            "Set the environment variable to the `nextframe-recorder` CLI binary.",
         ));
     }
 
-    let current = env::current_exe()
-        .map_err(|err| format!("failed to find current executable for parallel recorder: {err}"))?;
+    let current = env::current_exe().map_err(|err| {
+        error_with_fix(
+            "resolve the current recorder executable",
+            err,
+            "Run the recorder from an installed binary or set NEXTFRAME_RECORDER_PATH explicitly.",
+        )
+    })?;
     if current.is_file() {
         return Ok(current);
     }
 
-    Err(format!(
-        "failed to resolve recorder executable; set {RECORDER_PATH_ENV} to the nextframe-recorder CLI binary"
+    Err(error_with_fix(
+        "resolve the recorder executable",
+        "the current executable path is not a file",
+        "Set NEXTFRAME_RECORDER_PATH to the `nextframe-recorder` CLI binary.",
     ))
 }
 

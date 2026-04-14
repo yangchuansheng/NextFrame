@@ -1,6 +1,8 @@
 //! local server request path resolution
 use std::path::{Component, Path, PathBuf};
 
+use crate::error_with_fix;
+
 pub(super) enum ResolvedRequestPath {
     Found(PathBuf),
     NotFound,
@@ -51,10 +53,20 @@ fn percent_decode(source: &str) -> Result<String, String> {
     while index < bytes.len() {
         match bytes[index] {
             b'%' if index + 2 < bytes.len() => {
-                let hex = std::str::from_utf8(&bytes[index + 1..index + 3])
-                    .map_err(|err| format!("invalid percent escape: {err}"))?;
-                let value = u8::from_str_radix(hex, 16)
-                    .map_err(|err| format!("invalid percent escape %{hex}: {err}"))?;
+                let hex = std::str::from_utf8(&bytes[index + 1..index + 3]).map_err(|err| {
+                    error_with_fix(
+                        "decode the request path",
+                        format!("invalid percent escape: {err}"),
+                        "Percent-encode the path as UTF-8 and retry the request.",
+                    )
+                })?;
+                let value = u8::from_str_radix(hex, 16).map_err(|err| {
+                    error_with_fix(
+                        "decode the request path",
+                        format!("invalid percent escape %{hex}: {err}"),
+                        "Percent-encode the path as UTF-8 and retry the request.",
+                    )
+                })?;
                 decoded.push(value);
                 index += 3;
             }
@@ -69,5 +81,11 @@ fn percent_decode(source: &str) -> Result<String, String> {
         }
     }
 
-    String::from_utf8(decoded).map_err(|err| format!("invalid UTF-8 request path: {err}"))
+    String::from_utf8(decoded).map_err(|err| {
+        error_with_fix(
+            "decode the request path",
+            format!("the request path was not valid UTF-8: {err}"),
+            "Percent-encode the path as UTF-8 and retry the request.",
+        )
+    })
 }
