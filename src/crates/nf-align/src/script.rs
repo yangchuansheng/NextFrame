@@ -69,7 +69,7 @@ pub(crate) fn align_script_path() -> Result<PathBuf> {
     let source_tree = manifest
         .parent()
         .and_then(Path::parent)
-        .map(|root| root.join("python/align_ffa.py"))
+        .map(|root| root.join("nf-tts/scripts/align_ffa.py"))
         .filter(|path| path.exists());
     if let Some(path) = source_tree {
         return Ok(path);
@@ -77,11 +77,13 @@ pub(crate) fn align_script_path() -> Result<PathBuf> {
 
     let exe = std::env::current_exe().context("resolve current executable")?;
     for parent in exe.ancestors() {
-        let candidate = parent.join("src/python/align_ffa.py");
-        if candidate.exists() {
-            return Ok(candidate);
+        for relative in ["src/nf-tts/scripts/align_ffa.py", "nf-tts/scripts/align_ffa.py"] {
+            let candidate = parent.join(relative);
+            if candidate.exists() {
+                return Ok(candidate);
+            }
         }
     }
 
-    bail!("src/python/align_ffa.py not found (set VIDEOCUT_ALIGN_SCRIPT)")
+    bail!("src/nf-tts/scripts/align_ffa.py not found (set VIDEOCUT_ALIGN_SCRIPT)")
 }

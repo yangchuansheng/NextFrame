@@ -10,13 +10,13 @@ use std::process::{Command, Stdio};
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use tempfile::tempdir;
 use nf_cut_core::{
     SentenceSource, Sentences, Word, WordsFile, extract_audio_to_wav, probe_duration, python_bin,
     split_into_sentences,
 };
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use tempfile::tempdir;
 
 use crate::chunk::build_chunks;
 use crate::logger::Logger;
@@ -287,10 +287,7 @@ fn whisper_script_path() -> Result<PathBuf> {
     }
 
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let source_tree = manifest
-        .parent()
-        .and_then(Path::parent)
-        .map(|root| root.join("python/whisper_transcribe.py"))
+    let source_tree = Some(manifest.join("scripts/whisper_transcribe.py"))
         .filter(|path| path.exists());
     if let Some(path) = source_tree {
         return Ok(path);
@@ -298,13 +295,20 @@ fn whisper_script_path() -> Result<PathBuf> {
 
     let exe = std::env::current_exe().context("resolve current executable")?;
     for parent in exe.ancestors() {
-        let candidate = parent.join("src/python/whisper_transcribe.py");
-        if candidate.exists() {
-            return Ok(candidate);
+        for relative in [
+            "src/crates/nf-transcribe/scripts/whisper_transcribe.py",
+            "crates/nf-transcribe/scripts/whisper_transcribe.py",
+        ] {
+            let candidate = parent.join(relative);
+            if candidate.exists() {
+                return Ok(candidate);
+            }
         }
     }
 
-    bail!("src/python/whisper_transcribe.py not found (set SPLICE_WHISPER_SCRIPT)")
+    bail!(
+        "src/crates/nf-transcribe/scripts/whisper_transcribe.py not found (set SPLICE_WHISPER_SCRIPT)"
+    )
 }
 
 #[cfg(test)]
@@ -314,7 +318,7 @@ mod tests {
     #[test]
     fn whisper_script_resolves_from_source_tree() -> Result<()> {
         let path = whisper_script_path()?;
-        assert!(path.ends_with("src/python/whisper_transcribe.py"));
+        assert!(path.ends_with("src/crates/nf-transcribe/scripts/whisper_transcribe.py"));
         Ok(())
     }
 }
