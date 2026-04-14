@@ -500,7 +500,14 @@ function buildRuntime() {
   }
 
   applyScale();
-  compose(0);
+  // Support #t=N in URL to start at a specific time
+  var hashTime = parseFloat((location.hash.match(/t=([\\d.]+)/) || [])[1]);
+  var initTime = isFinite(hashTime) ? hashTime : 0;
+  compose(initTime);
+  // Expose seek for external control (console, AppleScript, etc.)
+  window.__nfSeek = seek;
+  window.__nfPlay = play;
+  window.__nfPause = pause;
 })();`;
 }
 

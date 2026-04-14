@@ -16,11 +16,11 @@ fn replace_json_extension(path: &Path) -> PathBuf {
     PathBuf::from(format!("{as_string}.html"))
 }
 
-fn resolve_bundle_path() -> Result<PathBuf, String> {
+fn resolve_cli_path() -> Result<PathBuf, String> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for relative in [
-        "../nf-runtime/web/src/bundle.cjs",
-        "../runtime/web/src/bundle.cjs",
+        "../nf-cli/bin/nextframe.js",
+        "../nextframe-cli/bin/nextframe.js",
     ] {
         let candidate = manifest_dir.join(relative);
         if candidate.is_file() {
@@ -28,8 +28,8 @@ fn resolve_bundle_path() -> Result<PathBuf, String> {
         }
     }
 
-    Err( // Fix: included in the error string below
-        "failed to resolve compose bundle: bundle.cjs was not found from the current directory. Fix: run nf-bridge from a workspace that contains nf-runtime/web.".to_string(),
+    Err(
+        "failed to resolve nextframe CLI: nextframe.js was not found. Fix: ensure nf-cli/bin/nextframe.js exists.".to_string(),
     )
 }
 
@@ -50,16 +50,18 @@ pub(crate) fn handle_compose_generate(params: &Value) -> Result<Value, String> {
     }
 
     if !write_test_compose_output(&output_path)? {
-        let bundle_path = resolve_bundle_path()?;
+        let cli_path = resolve_cli_path()?;
 
         let output = Command::new("node")
-            .arg(&bundle_path)
+            .arg(&cli_path)
+            .arg("build")
             .arg(&timeline_path)
+            .arg("--out")
             .arg(&output_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
-            .map_err(|error| format!("failed to run compose bundle: {error}"))?;
+            .map_err(|error| format!("failed to run nextframe build: {error}"))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -70,12 +72,12 @@ pub(crate) fn handle_compose_generate(params: &Value) -> Result<Value, String> {
                 stdout
             } else {
                 format!(
-                    "bundle exited with code {}",
+                    "nextframe build exited with code {}",
                     output.status.code().unwrap_or(-1)
                 )
             };
-            return Err(format!( // Fix: included in the error string below
-                "failed to generate composition: {details}. Fix: verify the timeline input and inspect the compose bundle output for details."
+            return Err(format!(
+                "failed to generate composition: {details}. Fix: verify the timeline input and check nextframe build output."
             ));
         }
     }

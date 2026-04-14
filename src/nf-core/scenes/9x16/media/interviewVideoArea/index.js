@@ -54,7 +54,7 @@ export function render(t, params, vp) {
   if (src) {
     const persistKey = "iv-" + String(src).replace(/[^a-zA-Z0-9]/g, "").slice(-20);
     return `<div style="position:absolute;left:${pad}px;top:${top}px;width:${areaW}px;height:${areaH}px;opacity:${fadeAlpha};border-radius:${scaledRadius}px;overflow:hidden;pointer-events:none">
-  <video data-nf-persist="${persistKey}" data-nf-time="${t}" src="${esc(src)}" playsinline preload="auto" style="width:100%;height:100%;object-fit:cover"></video>
+  <video data-nf-persist="${persistKey}" data-nf-time="${t}" src="${esc(src)}" muted playsinline preload="auto" style="width:100%;height:100%;object-fit:cover"></video>
 </div>`;
   }
 

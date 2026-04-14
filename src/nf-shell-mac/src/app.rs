@@ -563,12 +563,18 @@ fn verify_app(wv: &objc2_web_kit::WKWebView) {
             "document.querySelector('[data-stage=\"clips\"]')?.click();'clicked'"
         )
     );
-    webview::pump_run_loop_pub(std::time::Duration::from_secs(3));
+    webview::pump_run_loop_pub(std::time::Duration::from_secs(5));
     check!("smart clips sources", webview::eval_js(wv, "scSources.length + ' sources, clips=' + scClips.length"));
-    check!("smart clips debug", webview::eval_js(wv, "JSON.stringify(scSources.map(s=>s.name))"));
     check!("smart clips cards", webview::eval_js(wv, "document.querySelectorAll('.sc-clip-card').length + ' cards'"));
-    check!("smart clips overflow", webview::eval_js(wv, "var s=document.querySelector('.sc-clip-scroll');s?(s.scrollHeight+'h,'+s.clientHeight+'c'):'no scroll'"));
+    check!("smart clips visible", webview::eval_js(wv, "var c=document.querySelector('.sc-clip-card');c?c.getBoundingClientRect().top+'px':'invisible'"));
+    // Scroll to first clip card
+    let _ = webview::eval_js(wv, "var c=document.querySelector('.sc-clip-card');if(c)c.scrollIntoView({block:'start'})");
+    webview::pump_run_loop_pub(std::time::Duration::from_millis(500));
     let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-clips.png");
+    // Also take a full-page screenshot before scrolling
+    let _ = webview::eval_js(wv, "var m=document.querySelector('#pl-tab-asset .pl-main');if(m)m.scrollTop=0");
+    webview::pump_run_loop_pub(std::time::Duration::from_millis(300));
+    let _ = webview::screenshot(wv, "/tmp/nf-verify-rich-clips-top.png");
 
     // Editor tab — atoms from pipeline.json
     check!(
