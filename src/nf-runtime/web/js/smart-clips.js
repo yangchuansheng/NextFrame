@@ -313,11 +313,38 @@ async function loadSmartClips(){
   if(token!==scLoadToken)return;
   scSources=scAttachClipsToSources(sources,cutReport,plan,Array.isArray(clipResult&&clipResult.clips)?clipResult.clips:[]); scActiveSource=0; scRenderedClips=[];
   if(!scSources.length){scRenderSidebar(); scRenderMain(); return;}
+  await scLoadClipTranslations(episodePath);
   scSources.forEach(scWarmSourceMetadata);
   if(scSources.length===1&&!scSources[0].title){scSources[0].title=planTitle||scHumanizeSlug(scSources[0].slug);}
   if(!scSources[0].title)scSources[0].title=scFormatSourceTitle(scSources[0],0);
   scSources.forEach((source,index)=>{if(!source.title)source.title=scFormatSourceTitle(source,index); if(!source.durationLabel||source.durationLabel==='—')source.durationLabel=scFormatClock(source.durationSec,false); if(source.meta&&typeof source.meta.format==='string'&&source.meta.format.trim())source.formatLabel=source.meta.format.trim();});
   scRenderSidebar(); scRenderMain();
+}
+
+// Load per-clip translation files (clip_NN.translations.<lang>.json) and merge into clip sentence languageRows.
+// This supports the clips pipeline output format independent of sentences.json embedding.
+async function scLoadClipTranslations(episodePath){
+  const langs=['zh','ja','ko','fr','es','de'];
+  await Promise.all(scSources.flatMap((source)=>
+    source.clips.map(async(clip)=>{
+      const pad=String(clip.clipNum).padStart(2,'0');
+      for(const lang of langs){
+        const path=episodePath+'/clips/clip_'+pad+'.translations.'+lang+'.json';
+        const data=await scReadJson(path,null);
+        if(!data||!Array.isArray(data.segments))continue;
+        const label=scLangLabel(lang);
+        data.segments.forEach((seg)=>{
+          const sentence=clip.sentences.find((s)=>s.id===seg.id);
+          if(!sentence)return;
+          const cnCues=Array.isArray(seg.cn)?seg.cn:[];
+          const text=cnCues.map((cue)=>(typeof cue==='string'?cue:String(cue&&cue.text||''))).join('');
+          if(!text)return;
+          const existing=sentence.languageRows.find((r)=>r.label===label);
+          if(existing){existing.text=text;}else{sentence.languageRows.push({label,text,primary:false});}
+        });
+      }
+    })
+  ));
 }
 
 window.loadSmartClips=loadSmartClips; window.scSelectSource=scSelectSource; window.scOpenPlayer=scOpenPlayer; window.scOpenClipSentence=scOpenClipSentence;

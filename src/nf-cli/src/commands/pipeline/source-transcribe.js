@@ -1,5 +1,13 @@
 // Transcribes a source video and stores the summarized transcript in source.json.
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Auto-set VIDEOCUT_WHISPER_SCRIPT if not provided (nf-source needs it to find whisper_transcribe.py)
+if (!process.env.VIDEOCUT_WHISPER_SCRIPT) {
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  const repoRoot = resolve(HERE, "../../../../../");
+  process.env.VIDEOCUT_WHISPER_SCRIPT = join(repoRoot, "src/nf-source/transcribe/scripts/whisper_transcribe.py");
+}
 
 import { emit } from "../_helpers/_io.js";
 import { loadProjectContext, resolveRoot } from "../_helpers/_project.js";
@@ -45,13 +53,14 @@ async function runLegacy(positional, flags) {
     const source = await readSourceJson(sourceDir);
     runSourceBinary([
       "transcribe",
+      "--video",
       join(sourceDir, "source.mp4"),
       "--model",
       model,
-      "--lang",
+      "--language",
       lang,
-      "-o",
-      `${sourceDir}/`,
+      "--out-dir",
+      sourceDir,
     ], { binPath });
 
     const rawSentences = await readJson(join(sourceDir, "sentences.json"));
@@ -102,13 +111,14 @@ async function runProjectMode(positional, flags) {
     const source = await readSourceJson(sourceDir);
     runSourceBinary([
       "transcribe",
+      "--video",
       join(sourceDir, "source.mp4"),
       "--model",
       model,
-      "--lang",
+      "--language",
       lang,
-      "-o",
-      `${sourceDir}/`,
+      "--out-dir",
+      sourceDir,
     ], { binPath });
 
     const rawSentences = await readJson(join(sourceDir, "sentences.json"));

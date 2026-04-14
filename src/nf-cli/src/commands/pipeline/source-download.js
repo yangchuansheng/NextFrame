@@ -50,11 +50,12 @@ async function runLegacy(positional, flags) {
     const tempDir = await prepareDownloadDirectory(libraryPath);
     runSourceBinary([
       "download",
+      "--url",
       url,
-      "--format",
+      "--format-height",
       format.replace(/p$/, ""),
-      "-o",
-      `${tempDir}/`,
+      "--out-dir",
+      tempDir,
     ], { binPath });
 
     const meta = await readMetaJson(tempDir);
@@ -106,11 +107,12 @@ async function runProjectMode(positional, flags) {
     const tempDir = await prepareDownloadDirectory(sourcesDir);
     runSourceBinary([
       "download",
+      "--url",
       url,
-      "--format",
+      "--format-height",
       format.replace(/p$/, ""),
-      "-o",
-      `${tempDir}/`,
+      "--out-dir",
+      tempDir,
     ], { binPath });
 
     const meta = await readMetaJson(tempDir);

@@ -50,14 +50,14 @@ async function runLegacy(positional, flags) {
       "cut",
       "--video",
       join(sourceDir, "source.mp4"),
-      "--sentences",
-      `${sourceDir}/`,
-      "--plan",
+      "--sentences-path",
+      sourceDir,
+      "--plan-path",
       planPath,
-      "--margin",
+      "--margin-sec",
       String(margin),
-      "-o",
-      `${clipsDir}/`,
+      "--out-dir",
+      clipsDir,
     ], { binPath });
 
     const cutReport = await readJson(join(clipsDir, "cut_report.json"));
@@ -112,14 +112,14 @@ async function runProjectMode(positional, flags) {
       "cut",
       "--video",
       join(sourceDir, "source.mp4"),
-      "--sentences",
-      `${sourceDir}/`,
-      "--plan",
+      "--sentences-path",
+      sourceDir,
+      "--plan-path",
       planPath,
-      "--margin",
+      "--margin-sec",
       String(margin),
-      "-o",
-      `${clipsDir}/`,
+      "--out-dir",
+      clipsDir,
     ], { binPath });
 
     const cutReport = await readJson(join(clipsDir, "cut_report.json"));

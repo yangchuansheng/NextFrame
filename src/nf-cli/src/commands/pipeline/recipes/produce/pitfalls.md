@@ -43,6 +43,13 @@
 - **修复**: 视频 scene 的 meta 必须有 videoOverlay: true
 - **防呆**: 检查 recorder 日志
 
+### 视频叠加位置偏移（DPR 未乘）
+- **触发**: ffmpeg overlay 用 GRID 坐标（80, 276）但输出是 DPR=2 的画面（2160×3840）
+- **现象**: 视频叠加到标题区域（y=276 在 3840 高的画面里只有 7%），不在视频框里
+- **原因**: GRID 坐标是 CSS 像素（1080×1920），ffmpeg 操作的是物理像素（2160×3840），需要 ×DPR
+- **修复**: build_overlay_filter 现在接受 dpr 参数，坐标自动 ×dpr
+- **防呆**: recorder 日志输出 `overlay: ... (dpr=X.XX)` 确认 DPR 被应用
+
 ### 中文路径 404
 - **触发**: 视频文件路径含中文字符
 - **现象**: recorder 的 urlencoding_decode 之前会破坏 UTF-8 多字节字符（已修复）

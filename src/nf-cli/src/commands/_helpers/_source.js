@@ -20,7 +20,8 @@ export {
 } from "./_source-transcript.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "../../..");
+// HERE = src/nf-cli/src/commands/_helpers → go up 5 to reach repo root
+const REPO_ROOT = resolve(HERE, "../../../../..");
 const DEFAULT_FORMAT = "720p";
 const SOURCE_JSON = "source.json";
 
