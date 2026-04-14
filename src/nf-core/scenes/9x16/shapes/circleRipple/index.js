@@ -7,7 +7,20 @@ export const meta = {
   tech: "canvas2d",
   duration_hint: 6,
   loopable: true,
-  tags: ["circle", "ripple", "wave", "ambient"],
+  tags: ["circle", "ripple", "wave", "ambient", "pulse", "rhythm"],
+  mood: ["meditative", "rhythmic", "minimal"],
+  theme: ["abstract", "tech", "music"],
+  z_hint: "bottom",
+
+  default_theme: "teal-spectrum",
+  themes: {
+    "teal-spectrum":  { hueStart: 185, hueSpan: 180, ringCount: 9, interval: 0.26, thickness: 0.012 },
+    "red-pulse":      { hueStart: 350, hueSpan: 40,  ringCount: 6, interval: 0.35, thickness: 0.015 },
+    "rainbow-wide":   { hueStart: 0,   hueSpan: 300, ringCount: 12, interval: 0.2,  thickness: 0.008 },
+    "mono-white":     { hueStart: 0,   hueSpan: 0,   ringCount: 7, interval: 0.3,  thickness: 0.01 },
+    "violet-dream":   { hueStart: 260, hueSpan: 60,  ringCount: 10, interval: 0.22, thickness: 0.014 },
+  },
+
   params: {
     hueStart:  { type: "number", default: 185, range: [0, 360], step: 1, label: "起始色相", semantic: "first ring hue", group: "color" },
     hueSpan:   { type: "number", default: 180, range: [30, 300], step: 5, label: "色相跨度", semantic: "hue range across rings", group: "color" },
@@ -17,9 +30,12 @@ export const meta = {
     thickness: { type: "number", default: 0.012, range: [0.004, 0.03], step: 0.001, label: "环宽", semantic: "ring thickness as ratio of min dimension", group: "shape" },
   },
   ai: {
-    when: "需要节奏感/脉冲感的装饰背景时使用",
+    when: "需要节奏感/脉冲感/呼吸感的装饰背景。适合：等待画面、转场前后、音乐节奏可视化。",
+    how: "放在底层或中层。hueStart+hueSpan 控制色彩范围，interval 控制节奏快慢。",
     example: { hueStart: 185, hueSpan: 180, ringCount: 9 },
-    avoid: "不适合需要强烈视觉焦点的场景",
+    theme_guide: "teal-spectrum=蓝绿光谱, red-pulse=红色脉冲, rainbow-wide=彩虹, mono-white=白色极简, violet-dream=紫色梦幻",
+    avoid: "不适合需要强烈视觉焦点的场景。hueSpan=0 时所有环同色。",
+    pairs_with: ["kineticHeadline", "lowerThirdVelvet"],
   },
 };
 

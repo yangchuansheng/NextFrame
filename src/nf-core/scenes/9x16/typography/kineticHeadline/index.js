@@ -1,25 +1,45 @@
 export const meta = {
   id: "kineticHeadline",
+  version: 1,
   ratio: "9:16",
+
   category: "typography",
   label: "Kinetic Headline",
-  description: "逐字出现的大标题 + 副标题淡入",
+  description: "逐字出现的大标题 + 副标题淡入。每个字母带缩放动画，颜色从起始色相渐变到结束色相。",
+  tags: ["text", "headline", "stagger", "reveal", "title"],
+  mood: ["energetic", "bold", "impactful"],
+  theme: ["tech", "product", "brand"],
+
   tech: "dom",
   duration_hint: 5,
   loopable: false,
-  tags: ["text", "headline", "stagger", "reveal"],
-  params: {
-    text:     { type: "string", default: "NEXTFRAME", required: true, label: "标题文字", semantic: "main headline text", group: "content" },
-    subtitle: { type: "string", default: "AI Video Engine", label: "副标题", semantic: "subtitle below headline", group: "content" },
-    hueStart: { type: "number", default: 30, range: [0, 360], step: 1, label: "起始色相", semantic: "first letter hue", group: "color" },
-    hueEnd:   { type: "number", default: 320, range: [0, 360], step: 1, label: "结束色相", semantic: "last letter hue", group: "color" },
-    stagger:  { type: "number", default: 0.18, range: [0.05, 0.5], step: 0.01, label: "逐字延迟", semantic: "delay between letters in seconds", group: "animation" },
-    size:     { type: "number", default: 0.12, range: [0.05, 0.25], step: 0.005, label: "字号比例", semantic: "font size as ratio of viewport width", group: "style" },
+  z_hint: "middle",
+
+  default_theme: "warm-gradient",
+  themes: {
+    "warm-gradient":  { hueStart: 30,  hueEnd: 320, size: 0.12, stagger: 0.18 },
+    "cool-tech":      { hueStart: 180, hueEnd: 240, size: 0.1,  stagger: 0.12 },
+    "mono-accent":    { hueStart: 270, hueEnd: 270, size: 0.15, stagger: 0.15 },
+    "fire-energy":    { hueStart: 0,   hueEnd: 45,  size: 0.13, stagger: 0.1 },
+    "mint-fresh":     { hueStart: 150, hueEnd: 180, size: 0.11, stagger: 0.2 },
   },
+
+  params: {
+    text:     { type: "string", default: "NEXTFRAME", required: true, label: "标题文字", semantic: "main headline text, uppercase works best, max 12 chars", group: "content" },
+    subtitle: { type: "string", default: "AI Video Engine", label: "副标题", semantic: "smaller text below headline, appears after all letters", group: "content" },
+    hueStart: { type: "number", default: 30, range: [0, 360], step: 1, label: "起始色相", semantic: "first letter color hue, creates gradient across text", group: "color" },
+    hueEnd:   { type: "number", default: 320, range: [0, 360], step: 1, label: "结束色相", semantic: "last letter color hue", group: "color" },
+    stagger:  { type: "number", default: 0.18, range: [0.05, 0.5], step: 0.01, label: "逐字延迟", semantic: "seconds between each letter appearing, 0.1=fast 0.3=dramatic", group: "animation" },
+    size:     { type: "number", default: 0.12, range: [0.05, 0.25], step: 0.005, label: "字号比例", semantic: "font size relative to viewport width, 0.1=medium 0.15=large", group: "style" },
+  },
+
   ai: {
-    when: "需要展示标题/产品名/关键词时使用",
+    when: "展示标题、产品名、关键数字、章节标题。适合视频开场或章节分隔。",
+    how: "叠在背景 scene 上面。文字居中显示。调 hueStart/hueEnd 控制颜色风格。",
     example: { text: "NEXTFRAME", subtitle: "AI Video Engine", hueStart: 30, hueEnd: 320 },
-    avoid: "文字不要超过 12 个字符，否则会溢出",
+    theme_guide: "warm-gradient=暖色渐变, cool-tech=冷色科技, mono-accent=单色强调, fire-energy=火焰, mint-fresh=薄荷",
+    avoid: "文字超过 12 个字符会溢出安全区。中文字符占宽更大，建议不超过 8 个。",
+    pairs_with: ["auroraGradient", "lowerThirdVelvet"],
   },
 };
 

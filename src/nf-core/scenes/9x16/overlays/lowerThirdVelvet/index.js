@@ -7,7 +7,20 @@ export const meta = {
   tech: "dom",
   duration_hint: 6,
   loopable: false,
-  tags: ["lower-third", "title", "overlay", "wipe"],
+  tags: ["lower-third", "title", "overlay", "wipe", "name", "caption"],
+  mood: ["professional", "elegant", "broadcast"],
+  theme: ["broadcast", "news", "brand", "vlog"],
+  z_hint: "top",
+
+  default_theme: "warm-accent",
+  themes: {
+    "warm-accent":   { hueA: 20,  hueB: 320, holdEnd: 4, fadeOut: 0.6 },
+    "cool-blue":     { hueA: 210, hueB: 240, holdEnd: 4, fadeOut: 0.5 },
+    "neon-pink":     { hueA: 330, hueB: 280, holdEnd: 3, fadeOut: 0.4 },
+    "green-nature":  { hueA: 130, hueB: 160, holdEnd: 5, fadeOut: 0.8 },
+    "mono-white":    { hueA: 0,   hueB: 0,   holdEnd: 4, fadeOut: 0.6 },
+  },
+
   params: {
     title:    { type: "string", default: "NEXTFRAME", required: true, label: "标题", semantic: "main title text", group: "content" },
     subtitle: { type: "string", default: "AI Video Engine", label: "副标题", semantic: "subtitle text", group: "content" },
@@ -17,9 +30,12 @@ export const meta = {
     fadeOut:  { type: "number", default: 0.6, range: [0.1, 4], step: 0.1, label: "淡出时长(s)", semantic: "exit animation duration", group: "animation" },
   },
   ai: {
-    when: "需要在画面下方显示标题/人名/标注时使用",
+    when: "画面下方显示标题/人名/标注/品牌。适合：人物介绍、章节标注、品牌 watermark。",
+    how: "放在最上层（z_hint: top）。title 是主文字，subtitle 是辅助信息。自带擦入/打字机/脉冲点动画。",
     example: { title: "NEXTFRAME", subtitle: "AI Video Engine" },
-    avoid: "标题不要超过 20 个字符",
+    theme_guide: "warm-accent=暖色调, cool-blue=冷蓝, neon-pink=霓虹粉, green-nature=自然绿, mono-white=白色极简",
+    avoid: "标题超过 20 字符会溢出。holdEnd 太短标题还没打完就退出。",
+    pairs_with: ["auroraGradient", "kineticHeadline", "barChartReveal"],
   },
 };
 

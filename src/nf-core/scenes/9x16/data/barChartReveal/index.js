@@ -1,27 +1,47 @@
 export const meta = {
   id: "barChartReveal",
+  version: 1,
   ratio: "9:16",
+
   category: "data",
   label: "Bar Chart Reveal",
-  description: "柱状图逐个升起动画",
+  description: "柱状图逐个升起动画。每根柱子从底部生长，带 easeOut 缓动，数值标签在柱子到位后显示。",
+  tags: ["chart", "bar", "data", "reveal", "comparison", "growth"],
+  mood: ["professional", "informative", "clear"],
+  theme: ["business", "report", "analytics"],
+
   tech: "svg",
   duration_hint: 5,
   loopable: false,
-  tags: ["chart", "bar", "data", "reveal"],
-  params: {
-    title:    { type: "string", default: "月度增长", label: "图表标题", semantic: "chart title text", group: "content" },
-    unit:     { type: "string", default: "%", label: "单位", semantic: "value unit suffix", group: "content" },
-    data:     { type: "array", default: [72, 85, 63, 91, 78, 95], label: "数据", semantic: "bar values array", group: "content" },
-    labels:   { type: "array", default: ["1月", "2月", "3月", "4月", "5月", "6月"], label: "标签", semantic: "bar labels array", group: "content" },
-    hueStart: { type: "number", default: 200, range: [0, 360], step: 1, label: "起始色相", semantic: "first bar hue", group: "color" },
-    hueEnd:   { type: "number", default: 320, range: [0, 360], step: 1, label: "结束色相", semantic: "last bar hue", group: "color" },
-    stagger:  { type: "number", default: 0.12, range: [0.05, 0.5], step: 0.01, label: "柱子延迟", semantic: "delay between bars", group: "animation" },
-    barDur:   { type: "number", default: 0.85, range: [0.2, 2], step: 0.05, label: "生长时长", semantic: "single bar grow duration", group: "animation" },
+  z_hint: "middle",
+
+  default_theme: "blue-purple",
+  themes: {
+    "blue-purple":  { hueStart: 200, hueEnd: 320, stagger: 0.12, barDur: 0.85 },
+    "warm-orange":  { hueStart: 20,  hueEnd: 50,  stagger: 0.1,  barDur: 0.7 },
+    "green-growth": { hueStart: 100, hueEnd: 160, stagger: 0.15, barDur: 0.9 },
+    "mono-blue":    { hueStart: 210, hueEnd: 210, stagger: 0.12, barDur: 0.8 },
+    "neon-mix":     { hueStart: 300, hueEnd: 60,  stagger: 0.08, barDur: 0.6 },
   },
+
+  params: {
+    title:    { type: "string", default: "月度增长", label: "图表标题", semantic: "chart title, displayed centered above bars", group: "content" },
+    unit:     { type: "string", default: "%", label: "单位", semantic: "suffix after each value label (%, K, M, etc.)", group: "content" },
+    data:     { type: "array", default: [72, 85, 63, 91, 78, 95], label: "数据", semantic: "numeric values for each bar, determines bar height proportionally", group: "content" },
+    labels:   { type: "array", default: ["1月", "2月", "3月", "4月", "5月", "6月"], label: "标签", semantic: "text label below each bar, must match data array length", group: "content" },
+    hueStart: { type: "number", default: 200, range: [0, 360], step: 1, label: "起始色相", semantic: "first bar color hue", group: "color" },
+    hueEnd:   { type: "number", default: 320, range: [0, 360], step: 1, label: "结束色相", semantic: "last bar color hue, creates gradient across bars", group: "color" },
+    stagger:  { type: "number", default: 0.12, range: [0.05, 0.5], step: 0.01, label: "柱子延迟", semantic: "seconds between each bar starting to grow", group: "animation" },
+    barDur:   { type: "number", default: 0.85, range: [0.2, 2], step: 0.05, label: "生长时长", semantic: "how long each bar takes to reach full height", group: "animation" },
+  },
+
   ai: {
-    when: "需要展示数据对比时使用",
-    example: { title: "月度增长", data: [72, 85, 63, 91, 78, 95], labels: ["1月","2月","3月","4月","5月","6月"] },
-    avoid: "数据不要超过 8 条，否则柱子太窄",
+    when: "展示数据对比、趋势、排名。适合：月度数据、分类对比、前后对比。",
+    how: "传 data 数组和 labels 数组，长度必须一致。叠在背景上面。title 显示在图表上方。",
+    example: { title: "月度增长", data: [72, 85, 63, 91, 78, 95], labels: ["1月","2月","3月","4月","5月","6月"], unit: "%" },
+    theme_guide: "blue-purple=蓝紫渐变, warm-orange=暖橙, green-growth=绿色增长, mono-blue=单色蓝, neon-mix=霓虹混合",
+    avoid: "data 超过 8 条柱子太窄看不清。data 和 labels 长度不一致会 lint 报错。",
+    pairs_with: ["auroraGradient", "kineticHeadline"],
   },
 };
 

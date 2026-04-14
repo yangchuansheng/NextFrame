@@ -1,25 +1,53 @@
 export const meta = {
+  // ─── 身份 ───
   id: "auroraGradient",
+  version: 1,
   ratio: "9:16",
+
+  // ─── 分类与发现 ───
   category: "backgrounds",
   label: "Aurora Gradient",
-  description: "极光渐变背景，带胶片颗粒感",
+  description: "极光渐变背景，带胶片颗粒感。多个色彩球体缓慢漂移混合，营造深邃氛围。",
+  tags: ["gradient", "ambient", "looping", "dark", "cinematic", "mood"],
+  mood: ["calm", "mysterious", "dreamy"],
+  theme: ["tech", "space", "abstract"],
+
+  // ─── 渲染 ───
   tech: "canvas2d",
   duration_hint: 12,
   loopable: true,
-  tags: ["gradient", "ambient", "looping"],
-  params: {
-    hueA:      { type: "number", default: 270, range: [0, 360], step: 1, label: "主色相", semantic: "primary hue angle on color wheel", group: "color" },
-    hueB:      { type: "number", default: 200, range: [0, 360], step: 1, label: "副色相", semantic: "secondary hue", group: "color" },
-    hueC:      { type: "number", default: 320, range: [0, 360], step: 1, label: "第三色相", semantic: "tertiary hue", group: "color" },
-    intensity: { type: "number", default: 1, range: [0, 1.5], step: 0.05, label: "色彩强度", semantic: "saturation intensity, 0=gray 1.5=vivid", group: "color" },
-    grain:     { type: "number", default: 0.04, range: [0, 0.15], step: 0.005, label: "颗粒感", semantic: "film grain overlay intensity, 0=clean", group: "style" },
-    speed:     { type: "number", default: 0.3, range: [0, 2], step: 0.05, label: "流动速度", semantic: "animation speed multiplier", group: "animation" },
+  z_hint: "bottom",
+
+  // ─── 主题预设 ───
+  // AI 优先选 theme 名字，不用猜色值。用户可覆盖单个参数。
+  // 合并优先级：default_theme < theme 预设 < params 覆盖
+  default_theme: "obsidian-violet",
+  themes: {
+    "obsidian-violet": { hueA: 270, hueB: 200, hueC: 320, intensity: 1, grain: 0.04, speed: 0.3 },
+    "ocean-teal":      { hueA: 180, hueB: 210, hueC: 160, intensity: 1.2, grain: 0.03, speed: 0.25 },
+    "sunset-warm":     { hueA: 20,  hueB: 40,  hueC: 350, intensity: 0.8, grain: 0.05, speed: 0.2 },
+    "neon-cyber":      { hueA: 300, hueB: 180, hueC: 60,  intensity: 1.5, grain: 0.02, speed: 0.4 },
+    "forest-calm":     { hueA: 120, hueB: 160, hueC: 90,  intensity: 0.7, grain: 0.04, speed: 0.15 },
   },
+
+  // ─── 参数 ───
+  params: {
+    hueA:      { type: "number", default: 270, range: [0, 360], step: 1, label: "主色相", semantic: "primary hue angle on color wheel, 0=red 120=green 240=blue", group: "color" },
+    hueB:      { type: "number", default: 200, range: [0, 360], step: 1, label: "副色相", semantic: "secondary hue, contrasts with primary for depth", group: "color" },
+    hueC:      { type: "number", default: 320, range: [0, 360], step: 1, label: "第三色相", semantic: "tertiary hue, adds richness to the palette", group: "color" },
+    intensity: { type: "number", default: 1, range: [0, 1.5], step: 0.05, label: "色彩强度", semantic: "saturation intensity: 0=grayscale, 1=normal, 1.5=vivid neon", group: "color" },
+    grain:     { type: "number", default: 0.04, range: [0, 0.15], step: 0.005, label: "颗粒感", semantic: "film grain overlay: 0=clean digital, 0.04=subtle film, 0.1=heavy grain", group: "style" },
+    speed:     { type: "number", default: 0.3, range: [0, 2], step: 0.05, label: "流动速度", semantic: "blob drift speed: 0=frozen, 0.3=slow ambient, 1=noticeable motion", group: "animation" },
+  },
+
+  // ─── AI 使用指南 ───
   ai: {
-    when: "需要氛围感背景时使用，放在最底层",
-    example: { hueA: 270, hueB: 200, hueC: 320, intensity: 1.2 },
-    avoid: "不要和其他背景 scene 叠加",
+    when: "需要氛围感背景时使用。适合：开场/结尾的氛围铺垫、深色主题内容的底层、需要「高级感」的画面",
+    how: "放在 z-index 最底层，全屏铺满。上面叠文字/图表/叠加层。调整三个色相控制整体色调。",
+    example: { hueA: 270, hueB: 200, hueC: 320, intensity: 1.2, speed: 0.3 },
+    theme_guide: "选 theme 名字即可，不用记色值。obsidian-violet=深邃紫, ocean-teal=海洋蓝绿, sunset-warm=暖色, neon-cyber=赛博霓虹, forest-calm=森林",
+    avoid: "不要和其他背景 scene 叠加；不适合需要白色/亮色背景的场景",
+    pairs_with: ["kineticHeadline", "barChartReveal", "lowerThirdVelvet"],
   },
 };
 
