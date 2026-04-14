@@ -3,6 +3,8 @@ use serde_json::{json, Value};
 
 use crate::util::validation::require_object;
 
+/// Scene — reusable visual component definition exposed to the editor.
+/// Also known as: template, preset, building block.
 pub(crate) fn handle_scene_list(params: &Value) -> Result<Value, String> {
     require_object(params)?;
 

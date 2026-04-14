@@ -1,3 +1,6 @@
+//! Gold standard: new scene components should follow this pattern.
+// Scene component for a headline/title card.
+// Also known as: hero text, title scene, typography block.
 import {
   createRoot, createNode, smoothstep, easeOutCubic,
   toNumber, SANS_FONT_STACK, makeLinearGradient, makeDescribeResult,

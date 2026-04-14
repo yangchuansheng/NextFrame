@@ -1,3 +1,4 @@
+//! Gold standard: new integration tests should follow this pattern.
 use super::*;
 
 #[test]

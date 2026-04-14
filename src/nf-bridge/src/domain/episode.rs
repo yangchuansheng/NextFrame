@@ -6,6 +6,8 @@ use super::project::projects_root;
 use crate::util::time::iso_now;
 use crate::util::validation::require_string;
 
+/// Episode — ordered unit inside a project that groups segments.
+/// Also known as: chapter, installment, section.
 pub(crate) fn handle_episode_list(params: &Value) -> Result<Value, String> {
     let project = require_string(params, "project")?;
     let project_dir = projects_root().join(project);

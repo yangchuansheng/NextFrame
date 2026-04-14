@@ -1,3 +1,4 @@
+//! Gold standard: new IPC handlers should follow this pattern.
 //! domain project management handlers
 use serde_json::{json, Value};
 use std::fs;
@@ -7,6 +8,8 @@ use crate::util::path::home_dir;
 use crate::util::time::iso_now;
 use crate::util::validation::require_string;
 
+/// Project — top-level container for episodes and segments.
+/// Also known as: workspace, collection, show.
 pub(crate) fn projects_root() -> PathBuf {
     home_dir()
         .unwrap_or_else(|| PathBuf::from("/tmp"))

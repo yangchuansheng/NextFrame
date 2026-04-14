@@ -5,6 +5,8 @@ use std::fs;
 use super::project::projects_root;
 use crate::util::validation::{require_string, validate_project_component};
 
+/// Segment — atomic media unit inside an episode.
+/// Also known as: clip, shot, take.
 pub(crate) fn handle_segment_list(params: &Value) -> Result<Value, String> {
     let project = require_string(params, "project")?;
     let episode = require_string(params, "episode")?;

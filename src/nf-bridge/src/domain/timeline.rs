@@ -5,6 +5,8 @@ use std::fs;
 use crate::storage::fs::{resolve_existing_path, resolve_write_path};
 use crate::util::validation::{require_string, require_value_alias};
 
+/// Timeline — master timing document for tracks or layers.
+/// Also known as: composition, sequence, edit decision list (EDL).
 pub(crate) fn handle_timeline_load(params: &Value) -> Result<Value, String> {
     let path = require_string(params, "path")?;
     let path_buf = resolve_existing_path(path)?;
