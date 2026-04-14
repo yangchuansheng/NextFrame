@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>NextFrame Test — StarBurst + AuroraGradient (9:16)</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, sans-serif; color: #fff; }
+#viewport { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+.layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+#controls { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+#progress { width: 300px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer; position: relative; }
+#progress-fill { height: 100%; background: #f59e0b; border-radius: 2px; }
+#time { font-size: 12px; color: rgba(255,255,255,0.4); font-variant-numeric: tabular-nums; width: 80px; }
+#play-btn { background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.3); color: #f59e0b; border-radius: 6px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
+#title { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 8px; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+
+<div id="viewport"></div>
+<div id="controls">
+  <button id="play-btn">⏸</button>
+  <div id="progress"><div id="progress-fill"></div></div>
+  <span id="time">0.00 / 8.00</span>
+</div>
+<div id="title">NEXTFRAME TEST · 9:16 · AURORA + STARBURST · 8s</div>
+
+<script>
+// ─── Config ───
+const DURATION = 8;
+
+// Detect recorder WebView (9:16 ratio check)
+const ratio = window.innerWidth / window.innerHeight;
+const isRecording = Math.abs(ratio - 9/16) < 0.01 && window.innerWidth >= 500;
+
+let W, H;
+if (isRecording) {
+  W = window.innerWidth;
+  H = window.innerHeight;
+} else {
+  const maxH = Math.min(window.innerHeight - 80, 750);
+  H = maxH;
+  W = Math.round(H * 9 / 16);
+}
+
+const vp = document.getElementById('viewport');
+vp.style.width = W + 'px';
+vp.style.height = H + 'px';
+
+if (isRecording) {
+  document.body.style.margin = '0';
+  document.body.style.padding = '0';
+  document.body.style.overflow = 'hidden';
+  document.body.style.display = 'block';
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('title').style.display = 'none';
+  vp.style.borderRadius = '0';
+  vp.style.border = 'none';
+  vp.style.position = 'fixed';
+  vp.style.top = '0';
+  vp.style.left = '0';
+}
+
+// ─── Timeline ───
+const timeline = [
+  {
+    id: 'bg', scene: 'auroraGradient',
+    start: 0, dur: 8, z: 0, x: 0, y: 0, w: 1, h: 1,
+    params: { hueA: 270, hueB: 200, hueC: 320, intensity: 1.2, grain: 0.03, speed: 0.3 }
+  },
+  {
+    id: 'burst', scene: 'starBurst',
+    start: 0, dur: 8, z: 1, x: 0, y: 0, w: 1, h: 1,
+    params: { hueCenter: 45, hueSpread: 30, starCount: 12, points: 6, speed: 1.0, trailLength: 0.35, glowRadius: 0.018, bgAlpha: 0.18 }
+  },
+];
+
+// ─── Deterministic RNG ───
+function seededRng(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// ─── Scene Renderers ───
+
+function renderAurora(t, p, W, H) {
+  const T = t * p.speed;
+  return `<canvas width="${W}" height="${H}" style="width:100%;height:100%;display:block" id="sc_bg"></canvas>
+<script>(function(){
+  var c=document.getElementById("sc_bg"),x=c.getContext("2d"),W=${W},H=${H},T=${T};
+  var hA=${p.hueA},hB=${p.hueB},hC=${p.hueC},I=${p.intensity},G=${p.grain};
+  function blob(cx,cy,r,h,a){var g=x.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,"hsla("+h+","+Math.round(70*I)+"%,55%,"+a+")");g.addColorStop(1,"hsla("+h+","+Math.round(70*I)+"%,55%,0)");x.fillStyle=g;x.fillRect(0,0,W,H)}
+  x.fillStyle="#0a0a12";x.fillRect(0,0,W,H);x.globalCompositeOperation="lighter";
+  blob(W*(0.3+0.2*Math.sin(T*0.7)),H*(0.2+0.12*Math.cos(T*0.5)),W*0.8,hA,0.6);
+  blob(W*(0.7+0.15*Math.cos(T*0.6)),H*(0.45+0.15*Math.sin(T*0.4)),W*0.7,hB,0.5);
+  blob(W*(0.5+0.2*Math.sin(T*0.8)),H*(0.7+0.1*Math.cos(T*0.9)),W*0.75,hC,0.45);
+  blob(W*(0.4+0.1*Math.cos(T*1.1)),H*(0.9+0.05*Math.sin(T*0.6)),W*0.5,hA+40,0.3);
+  x.globalCompositeOperation="source-over";
+  if(G>0.001){var d=x.getImageData(0,0,W,H),p=d.data,g2=255*G;for(var i=0;i<p.length;i+=16){var n=(Math.random()-0.5)*g2;p[i]+=n;p[i+1]+=n;p[i+2]+=n}x.putImageData(d,0,0)}
+})()<\/script>`;
+}
+
+function renderStarBurst(t, p, W, H) {
+  const minDim = Math.min(W, H);
+  const maxR = minDim * 0.48;
+  const glowR = minDim * p.glowRadius;
+
+  const stars = [];
+  const rng = seededRng(42);
+  for (let i = 0; i < p.starCount; i++) {
+    const angle = (2 * Math.PI * i) / p.starCount + rng() * 0.3 - 0.15;
+    const hue = ((p.hueCenter + (rng() - 0.5) * p.hueSpread * 2) + 360) % 360;
+    const phaseOffset = rng();
+    stars.push({ angle, hue, phaseOffset });
+  }
+
+  const starsJson = JSON.stringify(stars);
+
+  return `<canvas width="${W}" height="${H}" style="width:100%;height:100%;display:block" id="sc_burst"></canvas>
+<script>(function(){
+  const c=document.getElementById("sc_burst"),x=c.getContext("2d"),W=${W},H=${H},t=${t};
+  const cx=W/2,cy=H/2,maxR=${maxR},glowR=${glowR},spd=${p.speed},trail=${p.trailLength},bg=${p.bgAlpha},pts=${p.points};
+  const stars=${starsJson};
+
+  x.fillStyle="rgba(10,10,18,"+bg+")";
+  x.fillRect(0,0,W,H);
+
+  function drawStar(sx,sy,r,hue,alpha,npts){
+    if(r<1) return;
+    const outer=r,inner=r*0.42;
+    x.beginPath();
+    for(let i=0;i<npts*2;i++){
+      const a=(Math.PI/npts)*i-Math.PI/2;
+      const rr=i%2===0?outer:inner;
+      if(i===0) x.moveTo(sx+Math.cos(a)*rr,sy+Math.sin(a)*rr);
+      else x.lineTo(sx+Math.cos(a)*rr,sy+Math.sin(a)*rr);
+    }
+    x.closePath();
+    x.fillStyle="hsla("+hue+",85%,68%,"+alpha+")";
+    x.fill();
+  }
+
+  function drawGlow(sx,sy,hue,alpha){
+    const g=x.createRadialGradient(sx,sy,0,sx,sy,glowR*2.5);
+    g.addColorStop(0,"hsla("+hue+",90%,80%,"+(alpha*0.9)+")");
+    g.addColorStop(0.4,"hsla("+hue+",80%,65%,"+(alpha*0.5)+")");
+    g.addColorStop(1,"hsla("+hue+",70%,55%,0)");
+    x.fillStyle=g;
+    x.beginPath();
+    x.arc(sx,sy,glowR*2.5,0,Math.PI*2);
+    x.fill();
+  }
+
+  stars.forEach(function(star){
+    const phase=((t*spd)+star.phaseOffset)%1;
+    const travelPhase=phase<0.7?phase/0.7:1;
+    const fadePhase=phase>=0.7?(phase-0.7)/0.3:0;
+    const r=travelPhase*maxR;
+    const alpha=phase<0.7?1:1-fadePhase;
+    const sx=cx+Math.cos(star.angle)*r;
+    const sy=cy+Math.sin(star.angle)*r;
+
+    const trailR=r-trail*maxR;
+    if(trailR>0&&alpha>0.05){
+      const tAlpha=alpha*0.35;
+      const tSize=glowR*1.2;
+      const trailX=cx+Math.cos(star.angle)*trailR;
+      const trailY=cy+Math.sin(star.angle)*trailR;
+      x.globalCompositeOperation="lighter";
+      const tg=x.createRadialGradient(trailX,trailY,0,trailX,trailY,tSize*3);
+      tg.addColorStop(0,"hsla("+star.hue+",80%,70%,"+tAlpha+")");
+      tg.addColorStop(1,"hsla("+star.hue+",70%,55%,0)");
+      x.fillStyle=tg;
+      x.beginPath();
+      x.arc(trailX,trailY,tSize*3,0,Math.PI*2);
+      x.fill();
+      x.globalCompositeOperation="source-over";
+    }
+
+    if(alpha>0.05){
+      x.globalCompositeOperation="lighter";
+      drawGlow(sx,sy,star.hue,alpha*0.6);
+      x.globalCompositeOperation="source-over";
+    }
+
+    if(alpha>0.05){
+      const starSize=glowR*1.8*(0.5+travelPhase*0.5);
+      drawStar(sx,sy,starSize,star.hue,alpha,pts);
+    }
+  });
+})()<\/script>`;
+}
+
+const RENDERERS = {
+  auroraGradient: renderAurora,
+  starBurst: renderStarBurst,
+};
+
+// ─── Create layer containers ───
+const layers = {};
+timeline.sort((a, b) => a.z - b.z).forEach(layer => {
+  const div = document.createElement('div');
+  div.className = 'layer';
+  div.id = 'layer_' + layer.id;
+  div.style.zIndex = layer.z;
+  div.style.left = (layer.x * 100) + '%';
+  div.style.top = (layer.y * 100) + '%';
+  div.style.width = (layer.w * 100) + '%';
+  div.style.height = (layer.h * 100) + '%';
+  if (layer.opacity !== undefined) div.style.opacity = layer.opacity;
+  vp.appendChild(div);
+  layers[layer.id] = div;
+});
+
+function enterExit(localT, dur) {
+  const fadeIn = Math.min(1, localT / 0.5);
+  const fadeOut = Math.max(0, 1 - (dur - localT) / 0.5);
+  return Math.min(fadeIn, 1 - fadeOut);
+}
+
+// ─── Recorder protocol ───
+window.__duration = DURATION;
+window.__onFrame = function(data) {
+  currentT = data.time;
+  renderFrame();
+};
+
+// ─── Playback ───
+let playing = true, startTime = performance.now(), currentT = 0;
+const progressFill = document.getElementById('progress-fill');
+const timeEl = document.getElementById('time');
+const playBtn = document.getElementById('play-btn');
+
+playBtn.onclick = () => {
+  playing = !playing;
+  if (playing) { startTime = performance.now() - currentT * 1000; playBtn.textContent = '⏸'; }
+  else { playBtn.textContent = '▶'; }
+};
+document.getElementById('progress').onclick = (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  currentT = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * DURATION;
+  startTime = performance.now() - currentT * 1000;
+};
+
+function renderFrame() {
+  progressFill.style.width = (currentT / DURATION * 100) + '%';
+  timeEl.textContent = currentT.toFixed(2) + ' / ' + DURATION.toFixed(2);
+
+  timeline.forEach(layer => {
+    const div = layers[layer.id];
+    const localT = currentT - layer.start;
+    if (localT < 0 || localT > layer.dur) { div.style.display = 'none'; return; }
+    div.style.display = 'block';
+
+    const baseOpacity = layer.opacity !== undefined ? layer.opacity : 1;
+    div.style.opacity = baseOpacity * enterExit(localT, layer.dur);
+
+    const renderer = RENDERERS[layer.scene];
+    if (renderer) {
+      const layerW = Math.round(W * layer.w);
+      const layerH = Math.round(H * layer.h);
+      const html = renderer(localT, layer.params, layerW, layerH);
+      if (div._lastHtml !== html) {
+        div.innerHTML = html;
+        div._lastHtml = html;
+        // execute inline scripts (innerHTML does not run scripts automatically)
+        div.querySelectorAll('script').forEach(s => {
+          const fn = new Function(s.textContent);
+          try { fn(); } catch(e) {}
+        });
+      }
+    }
+  });
+}
+
+function animLoop() {
+  if (playing) {
+    currentT = ((performance.now() - startTime) / 1000) % DURATION;
+  }
+  renderFrame();
+  requestAnimationFrame(animLoop);
+}
+
+animLoop();
+</script>
+</body>
+</html>

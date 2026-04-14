@@ -23,7 +23,7 @@ export async function run(argv) {
     process.stderr.write("warn: v0.1 tracks/clips format detected — consider migrating to v0.3 layers[]\n");
     result = validateTimelineLegacy(loaded.value, { projectDir: timelineDir(resolved.jsonPath) });
   } else if (fmt === "v0.3") {
-    result = validateTimelineV3(loaded.value);
+    result = await validateTimelineV3(loaded.value);
   } else {
     result = {
       ok: false,

@@ -34,6 +34,23 @@ export function detectFormat(timeline) {
   return "unknown";
 }
 
+/**
+ * Look up a scene in the registry by bare id (e.g. "auroraGradient") or ratio:id.
+ * Registry keys use "ratio:id" format; bare ids may match multiple ratios.
+ * Returns the entry for the given timelineRatio if available, otherwise first match.
+ */
+function registryLookup(sceneId, timelineRatio) {
+  if (REGISTRY.has(sceneId)) return REGISTRY.get(sceneId);
+  // Try ratio:id key
+  const prefixed = timelineRatio ? `${timelineRatio}:${sceneId}` : null;
+  if (prefixed && REGISTRY.has(prefixed)) return REGISTRY.get(prefixed);
+  // Fall back: any ratio
+  for (const [key, entry] of REGISTRY.entries()) {
+    if (key.endsWith(`:${sceneId}`)) return entry;
+  }
+  return null;
+}
+
 export async function validateTimelineV3(timeline) {
   REGISTRY = await getREGISTRY();
   const errors = [];
@@ -79,7 +96,15 @@ export async function validateTimelineV3(timeline) {
     }
     ids.add(layer.id);
 
-    if (layer.scene && REGISTRY.size > 0 && !REGISTRY.has(layer.scene)) {
+    const isPortrait = timeline.height > timeline.width;
+    const isSquare = Math.abs(timeline.width - timeline.height) < 50;
+    const aspectRatio = timeline.width / timeline.height;
+    const is43 = !isPortrait && !isSquare && aspectRatio >= 1.2 && aspectRatio <= 1.5;
+    const timelineRatio = isSquare ? "1:1" : isPortrait ? "9:16" : is43 ? "4:3" : "16:9";
+
+    const registryEntry = layer.scene && REGISTRY.size > 0 ? registryLookup(layer.scene, timelineRatio) : null;
+
+    if (layer.scene && REGISTRY.size > 0 && !registryEntry) {
       const sample = [...REGISTRY.keys()].slice(0, 5).join(", ");
       errors.push({
         code: "UNKNOWN_SCENE",
@@ -88,21 +113,14 @@ export async function validateTimelineV3(timeline) {
       });
     }
 
-    if (layer.scene && REGISTRY.size > 0 && REGISTRY.has(layer.scene)) {
-      const sceneMeta = REGISTRY.get(layer.scene);
+    if (layer.scene && REGISTRY.size > 0 && registryEntry) {
+      const sceneMeta = registryEntry?.META;
       const sceneRatio = sceneMeta?.ratio;
-      if (sceneRatio && sceneRatio !== "any") {
-        const isPortrait = timeline.height > timeline.width;
-        const isSquare = Math.abs(timeline.width - timeline.height) < 50;
-        const aspectRatio = timeline.width / timeline.height;
-        const is43 = !isPortrait && !isSquare && aspectRatio >= 1.2 && aspectRatio <= 1.5;
-        const timelineRatio = isSquare ? "1:1" : isPortrait ? "9:16" : is43 ? "4:3" : "16:9";
-        if (sceneRatio !== timelineRatio) {
-          errors.push({
-            code: "RATIO_MISMATCH",
-            message: `layer "${layer.id}" uses scene "${layer.scene}" (ratio ${sceneRatio}) but timeline is ${timelineRatio} (${timeline.width}x${timeline.height}). Use the correct ratio variant.`,
-          });
-        }
+      if (sceneRatio && sceneRatio !== "any" && sceneRatio !== timelineRatio) {
+        errors.push({
+          code: "RATIO_MISMATCH",
+          message: `layer "${layer.id}" uses scene "${layer.scene}" (ratio ${sceneRatio}) but timeline is ${timelineRatio} (${timeline.width}x${timeline.height}). Use the correct ratio variant.`,
+        });
       }
     }
 
