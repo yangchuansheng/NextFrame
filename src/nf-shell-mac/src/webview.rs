@@ -99,9 +99,11 @@ pub fn eval_js(web_view: &WKWebView, script: &str) -> Result<String, String> {
     let ns_script = NSString::from_str(script);
     let block = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
         let val = if !error.is_null() {
+            // SAFETY: error is non-null (checked above), a valid NSError from evaluateJavaScript callback.
             let desc = unsafe { &*error }.localizedDescription().to_string();
             Err(format!("JS error: {desc}"))
         } else if !result.is_null() {
+            // SAFETY: result is non-null (checked above), a valid Objective-C object; description returns NSString.
             let s: Retained<NSString> = unsafe {
                 objc2::msg_send![result, description]
             };
@@ -112,6 +114,7 @@ pub fn eval_js(web_view: &WKWebView, script: &str) -> Result<String, String> {
         *slot_clone.borrow_mut() = Some(val);
     });
 
+    // SAFETY: web_view is a live WKWebView; evaluateJavaScript is valid on the main thread with a completion block.
     unsafe {
         web_view.evaluateJavaScript_completionHandler(&ns_script, Some(&block));
     }
@@ -129,6 +132,7 @@ pub fn eval_js(web_view: &WKWebView, script: &str) -> Result<String, String> {
 
 fn load_fallback(web_view: &WKWebView) {
     let html = NSString::from_str(FALLBACK_HTML);
+    // SAFETY: web_view is a live WKWebView and html is a valid NSString.
     unsafe {
         web_view.loadHTMLString_baseURL(&html, None);
     }
@@ -183,7 +187,7 @@ pub fn screenshot(web_view: &WKWebView, out_path: &str) -> Result<(), String> {
                 None => Err("null image".to_string()),
             }
         } else if !error.is_null() {
-            // SAFETY: error is a valid NSError pointer.
+            // SAFETY: error is non-null (checked above), a valid NSError from the snapshot callback.
             let desc = unsafe { &*error }.localizedDescription().to_string();
             Err(format!("snapshot error: {desc}"))
         } else {

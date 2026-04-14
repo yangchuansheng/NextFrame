@@ -88,7 +88,8 @@ struct HttpReply {
 }
 
 fn serve_task(task: &ProtocolObject<dyn WKURLSchemeTask>, root: &Path) {
-    let request = unsafe { task.request() }; // SAFETY: WebKit provides a live task request.
+    // SAFETY: WebKit provides a live task with a valid request object.
+    let request = unsafe { task.request() };
     let Some(url) = request.URL() else {
         fail_task(task, "missing request URL");
         return;
@@ -193,14 +194,14 @@ fn send_reply(
         return Err("failed to create HTTP response".to_string());
     };
 
+    // SAFETY: Task protocol requires didReceiveResponse, then didReceiveData, then didFinish in order.
+    // All objects are live and the task is completed exactly once.
     unsafe {
         task.didReceiveResponse(&response);
-        // SAFETY: Response was delivered first, and the data buffer lives for the call.
         if !reply.body.is_empty() {
             let data = NSData::with_bytes(&reply.body);
             task.didReceiveData(&data);
         }
-        // SAFETY: The task is completed exactly once after response/data callbacks.
         task.didFinish();
     }
     Ok(())
@@ -208,8 +209,9 @@ fn send_reply(
 
 fn fail_task(task: &ProtocolObject<dyn WKURLSchemeTask>, reason: &str) {
     tracing::error!("scheme handler failed: {reason}");
+    // SAFETY: NSError factory method with valid domain constant.
     let error = unsafe { NSError::errorWithDomain_code_userInfo(NSCocoaErrorDomain, 0, None) };
-    // SAFETY: WebKit owns the live task and accepts terminal failure exactly once here.
+    // SAFETY: didFailWithError is called exactly once to terminate the failed scheme task.
     unsafe { task.didFailWithError(&error) };
 }
 
@@ -217,10 +219,12 @@ fn insert_header(headers: &NSMutableDictionary<NSString, NSString>, key: &str, v
     let key = NSString::from_str(key);
     let value = NSString::from_str(value);
     let key = ProtocolObject::from_ref(&*key);
-    unsafe { headers.setObject_forKey(&value, key) }; // SAFETY: NSString keys/values are valid Objective-C objects.
+    // SAFETY: NSString key and value are valid Objective-C objects for NSMutableDictionary insertion.
+    unsafe { headers.setObject_forKey(&value, key) };
 }
 
 fn resolve_file_path(root: &Path, raw_path: &str) -> Result<PathBuf, i64> {
+    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let mut relative = PathBuf::new();
     for segment in raw_path.split('/') {
         if segment.is_empty() || segment == "." {
@@ -235,8 +239,17 @@ fn resolve_file_path(root: &Path, raw_path: &str) -> Result<PathBuf, i64> {
         relative.push("index.html");
     }
     let joined = root.join(relative);
-    let canonical = joined.canonicalize().map_err(|err| io_status(err.kind()))?;
-    canonical.starts_with(root).then_some(canonical).ok_or(403)
+    let Some(file_name) = joined.file_name() else {
+        return Err(403);
+    };
+    let Some(parent) = joined.parent() else {
+        return Err(403);
+    };
+    let canonical_parent = parent.canonicalize().map_err(|err| io_status(err.kind()))?;
+    canonical_parent
+        .starts_with(&root)
+        .then_some(canonical_parent.join(file_name))
+        .ok_or(403)
 }
 
 fn read_range(path: &Path, start: u64, end: u64) -> Result<Vec<u8>, ErrorKind> {
@@ -331,9 +344,18 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::ErrorKind;
+    use std::os::unix::fs::symlink;
     use std::path::Path;
+    use std::process;
 
     // ── parse_range_header ──
+
+    fn create_test_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("nf-protocol-{name}-{}", process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 
     #[test]
     fn parse_range_full_range() {
@@ -436,45 +458,65 @@ mod tests {
 
     #[test]
     fn resolve_rejects_dot_dot_traversal() {
-        let tmp = std::env::temp_dir().join("nf-test-resolve");
-        let _ = fs::create_dir_all(&tmp);
+        let tmp = create_test_dir("resolve-dot-dot");
         assert_eq!(resolve_file_path(&tmp, "/../etc/passwd"), Err(403));
         assert_eq!(resolve_file_path(&tmp, "/foo/../../bar"), Err(403));
     }
 
     #[test]
     fn resolve_rejects_backslash() {
-        let tmp = std::env::temp_dir().join("nf-test-resolve2");
-        let _ = fs::create_dir_all(&tmp);
+        let tmp = create_test_dir("resolve-backslash");
         assert_eq!(resolve_file_path(&tmp, "/foo\\bar"), Err(403));
     }
 
     #[test]
     fn resolve_defaults_to_index_html() {
         // Empty path → tries root/index.html → 404 because file doesn't exist
-        let tmp = std::env::temp_dir().join("nf-test-resolve3");
-        let _ = fs::create_dir_all(&tmp);
+        let tmp = create_test_dir("resolve-index");
         // Without index.html, canonicalize fails → 404
         assert_eq!(resolve_file_path(&tmp, "/"), Err(404));
     }
 
     #[test]
     fn resolve_finds_existing_file() {
-        let tmp = std::env::temp_dir().join("nf-test-resolve4");
-        let _ = fs::create_dir_all(&tmp);
+        let tmp = create_test_dir("resolve-existing");
         fs::write(tmp.join("hello.txt"), "hi").unwrap();
-        let canonical_root = tmp.canonicalize().unwrap();
-        let result = resolve_file_path(&canonical_root, "/hello.txt");
+        let result = resolve_file_path(&tmp, "/hello.txt");
         assert!(result.is_ok(), "expected Ok, got {result:?}");
         assert!(result.unwrap().ends_with("hello.txt"));
+    }
+
+    #[test]
+    fn resolve_allows_leaf_symlink_target_outside_root() {
+        let tmp = create_test_dir("resolve-leaf-symlink");
+        let external = create_test_dir("resolve-leaf-symlink-external");
+        let external_file = external.join("clip.mp4");
+        let symlink_path = tmp.join("clip.mp4");
+        fs::write(&external_file, "video").unwrap();
+        symlink(&external_file, &symlink_path).unwrap();
+
+        let result = resolve_file_path(&tmp, "/clip.mp4");
+        assert_eq!(result, Ok(symlink_path), "expected leaf symlink to resolve inside root");
+    }
+
+    #[test]
+    fn resolve_rejects_symlink_directory_escape() {
+        let tmp = create_test_dir("resolve-dir-symlink");
+        let external = create_test_dir("resolve-dir-symlink-external");
+        let escape = tmp.join("escape");
+        let external_file = external.join("secret.txt");
+        fs::write(&external_file, "secret").unwrap();
+        symlink(&external, &escape).unwrap();
+
+        let result = resolve_file_path(&tmp, "/escape/secret.txt");
+        assert_eq!(result, Err(403));
     }
 
     // ── read_range ──
 
     #[test]
     fn read_range_returns_correct_slice() {
-        let tmp = std::env::temp_dir().join("nf-test-range");
-        let _ = fs::create_dir_all(&tmp);
+        let tmp = create_test_dir("read-range");
         let path = tmp.join("data.bin");
         fs::write(&path, b"0123456789").unwrap();
         let result = read_range(&path, 2, 5).unwrap();
