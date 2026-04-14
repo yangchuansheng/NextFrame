@@ -203,7 +203,7 @@ function ensureComposePreviewButton() {
 }
 
 function tagEditorControls() {
-  document.querySelectorAll('.ed-play-btn, .ed-t-btn').forEach(function(el) {
+  document.querySelectorAll('.ed-play-btn, .ed-t-btn:not([data-nf-action="compose-preview"])').forEach(function(el) {
     el.dataset.nfAction = 'preview';
   });
   ensureComposePreviewButton();
@@ -443,93 +443,15 @@ async function composePreview() {
 }
 
 function renderEditorClipList() {
-  const el = document.getElementById('ed-clip-list');
-  if (!el || typeof ED_CLIPS === 'undefined') return;
-  let html = '';
-  ED_CLIPS.forEach(function(c) {
-    const isActive = c.id === edActiveClip;
-    html += '<div class="ed-clip-item' + (isActive ? ' active' : '') + '" data-nf-action="select-clip" onclick="edSelectClip(\'' + c.id + '\')">' +
-      '<div class="ed-clip-top">' +
-        '<span class="ed-clip-name">' + c.name + '</span>' +
-        '<span class="ed-clip-tc">' + c.tcIn + ' - ' + c.tcOut + '</span>' +
-      '</div>' +
-      '<div class="ed-clip-tags">' +
-        '<span class="ed-clip-tag seg">' + c.seg + '</span>' +
-        '<span class="ed-clip-tag dur">' + c.dur + '</span>' +
-      '</div>' +
-    '</div>';
-  });
-  el.innerHTML = html;
+  return document.getElementById('ed-clip-list');
 }
 
 function renderEditorTimeline() {
-  const el = document.getElementById('ed-tl-body');
-  if (!el || typeof ED_TRACKS === 'undefined') return;
-  const totalDur = 45.2;
-  let html = '';
-
-  html += '<div class="ed-tl-ruler">';
-  html += '<div class="ed-tl-ruler-bg"></div>';
-  for (let t = 0; t <= 45; t += 5) {
-    const pct = (t / totalDur * 100).toFixed(1);
-    html += '<span class="ed-tl-tick" style="left:' + pct + '%">' + t + 's</span>';
-  }
-  html += '<div class="ed-tl-playhead" style="left:31.8%;top:0;bottom:-' + (ED_TRACKS.length * 36 + 8) + 'px"></div>';
-  html += '</div>';
-
-  ED_TRACKS.forEach(function(track) {
-    html += '<div class="ed-tl-track">';
-    html += '<span class="ed-tl-track-label">' + track.name + '</span>';
-    html += '<div class="ed-tl-track-lane">';
-    track.clips.forEach(function(clip) {
-      html += '<div class="ed-tl-clip ' + clip.color + '" data-nf-action="preview" style="left:' + clip.left + '%;width:' + clip.width + '%">' + clip.name + '</div>';
-    });
-    html += '</div></div>';
-  });
-
-  el.innerHTML = html;
+  return document.getElementById('ed-tl-body');
 }
 
 function renderEditorInspector() {
-  const el = document.getElementById('ed-insp-inner');
-  if (!el || typeof ED_INSPECTOR === 'undefined') return;
-  const data = ED_INSPECTOR[edActiveClip];
-  if (!data) return;
-
-  let html = '';
-  html += '<div class="ed-insp-header">' +
-    '<div class="ed-insp-name">' + data.name + '</div>' +
-    '<div class="ed-insp-id">' + data.id + '</div>' +
-  '</div>';
-
-  html += '<div class="ed-insp-section">' +
-    '<div class="ed-insp-section-title">CLIP</div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">Scene</span><span class="ed-insp-value accent">' + data.clip.scene + '</span></div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">Start</span><span class="ed-insp-value">' + data.clip.start + '</span></div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">Duration</span><span class="ed-insp-value">' + data.clip.duration + '</span></div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">Layer</span><span class="ed-insp-value">' + data.clip.layer + '</span></div>' +
-  '</div>';
-
-  html += '<div class="ed-insp-section"><div class="ed-insp-section-title">PARAMS</div>';
-  const params = data.params;
-  for (const key in params) {
-    html += '<div class="ed-insp-row"><span class="ed-insp-label">' + key + '</span><span class="ed-insp-value">' + params[key] + '</span></div>';
-  }
-  html += '</div>';
-
-  html += '<div class="ed-insp-section"><div class="ed-insp-section-title">POSITION</div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">x</span><input class="ed-insp-input" data-nf-action="save-timeline" value="' + data.position.x + '"></div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">y</span><input class="ed-insp-input" data-nf-action="save-timeline" value="' + data.position.y + '"></div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">width</span><input class="ed-insp-input" data-nf-action="save-timeline" value="' + data.position.width + '"></div>' +
-    '<div class="ed-insp-row"><span class="ed-insp-label">height</span><input class="ed-insp-input" data-nf-action="save-timeline" value="' + data.position.height + '"></div>' +
-  '</div>';
-
-  html += '<div class="ed-insp-section">' +
-    '<div class="ed-insp-section-title">FILE</div>' +
-    '<div class="ed-insp-path">' + data.file + '</div>' +
-  '</div>';
-
-  el.innerHTML = html;
+  return document.getElementById('ed-insp-inner');
 }
 
 function edSelectClip(idOrIndex) {
@@ -538,23 +460,9 @@ function edSelectClip(idOrIndex) {
     return;
   }
   edActiveClip = idOrIndex;
-  renderEditorClipList();
-  renderEditorInspector();
 }
 
 tagEditorControls();
-
-// Timeline click → preview frame at that time position
-document.addEventListener('click', function(e) {
-  const track = e.target.closest('.ed-tl-track-clips');
-  if (!track || !edTimelineData) return;
-  const rect = track.getBoundingClientRect();
-  const pct = (e.clientX - rect.left) / rect.width;
-  const totalDur = edTimelineData.duration || 0;
-  if (totalDur > 0) {
-    previewFrame(pct * totalDur);
-  }
-});
 
 window.loadEditorTimeline = loadEditorTimeline;
 window.showEditorEmpty = showEditorEmpty;
@@ -567,3 +475,5 @@ window.edSaveParam = edSaveParam;
 window.saveTimeline = saveTimeline;
 window.composePreview = composePreview;
 window.previewFrame = previewFrame;
+window.handleTimelineTrackClick = handleTimelineTrackClick;
+window.handleTimelineInspectorChange = handleTimelineInspectorChange;
