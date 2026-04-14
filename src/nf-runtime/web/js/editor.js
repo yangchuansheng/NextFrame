@@ -436,9 +436,11 @@ async function composePreview() {
     timelinePath: buildEditorTimelinePath()
   });
   if (result && result.path) {
+    // Read HTML content and inject via srcdoc for same-origin postMessage
+    var htmlContent = await bridgeCall('fs.read', { path: result.path });
+    var raw = htmlContent.contents || htmlContent.content || '';
     var frame = renderEditorPreviewContent('iframe', function(el) {
-      var relativePath = result.path.replace(/.*\/NextFrame\/projects\//, '');
-      el.src = 'nfdata://localhost/' + encodeURI(relativePath) + '?t=' + Date.now();
+      el.srcdoc = typeof raw === 'string' ? raw : '';
       el.title = 'Preview';
       el.allow = 'autoplay';
     });
