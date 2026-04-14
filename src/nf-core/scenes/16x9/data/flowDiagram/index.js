@@ -11,8 +11,14 @@ export const meta = {
     "minimal": {}
   },
   params: {
-    nodes:         { type:"array",  required:true, label:"主节点列表",  semantic:"array of {icon,label,sub,color}. icon should be 1-2 chars or emoji", group:"content" },
-    forkNodes:     { type:"array",  default:[],   label:"分叉节点",     semantic:"array of {label,sub,color}. label can be longer text like PASS/BLOCK", group:"content" },
+    nodes:         { type:"array",  required:true, default:[
+      { icon:"AI", label:"AI 请求", sub:"要执行操作", color:"blue" },
+      { icon:"H", label:"Hook 安检", sub:"脚本检查", color:"orange" }
+    ], label:"主节点列表", semantic:"array of {icon,label,sub,color}. icon should be 1-2 chars or emoji", group:"content" },
+    forkNodes:     { type:"array",  default:[
+      { label:"PASS", sub:"放行执行", color:"green" },
+      { label:"BLOCK", sub:"拦截拒绝", color:"red" }
+    ], label:"分叉节点", semantic:"array of {label,sub,color}. label can be longer text like PASS/BLOCK", group:"content" },
     enterDelay:    { type:"number", default:0,    label:"出现延迟(s)",  group:"animation", range:[0,10], step:0.1 },
     y:             { type:"number", default:0,    label:"Y偏移(px, 0=居中)", semantic:"vertical position, 0 for centered", group:"style", range:[0,1080], step:10 }
   },
@@ -20,7 +26,6 @@ export const meta = {
     when: "展示多步流程、决策分叉。主节点用短 icon（emoji/1-2字母），分叉节点用 label（可长文字）。",
     how: "color: 'blue'=#8ab4cc, 'orange'=#da7756, 'green'=#7ec699, 'red'=#e06c75。",
     example: {
-      headline:'给 AI 安了一个<span style="color:#da7756">安检员</span>',
       nodes:[
         {icon:"AI",label:"AI 请求",sub:"要执行操作",color:"blue"},
         {icon:"H",label:"Hook 安检",sub:"脚本检查",color:"orange"}
@@ -29,7 +34,8 @@ export const meta = {
         {label:"PASS",sub:"放行执行",color:"green"},
         {label:"BLOCK",sub:"拦截拒绝",color:"red"}
       ],
-      quote:"每次动手之前，安检员先过一遍——该拦的拦，该放行的放行"
+      enterDelay: 0.6,
+      y: 540
     },
     theme_guide: { "anthropic-warm":"暖色调，金色引语", "dark-blue":"冷蓝", "minimal":"极简" },
     avoid: "nodes 超过 4 个会挤。icon 用 emoji 或 1-2 个字母，不要用长单词。",
@@ -41,14 +47,14 @@ function ease3(p){return 1-Math.pow(1-Math.max(0,Math.min(1,p)),3)}
 function fadeIn(t,start,dur){return ease3((t-start)/dur)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
-var COLOR_MAP = { blue:"#8ab4cc", orange:"#da7756", green:"#7ec699", red:"#e06c75" };
+const COLOR_MAP = { blue:"#8ab4cc", orange:"#da7756", green:"#7ec699", red:"#e06c75" };
 function rc(c){ return COLOR_MAP[c] || c || "#8ab4cc"; }
 
 // 主节点：圆形，icon 居中（auto font-size），下方 label + sub
 function nodeCircle(icon, label, sub, color) {
-  var c = rc(color);
-  var iconLen = (icon||'').length;
-  var fs = iconLen <= 2 ? 20 : iconLen <= 4 ? 14 : 11;
+  const c = rc(color);
+  const iconLen = (icon||'').length;
+  const fs = iconLen <= 2 ? 20 : iconLen <= 4 ? 14 : 11;
   return '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:90px">' +
     '<div style="width:72px;height:72px;border-radius:50%;border:2px solid '+c+';background:'+c+'15;' +
       'display:flex;align-items:center;justify-content:center;font:800 '+fs+'px \'SF Mono\',monospace;color:'+c+';flex-shrink:0;letter-spacing:.02em">' +
@@ -69,7 +75,7 @@ function arrow() {
 
 // 分叉节点：药丸标签，label + sub 横排
 function forkPill(label, sub, color) {
-  var c = rc(color);
+  const c = rc(color);
   return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0">' +
     '<div style="padding:6px 18px;border-radius:20px;border:2px solid '+c+';background:'+c+'12;' +
       'font:700 14px \'SF Mono\',monospace;color:'+c+';letter-spacing:.05em;white-space:nowrap">' +
@@ -80,22 +86,22 @@ function forkPill(label, sub, color) {
 }
 
 export function render(t, params, vp) {
-  var p = {};
-  for(var k in meta.params) p[k] = params[k]!==undefined ? params[k] : meta.params[k].default;
-  var nodes = Array.isArray(p.nodes) ? p.nodes : [];
-  var forkNodes = Array.isArray(p.forkNodes) ? p.forkNodes : [];
-  var flowOp = fadeIn(t, p.enterDelay || 0, 0.8);
-  var yPos = p.y || 0;
+  const p = {};
+  for (const k in meta.params) p[k] = params[k] !== undefined ? params[k] : meta.params[k].default;
+  const nodes = Array.isArray(p.nodes) ? p.nodes : [];
+  const forkNodes = Array.isArray(p.forkNodes) ? p.forkNodes : [];
+  const flowOp = fadeIn(t, p.enterDelay || 0, 0.8);
+  const yPos = p.y || 0;
 
   // Main row: circle nodes with arrows
-  var mainRow = nodes.map(function(n, i) {
+  const mainRow = nodes.map(function(n, i) {
     return (i > 0 ? arrow() : '') + nodeCircle(n.icon, n.label, n.sub, n.color);
   }).join('');
 
   // Fork: arrow + stacked pill tags
-  var forkHtml = '';
-  if(forkNodes.length > 0) {
-    var pills = forkNodes.map(function(fn) {
+  let forkHtml = '';
+  if (forkNodes.length > 0) {
+    const pills = forkNodes.map(function(fn) {
       return forkPill(fn.label||fn.icon||'', fn.sub, fn.color);
     }).join('');
     forkHtml = '<div style="display:flex;align-items:center">' +
@@ -104,12 +110,13 @@ export function render(t, params, vp) {
     '</div>';
   }
 
-  var posStyle = yPos > 0
+  const posStyle = yPos > 0
     ? 'position:absolute;left:0;right:0;top:'+yPos+'px;display:flex;justify-content:center'
     : 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center';
+  const safeWidth = Math.max(360, vp.width - 120);
 
   return '<div style="'+posStyle+'">' +
-    '<div style="display:flex;align-items:center;opacity:'+flowOp+'">' +
+    '<div style="display:flex;align-items:center;opacity:'+flowOp+';max-width:'+safeWidth+'px">' +
       mainRow + forkHtml +
     '</div>' +
   '</div>';
@@ -124,7 +131,7 @@ export function screenshots() {
 }
 
 export function lint(params, vp) {
-  var errors = [];
+  const errors = [];
   if(!params.nodes || !Array.isArray(params.nodes) || params.nodes.length === 0)
     errors.push("nodes 不能为空。Fix: 传入至少一个 {icon,label,sub,color} 对象");
   if(params.nodes && params.nodes.length > 4)

@@ -25,7 +25,14 @@ export const meta = {
   params: {
     title: { type: "string", default: "Terminal", label: "窗口标题", semantic: "macOS title bar text", group: "content" },
     lines: {
-      type: "array", required: true, label: "代码行",
+      type: "array", required: true, default: [
+        { text: "$ git commit -m \"ship hook guard\"", type: "prompt" },
+        { text: "", type: "separator" },
+        { text: "Running pre-commit hook...", type: "dim" },
+        { text: "Checking code style... OK", type: "output" },
+        { text: "Lint check...          FAILED", type: "error" },
+        { text: "hook rejected: commit blocked", type: "error" },
+      ], label: "代码行",
       semantic: "Array of {text, type?} where type is prompt|output|comment|error|keyword|string|variable|dim|separator. Default type is plain text.",
       group: "content"
     },
@@ -166,11 +173,12 @@ export function render(t, params, vp) {
     : "";
 
   const titleText = p.title || "";
+  const safeMaxWidth = Math.max(320, vp.width - x - 60);
 
   // Window positioning
   const posStyle = yCenter
-    ? `position:absolute;left:${x}px;top:50%;transform:translateY(-50%);width:${w}px`
-    : `position:absolute;left:${x}px;top:${yVal}px;width:${w}px`;
+    ? `position:absolute;left:${x}px;top:50%;transform:translateY(-50%);width:${w}px;max-width:${safeMaxWidth}px`
+    : `position:absolute;left:${x}px;top:${yVal}px;width:${w}px;max-width:${safeMaxWidth}px`;
 
   const heightStyle = h > 0 ? `height:${h}px;` : "";
 

@@ -13,7 +13,7 @@ export const meta = {
     "subtle": { color: "rgba(212,180,131,.7)", fontSize: 18 },
   },
   params: {
-    text: { type: "string", required: true, label: "引语文字", semantic: "quote text, auto-wrapped in quotation marks", group: "content" },
+    text: { type: "string", required: true, default: "每次动手之前，安检员先过一遍，该拦的拦，该放行的放行。", label: "引语文字", semantic: "quote text, auto-wrapped in quotation marks", group: "content" },
     color: { type: "color", default: "#d4b483", label: "文字色", semantic: "quote text color", group: "color" },
     fontSize: { type: "number", default: 20, label: "字号(px)", semantic: "font size", group: "style", range: [14, 32], step: 1 },
     y: { type: "number", default: 0, label: "Y位置(px, 0=底部三分之二)", semantic: "vertical position", group: "style", range: [0, 1080], step: 10 },
@@ -35,13 +35,13 @@ function fadeIn(t, start, dur) { return ease3((t - start) / dur); }
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 export function render(t, params, vp) {
-  var p = {};
-  for (var k in meta.params) p[k] = params[k] !== undefined ? params[k] : meta.params[k].default;
-  var op = fadeIn(t, p.enterDelay || 0, 0.7);
-  var fs = p.fontSize || 20;
-  var color = p.color || "#d4b483";
-  var mw = p.maxWidth || 700;
-  var yVal = p.y > 0 ? p.y : Math.round(vp.height * 0.68);
+  const p = {};
+  for (const k in meta.params) p[k] = params[k] !== undefined ? params[k] : meta.params[k].default;
+  const op = fadeIn(t, p.enterDelay || 0, 0.7);
+  const fs = p.fontSize || 20;
+  const color = p.color || "#d4b483";
+  const mw = p.maxWidth || 700;
+  const yVal = p.y > 0 ? p.y : Math.round(vp.height * 0.68);
   return '<div style="position:absolute;left:0;right:0;top:' + yVal + 'px;display:flex;justify-content:center;padding:0 60px">' +
     '<div style="font:italic ' + fs + 'px Georgia,\'Noto Serif SC\',serif;color:' + color + ';text-align:center;max-width:' + mw + 'px;line-height:1.5;opacity:' + op + '">"' + esc(p.text || '') + '"</div>' +
   '</div>';
@@ -52,7 +52,7 @@ export function screenshots() {
 }
 
 export function lint(params, vp) {
-  var errors = [];
+  const errors = [];
   if (!params.text) errors.push("text 不能为空。Fix: 传入引语文字");
   if (params.text && params.text.length > 80) errors.push("text 超过 80 字可能溢出。Fix: 精简到 80 字以内");
   return { ok: errors.length === 0, errors: errors };

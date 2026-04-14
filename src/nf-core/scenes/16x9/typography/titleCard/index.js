@@ -12,8 +12,8 @@ export const meta = {
   },
   params: {
     eyebrow: { type:"string", default:"", label:"小标签", semantic:"uppercase mono tag above title, e.g. DIMENSION 05", group:"content" },
-    title: { type:"string", required:true, label:"主标题", semantic:"big serif title, supports inline HTML for accent spans", group:"content" },
-    subtitle: { type:"string", default:"", label:"副标题", semantic:"smaller body text below title", group:"content" },
+    title: { type:"string", required:true, default:'Hook<br><span style="color:#da7756">AI 操作的拦门</span>', label:"主标题", semantic:"big serif title, supports inline HTML for accent spans", group:"content" },
+    subtitle: { type:"string", default:"类比 Git Hook，拦截 AI 的危险操作", label:"副标题", semantic:"smaller body text below title", group:"content" },
     x: { type:"number", default:700, label:"X起点(px)", semantic:"left edge position", group:"style", range:[0,1920], step:10 },
     eyebrowDelay: { type:"number", default:0.3, label:"小标签出现时间(s)", semantic:"eyebrow fade-in start time", group:"animation", range:[0,5], step:0.1 },
     titleDelay: { type:"number", default:0.8, label:"标题出现时间(s)", semantic:"title fade-in start time", group:"animation", range:[0,5], step:0.1 },
@@ -37,16 +37,16 @@ function fadeIn(t,start,dur){return ease3((t-start)/dur)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 export function render(t, params, vp) {
-  var p = {};
-  for(var k in meta.params) p[k] = params[k]!==undefined ? params[k] : meta.params[k].default;
-  var x = p.x || 700;
-  var w = 1920 - x - 60;
-  var eyOp = fadeIn(t, p.eyebrowDelay||0.3, 0.5);
-  var titOp = fadeIn(t, p.titleDelay||0.8, 0.7);
-  var subOp = fadeIn(t, p.subtitleDelay||2.0, 0.7);
+  const p = {};
+  for (const k in meta.params) p[k] = params[k] !== undefined ? params[k] : meta.params[k].default;
+  const x = p.x || 700;
+  const w = Math.max(320, vp.width - x - 60);
+  const eyOp = fadeIn(t, p.eyebrowDelay || 0.3, 0.5);
+  const titOp = fadeIn(t, p.titleDelay || 0.8, 0.7);
+  const subOp = fadeIn(t, p.subtitleDelay || 2.0, 0.7);
   // title allows HTML (for accent spans), don't escape it
-  var titleHtml = p.title || '';
-  return '<div style="position:absolute;left:'+x+'px;right:60px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:20px">' +
+  const titleHtml = p.title || '';
+  return '<div style="position:absolute;left:'+x+'px;right:60px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:20px;max-width:'+w+'px">' +
     (p.eyebrow ? '<div style="font:700 14px \'SF Mono\',\'JetBrains Mono\',monospace;letter-spacing:.16em;text-transform:uppercase;color:'+p.eyebrowColor+';opacity:'+eyOp+'">'+esc(p.eyebrow)+'</div>' : '') +
     '<div style="font:700 48px Georgia,\'Noto Serif SC\',serif;color:'+p.titleColor+';line-height:1.3;opacity:'+titOp+'">'+titleHtml+'</div>' +
     (p.subtitle ? '<div style="font:500 20px system-ui,\'PingFang SC\',sans-serif;color:'+p.subtitleColor+';line-height:1.6;opacity:'+subOp+'">'+esc(p.subtitle)+'</div>' : '') +
@@ -62,7 +62,7 @@ export function screenshots() {
 }
 
 export function lint(params, vp) {
-  var errors = [];
+  const errors = [];
   if (!params.title) errors.push("title 不能为空。Fix: 传入主标题文字");
   return { ok: errors.length===0, errors: errors };
 }
