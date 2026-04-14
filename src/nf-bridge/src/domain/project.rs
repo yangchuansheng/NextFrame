@@ -58,13 +58,16 @@ pub(crate) fn handle_project_list(_params: &Value) -> Result<Value, String> {
         // Find a thumbnail: look for thumbnail.png, or first screenshot in any episode
         let thumbnail = find_project_thumbnail(&path);
 
-        projects.push(json!({
+        let mut entry = json!({
             "name": meta.get("name").and_then(Value::as_str).unwrap_or_default(),
             "path": path.display().to_string(),
             "episodes": episode_count,
             "updated": updated,
-            "thumbnail": thumbnail,
-        }));
+        });
+        if let Some(ref thumb) = thumbnail {
+            entry["thumbnail"] = json!(thumb);
+        }
+        projects.push(entry);
     }
 
     projects.sort_by(|a, b| {
