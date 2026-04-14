@@ -1,138 +1,15 @@
-use block2::RcBlock;
 use std::ffi::c_ushort;
-use std::panic::AssertUnwindSafe;
-use std::ptr::{NonNull, null_mut};
 
+use block2::RcBlock;
 use objc2::msg_send;
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
-use objc2_app_kit::{NSEvent, NSEventMask, NSEventModifierFlags, NSEventType};
+use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
 use objc2_foundation::{NSError, NSPoint, NSString};
 use objc2_web_kit::WKWebView;
 
-use crate::state::{APP_STATE, close_tab, create_dynamic_tab, switch_tab};
+use super::{catch_objc, native_click_at};
 
-/// Run an Obj-C call that might throw. Prevents crash from foreign exceptions in deferred closures.
-fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
-    let result = unsafe { objc2::exception::catch(AssertUnwindSafe(f)) };
-    result.map_err(|e| format!("ObjC exception: {e:?}"))
-}
-
-fn visible_tab_ids() -> Vec<usize> {
-    let Some(state) = APP_STATE.get() else {
-        return Vec::new();
-    };
-    let Ok(tabs) = state.browser_tabs.lock() else {
-        return Vec::new();
-    };
-    tabs.iter()
-        .filter(|tab| tab.visible)
-        .map(|tab| tab.id)
-        .collect()
-}
-
-fn shortcut_tab_target(keycode: c_ushort) -> Option<usize> {
-    let visible = visible_tab_ids();
-    match keycode {
-        18..=28 => {}
-        _ => return None,
-    }
-    if visible.is_empty() {
-        return None;
-    }
-    match keycode {
-        18 => visible.first().copied(),
-        19 => visible.get(1).copied(),
-        20 => visible.get(2).copied(),
-        21 => visible.get(3).copied(),
-        23 => visible.get(4).copied(),
-        22 => visible.get(5).copied(),
-        26 => visible.get(6).copied(),
-        28 => visible.get(7).copied(),
-        25 => visible.last().copied(),
-        _ => None,
-    }
-}
-
-fn handle_browser_shortcut(event: NonNull<NSEvent>) -> bool {
-    let event = unsafe { event.as_ref() };
-    if event.isARepeat() {
-        return false;
-    }
-
-    let modifiers = event.modifierFlags() & NSEventModifierFlags::DeviceIndependentFlagsMask;
-    if modifiers != NSEventModifierFlags::Command {
-        return false;
-    }
-
-    match event.keyCode() {
-        17 => {
-            if let Err(err) = create_dynamic_tab(Some("about:blank"), true) {
-                crate::state::log_crash("WARN", "keyboard", &format!("Cmd+T: {err}"));
-            }
-            true
-        }
-        13 => {
-            let Some(state) = APP_STATE.get() else {
-                return false;
-            };
-            let active_tab_id = state.current_tab.load(std::sync::atomic::Ordering::Relaxed);
-            if let Err(err) = close_tab(active_tab_id) {
-                crate::state::log_crash("WARN", "keyboard", &format!("Cmd+W: {err}"));
-            }
-            true
-        }
-        37 => {
-            let Some(state) = APP_STATE.get() else {
-                return false;
-            };
-            let field = unsafe { &*state.address_field_ptr };
-            if let Err(err) = catch_objc(|| unsafe {
-                field.selectText(None);
-                let _: bool = msg_send![field, becomeFirstResponder];
-            }) {
-                crate::state::log_crash("WARN", "keyboard", &format!("Cmd+L: {err}"));
-            }
-            true
-        }
-        18 | 19 | 20 | 21 | 23 | 22 | 26 | 28 | 25 => {
-            let Some(tab_id) = shortcut_tab_target(event.keyCode()) else {
-                return false;
-            };
-            switch_tab(tab_id);
-            true
-        }
-        _ => false,
-    }
-}
-
-/// Installs the local key monitor that handles browser-wide keyboard shortcuts.
-/// Supported shortcuts cover tab creation, closing, address focus, and tab switching.
-pub(crate) fn install_browser_shortcuts() {
-    let handler = RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {
-        if handle_browser_shortcut(event) {
-            null_mut()
-        } else {
-            event.as_ptr()
-        }
-    });
-    let monitor = unsafe {
-        NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::KeyDown, &handler)
-    };
-    if monitor.is_none() {
-        crate::state::log_crash("WARN", "keyboard", "failed to install local key monitor");
-        return;
-    }
-    let _ = objc2::rc::Retained::into_raw(monitor.unwrap());
-}
-
-// ── Keyboard simulation: send NSEvent directly to WKWebView ──
-// Goes through WebKit's keyDown: → interpretKeyEvents: → full input pipeline.
-// No OS-level focus issues — events go directly to our webview.
-
-/// Create an NSEvent for a key and send it to the webview via keyDown:/keyUp:
-/// Synthesizes a native key press and release pair directly into the target webview.
-/// This goes through WebKit's event pipeline instead of global system focus.
 pub(crate) fn send_key_to_webview(
     webview: &WKWebView,
     ch: &str,
@@ -156,11 +33,11 @@ pub(crate) fn send_key_to_webview(
         keycode,
     );
     if let Some(event) = &down
-        && let Err(e) = catch_objc(|| {
+        && let Err(err) = catch_objc(|| {
             let _: () = unsafe { msg_send![webview, keyDown: &**event] };
         })
     {
-        crate::state::log_crash("WARN", "keyboard", &format!("keyDown: {e}"));
+        crate::state::log_crash("WARN", "keyboard", &format!("keyDown: {err}"));
     }
 
     let up = NSEvent::keyEventWithType_location_modifierFlags_timestamp_windowNumber_context_characters_charactersIgnoringModifiers_isARepeat_keyCode(
@@ -176,53 +53,11 @@ pub(crate) fn send_key_to_webview(
         keycode,
     );
     if let Some(event) = &up
-        && let Err(e) = catch_objc(|| {
+        && let Err(err) = catch_objc(|| {
             let _: () = unsafe { msg_send![webview, keyUp: &**event] };
         })
     {
-        crate::state::log_crash("WARN", "keyboard", &format!("keyUp: {e}"));
-    }
-}
-
-fn native_click_at(webview: &WKWebView, x: f64, y: f64) {
-    let frame = webview.frame();
-    let jx = (jitter(0, 2, x as u64) as f64) - 1.0;
-    let jy = (jitter(0, 2, y as u64) as f64) - 1.0;
-    let point = NSPoint::new(x + jx, frame.size.height - y + jy);
-    let win_num = webview.window().map(|w| w.windowNumber()).unwrap_or(0);
-
-    let down = NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
-        NSEventType::LeftMouseDown,
-        point,
-        NSEventModifierFlags::empty(),
-        0.0,
-        win_num,
-        None,
-        0,
-        1,
-        1.0,
-    );
-    if let Some(event) = &down {
-        let _ = catch_objc(|| {
-            let _: () = unsafe { msg_send![webview, mouseDown: &**event] };
-        });
-    }
-
-    let up = NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
-        NSEventType::LeftMouseUp,
-        point,
-        NSEventModifierFlags::empty(),
-        0.0,
-        win_num,
-        None,
-        0,
-        1,
-        0.0,
-    );
-    if let Some(event) = &up {
-        let _ = catch_objc(|| {
-            let _: () = unsafe { msg_send![webview, mouseUp: &**event] };
-        });
+        crate::state::log_crash("WARN", "keyboard", &format!("keyUp: {err}"));
     }
 }
 
@@ -253,8 +88,6 @@ fn shifted_ascii_key(ch: char) -> Option<c_ushort> {
     }
 }
 
-/// Maps a text character to the characters, keycode, and modifier flags needed to type it.
-/// ASCII uppercase and shifted punctuation are expanded into the correct Shift combinations.
 pub(crate) fn key_spec_for_text(ch: char) -> (String, c_ushort, NSEventModifierFlags) {
     match ch {
         '\r' | '\n' => ("\r".to_owned(), 36, NSEventModifierFlags::empty()),
@@ -294,8 +127,6 @@ fn named_key_spec(key: &str) -> Option<(String, c_ushort)> {
     }
 }
 
-/// Parses a key command like `cmd+v` or `enter` and sends it to the webview.
-/// Named keys, single characters, and modifier combinations are supported.
 pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), String> {
     let key = key.trim();
     if key.is_empty() {
@@ -343,8 +174,6 @@ pub(crate) fn send_key_command(webview: &WKWebView, key: &str) -> Result<(), Str
     Ok(())
 }
 
-/// Writes text into the macOS pasteboard and triggers a native `Cmd+V` in the webview.
-/// This preserves trusted paste behavior for rich editors.
 pub(crate) fn paste_text_native(webview: &WKWebView, text: &str) -> Result<(), String> {
     unsafe {
         let pb: Retained<AnyObject> = msg_send![objc2::class!(NSPasteboard), generalPasteboard];
@@ -357,9 +186,6 @@ pub(crate) fn paste_text_native(webview: &WKWebView, text: &str) -> Result<(), S
     send_key_command(webview, "cmd+v")
 }
 
-/// Map character to Mac virtual keycode. Returns 0 for unmapped chars (non-ASCII).
-/// Maps an ASCII character to its macOS virtual keycode.
-/// Unmapped or non-ASCII characters fall back to `0`.
 pub(crate) fn mac_keycode(ch: char) -> c_ushort {
     match ch.to_ascii_lowercase() {
         'a' => 0,
@@ -412,15 +238,11 @@ pub(crate) fn mac_keycode(ch: char) -> c_ushort {
         '\t' => 48,
         ' ' => 49,
         '`' => 50,
-        '#' => 20, // # = Shift+3
+        '#' => 20,
         _ => 0,
     }
 }
 
-/// Pseudo-random in [min, max]. Mixes system clock nanos with a seed
-/// to produce human-like timing variance. No external crate needed.
-/// Returns a small pseudo-random delay in the inclusive range `[min, max]`.
-/// The value mixes the system clock with a caller-provided seed for input timing variance.
 pub(crate) fn jitter(min: u64, max: u64, seed: u64) -> u64 {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -432,10 +254,6 @@ pub(crate) fn jitter(min: u64, max: u64, seed: u64) -> u64 {
     min + (h % (max - min + 1))
 }
 
-/// Type text as native NSEvent keyDown/keyUp pairs.
-/// 80ms between chars.
-/// Types text into the webview as scheduled native key events and reports completion to disk.
-/// Characters are emitted with jittered delays to mimic human typing cadence.
 pub(crate) fn type_text_native(webview: &WKWebView, text: &str, result_path: &str) {
     let chars: Vec<char> = text.chars().collect();
     let total = chars.len();
@@ -460,14 +278,6 @@ pub(crate) fn type_text_native(webview: &WKWebView, text: &str, result_path: &st
     }
 }
 
-/// Add a blue hashtag to Douyin's Slate editor. Single command, no focus stealing.
-///
-/// Flow: JS locates #添加话题 button coords → native click → native keys per char → space confirm.
-///
-/// IMPORTANT: Must be called on an EMPTY editor or with cursor at end.
-/// Tags should be added BEFORE description text (cmd+right goes to end of all content).
-/// Adds a hashtag through Douyin's native editor flow using trusted clicks and key events.
-/// The command finds the tag button, opens the picker, types the tag, and confirms it.
 pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
     let rp = result_path.to_owned();
     let tag_owned = tag.to_owned();
@@ -507,11 +317,7 @@ pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
                 move || {
                     let wv = unsafe { &*(wv_ptr as *const WKWebView) };
                     if let Err(err) = send_key_command(wv, "cmd+right") {
-                        crate::state::log_crash(
-                            "WARN",
-                            "keyboard",
-                            &format!("add_tag move: {err}"),
-                        );
+                        crate::state::log_crash("WARN", "keyboard", &format!("add_tag move: {err}"));
                     }
                 }
             });
@@ -522,11 +328,7 @@ pub(crate) fn add_tag(webview: &WKWebView, tag: &str, result_path: &str) {
                 move || {
                     let wv = unsafe { &*(wv_ptr as *const WKWebView) };
                     if let Err(err) = send_key_command(wv, &ch.to_string()) {
-                        crate::state::log_crash(
-                            "WARN",
-                            "keyboard",
-                            &format!("add_tag char: {err}"),
-                        );
+                        crate::state::log_crash("WARN", "keyboard", &format!("add_tag char: {err}"));
                     }
                 }
             });
