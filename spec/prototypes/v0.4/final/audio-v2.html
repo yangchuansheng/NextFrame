@@ -585,6 +585,7 @@ html, body {
 .audio-card {
   display: flex;
   height: auto;
+  overflow: visible;
   transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
   animation: fadeUp 0.5s var(--ease) both;
 }
@@ -761,8 +762,9 @@ html, body {
   font-weight: 500;
   color: var(--t50);
   white-space: nowrap;
+  align-self: center;
+  min-width: 52px;
 }
-.s-arrow { color: var(--t50); margin: 0 2px; }
 
 .s-dur {
   font-family: var(--mono);
