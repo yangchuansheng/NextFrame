@@ -95,11 +95,11 @@ export function render(t, params, vp) {
   }
 
   return '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px">' +
-    (p.headline ? '<div style="font:700 38px Georgia,\'Noto Serif SC\',serif;color:#f5ece0;text-align:center;margin-bottom:52px;opacity:'+hlOp+'">'+esc(p.headline)+'</div>' : '') +
+    (p.headline ? '<div style="font:700 38px Georgia,\'Noto Serif SC\',serif;color:#f5ece0;text-align:center;margin-bottom:52px;opacity:'+hlOp+'">'+(p.headline)+'</div>' : '') +
     '<div style="display:flex;align-items:center;gap:4px;opacity:'+flowOp+'">' +
       mainRow + forkHtml +
     '</div>' +
-    (p.quote ? '<div style="font:italic 400 18px Georgia,serif;color:#d4b483;margin-top:48px;text-align:center;max-width:700px;opacity:'+qOp+'">'+esc(p.quote)+'</div>' : '') +
+    (p.quote ? '<div style="font:italic 400 18px Georgia,serif;color:#d4b483;margin-top:48px;text-align:center;max-width:700px;opacity:'+qOp+'">'+(p.quote)+'</div>' : '') +
   '</div>';
 }
 
