@@ -28,6 +28,10 @@ function formatValue(value) {
   });
 }
 
+function emitLog(event, fields = {}) {
+  process.stdout.write(`${JSON.stringify({ scope: "bdd", event, ...fields })}\n`);
+}
+
 function failAssertion(operator, actual, expected, message) {
   throw new AssertionError(
     message || `Expected ${formatValue(actual)} ${operator} ${formatValue(expected)}`,
@@ -128,34 +132,42 @@ export async function run() {
   let skipped = 0;
 
   for (const suite of suites) {
-    console.log(suite.name);
+    emitLog("suite:start", { suite: suite.name });
 
     for (const test of suite.tests) {
       if (test.skipped) {
         skipped += 1;
-        console.log(`  - ${test.name} (skipped)`);
+        emitLog("test:skip", { suite: suite.name, test: test.name, reason: "skipped" });
         continue;
       }
 
       try {
         await test.fn();
         passed += 1;
-        console.log(`  ✓ ${test.name}`);
+        emitLog("test:pass", { suite: suite.name, test: test.name });
       } catch (error) {
         if (error instanceof SkipTestError) {
           skipped += 1;
-          console.log(`  - ${test.name} (skipped: ${error.message})`);
+          emitLog("test:skip", {
+            suite: suite.name,
+            test: test.name,
+            reason: error.message,
+          });
           continue;
         }
 
         failed += 1;
-        console.log(`  ✗ ${test.name}`);
-        console.log(`    ${error?.message || String(error)}`);
-
-        if (error instanceof AssertionError) {
-          console.log(`    expected: ${formatValue(error.expected)}`);
-          console.log(`    actual:   ${formatValue(error.actual)}`);
-        }
+        emitLog("test:fail", {
+          suite: suite.name,
+          test: test.name,
+          message: error?.message || String(error),
+          ...(error instanceof AssertionError
+            ? {
+                expected: formatValue(error.expected),
+                actual: formatValue(error.actual),
+              }
+            : {}),
+        });
       }
     }
   }
@@ -164,6 +176,6 @@ export async function run() {
     ? `✗ ${failed} failed, ${passed} passed${skipped > 0 ? `, ${skipped} skipped` : ""}`
     : `✓ ${passed} passed, 0 failed${skipped > 0 ? `, ${skipped} skipped` : ""}`;
 
-  console.log(summary);
+  emitLog("run:summary", { passed, failed, skipped, summary });
   return failed > 0 ? 1 : 0;
 }
