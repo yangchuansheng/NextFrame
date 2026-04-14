@@ -173,18 +173,31 @@ impl WebViewHost {
             return String(value);
           };
           const layers = timeline && Array.isArray(timeline.layers) ? timeline.layers : [];
+          // Match any layer with a video src param (videoClip, interviewVideoArea, etc.)
+          const videoLayers = layers.filter((layer) => layer && layer.params && layer.params.src &&
+            (layer.scene === 'videoClip' || (layer.scene && layer.scene.toLowerCase().indexOf('video') >= 0)));
+          // Try to read actual rendered position from DOM video elements
+          const domVideos = document.querySelectorAll('video[data-nf-persist]');
           return JSON.stringify(
-            layers
-              .filter((layer) => layer && layer.scene === 'videoClip' && layer.params && layer.params.src)
-              .map((layer) => ({
-                src: resolve(layer.params.src) || String(layer.params.src),
-                x: stringify(layer.x, '0'),
-                y: stringify(layer.y, '0'),
-                w: stringify(layer.w, '100%'),
-                h: stringify(layer.h, '100%'),
-                start: Number.isFinite(layer.start) ? layer.start : 0,
-                dur: Number.isFinite(layer.dur) ? layer.dur : totalDuration,
-              }))
+            videoLayers.map((layer, i) => {
+              // Use raw path for absolute paths (avoid URL encoding of CJK characters)
+              var rawSrc = String(layer.params.src);
+              var src = rawSrc.startsWith('/') ? rawSrc : (resolve(rawSrc) || rawSrc);
+              // Prefer DOM-measured position over layer x/y/w/h
+              var vid = domVideos[i] || null;
+              var container = vid ? vid.closest('[style*="position"]') || vid.parentElement : null;
+              if (container && container.getBoundingClientRect) {
+                var rect = container.getBoundingClientRect();
+                return { src: src, x: String(Math.round(rect.left)), y: String(Math.round(rect.top)),
+                         w: String(Math.round(rect.width)), h: String(Math.round(rect.height)),
+                         start: Number.isFinite(layer.start) ? layer.start : 0,
+                         dur: Number.isFinite(layer.dur) ? layer.dur : totalDuration };
+              }
+              return { src: src, x: stringify(layer.x, '0'), y: stringify(layer.y, '0'),
+                       w: stringify(layer.w, '100%'), h: stringify(layer.h, '100%'),
+                       start: Number.isFinite(layer.start) ? layer.start : 0,
+                       dur: Number.isFinite(layer.dur) ? layer.dur : totalDuration };
+            })
           );
         })()
         "#;

@@ -16,22 +16,27 @@ pub struct VideoOverlaySpec {
 }
 
 fn urlencoding_decode(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
-    let mut chars = input.bytes();
-    while let Some(b) = chars.next() {
+    // Fast path: no percent-encoding, return as-is (preserves UTF-8 multi-byte chars)
+    if !input.contains('%') {
+        return input.to_owned();
+    }
+    // Decode percent-encoded bytes into a byte buffer, then convert to UTF-8
+    let mut bytes = Vec::with_capacity(input.len());
+    let mut src = input.bytes();
+    while let Some(b) = src.next() {
         if b == b'%' {
-            let hi = chars.next().and_then(|c| (c as char).to_digit(16));
-            let lo = chars.next().and_then(|c| (c as char).to_digit(16));
+            let hi = src.next().and_then(|c| (c as char).to_digit(16));
+            let lo = src.next().and_then(|c| (c as char).to_digit(16));
             if let (Some(h), Some(l)) = (hi, lo) {
-                result.push((h * 16 + l) as u8 as char);
+                bytes.push((h * 16 + l) as u8);
             } else {
-                result.push('%');
+                bytes.push(b'%');
             }
         } else {
-            result.push(b as char);
+            bytes.push(b);
         }
     }
-    result
+    String::from_utf8(bytes).unwrap_or_else(|_| input.to_owned())
 }
 
 fn strip_query_and_fragment(input: &str) -> &str {
