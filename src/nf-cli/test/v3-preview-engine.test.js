@@ -18,8 +18,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const CLI = resolve(ROOT, "bin/nextframe.js");
 const FIXTURE = resolve(HERE, "fixtures", "minimal-v3.json");
-const SHELL_MAIN = resolve(ROOT, "..", "nf-shell-mac", "src", "main.rs");
-
 function runCli(args) {
   const r = spawnSync("node", [CLI, ...args], { cwd: ROOT, encoding: "utf8", timeout: 120_000 });
   assert.equal(r.status, 0, r.stderr || r.stdout);

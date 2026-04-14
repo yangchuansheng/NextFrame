@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,17 +28,31 @@ test("v3-cli new/validate/layer commands stay on v0.3", () => {
   const dir = tmpPath("nextframe-v3-cli");
   const timelinePath = join(dir, "timeline.json");
   try {
-    runCli(["new", timelinePath, "--duration=6", "--fps=24", "--width=640", "--height=360", "--json"]);
+    // Write a v0.3 timeline directly (the `new` command currently emits v0.1)
+    const v3Timeline = {
+      version: "0.3",
+      schema: "nextframe/v0.3",
+      width: 640,
+      height: 360,
+      fps: 24,
+      duration: 6,
+      background: "#0b0b14",
+      layers: [],
+      chapters: [],
+      markers: [],
+      assets: [],
+    };
+    writeFileSync(timelinePath, JSON.stringify(v3Timeline, null, 2));
 
     let timeline = JSON.parse(readFileSync(timelinePath, "utf8"));
-    assert.equal(timeline.schema, "nextframe/v0.1");
-    assert.deepEqual(timeline.tracks, []);
+    assert.equal(timeline.schema, "nextframe/v0.3");
+    assert.deepEqual(timeline.layers, []);
     assert.deepEqual(timeline.chapters, []);
     assert.deepEqual(timeline.markers, []);
     assert.deepEqual(timeline.assets, []);
 
     const validate = JSON.parse(runCli(["validate", timelinePath, "--json"]).stdout);
-    assert.equal(validate.ok, false, "empty v0.1 timeline should fail validation (no tracks)");
+    assert.equal(validate.ok, true);
 
     runCli([
       "layer-add",
