@@ -97,7 +97,7 @@ export const COMMAND_EXAMPLES = Object.fromEntries([
     nextframe script-get series alpha --segment=1 --json
   `),
   examples("audio-set", `
-    nextframe audio-set series alpha --segment=1 --status=ready --duration=6.4 --file=audio/seg1.wav
+    nextframe audio-set series alpha --segment=1 --status=generated --duration=6.4 --file=audio/seg1.wav
     nextframe audio-set series alpha --segment=2 --status=draft --duration=5.1 --sentences=[{"start":0,"end":1.2}] --json
   `),
   examples("audio-get", `
@@ -105,8 +105,8 @@ export const COMMAND_EXAMPLES = Object.fromEntries([
     nextframe audio-get series alpha --segment=1 --json
   `),
   examples("audio-synth", `
-    nextframe audio-synth series alpha --segment=1 --voice=Xiaoxiao
-    nextframe audio-synth series alpha --segment=2 --backend=volcengine --json
+    nextframe audio-synth series alpha episode-01 --segment=1 --voice=Xiaoxiao
+    nextframe audio-synth series alpha episode-01 --segment=2 --backend=volcengine --json
   `),
   examples("atom-add", `
     nextframe atom-add series alpha --type=component --name="Hero chart" --scene=barChartReveal --segment=1 --params={"value":42}

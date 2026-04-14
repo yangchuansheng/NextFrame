@@ -111,7 +111,7 @@ test("v4-pipeline commands manage pipeline.json and keep project state isolated"
   }
 });
 
-test("audio-synth generates vox artifacts and registers ready audio metadata", () => {
+test("audio-synth generates vox artifacts and registers generated audio metadata", () => {
   const root = mkdtempSync(join(tmpdir(), "nextframe-v4-audio-synth-"));
   const fakeBinDir = join(root, "bin");
   try {
@@ -150,7 +150,7 @@ test("audio-synth generates vox artifacts and registers ready audio metadata", (
     assert.equal(payload.srt, join(root, "series-a", "ep01", "audio", "seg-1", "seg-1", "seg-1.srt"));
 
     assert.equal(pipeline.audio.voice, "Xiaoxiao");
-    assert.equal(pipeline.audio.segments[0].status, "ready");
+    assert.equal(pipeline.audio.segments[0].status, "generated");
     assert.equal(pipeline.audio.segments[0].duration, 2.5);
     assert.equal(pipeline.audio.segments[0].file, "audio/seg-1/seg-1/seg-1.mp3");
     assert.equal(pipeline.audio.segments[0].sentences[0].text, "Intro line.");

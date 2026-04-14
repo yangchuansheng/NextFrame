@@ -173,7 +173,7 @@ export async function run(argv) {
   const nextSegment = {
     ...previous,
     segment: segmentNumber,
-    status: "ready",
+    status: "generated",
     duration,
     file,
     sentences,
