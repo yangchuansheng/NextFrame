@@ -56,8 +56,10 @@
 .sc-clip-video video{width:100%;height:100%;object-fit:cover;display:block}
 .sc-play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,0.10),rgba(0,0,0,0.42))}
 .sc-play-circle{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(167,139,250,0.90);color:rgba(0,0,0,0.92);font-size:16px;box-shadow:0 10px 24px rgba(0,0,0,0.30)}
-.sc-sentences{flex:1;min-width:0}
-.sc-sent-row{display:grid;grid-template-columns:54px minmax(0,1fr) 46px;gap:8px;padding:8px;border-radius:8px;border-left:2px solid transparent;transition:background 150ms var(--ease),border-color 150ms var(--ease)}
+.sc-sentences{flex:1;min-width:0;max-height:228px;overflow-y:auto;padding-right:4px}
+.sc-sentences::-webkit-scrollbar{width:4px}
+.sc-sentences::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:999px}
+.sc-sent-row{display:grid;grid-template-columns:54px minmax(0,1fr) 46px;gap:8px;width:100%;padding:8px;border:none;border-left:2px solid transparent;border-radius:8px;background:none;text-align:left;cursor:pointer;transition:background 150ms var(--ease),border-color 150ms var(--ease)}
 .sc-sent-row + .sc-sent-row{margin-top:4px}
 .sc-sent-row:hover,.sc-sent-row.active{background:rgba(255,255,255,0.03)}
 .sc-sent-row.active{border-left-color:var(--accent)}
@@ -79,6 +81,10 @@
 .sc-modal-subtitle{min-height:88px;padding:16px 4px 10px}
 .sc-modal-sub-original{font-size:18px;line-height:1.7;color:var(--t100)}
 .sc-modal-sub-trans{font-size:15px;line-height:1.6;color:var(--t65)}
+.sc-modal-word{transition:color 80ms linear,text-decoration-color 80ms linear}
+.sc-word-done{color:var(--t50)}
+.sc-word-now{color:var(--accent);font-weight:700;text-underline-offset:3px;text-decoration:underline var(--accent)}
+.sc-word-pending{color:var(--t80)}
 .sc-modal-transport{padding-top:8px}
 .sc-modal-progress{height:4px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,0.08);cursor:pointer}
 .sc-modal-progress-fill{height:100%;width:0;background:var(--accent)}
