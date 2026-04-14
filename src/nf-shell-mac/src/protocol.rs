@@ -322,3 +322,169 @@ fn projects_root_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/"))
         .join("NextFrame/projects")
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+    use std::fs;
+    use std::io::ErrorKind;
+    use std::path::Path;
+
+    // ── parse_range_header ──
+
+    #[test]
+    fn parse_range_full_range() {
+        assert_eq!(parse_range_header("bytes=0-499", 1000), Some((0, 499)));
+    }
+
+    #[test]
+    fn parse_range_open_ended() {
+        // "bytes=500-" means from 500 to end
+        assert_eq!(parse_range_header("bytes=500-", 1000), Some((500, 999)));
+    }
+
+    #[test]
+    fn parse_range_clamps_to_file_length() {
+        // End exceeds file size → clamped to last byte
+        assert_eq!(parse_range_header("bytes=0-9999", 500), Some((0, 499)));
+    }
+
+    #[test]
+    fn parse_range_zero_length_file() {
+        // total_len=0 → checked_sub(1) overflows → None
+        assert_eq!(parse_range_header("bytes=0-0", 0), None);
+    }
+
+    #[test]
+    fn parse_range_start_exceeds_end() {
+        assert_eq!(parse_range_header("bytes=600-100", 1000), None);
+    }
+
+    #[test]
+    fn parse_range_missing_prefix() {
+        assert_eq!(parse_range_header("0-499", 1000), None);
+    }
+
+    #[test]
+    fn parse_range_whitespace_trimmed() {
+        assert_eq!(parse_range_header("  bytes=10-20  ", 100), Some((10, 20)));
+    }
+
+    // ── mime_type ──
+
+    #[test]
+    fn mime_known_extensions() {
+        let cases: &[(&str, &str)] = &[
+            ("index.html", "text/html; charset=utf-8"),
+            ("style.css", "text/css; charset=utf-8"),
+            ("app.js", "text/javascript; charset=utf-8"),
+            ("data.json", "application/json; charset=utf-8"),
+            ("photo.png", "image/png"),
+            ("photo.jpg", "image/jpeg"),
+            ("photo.jpeg", "image/jpeg"),
+            ("icon.svg", "image/svg+xml"),
+            ("clip.mp4", "video/mp4"),
+            ("clip.webm", "video/webm"),
+            ("track.mp3", "audio/mpeg"),
+            ("sound.wav", "audio/wav"),
+            ("font.woff2", "font/woff2"),
+            ("font.ttf", "font/ttf"),
+        ];
+        for (file, expected) in cases {
+            assert_eq!(mime_type(Path::new(file)), *expected, "file: {file}");
+        }
+    }
+
+    #[test]
+    fn mime_unknown_extension_fallback() {
+        assert_eq!(mime_type(Path::new("archive.tar.gz")), "application/octet-stream");
+        assert_eq!(mime_type(Path::new("noext")), "application/octet-stream");
+    }
+
+    // ── io_status ──
+
+    #[test]
+    fn io_status_mapping() {
+        assert_eq!(io_status(ErrorKind::NotFound), 404);
+        assert_eq!(io_status(ErrorKind::PermissionDenied), 403);
+        assert_eq!(io_status(ErrorKind::BrokenPipe), 500);
+    }
+
+    // ── status_reply ──
+
+    #[test]
+    fn status_reply_bodies() {
+        let r403 = status_reply(403);
+        assert_eq!(r403.status, 403);
+        assert_eq!(r403.body, b"forbidden");
+        assert!(!r403.accepts_ranges);
+
+        let r404 = status_reply(404);
+        assert_eq!(r404.body, b"not found");
+
+        let r500 = status_reply(500);
+        assert_eq!(r500.body, b"internal error");
+
+        let r418 = status_reply(418);
+        assert_eq!(r418.body, b"request failed");
+    }
+
+    // ── resolve_file_path (uses temp dir for real filesystem tests) ──
+
+    #[test]
+    fn resolve_rejects_dot_dot_traversal() {
+        let tmp = std::env::temp_dir().join("nf-test-resolve");
+        let _ = fs::create_dir_all(&tmp);
+        assert_eq!(resolve_file_path(&tmp, "/../etc/passwd"), Err(403));
+        assert_eq!(resolve_file_path(&tmp, "/foo/../../bar"), Err(403));
+    }
+
+    #[test]
+    fn resolve_rejects_backslash() {
+        let tmp = std::env::temp_dir().join("nf-test-resolve2");
+        let _ = fs::create_dir_all(&tmp);
+        assert_eq!(resolve_file_path(&tmp, "/foo\\bar"), Err(403));
+    }
+
+    #[test]
+    fn resolve_defaults_to_index_html() {
+        // Empty path → tries root/index.html → 404 because file doesn't exist
+        let tmp = std::env::temp_dir().join("nf-test-resolve3");
+        let _ = fs::create_dir_all(&tmp);
+        // Without index.html, canonicalize fails → 404
+        assert_eq!(resolve_file_path(&tmp, "/"), Err(404));
+    }
+
+    #[test]
+    fn resolve_finds_existing_file() {
+        let tmp = std::env::temp_dir().join("nf-test-resolve4");
+        let _ = fs::create_dir_all(&tmp);
+        fs::write(tmp.join("hello.txt"), "hi").unwrap();
+        let canonical_root = tmp.canonicalize().unwrap();
+        let result = resolve_file_path(&canonical_root, "/hello.txt");
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
+        assert!(result.unwrap().ends_with("hello.txt"));
+    }
+
+    // ── read_range ──
+
+    #[test]
+    fn read_range_returns_correct_slice() {
+        let tmp = std::env::temp_dir().join("nf-test-range");
+        let _ = fs::create_dir_all(&tmp);
+        let path = tmp.join("data.bin");
+        fs::write(&path, b"0123456789").unwrap();
+        let result = read_range(&path, 2, 5).unwrap();
+        assert_eq!(result, b"2345");
+    }
+
+    #[test]
+    fn read_range_nonexistent_file() {
+        let path = std::env::temp_dir().join("nf-test-range-nofile.bin");
+        let result = read_range(&path, 0, 10);
+        assert!(result.is_err());
+    }
+}
