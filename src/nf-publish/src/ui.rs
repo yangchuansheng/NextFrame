@@ -307,6 +307,7 @@ pub(crate) fn create_browser_layout(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_nav_btn(
     mtm: MainThreadMarker,
     x: f64,
@@ -505,10 +506,8 @@ pub(crate) fn rebuild_tab_strip(tab_strip: &NSView, target: &AnyObject, tabs: &[
         tab_strip.addSubview(&close);
 
         // Fix title button corner mask: active only rounds top-left
-        if tab.active {
-            if let Some(layer) = btn.layer() {
-                let _: () = unsafe { msg_send![&*layer, setMaskedCorners: 1u64] }; // top-left only (MinXMinY)
-            }
+        if tab.active && let Some(layer) = btn.layer() {
+            let _: () = unsafe { msg_send![&*layer, setMaskedCorners: 1u64] }; // top-left only (MinXMinY)
         }
 
         x += tab_w;

@@ -61,19 +61,17 @@ pub(crate) fn check_session(tab: usize, status: &str) {
         log_activity("session", platform, status);
     }
 
-    if is_alive && tab < TABS.len() {
-        if let Some(wv) = webview_for_tab(tab) {
-            let current_host = current_url_for_webview(wv);
-            let current_host = url_host(&current_host);
-            let expected_host = url_host(TABS[tab].url);
-            if !current_host.is_empty() && current_host != expected_host {
-                log_activity(
-                    "session",
-                    TABS[tab].label,
-                    &format!("auto_recovery: {current_host} -> {expected_host}"),
-                );
-                let _ = tabs::navigate_tab_to_url(tab, TABS[tab].url);
-            }
+    if is_alive && tab < TABS.len() && let Some(wv) = webview_for_tab(tab) {
+        let current_host = current_url_for_webview(wv);
+        let current_host = url_host(&current_host);
+        let expected_host = url_host(TABS[tab].url);
+        if !current_host.is_empty() && current_host != expected_host {
+            log_activity(
+                "session",
+                TABS[tab].label,
+                &format!("auto_recovery: {current_host} -> {expected_host}"),
+            );
+            let _ = tabs::navigate_tab_to_url(tab, TABS[tab].url);
         }
     }
 }

@@ -26,8 +26,7 @@ fn catch_objc(f: impl FnOnce()) -> Result<(), String> {
 fn find_element_js(selector: &str) -> String {
     let sel_escaped = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_owned());
 
-    if selector.starts_with("text:") {
-        let text = &selector[5..];
+    if let Some(text) = selector.strip_prefix("text:") {
         let te = serde_json::to_string(text).unwrap_or_else(|_| "\"\"".to_owned());
         format!(
             "try{{var found=null;\
@@ -151,10 +150,8 @@ fn parse_selector_and_timeout(
     let mut parts = trimmed.rsplitn(2, ' ');
     let last = parts.next().unwrap_or_default().trim();
     let rest = parts.next().unwrap_or_default().trim();
-    if !rest.is_empty() {
-        if let Ok(timeout_ms) = last.parse::<u64>() {
-            return Ok((rest.to_owned(), timeout_ms));
-        }
+    if !rest.is_empty() && let Ok(timeout_ms) = last.parse::<u64>() {
+        return Ok((rest.to_owned(), timeout_ms));
     }
     Ok((trimmed.to_owned(), default_timeout_ms))
 }
@@ -230,10 +227,10 @@ fn parse_xy_args(input: &str, usage: &str) -> Result<(f64, f64), String> {
 
 fn parse_coords(coords: &str) -> Result<(f64, f64), String> {
     let parts: Vec<&str> = coords.split(',').collect();
-    if let (Some(xs), Some(ys)) = (parts.first(), parts.get(1)) {
-        if let (Ok(x), Ok(y)) = (xs.parse::<f64>(), ys.parse::<f64>()) {
-            return Ok((x, y));
-        }
+    if let (Some(xs), Some(ys)) = (parts.first(), parts.get(1))
+        && let (Ok(x), Ok(y)) = (xs.parse::<f64>(), ys.parse::<f64>())
+    {
+        return Ok((x, y));
     }
     Err(format!("bad coords {coords}"))
 }
@@ -729,7 +726,7 @@ pub(crate) fn run_command(
                 crate::state::log_crash("WARN", "reload_all", &err);
             }
         }
-        let _ = std::fs::write(&result_path, format!("ok: reloading all tabs"));
+        let _ = std::fs::write(&result_path, "ok: reloading all tabs");
     } else if let Some(text) = cmd.strip_prefix("paste ") {
         // Write to system clipboard, then paste via a native Cmd+V NSEvent.
         if let Err(err) = paste_text(webview, text) {
@@ -816,7 +813,7 @@ pub(crate) fn run_command(
         }
     } else if let Some(coords) = cmd.strip_prefix("click ") {
         // click x y — send a real NSEvent mouse click at CSS coordinates within the webview.
-        let parts: Vec<&str> = coords.trim().split_whitespace().collect();
+        let parts: Vec<&str> = coords.split_whitespace().collect();
         if parts.len() >= 2 {
             if let (Ok(x), Ok(y)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
                 native_click_at(webview, x, y);
@@ -1116,17 +1113,14 @@ pub(crate) fn run_command(
                 let _ = std::fs::write(&result_path_clone, format!("error: element {coords}"));
                 return;
             }
-            let parts: Vec<&str> = coords.split(',').collect();
-            if let (Some(xs), Some(ys)) = (parts.first(), parts.get(1)) {
-                if let (Ok(x), Ok(y)) = (xs.parse::<f64>(), ys.parse::<f64>()) {
-                    let wv = unsafe { &*(wv_ptr as *const WKWebView) };
-                    native_click_at(wv, x, y);
-                    let _ = std::fs::write(
-                        &result_path_clone,
-                        format!("ok: clicked element at {x},{y}"),
-                    );
-                    return;
-                }
+            if let Ok((x, y)) = parse_coords(&coords) {
+                let wv = unsafe { &*(wv_ptr as *const WKWebView) };
+                native_click_at(wv, x, y);
+                let _ = std::fs::write(
+                    &result_path_clone,
+                    format!("ok: clicked element at {x},{y}"),
+                );
+                return;
             }
             let _ = std::fs::write(&result_path_clone, format!("error: bad coords {coords}"));
         });
@@ -1136,24 +1130,14 @@ pub(crate) fn run_command(
     } else if let Some(rest) = cmd.strip_prefix("inputel ") {
         // inputel <selector> <text> — find element (incl. Shadow DOM), native click for focus, paste.
         let rest = rest.trim();
-        let (selector, text) = if rest.starts_with('"') {
-            if let Some(end) = rest[1..].find('"') {
-                (
-                    rest[1..1 + end].to_owned(),
-                    rest[1 + end + 1..].trim().to_owned(),
-                )
-            } else {
-                let _ = std::fs::write(&result_path, "error: unclosed quote in selector");
-                return;
-            }
-        } else if let Some(space) = rest.find(' ') {
-            (rest[..space].to_owned(), rest[space + 1..].to_owned())
-        } else {
-            let _ = std::fs::write(&result_path, "error: usage: inputel <selector> <text>");
-            return;
-        };
-
-        let text_for_paste = text;
+        let (selector, text_for_paste) =
+            match parse_selector_and_value(rest, "inputel <selector> <text>") {
+                Ok(values) => values,
+                Err(err) => {
+                    let _ = std::fs::write(&result_path, format!("error: {err}"));
+                    return;
+                }
+            };
         let result_path_clone = result_path.clone();
         let wv_ptr = webview as *const WKWebView as usize;
         let js_str = NSString::from_str(&find_element_js(&selector));
@@ -1169,28 +1153,22 @@ pub(crate) fn run_command(
                 let _ = std::fs::write(&result_path_clone, format!("error: element {coords}"));
                 return;
             }
-            let parts: Vec<&str> = coords.split(',').collect();
-            if let (Some(xs), Some(ys)) = (parts.first(), parts.get(1)) {
-                if let (Ok(x), Ok(y)) = (xs.parse::<f64>(), ys.parse::<f64>()) {
-                    let wv = unsafe { &*(wv_ptr as *const WKWebView) };
-                    native_click_at(wv, x, y);
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                    match paste_text(wv, &text_for_paste) {
-                        Ok(()) => {
-                            let _ = std::fs::write(
-                                &result_path_clone,
-                                format!(
-                                    "ok: inputel at {x},{y} pasted {} chars",
-                                    text_for_paste.len()
-                                ),
-                            );
-                        }
-                        Err(err) => {
-                            let _ = std::fs::write(&result_path_clone, format!("error: {err}"));
-                        }
+            if let Ok((x, y)) = parse_coords(&coords) {
+                let wv = unsafe { &*(wv_ptr as *const WKWebView) };
+                native_click_at(wv, x, y);
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                match paste_text(wv, &text_for_paste) {
+                    Ok(()) => {
+                        let _ = std::fs::write(
+                            &result_path_clone,
+                            format!("ok: inputel at {x},{y} pasted {} chars", text_for_paste.len()),
+                        );
                     }
-                    return;
+                    Err(err) => {
+                        let _ = std::fs::write(&result_path_clone, format!("error: {err}"));
+                    }
                 }
+                return;
             }
             let _ = std::fs::write(&result_path_clone, format!("error: bad coords {coords}"));
         });
@@ -1220,21 +1198,18 @@ pub(crate) fn run_command(
             };
 
             if coords_str.is_empty() || coords_str.starts_with("error") {
-                let _ = std::fs::write(&rp, format!("ok: dismissed 0"));
+                let _ = std::fs::write(&rp, "ok: dismissed 0");
                 return;
             }
 
             let wv = unsafe { &*(wv_ptr as *const WKWebView) };
             let mut count = 0;
             for coord in coords_str.split('|') {
-                let parts: Vec<&str> = coord.split(',').collect();
-                if parts.len() == 2 {
-                    if let (Ok(x), Ok(y)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
-                        native_click_at(wv, x, y);
-                        count += 1;
-                        // Small delay between clicks
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                    }
+                if let Ok((x, y)) = parse_coords(coord) {
+                    native_click_at(wv, x, y);
+                    count += 1;
+                    // Small delay between clicks
+                    std::thread::sleep(std::time::Duration::from_millis(100));
                 }
             }
             let _ = std::fs::write(&rp, format!("ok: dismissed {count}"));
@@ -1260,14 +1235,11 @@ pub(crate) fn run_command(
                 let _ = std::fs::write(&result_path_clone, format!("error: element {coords}"));
                 return;
             }
-            let parts: Vec<&str> = coords.split(',').collect();
-            if let (Some(xs), Some(ys)) = (parts.first(), parts.get(1)) {
-                if let (Ok(x), Ok(y)) = (xs.parse::<f64>(), ys.parse::<f64>()) {
-                    let wv = unsafe { &*(wv_ptr as *const WKWebView) };
-                    native_click_at(wv, x, y);
-                    let _ = std::fs::write(&result_path_clone, format!("ok: focused at {x},{y}"));
-                    return;
-                }
+            if let Ok((x, y)) = parse_coords(&coords) {
+                let wv = unsafe { &*(wv_ptr as *const WKWebView) };
+                native_click_at(wv, x, y);
+                let _ = std::fs::write(&result_path_clone, format!("ok: focused at {x},{y}"));
+                return;
             }
             let _ = std::fs::write(&result_path_clone, format!("error: bad coords {coords}"));
         });

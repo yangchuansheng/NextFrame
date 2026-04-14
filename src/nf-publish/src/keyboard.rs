@@ -155,12 +155,12 @@ pub(crate) fn send_key_to_webview(
         false,
         keycode,
     );
-    if let Some(event) = &down {
-        if let Err(e) = catch_objc(|| {
+    if let Some(event) = &down
+        && let Err(e) = catch_objc(|| {
             let _: () = unsafe { msg_send![webview, keyDown: &**event] };
-        }) {
-            crate::state::log_crash("WARN", "keyboard", &format!("keyDown: {e}"));
-        }
+        })
+    {
+        crate::state::log_crash("WARN", "keyboard", &format!("keyDown: {e}"));
     }
 
     let up = NSEvent::keyEventWithType_location_modifierFlags_timestamp_windowNumber_context_characters_charactersIgnoringModifiers_isARepeat_keyCode(
@@ -175,12 +175,12 @@ pub(crate) fn send_key_to_webview(
         false,
         keycode,
     );
-    if let Some(event) = &up {
-        if let Err(e) = catch_objc(|| {
+    if let Some(event) = &up
+        && let Err(e) = catch_objc(|| {
             let _: () = unsafe { msg_send![webview, keyUp: &**event] };
-        }) {
-            crate::state::log_crash("WARN", "keyboard", &format!("keyUp: {e}"));
-        }
+        })
+    {
+        crate::state::log_crash("WARN", "keyboard", &format!("keyUp: {e}"));
     }
 }
 

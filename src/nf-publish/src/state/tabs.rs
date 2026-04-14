@@ -381,8 +381,7 @@ pub(crate) fn close_tab(tab_id: usize) -> Result<(), String> {
             if current == tab_id {
                 let next = tabs
                     .iter()
-                    .filter(|t| t.visible && t.id != tab_id)
-                    .next()
+                    .find(|t| t.visible && t.id != tab_id)
                     .map(|t| t.id);
                 if let Some(next_id) = next {
                     drop(tabs);
@@ -466,13 +465,13 @@ pub(crate) fn navigate_tab_to_url(tab_id: usize, url: &str) -> Result<(), String
     }
     .ok_or_else(|| format!("tab {tab_id} not found"))?;
 
-    if let BrowserTabKind::Workspace(index) = kind {
-        if !workspace_allows_url(index, &normalized) {
-            return Err(format!(
-                "workspace tab {index} only allows {}",
-                TABS[index].url
-            ));
-        }
+    if let BrowserTabKind::Workspace(index) = kind
+        && !workspace_allows_url(index, &normalized)
+    {
+        return Err(format!(
+            "workspace tab {index} only allows {}",
+            TABS[index].url
+        ));
     }
 
     let request = make_request(&normalized)?;
@@ -592,10 +591,10 @@ pub(crate) fn restore_dynamic_tabs(dynamic_tabs: &[SavedDynamicTab]) {
             let Ok(mut tabs) = state.browser_tabs.lock() else {
                 return;
             };
-            if let Some(runtime_tab) = tabs.iter_mut().find(|runtime_tab| runtime_tab.id == id) {
-                if !tab.title.trim().is_empty() {
-                    runtime_tab.title = tab.title.clone();
-                }
+            if let Some(runtime_tab) = tabs.iter_mut().find(|runtime_tab| runtime_tab.id == id)
+                && !tab.title.trim().is_empty()
+            {
+                runtime_tab.title = tab.title.clone();
             }
         }
     }

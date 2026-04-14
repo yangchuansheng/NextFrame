@@ -200,9 +200,9 @@ pub(crate) fn start_command_poll() {
 
     std::thread::spawn(|| {
         let mut tick: u64 = 0;
-        let save_interval = (10_000 / POLL_MS) as u64; // 10s
-        let session_interval = (60_000 / POLL_MS) as u64; // 60s
-        let keep_alive_interval = (300_000 / POLL_MS) as u64; // 5 min
+        let save_interval = 10_000 / POLL_MS; // 10s
+        let session_interval = 60_000 / POLL_MS; // 60s
+        let keep_alive_interval = 300_000 / POLL_MS; // 5 min
         loop {
             std::thread::sleep(std::time::Duration::from_millis(POLL_MS));
             tick += 1;
@@ -219,24 +219,24 @@ pub(crate) fn start_command_poll() {
                 if let Err(e) = objc_result {
                     crate::state::log_crash("OBJC", "poll_all", &format!("{e:?}"));
                 }
-                if tick % save_interval == 0 {
+                if tick.is_multiple_of(save_interval) {
                     crate::state::save_tab_urls();
-                    if let Some(wv) = webview_for_tab(0) {
-                        if let Some(win) = wv.window() {
-                            let f = win.frame();
-                            crate::state::save_window_frame(
-                                f.origin.x,
-                                f.origin.y,
-                                f.size.width,
-                                f.size.height,
-                            );
-                        }
+                    if let Some(wv) = webview_for_tab(0)
+                        && let Some(win) = wv.window()
+                    {
+                        let f = win.frame();
+                        crate::state::save_window_frame(
+                            f.origin.x,
+                            f.origin.y,
+                            f.size.width,
+                            f.size.height,
+                        );
                     }
                 }
-                if tick % session_interval == 0 {
+                if tick.is_multiple_of(session_interval) {
                     check_all_sessions();
                 }
-                if tick % keep_alive_interval == 0 {
+                if tick.is_multiple_of(keep_alive_interval) {
                     keep_alive_all();
                 }
             });

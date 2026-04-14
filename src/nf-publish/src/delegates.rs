@@ -42,11 +42,11 @@ define_class!(
             _features: &objc2::runtime::AnyObject,
         ) -> *mut WKWebView {
             // Open target="_blank" in a new tab
-            if let Some(url) = action.request().URL() {
-                if let Some(url_str) = url.absoluteString() {
-                    let url_string = url_str.to_string();
-                    let _ = crate::state::create_dynamic_tab(Some(&url_string), true);
-                }
+            if let Some(url) = action.request().URL()
+                && let Some(url_str) = url.absoluteString()
+            {
+                let url_string = url_str.to_string();
+                let _ = crate::state::create_dynamic_tab(Some(&url_string), true);
             }
             std::ptr::null_mut()
         }

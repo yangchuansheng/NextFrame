@@ -12,12 +12,10 @@ fn encode_and_write_screenshot(image: &NSImage, screenshot_path: &str) -> Result
         .ok_or_else(|| "screenshot failed".to_owned())?;
     let bitmap = NSBitmapImageRep::imageRepWithData(&tiff)
         .ok_or_else(|| "failed to decode screenshot".to_owned())?;
-    let bitmap: &NSBitmapImageRep = unsafe { &*(&*bitmap as *const _ as *const NSBitmapImageRep) };
     let dict: &NSDictionary<NSString> =
         unsafe { &*(NSDictionary::new().as_ref() as *const _ as *const _) };
-    let png =
-        unsafe { bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, dict) }
-            .ok_or_else(|| "failed to encode screenshot".to_owned())?;
+    let png = unsafe { bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, dict) }
+        .ok_or_else(|| "failed to encode screenshot".to_owned())?;
     let bytes = unsafe { png.as_bytes_unchecked() };
     std::fs::write(screenshot_path, bytes).map_err(|err| format!("write failed: {err}"))?;
     Ok(bytes.len())
