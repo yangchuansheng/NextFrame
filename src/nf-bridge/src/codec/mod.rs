@@ -1,6 +1,6 @@
 //! codec module exports
-pub mod encoding;
-pub mod ffmpeg;
+pub(crate) mod encoding;
+pub(crate) mod ffmpeg;
 
 #[cfg(test)]
 pub(crate) use ffmpeg::{

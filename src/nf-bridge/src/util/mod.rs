@@ -1,14 +1,14 @@
 //! utility module exports
 #[macro_use]
-pub mod trace;
+pub(crate) mod trace;
 
-pub mod compose;
-pub mod dialog;
-pub mod log;
+pub(crate) mod compose;
+pub(crate) mod dialog;
+pub(crate) mod log;
 pub mod path;
-pub mod preview;
-pub mod time;
-pub mod validation;
+pub(crate) mod preview;
+pub(crate) mod time;
+pub(crate) mod validation;
 
 pub(crate) use compose::handle_compose_generate;
 pub(crate) use log::handle_log;

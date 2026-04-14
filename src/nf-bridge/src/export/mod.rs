@@ -1,7 +1,7 @@
 //! export module exports
-pub mod lifecycle;
-pub mod recorder_bridge;
-pub mod runner;
+pub(crate) mod lifecycle;
+pub(crate) mod recorder_bridge;
+pub(crate) mod runner;
 
 #[cfg(test)]
 pub(crate) use lifecycle::{

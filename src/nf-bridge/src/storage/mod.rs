@@ -1,7 +1,7 @@
 //! storage module exports
-pub mod autosave;
-pub mod fs;
-pub mod recent;
+pub(crate) mod autosave;
+pub(crate) mod fs;
+pub(crate) mod recent;
 
 #[cfg(test)]
 pub(crate) use autosave::{
