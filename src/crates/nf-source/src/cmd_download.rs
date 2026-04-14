@@ -1,6 +1,6 @@
 use anyhow::Result;
-use serde_json::json;
 use nf_download::{DownloadOptions, download};
+use serde_json::json;
 
 use crate::cli::DownloadArgs;
 

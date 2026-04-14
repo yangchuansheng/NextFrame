@@ -1,6 +1,6 @@
 use anyhow::Result;
-use serde_json::json;
 use nf_transcribe::{TranscribeOptions, transcribe};
+use serde_json::json;
 
 use crate::cli::TranscribeArgs;
 

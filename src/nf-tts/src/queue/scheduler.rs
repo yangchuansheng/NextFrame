@@ -102,7 +102,12 @@ pub async fn run_batch(
                     (
                         job,
                         params,
-                        Ok((out_path, result.audio, result.duration_ms, result.boundaries)),
+                        Ok((
+                            out_path,
+                            result.audio,
+                            result.duration_ms,
+                            result.boundaries,
+                        )),
                     )
                 }
                 Err(e) => (job, params, Err(e)),

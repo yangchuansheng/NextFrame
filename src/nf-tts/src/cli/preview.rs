@@ -5,7 +5,11 @@ use crate::backend::{self, SynthParams};
 use crate::config::VoxConfig;
 use crate::lang;
 
-pub async fn run(voice: Option<String>, text: Option<String>, backend_name: Option<String>) -> Result<()> {
+pub async fn run(
+    voice: Option<String>,
+    text: Option<String>,
+    backend_name: Option<String>,
+) -> Result<()> {
     let config = VoxConfig::load();
     let backend_name = config.resolve_backend(backend_name);
 

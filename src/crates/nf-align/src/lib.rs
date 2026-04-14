@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use anyhow::{Context, Result};
+use nf_cut_core::{SentenceSource, Sentences, extract_audio_to_wav, millis_to_seconds, round2};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use nf_cut_core::{SentenceSource, Sentences, extract_audio_to_wav, millis_to_seconds, round2};
 
 use crate::script::run_align_script;
 use crate::text::{build_sentences, normalize_language_arg, parse_plain_text, rebuild_words};

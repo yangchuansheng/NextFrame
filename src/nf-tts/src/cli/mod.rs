@@ -10,7 +10,11 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "vox", version, about = "Multi-backend TTS CLI, agent-friendly", long_about = "\
+#[command(
+    name = "vox",
+    version,
+    about = "Multi-backend TTS CLI, agent-friendly",
+    long_about = "\
 Multi-backend TTS CLI, agent-friendly.\n\n\
 Workflow: use Edge (free) to debug text/timing/subtitles, then switch to\n\
 volcengine (-b volcengine) for production. Same flags, same output.\n\n\
@@ -60,7 +64,8 @@ Examples:\n\
   # TTS 2.0 context — guide tone/emotion via natural language\n\
   vox synth -b volcengine --context-text \"用特别开心的语气\" \"今天天气真好！\" -o happy.mp3\n\n\
   # Dialect — vivi voice only\n\
-  vox play -b volcengine --dialect dongbei \"整挺好\"")]
+  vox play -b volcengine --dialect dongbei \"整挺好\""
+)]
 pub struct Cli {
     /// Print one-line description and exit.
     #[arg(long)]
@@ -373,7 +378,11 @@ pub async fn run(cli: Cli) -> Result<()> {
             })
             .await
         }
-        Command::Preview { voice, text, backend } => preview::run(voice, text, backend).await,
+        Command::Preview {
+            voice,
+            text,
+            backend,
+        } => preview::run(voice, text, backend).await,
         Command::Voices { lang, backend } => voices::run(lang, backend).await,
         Command::Concat { files, output } => concat::run(files, output),
         Command::Config { action } => match action {

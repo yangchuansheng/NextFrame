@@ -1,6 +1,6 @@
 use anyhow::Result;
-use serde_json::json;
 use nf_align::{AlignOptions, align};
+use serde_json::json;
 
 use crate::cli::AlignArgs;
 

@@ -6,9 +6,9 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
+use nf_cut_core::{probe_duration, remove_existing_path};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use nf_cut_core::{probe_duration, remove_existing_path};
 
 const SOURCE_FILE_NAME: &str = "source.mp4";
 const META_FILE_NAME: &str = "meta.json";

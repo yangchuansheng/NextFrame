@@ -1,6 +1,6 @@
 use anyhow::Result;
-use serde_json::json;
 use nf_cut_core::{CutReport, PreviewClip, PreviewTimelines, Sentences, remap_words_to_clip_ms};
+use serde_json::json;
 
 use crate::cli::PreviewArgs;
 

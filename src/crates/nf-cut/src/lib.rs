@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
-use serde::Serialize;
 use nf_cut_core::{
     ClipFailure, ClipResult, CutReport, Plan, PlanClip, Sentences, clamp_range, probe_duration,
     round2,
 };
+use serde::Serialize;
 
 // ffmpeg re-encode rounds the output to a whole number of video frames.
 // At 30 fps that's ~33 ms per frame; we allow up to ~4 frames of slack
