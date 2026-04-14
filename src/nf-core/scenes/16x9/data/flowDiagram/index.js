@@ -11,13 +11,10 @@ export const meta = {
     "minimal": {}
   },
   params: {
-    headline:      { type:"string", default:"",  label:"大标题",       semantic:"big serif headline, supports inline HTML for accent", group:"content" },
     nodes:         { type:"array",  required:true, label:"主节点列表",  semantic:"array of {icon,label,sub,color}. icon should be 1-2 chars or emoji", group:"content" },
     forkNodes:     { type:"array",  default:[],   label:"分叉节点",     semantic:"array of {label,sub,color}. label can be longer text like PASS/BLOCK", group:"content" },
-    quote:         { type:"string", default:"",   label:"底部引语",     semantic:"italic gold text, supports inline HTML", group:"content" },
-    headlineDelay: { type:"number", default:0.3,  label:"标题出现(s)",  group:"animation", range:[0,5], step:0.1 },
-    flowDelay:     { type:"number", default:2.5,  label:"流程出现(s)",  group:"animation", range:[0,10], step:0.1 },
-    quoteDelay:    { type:"number", default:6.0,  label:"引语出现(s)",  group:"animation", range:[0,15], step:0.1 }
+    enterDelay:    { type:"number", default:0,    label:"出现延迟(s)",  group:"animation", range:[0,10], step:0.1 },
+    y:             { type:"number", default:0,    label:"Y偏移(px, 0=居中)", semantic:"vertical position, 0 for centered", group:"style", range:[0,1080], step:10 }
   },
   ai: {
     when: "展示多步流程、决策分叉。主节点用短 icon（emoji/1-2字母），分叉节点用 label（可长文字）。",
@@ -87,9 +84,8 @@ export function render(t, params, vp) {
   for(var k in meta.params) p[k] = params[k]!==undefined ? params[k] : meta.params[k].default;
   var nodes = Array.isArray(p.nodes) ? p.nodes : [];
   var forkNodes = Array.isArray(p.forkNodes) ? p.forkNodes : [];
-  var hlOp = fadeIn(t, p.headlineDelay, 0.7);
-  var flowOp = fadeIn(t, p.flowDelay, 0.8);
-  var qOp = fadeIn(t, p.quoteDelay, 0.7);
+  var flowOp = fadeIn(t, p.enterDelay || 0, 0.8);
+  var yPos = p.y || 0;
 
   // Main row: circle nodes with arrows
   var mainRow = nodes.map(function(n, i) {
@@ -108,12 +104,14 @@ export function render(t, params, vp) {
     '</div>';
   }
 
-  return '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;padding:80px 60px">' +
-    (p.headline ? '<div style="font:700 42px Georgia,\'Noto Serif SC\',serif;color:#f5ece0;text-align:center;line-height:1.3;opacity:'+hlOp+'">'+(p.headline)+'</div>' : '') +
+  var posStyle = yPos > 0
+    ? 'position:absolute;left:0;right:0;top:'+yPos+'px;display:flex;justify-content:center'
+    : 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center';
+
+  return '<div style="'+posStyle+'">' +
     '<div style="display:flex;align-items:center;opacity:'+flowOp+'">' +
       mainRow + forkHtml +
     '</div>' +
-    (p.quote ? '<div style="font:italic 20px Georgia,\'Noto Serif SC\',serif;color:#d4b483;text-align:center;max-width:700px;line-height:1.5;opacity:'+qOp+'">"'+(p.quote)+'"</div>' : '') +
   '</div>';
 }
 
