@@ -33,7 +33,8 @@ impl WebViewHost {
         let read_access_url =
             NSURL::fileURLWithPath(&NSString::from_str(&read_access_root.to_string_lossy()));
         // SAFETY: `self.web_view`, `file_url`, and `read_access_url` are live for this load call.
-        let navigation = unsafe { // SAFETY: see above.
+        let navigation = unsafe {
+            // SAFETY: see above.
             self.web_view
                 .loadFileURL_allowingReadAccessToURL(&file_url, &read_access_url)
         };
@@ -60,7 +61,7 @@ impl WebViewHost {
             self.sync_view_hierarchy();
             // SAFETY: `self.web_view` is live, and `isLoading` is a side-effect-free query.
             last_loading = unsafe { self.web_view.isLoading() }; // SAFETY: see above.
-                                                                 // SAFETY: `self.web_view` is live, and `estimatedProgress` is a side-effect-free query.
+            // SAFETY: `self.web_view` is live, and `estimatedProgress` is a side-effect-free query.
             last_progress = unsafe { self.web_view.estimatedProgress() }; // SAFETY: see above.
             last_url = self.current_url();
             saw_navigation |= last_loading
@@ -145,9 +146,8 @@ impl WebViewHost {
                         "#,
                     )?;
                     if on_frame_check.as_deref() == Some("missing") {
-                        eprintln!(
-                            "warning: page is missing window.__onFrame after load; \
-                             recorder output may stay static until the page defines it"
+                        trace_log!(
+                            "warning: page is missing window.__onFrame after load; recorder output may stay static until the page defines it"
                         );
                     }
                     return self.flush_render(Duration::from_millis(120));

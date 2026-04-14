@@ -92,5 +92,5 @@ pub(crate) fn error_with_fix(action: &str, reason: impl Display, fix: &str) -> S
 }
 
 pub(crate) fn internal_error_with_fix(action: &str, reason: impl Display, fix: &str) -> String {
-    error_with_fix(action, format!("Internal: {reason}"), fix)
+    error_with_fix(action, reason, fix)
 }

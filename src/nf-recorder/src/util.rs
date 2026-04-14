@@ -43,9 +43,10 @@ pub fn auto_jobs(dpr: f64) -> usize {
     let by_mem = ((free_mb * 0.7) / mem_per_job).floor().max(1.0) as usize;
     let by_cpu = cpus.saturating_sub(2).max(1);
     let jobs = by_mem.min(by_cpu).max(1);
-    println!(
-        "  system: {cpus} cores, {:.0}MB total, {:.0}MB free -> {jobs} jobs",
-        total_mb, free_mb
+    trace_log!(
+        "system: {cpus} cores, {:.0}MB total, {:.0}MB free -> {jobs} jobs",
+        total_mb,
+        free_mb
     );
     jobs
 }

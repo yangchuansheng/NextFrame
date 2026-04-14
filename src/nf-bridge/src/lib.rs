@@ -11,6 +11,7 @@ mod storage;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::time::Instant;
 
 use codec::{ffmpeg_command_path, handle_export_mux_audio};
 use domain::{
@@ -76,7 +77,9 @@ pub fn dispatch(req: Request) -> Response {
 }
 
 fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
-    match method {
+    let params_preview = truncate_json_preview(&params, 200);
+    let started_at = Instant::now();
+    let result = match method {
         "autosave.write" => handle_autosave_write(&params),
         "autosave.list" => handle_autosave_list(&params),
         "autosave.clear" => handle_autosave_clear(&params),
@@ -112,7 +115,53 @@ fn dispatch_inner(method: &str, params: Value) -> Result<Value, String> {
         _ => Err(format!( // Fix: included in the error string below
             "failed to dispatch request: unknown method: {method}. Fix: use one of the supported nf-bridge IPC methods."
         )),
+    };
+    let duration_ms = started_at.elapsed().as_millis();
+
+    match &result {
+        Ok(_) => trace_log!(
+            module: "ipc",
+            event: "dispatch",
+            data: {
+                "method": method,
+                "params": params_preview,
+                "status": "ok",
+                "duration_ms": duration_ms,
+            }
+        ),
+        Err(error) => trace_log!(
+            module: "ipc",
+            event: "dispatch",
+            data: {
+                "method": method,
+                "params": params_preview,
+                "status": "error",
+                "error": error,
+                "duration_ms": duration_ms,
+            }
+        ),
     }
+
+    result
+}
+
+fn truncate_json_preview(value: &Value, limit: usize) -> String {
+    match serde_json::to_string(value) {
+        Ok(serialized) => truncate_text(&serialized, limit),
+        Err(error) => format!("<failed to serialize params: {error}>"),
+    }
+}
+
+fn truncate_text(text: &str, limit: usize) -> String {
+    let mut truncated = String::new();
+    for (index, ch) in text.chars().enumerate() {
+        if index == limit {
+            truncated.push_str("...");
+            return truncated;
+        }
+        truncated.push(ch);
+    }
+    truncated
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 
 pub(crate) fn emit_trace(module: impl AsRef<str>, event: impl AsRef<str>, data: Value) {
     let line = build_trace_line(module.as_ref(), event.as_ref(), data);
-    let _ = writeln!(io::stderr().lock(), "{line}");
+    let _ = writeln!(io::stderr().lock(), "[bridge] {line}");
 }
 
 pub(crate) fn emit_message(module_path: &str, message: String) {

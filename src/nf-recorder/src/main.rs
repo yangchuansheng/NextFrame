@@ -1,10 +1,46 @@
 //! nf-recorder entry point
 #![cfg(feature = "cli")]
 
+use std::io::{self, Write};
+
+use chrono::{SecondsFormat, Utc};
+use serde_json::{Value, json};
+
+fn emit_trace(module: impl AsRef<str>, event: impl AsRef<str>, data: Value) {
+    let line = json!({
+        "ts": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        "module": module.as_ref(),
+        "event": event.as_ref(),
+        "data": data,
+    })
+    .to_string();
+    let _ = writeln!(io::stderr().lock(), "{line}");
+}
+
+fn emit_message(module_path: &str, message: String) {
+    emit_trace(
+        infer_module_name(module_path),
+        "message",
+        json!({ "message": message }),
+    );
+}
+
+fn infer_module_name(module_path: &str) -> String {
+    let mut segments = module_path.split("::");
+    let crate_name = segments.next().unwrap_or(module_path);
+    segments.next().map(str::to_owned).unwrap_or_else(|| {
+        crate_name
+            .rsplit('_')
+            .next()
+            .unwrap_or(crate_name)
+            .to_owned()
+    })
+}
+
 macro_rules! trace_log {
-    ($($arg:tt)*) => {
-        eprintln!("[{}:{}] {}", file!(), line!(), format_args!($($arg)*))
-    };
+    ($($arg:tt)*) => {{
+        $crate::emit_message(module_path!(), format!($($arg)*));
+    }};
 }
 
 use std::env;
@@ -204,16 +240,19 @@ fn run() -> Result<(), String> {
     let top = Cli::parse();
     let output = match top.command {
         Command::Slide(args) => {
-            println!("\n  mode: slide (pure HTML)");
+            trace_log!("mode: slide (pure HTML)");
             record_segments(args.common.into())?
         }
         Command::Clip(args) => {
             let video = absolute_path(&args.video)?;
             if !video.exists() {
-                return Err(format!("--video file not found: {}", video.display()));
+                return Err(format!(
+                    "failed to validate the clip overlay video: --video file not found: {}. Fix: Pass an existing local video file to `--video`.",
+                    video.display()
+                ));
             }
-            println!("\n  mode: clip (HTML + video overlay)");
-            println!("  video: {}", video.display());
+            trace_log!("mode: clip (HTML + video overlay)");
+            trace_log!("video: {}", video.display());
 
             let output = record_segments(args.common.into())?;
             overlay_output(&output.output_path, &video)?;
@@ -234,7 +273,15 @@ fn maybe_write_output_json(output: &RecordOutput) -> Result<(), String> {
 }
 
 fn write_output_json(path: &Path, output: &RecordOutput) -> Result<(), String> {
-    let bytes = serde_json::to_vec(output)
-        .map_err(|err| format!("failed to serialize record output: {err}"))?;
-    fs::write(path, bytes).map_err(|err| format!("failed to write {}: {err}", path.display()))
+    let bytes = serde_json::to_vec(output).map_err(|err| {
+        format!(
+            "failed to serialize the recorder output JSON: {err}. Fix: Retry the command after removing unsupported values from the recorder output payload."
+        )
+    })?;
+    fs::write(path, bytes).map_err(|err| {
+        format!(
+            "failed to write the recorder output JSON: {}: {err}. Fix: Ensure the destination directory exists and is writable, then retry.",
+            path.display()
+        )
+    })
 }

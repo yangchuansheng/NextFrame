@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::CommonArgs;
 use crate::encoder::concat_segments;
+use crate::error_with_fix;
 use crate::util::create_temp_dir;
 
 fn select_num_processes(frame_count: usize, requested: usize, cpus: usize) -> usize {
@@ -80,19 +81,28 @@ pub(crate) fn run_parallel(
     let num_procs = select_num_processes(frame_files.len(), requested, cpus);
 
     if num_procs <= 1 {
-        return Err("--parallel 1 is equivalent to serial mode; omit --parallel".into());
+        return Err(error_with_fix(
+            "start parallel recording",
+            "`--parallel 1` is equivalent to serial mode",
+            "Omit `--parallel` for serial mode or set `--parallel` to at least `2`.",
+        ));
     }
 
     let temp_root = create_temp_dir()?;
-    let exe =
-        env::current_exe().map_err(|err| format!("failed to find recorder executable: {err}"))?;
+    let exe = env::current_exe().map_err(|err| {
+        error_with_fix(
+            "locate the recorder executable",
+            err,
+            "Retry from an installed or built recorder binary so subprocesses can relaunch it.",
+        )
+    })?;
 
     let ranges = segment_ranges(frame_files.len(), num_procs);
     let actual_procs = ranges.len();
 
     let group_sizes: Vec<usize> = ranges.iter().map(|range| range.end - range.start).collect();
-    println!(
-        "\n  parallel: {} processes, {} files ({})\n",
+    trace_log!(
+        "parallel: {} processes, {} files ({})",
         actual_procs,
         frame_files.len(),
         group_sizes
@@ -118,10 +128,16 @@ pub(crate) fn run_parallel(
 
         let child = cmd
             .spawn()
-            .map_err(|err| format!("failed to spawn recorder process {}: {err}", idx + 1))?;
+            .map_err(|err| {
+                error_with_fix(
+                    "spawn the parallel recorder subprocess",
+                    format!("process {} failed to start: {err}", idx + 1),
+                    "Retry with fewer workers or run without `--parallel` if the system is resource constrained.",
+                )
+            })?;
 
-        println!(
-            "  [{}] spawned (pid {}, {} slides)",
+        trace_log!(
+            "[{}] spawned (pid {}, {} slides)",
             idx + 1,
             child.id(),
             group.len()
@@ -138,10 +154,16 @@ pub(crate) fn run_parallel(
     for (idx, mut child) in children.into_iter().enumerate() {
         let status = child
             .wait()
-            .map_err(|err| format!("failed to wait for process {}: {err}", idx + 1))?;
+            .map_err(|err| {
+                error_with_fix(
+                    "wait for the parallel recorder subprocess",
+                    format!("process {} could not be waited on: {err}", idx + 1),
+                    "Retry the recording job after ensuring subprocesses can complete normally.",
+                )
+            })?;
 
         if status.success() {
-            println!("  [{}] done", idx + 1);
+            trace_log!("[{}] done", idx + 1);
         } else {
             let stderr = child.stderr.take().map(|mut s| {
                 let mut buf = String::new();
@@ -149,7 +171,7 @@ pub(crate) fn run_parallel(
                 buf
             });
             trace_log!(
-                "  [{}] FAILED (exit {}): {}",
+                "[{}] FAILED (exit {}): {}",
                 idx + 1,
                 status,
                 stderr.unwrap_or_default().trim()
@@ -160,21 +182,25 @@ pub(crate) fn run_parallel(
 
     if failed {
         let _ = fs::remove_dir_all(&temp_root);
-        return Err("one or more parallel recorder processes failed".into());
+        return Err(error_with_fix(
+            "complete parallel recording",
+            "one or more recorder subprocesses exited with failure",
+            "Inspect the subprocess warnings above, then retry with fewer workers or without `--parallel`.",
+        ));
     }
 
     for (idx, path) in group_outputs.iter().enumerate() {
         if !path.exists() {
             let _ = fs::remove_dir_all(&temp_root);
-            return Err(format!(
-                "group {} output missing: {}",
-                idx + 1,
-                path.display()
+            return Err(error_with_fix(
+                "collect the parallel segment output",
+                format!("group {} output was missing: {}", idx + 1, path.display()),
+                "Retry the recording job and inspect the failing subprocess output for that group.",
             ));
         }
     }
 
-    println!("\n  concat {} groups...", actual_procs);
+    trace_log!("concat {} groups", actual_procs);
     concat_segments(&group_outputs, out)?;
 
     let _ = fs::remove_dir_all(&temp_root);
@@ -184,9 +210,9 @@ pub(crate) fn run_parallel(
         .map(|meta| meta.len() as f64 / 1024.0 / 1024.0)
         .unwrap_or(0.0);
 
-    println!("\n  ✓ {}", out.display());
-    println!(
-        "  {:.1} MB | {} processes | {:.1}s total\n",
+    trace_log!("output ready: {}", out.display());
+    trace_log!(
+        "{:.1} MB | {} processes | {:.1}s total",
         output_size_mb,
         actual_procs,
         elapsed.as_secs_f64()

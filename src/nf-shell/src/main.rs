@@ -5,7 +5,7 @@ use std::backtrace::Backtrace;
 use std::env;
 use std::fs::{create_dir_all, File};
 use std::io::{self, Write};
-use std::panic::{self, PanicInfo};
+use std::panic::{self, PanicHookInfo};
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -73,7 +73,8 @@ fn install_panic_hook() {
     }));
 }
 
-fn write_crash_dump(panic_info: &PanicInfo<'_>) -> Result<(), String> {
+#[allow(clippy::incompatible_msrv)]
+fn write_crash_dump(panic_info: &PanicHookInfo<'_>) -> Result<(), String> {
     let timestamp = iso8601_utc_now();
     let crash_dir = crash_dir_path();
     create_dir_all(&crash_dir)
@@ -107,7 +108,8 @@ fn crash_dir_path() -> PathBuf {
     }
 }
 
-fn panic_message(panic_info: &PanicInfo<'_>) -> String {
+#[allow(clippy::incompatible_msrv)]
+fn panic_message(panic_info: &PanicHookInfo<'_>) -> String {
     if let Some(message) = panic_info.payload().downcast_ref::<&str>() {
         return (*message).to_string();
     }

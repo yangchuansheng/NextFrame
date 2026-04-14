@@ -62,8 +62,8 @@ pub(super) fn prepare_segment(
         }
     });
     let effective_duration = if let Some(dur) = page_duration_sec {
-        println!(
-            "  segment {}: page reports duration={:.1}s (plan had {:.1}s)",
+        trace_log!(
+            "segment {}: page reports duration={:.1}s (plan had {:.1}s)",
             index + 1,
             dur,
             plan.effective_duration_sec
@@ -89,8 +89,8 @@ pub(super) fn prepare_segment(
     host.flush_render(Duration::from_millis(200))?;
     let video_layers = host.query_video_layers();
     if !video_layers.is_empty() {
-        println!(
-            "  segment {}: detected {} videoClip layer(s)",
+        trace_log!(
+            "segment {}: detected {} videoClip layer(s)",
             index + 1,
             video_layers.len()
         );
@@ -108,10 +108,10 @@ pub(super) fn prepare_segment(
                 &plan.metadata.html_path,
             );
             if let Some(path) = &audio_path {
-                println!("  segment {}: page audio: {}", index + 1, path.display());
+                trace_log!("segment {}: page audio: {}", index + 1, path.display());
             } else {
-                eprintln!(
-                    "  warn seg {}: could not resolve page audio src {}",
+                trace_log!(
+                    "warn seg {}: could not resolve page audio src {}",
                     index + 1,
                     src
                 );
@@ -128,11 +128,14 @@ pub(super) fn prepare_segment(
     let progress_bar = if total_segments > 1 {
         let rect = host.query_progress_rect(cli.dpr);
         match &rect {
-            Some(r) => println!(
-                "  progress bar found: {}x{} at ({},{})",
-                r.width, r.height, r.x, r.y
+            Some(r) => trace_log!(
+                "progress bar found: {}x{} at ({},{})",
+                r.width,
+                r.height,
+                r.x,
+                r.y
             ),
-            None => println!("  progress bar: not found in DOM"),
+            None => trace_log!("progress bar: not found in DOM"),
         }
         rect.map(|rect| {
             let bar = ProgressBar::new(rect, segment_durations);

@@ -8,6 +8,7 @@ rust-version.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+chrono = "0.4"
 nf-recorder = { path = "../nf-recorder" }
 "rfd" = "0.14"
 serde = { version = "1", features = ["derive"] }

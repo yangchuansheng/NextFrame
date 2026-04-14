@@ -181,6 +181,6 @@ pub fn write_perf_log(
         .open(&log_path)
     {
         let _ = writeln!(file, "{line}");
-        println!("  perf → {}", log_path.display());
+        trace_log!("perf log path: {}", log_path.display());
     }
 }

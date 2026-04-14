@@ -7,7 +7,14 @@ pub(crate) fn handle_log(params: &Value) -> Result<Value, String> {
     let level = require_string(params, "level")?;
     let message = require_string(params, "msg")?;
 
-    trace_log!("[webview][{level}] {message}");
+    trace_log!(
+        module: "webview",
+        event: "log",
+        data: {
+            "level": level,
+            "message": message,
+        }
+    );
 
     // AI command results — write to result file for CLI to read
     if level == "cmd_result" || level == "cmd_error" {

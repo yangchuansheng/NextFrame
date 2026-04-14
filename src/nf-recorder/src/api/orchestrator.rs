@@ -14,7 +14,7 @@ use crate::parser::SlideType;
 use crate::plan::{build_segment_plans, detect_root};
 use crate::record::record_segment;
 use crate::util::{auto_jobs, create_temp_dir};
-use crate::{encoder, server, webview};
+use crate::{encoder, error_with_fix, internal_error_with_fix, server, webview};
 
 pub(super) fn record_single(
     cli: &CommonArgs,
@@ -25,18 +25,18 @@ pub(super) fn record_single(
     let requested_jobs = cli.jobs.unwrap_or_else(|| auto_jobs(cli.dpr));
     let effective_jobs = 1usize;
 
-    println!("\n  recorder — CALayer.render + takeSnapshot fallback + VideoToolbox");
-    println!("  frames: {}", frame_files.len());
-    println!(
-        "  output: {}x{} @{}fps CRF{} DPR {:.2}",
+    trace_log!("recorder: CALayer.render + takeSnapshot fallback + VideoToolbox");
+    trace_log!("frames: {}", frame_files.len());
+    trace_log!(
+        "output: {}x{} @{}fps CRF{} DPR {:.2}",
         (cli.width * cli.dpr).round() as usize,
         (cli.height * cli.dpr).round() as usize,
         cli.fps,
         cli.crf,
         cli.dpr
     );
-    println!("  jobs: {requested_jobs} requested, {effective_jobs} active capture lane");
-    println!("  file: {}\n", out.display());
+    trace_log!("jobs: {requested_jobs} requested, {effective_jobs} active capture lane");
+    trace_log!("file: {}", out.display());
 
     let plans = build_segment_plans(frame_files)?;
     let total_duration_sec: f64 = plans.iter().map(|plan| plan.effective_duration_sec).sum();
@@ -44,30 +44,37 @@ pub(super) fn record_single(
         .iter()
         .map(|plan| ((plan.effective_duration_sec + 0.5) * cli.fps as f64).ceil() as usize)
         .sum();
-    println!(
-        "  total audio: {:.1}s -> {} frames\n",
-        total_duration_sec, total_frame_budget
+    trace_log!(
+        "total audio: {:.1}s -> {} frames",
+        total_duration_sec,
+        total_frame_budget
     );
 
     let temp_root = create_temp_dir()?;
     let server = match server::HttpFileServer::start(root.clone()) {
         Ok(server) => {
-            println!("  server: {}\n", server.base_url());
+            trace_log!("server: {}", server.base_url());
             Some(server)
         }
         Err(err) => {
-            trace_log!("  warn server disabled: {err}");
-            trace_log!("  warn falling back to file:// loadFileURL mode\n");
+            trace_log!("warn server disabled: {err}");
+            trace_log!("warn falling back to file:// loadFileURL mode");
             None
         }
     };
 
     let backend = encoder::detect_backend();
-    let mtm = MainThreadMarker::new().ok_or("recorder must start on the main thread")?;
+    let mtm = MainThreadMarker::new().ok_or_else(|| {
+        internal_error_with_fix(
+            "start the recorder webview host",
+            "recorder must start on the main thread",
+            "Retry from the normal macOS CLI entry point so the recorder initializes on the main thread.",
+        )
+    })?;
     let mut host = webview::WebViewHost::new(mtm, cli.headed, cli.dpr, cli.width, cli.height)?;
     let pixel_size = host.target_pixel_size();
-    println!(
-        "  capture: {}x{} ({})\n",
+    trace_log!(
+        "capture: {}x{} ({})",
         pixel_size.0,
         pixel_size.1,
         backend.label()
@@ -134,8 +141,8 @@ pub(super) fn record_single(
             {
                 let ext = audio.extension().and_then(|ext| ext.to_str()).unwrap_or("");
                 if matches!(ext, "mp4" | "mov" | "webm") {
-                    println!(
-                        "  auto-overlay: clip segment {} → {}",
+                    trace_log!(
+                        "auto-overlay: clip segment {} -> {}",
                         index + 1,
                         audio.display()
                     );
@@ -177,9 +184,9 @@ pub(super) fn record_single(
         .iter()
         .find_map(|summary| summary.audio_path.as_deref());
 
-    println!("\n  ✓ {}", out.display());
-    println!(
-        "  {:.1} MB | {}x{} | {}fps | {} | skipped {}",
+    trace_log!("output ready: {}", out.display());
+    trace_log!(
+        "{:.1} MB | {}x{} | {}fps | {} | skipped {}",
         output_size_mb,
         pixel_size.0,
         pixel_size.1,
@@ -187,8 +194,8 @@ pub(super) fn record_single(
         backend.label(),
         skipped_frames
     );
-    println!(
-        "  {} frames in {:.2}s = {:.1} fps\n",
+    trace_log!(
+        "{} frames in {:.2}s = {:.1} fps",
         total_frames,
         elapsed.as_secs_f64(),
         measured_fps
@@ -239,7 +246,7 @@ pub(super) fn concat_output(
     out: &Path,
     expected_duration_sec: f64,
 ) -> Result<(), String> {
-    println!("\n  ffmpeg concat...");
+    trace_log!("ffmpeg concat start");
     encoder::concat_segments(segment_paths, out)?;
 
     if segment_paths.len() > 1 {
@@ -247,15 +254,18 @@ pub(super) fn concat_output(
             Ok(actual) if actual > 0.0 => {
                 let delta = f64::abs(actual - expected_duration_sec);
                 if delta > 2.0 {
-                    return Err(format!(
-                        "concat duration mismatch: output {actual:.1}s vs expected {expected_duration_sec:.1}s (delta {delta:.1}s). \
-                         This is a bug — segments have incompatible time_base."
+                    return Err(error_with_fix(
+                        "verify the concatenated output duration",
+                        format!(
+                            "Internal: output duration was {actual:.1}s but expected {expected_duration_sec:.1}s (delta {delta:.1}s); segments likely have incompatible time bases"
+                        ),
+                        "Retry without parallel segment mixing, and if it persists inspect the generated segment files before concat.",
                     ));
                 }
-                println!("  duration check: {actual:.1}s ≈ {expected_duration_sec:.1}s ✓");
+                trace_log!("duration check: {actual:.1}s ~= {expected_duration_sec:.1}s ok");
             }
             _ => {
-                trace_log!("  warn: could not verify output duration");
+                trace_log!("warn: could not verify output duration");
             }
         }
     }

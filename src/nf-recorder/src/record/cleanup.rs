@@ -23,8 +23,8 @@ pub(super) fn finish_segment(
     encoder.finish()?;
     let skipped_frames = clock.skipped_frames();
 
-    println!(
-        "  ✓ {} ({:.1}s, {} frames, {} skipped, {})",
+    trace_log!(
+        "segment complete: {} ({:.1}s, {} frames, {} skipped, {})",
         plan.metadata
             .html_path
             .file_name()

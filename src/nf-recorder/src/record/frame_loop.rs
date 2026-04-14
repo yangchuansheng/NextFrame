@@ -48,8 +48,8 @@ pub(super) fn record_frames(
     if is_upscaling {
         let render_w = ((output_pw as f64 * cli.render_scale).round() as usize).max(2) & !1;
         let render_h = ((output_ph as f64 * cli.render_scale).round() as usize).max(2) & !1;
-        println!(
-            "  segment {} capture: {} (render {}x{} -> upscale {}x{})",
+        trace_log!(
+            "segment {} capture: {} (render {}x{} -> upscale {}x{})",
             index + 1,
             capture_method.label(),
             render_w,
@@ -58,11 +58,7 @@ pub(super) fn record_frames(
             output_ph,
         );
     } else {
-        println!(
-            "  segment {} capture: {}",
-            index + 1,
-            capture_method.label()
-        );
+        trace_log!("segment {} capture: {}", index + 1, capture_method.label());
     }
 
     let mut last_image: Option<Retained<CGImage>> = None;
@@ -137,8 +133,8 @@ pub(super) fn record_frames(
 
         let last_in_batch = batch_end - 1;
         if frame_index.is_multiple_of(100) || last_in_batch + 1 == range_end {
-            println!(
-                "    seg {}: frame {}/{} (skip {})",
+            trace_log!(
+                "seg {}: frame {}/{} (skip {})",
                 index + 1,
                 last_in_batch + 1 - range_start,
                 range_end - range_start,
@@ -163,16 +159,16 @@ pub(super) fn capture_frame(
         match host.snapshot_via_layer_scaled(render_scale) {
             Ok(image) => {
                 if frame_index == 0 && is_cgimage_mostly_black(&image)? {
-                    eprintln!(
-                        "  warn seg {} frame {}: {} produced a mostly black image; falling back to {}",
+                    trace_log!(
+                        "warn seg {} frame {}: {} produced a mostly black image; falling back to {}",
                         segment_index + 1,
                         frame_index + 1,
                         CaptureMethod::LayerRender.label(),
                         CaptureMethod::TakeSnapshot.label()
                     );
                     *capture_method = CaptureMethod::TakeSnapshot;
-                    println!(
-                        "  segment {} capture: {}",
+                    trace_log!(
+                        "segment {} capture: {}",
                         segment_index + 1,
                         capture_method.label()
                     );
@@ -181,16 +177,16 @@ pub(super) fn capture_frame(
                 }
             }
             Err(err) => {
-                eprintln!(
-                    "  warn seg {} frame {}: {} failed ({err}); falling back to {}",
+                trace_log!(
+                    "warn seg {} frame {}: {} failed ({err}); falling back to {}",
                     segment_index + 1,
                     frame_index + 1,
                     CaptureMethod::LayerRender.label(),
                     CaptureMethod::TakeSnapshot.label()
                 );
                 *capture_method = CaptureMethod::TakeSnapshot;
-                println!(
-                    "  segment {} capture: {}",
+                trace_log!(
+                    "segment {} capture: {}",
                     segment_index + 1,
                     capture_method.label()
                 );
