@@ -153,15 +153,15 @@ async function runClick(argv) {
   }
 
   const js = `(function() {
-    var x = ${JSON.stringify(x)};
-    var y = ${JSON.stringify(y)};
-    var target = document.elementFromPoint(x, y);
+    const x = ${JSON.stringify(x)};
+    const y = ${JSON.stringify(y)};
+    const target = document.elementFromPoint(x, y);
     if (!target) {
       throw new Error("no element at point " + x + "," + y);
     }
-    var init = { bubbles: true, cancelable: true, clientX: x, clientY: y, view: window };
+    const init = { bubbles: true, cancelable: true, clientX: x, clientY: y, view: window };
     ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach(function(type) {
-      var eventCtor = type.startsWith("pointer") && typeof PointerEvent === "function" ? PointerEvent : MouseEvent;
+      const eventCtor = type.startsWith("pointer") && typeof PointerEvent === "function" ? PointerEvent : MouseEvent;
       target.dispatchEvent(new eventCtor(type, init));
     });
     return {
