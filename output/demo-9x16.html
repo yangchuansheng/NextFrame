@@ -29,15 +29,25 @@ body { background: #000; display: flex; flex-direction: column; align-items: cen
 <script>
 // ─── Config ───
 const DURATION = 12;
-const MAX_H = Math.min(window.innerHeight - 80, 750);
-// 所有 scene 统一用显示尺寸渲染（9:16 比例）
-const PH = MAX_H;
-const PW = Math.round(PH * 9 / 16);
-const W = PW, H = PH; // scene 拿到的就是显示尺寸
+
+// 录制模式：viewport 就是整个窗口（recorder 设了精确尺寸）
+// 预览模式：缩小到屏幕内显示
+const isRecording = typeof window.__onFrame === 'function' || window.innerWidth === 1080;
+const W = isRecording ? window.innerWidth : Math.round(Math.min(window.innerHeight - 80, 750) * 9 / 16);
+const H = isRecording ? window.innerHeight : Math.min(window.innerHeight - 80, 750);
 
 const vp = document.getElementById('viewport');
-vp.style.width = PW + 'px';
-vp.style.height = PH + 'px';
+vp.style.width = W + 'px';
+vp.style.height = H + 'px';
+if (isRecording) {
+  // 录制时全屏，隐藏控件
+  document.body.style.margin = '0';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('title').style.display = 'none';
+  vp.style.borderRadius = '0';
+  vp.style.border = 'none';
+}
 
 // ─── Timeline ───
 const timeline = [
