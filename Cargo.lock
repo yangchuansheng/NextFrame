@@ -2032,6 +2032,7 @@ dependencies = [
 name = "nf-bridge"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "nf-recorder",
  "rfd",
  "serde",
@@ -2091,6 +2092,7 @@ name = "nf-recorder"
 version = "0.1.0"
 dependencies = [
  "block2",
+ "chrono",
  "clap",
  "objc2",
  "objc2-app-kit",
@@ -2109,6 +2111,7 @@ name = "nf-shell"
 version = "0.1.0"
 dependencies = [
  "block2",
+ "chrono",
  "nf-bridge",
  "objc2",
  "objc2-app-kit",

@@ -15,32 +15,33 @@ pub(super) fn extract_clip_timing(
 ) -> Result<ClipTiming, String> {
     let clip_label = clip.id.as_deref().unwrap_or("<unknown>");
 
-    let (start_sec, duration_sec) =
-        if let (Some(start_frame), Some(end_frame)) = (clip.start_frame, clip.end_frame) {
-            (start_frame / fps, (end_frame - start_frame) / fps)
-        } else if let Some(start_frame) = clip.start_frame {
-            let duration_frames = clip.dur_frames.or(clip.duration_frames).ok_or_else(|| {
+    let (start_sec, duration_sec) = if let (Some(start_frame), Some(end_frame)) =
+        (clip.start_frame, clip.end_frame)
+    {
+        (start_frame / fps, (end_frame - start_frame) / fps)
+    } else if let Some(start_frame) = clip.start_frame {
+        let duration_frames = clip.dur_frames.or(clip.duration_frames).ok_or_else(|| {
+            error_with_fix(
+                "parse the timeline clip timing",
+                format!("timeline clip {clip_label} is missing `endFrame` and `durationFrames`"),
+                "Set either `endFrame` or `durationFrames` on the clip and retry.",
+            )
+        })?;
+        (start_frame / fps, duration_frames / fps)
+    } else {
+        let start_sec = parse_timeline_time_ref(clip.start.as_ref(), anchors).unwrap_or(0.0);
+        let duration_sec = clip
+            .dur
+            .or_else(|| clip.end.map(|end| end - start_sec))
+            .ok_or_else(|| {
                 error_with_fix(
                     "parse the timeline clip timing",
-                    format!("timeline clip {clip_label} is missing `endFrame` and `durationFrames`"),
-                    "Set either `endFrame` or `durationFrames` on the clip and retry.",
+                    format!("timeline clip {clip_label} is missing duration"),
+                    "Set `dur` or `end` on the clip and retry.",
                 )
             })?;
-            (start_frame / fps, duration_frames / fps)
-        } else {
-            let start_sec = parse_timeline_time_ref(clip.start.as_ref(), anchors).unwrap_or(0.0);
-            let duration_sec = clip
-                .dur
-                .or_else(|| clip.end.map(|end| end - start_sec))
-                .ok_or_else(|| {
-                    error_with_fix(
-                        "parse the timeline clip timing",
-                        format!("timeline clip {clip_label} is missing duration"),
-                        "Set `dur` or `end` on the clip and retry.",
-                    )
-                })?;
-            (start_sec, duration_sec)
-        };
+        (start_sec, duration_sec)
+    };
 
     if !start_sec.is_finite() || start_sec < 0.0 {
         return Err(error_with_fix(

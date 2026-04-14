@@ -15,8 +15,8 @@ use super::{
     CVPixelBufferLockBaseAddress, CVPixelBufferRef, CVPixelBufferUnlockBaseAddress, FrameSize,
     K_CV_PIXEL_FORMAT_TYPE_32_BGRA,
 };
-use crate::{error_with_fix, internal_error_with_fix};
 use crate::progress::ProgressOverlay;
+use crate::{error_with_fix, internal_error_with_fix};
 
 // CGInterpolationQuality values
 #[allow(non_upper_case_globals)]

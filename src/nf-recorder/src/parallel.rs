@@ -152,15 +152,13 @@ pub(crate) fn run_parallel(
 
     let mut failed = false;
     for (idx, mut child) in children.into_iter().enumerate() {
-        let status = child
-            .wait()
-            .map_err(|err| {
-                error_with_fix(
-                    "wait for the parallel recorder subprocess",
-                    format!("process {} could not be waited on: {err}", idx + 1),
-                    "Retry the recording job after ensuring subprocesses can complete normally.",
-                )
-            })?;
+        let status = child.wait().map_err(|err| {
+            error_with_fix(
+                "wait for the parallel recorder subprocess",
+                format!("process {} could not be waited on: {err}", idx + 1),
+                "Retry the recording job after ensuring subprocesses can complete normally.",
+            )
+        })?;
 
         if status.success() {
             trace_log!("[{}] done", idx + 1);

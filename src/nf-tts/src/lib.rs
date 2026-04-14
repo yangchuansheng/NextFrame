@@ -1,7 +1,7 @@
 //! nf-tts library exports
 mod config;
-pub mod output {
-    pub mod manifest;
+mod output {
+    pub(crate) mod manifest;
 }
 
 pub use config::VoxConfig;

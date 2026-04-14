@@ -582,7 +582,7 @@ html, body {
    ══════════════════════════════════════ */
 .script-card {
   display: flex;
-  overflow: hidden;
+  height: auto;
   transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
   animation: fadeUp 0.5s var(--ease) both;
 }
@@ -644,9 +644,10 @@ html, body {
 
 /* Right: meta panel */
 .card-meta {
-  width: 280px;
+  min-width: 280px;
+  width: 300px;
   flex-shrink: 0;
-  padding: var(--sp-20);
+  padding: var(--sp-24);
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
@@ -668,10 +669,10 @@ html, body {
   font-size: 13px;
   font-weight: 500;
   line-height: 1.6;
-  color: var(--t65);
+  color: var(--t80);
 }
 .meta-text.logic {
-  color: rgba(167,139,250,0.72);
+  color: rgba(167,139,250,0.85);
   font-style: italic;
 }
 

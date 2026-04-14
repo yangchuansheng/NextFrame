@@ -24,14 +24,13 @@ pub(super) static SRT_TIME_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 pub(super) fn parse_srt_file(path: &Path) -> Result<Vec<SubtitleCue>, String> {
-    let source = fs::read_to_string(path)
-        .map_err(|err| {
-            error_with_fix(
-                "read the SRT subtitle file",
-                format!("failed to read {}: {err}", path.display()),
-                "Ensure the SRT file exists and is readable, then retry.",
-            )
-        })?;
+    let source = fs::read_to_string(path).map_err(|err| {
+        error_with_fix(
+            "read the SRT subtitle file",
+            format!("failed to read {}: {err}", path.display()),
+            "Ensure the SRT file exists and is readable, then retry.",
+        )
+    })?;
     parse_srt_text(&source)
 }
 
@@ -58,15 +57,13 @@ pub(super) fn parse_srt_text(source: &str) -> Result<Vec<SubtitleCue>, String> {
                     "Ensure each subtitle block contains a valid `HH:MM:SS,mmm --> HH:MM:SS,mmm` timing line.",
                 )
             })?;
-        let captures = SRT_TIME_RE
-            .captures(timing_line)
-            .ok_or_else(|| {
-                error_with_fix(
-                    "parse the SRT timing line",
-                    format!("invalid SRT timing line: {timing_line:?}"),
-                    "Use the `HH:MM:SS,mmm --> HH:MM:SS,mmm` SRT timing format and retry.",
-                )
-            })?;
+        let captures = SRT_TIME_RE.captures(timing_line).ok_or_else(|| {
+            error_with_fix(
+                "parse the SRT timing line",
+                format!("invalid SRT timing line: {timing_line:?}"),
+                "Use the `HH:MM:SS,mmm --> HH:MM:SS,mmm` SRT timing format and retry.",
+            )
+        })?;
         let start = parse_srt_timestamp(&captures, 1)?;
         let end = parse_srt_timestamp(&captures, 5)?;
         let text = lines
@@ -163,30 +160,27 @@ pub(super) fn extract_srt_array(source: &str) -> Result<Vec<SubtitleCue>, String
     };
     let mut result = Vec::new();
     for object_source in extract_object_literals(&array_source)? {
-        let start = extract_object_number(&object_source, "s")
-            .ok_or_else(|| {
-                error_with_fix(
-                    "parse the inline SRT entry",
-                    format!("SRT entry is missing `s`: {object_source}"),
-                    "Add an `s` start time field to each inline SRT entry and retry.",
-                )
-            })?;
-        let end = extract_object_number(&object_source, "e")
-            .ok_or_else(|| {
-                error_with_fix(
-                    "parse the inline SRT entry",
-                    format!("SRT entry is missing `e`: {object_source}"),
-                    "Add an `e` end time field to each inline SRT entry and retry.",
-                )
-            })?;
-        let text = extract_object_string(&object_source, "t")
-            .ok_or_else(|| {
-                error_with_fix(
-                    "parse the inline SRT entry",
-                    format!("SRT entry is missing `t`: {object_source}"),
-                    "Add a `t` text field to each inline SRT entry and retry.",
-                )
-            })?;
+        let start = extract_object_number(&object_source, "s").ok_or_else(|| {
+            error_with_fix(
+                "parse the inline SRT entry",
+                format!("SRT entry is missing `s`: {object_source}"),
+                "Add an `s` start time field to each inline SRT entry and retry.",
+            )
+        })?;
+        let end = extract_object_number(&object_source, "e").ok_or_else(|| {
+            error_with_fix(
+                "parse the inline SRT entry",
+                format!("SRT entry is missing `e`: {object_source}"),
+                "Add an `e` end time field to each inline SRT entry and retry.",
+            )
+        })?;
+        let text = extract_object_string(&object_source, "t").ok_or_else(|| {
+            error_with_fix(
+                "parse the inline SRT entry",
+                format!("SRT entry is missing `t`: {object_source}"),
+                "Add a `t` text field to each inline SRT entry and retry.",
+            )
+        })?;
         result.push(SubtitleCue { start, end, text });
     }
     Ok(result)

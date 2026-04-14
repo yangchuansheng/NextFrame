@@ -11,14 +11,13 @@ use crate::error_with_fix;
 impl WebViewHost {
     /// Loads an HTTP URL into the hosted `WKWebView`.
     pub fn load_url(&self, url: &str) -> Result<(), String> {
-        let url = NSURL::URLWithString(&NSString::from_str(url))
-            .ok_or_else(|| {
-                error_with_fix(
-                    "load the target URL into WKWebView",
-                    format!("failed to construct an NSURL from {url:?}"),
-                    "Pass a valid absolute URL such as `http://127.0.0.1:PORT/...` and retry.",
-                )
-            })?;
+        let url = NSURL::URLWithString(&NSString::from_str(url)).ok_or_else(|| {
+            error_with_fix(
+                "load the target URL into WKWebView",
+                format!("failed to construct an NSURL from {url:?}"),
+                "Pass a valid absolute URL such as `http://127.0.0.1:PORT/...` and retry.",
+            )
+        })?;
         let request = NSURLRequest::requestWithURL(&url);
         // SAFETY: `self.web_view` and `request` are live Objective-C objects for this load call.
         let navigation = unsafe { self.web_view.loadRequest(&request) }; // SAFETY: see above.

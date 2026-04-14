@@ -65,7 +65,10 @@ pub(crate) fn check_session(tab: usize, status: &str) {
         log_activity("session", platform, status);
     }
 
-    if is_alive && tab < TABS.len() && let Some(wv) = webview_for_tab(tab) {
+    if is_alive
+        && tab < TABS.len()
+        && let Some(wv) = webview_for_tab(tab)
+    {
         let current_host = current_url_for_webview(wv);
         let current_host = url_host(&current_host);
         let expected_host = url_host(TABS[tab].url);

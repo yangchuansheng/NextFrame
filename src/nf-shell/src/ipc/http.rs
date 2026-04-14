@@ -56,15 +56,13 @@ pub(crate) fn read_http_request(
         )
     })?;
     let mut lines = header_text.split("\r\n");
-    let request_line = lines
-        .next()
-        .ok_or_else(|| {
-            error_with_fix(
-                "parse the HTTP request line",
-                "the request line was missing",
-                "Send a complete HTTP request starting with `METHOD /path HTTP/1.1`.",
-            )
-        })?;
+    let request_line = lines.next().ok_or_else(|| {
+        error_with_fix(
+            "parse the HTTP request line",
+            "the request line was missing",
+            "Send a complete HTTP request starting with `METHOD /path HTTP/1.1`.",
+        )
+    })?;
     let mut request_parts = request_line.split_whitespace();
     let method = request_parts
         .next()

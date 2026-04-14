@@ -277,15 +277,13 @@ impl WebViewHost {
             }
             pump_main_run_loop(Duration::from_millis(10));
         }
-        slot.borrow_mut()
-            .take()
-            .ok_or_else(|| {
-                internal_error_with_fix(
-                    "capture a WKWebView snapshot",
-                    "snapshot completion did not return an image",
-                    "Retry the recording job after the page finishes rendering.",
-                )
-            })?
+        slot.borrow_mut().take().ok_or_else(|| {
+            internal_error_with_fix(
+                "capture a WKWebView snapshot",
+                "snapshot completion did not return an image",
+                "Retry the recording job after the page finishes rendering.",
+            )
+        })?
     }
 
     fn query_element_rect(&self, selectors: &[&str], dpr: f64, hide: bool) -> Option<ProgressRect> {
@@ -392,15 +390,13 @@ impl WebViewHost {
             }
             pump_main_run_loop(Duration::from_millis(10));
         }
-        slot.borrow_mut()
-            .take()
-            .ok_or_else(|| {
-                internal_error_with_fix(
-                    "evaluate JavaScript in the page",
-                    "evaluateJavaScript completed without a result",
-                    "Retry the recording job after the page finishes loading.",
-                )
-            })?
+        slot.borrow_mut().take().ok_or_else(|| {
+            internal_error_with_fix(
+                "evaluate JavaScript in the page",
+                "evaluateJavaScript completed without a result",
+                "Retry the recording job after the page finishes loading.",
+            )
+        })?
     }
 }
 

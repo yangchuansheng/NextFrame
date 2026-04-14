@@ -24,8 +24,7 @@ impl EnvOverrideGuard {
 
     fn set(&mut self, key: &str, value: impl Into<OsString>) {
         if !self.previous.iter().any(|(existing, _)| existing == key) {
-            self.previous
-                .push((key.to_string(), env::var_os(key)));
+            self.previous.push((key.to_string(), env::var_os(key)));
         }
         let value: OsString = value.into();
         // SAFETY: integration tests serialize these process-wide env mutations with ENV_OVERRIDE_TEST_LOCK.
@@ -45,11 +44,11 @@ impl Drop for EnvOverrideGuard {
 
 fn tiny_png() -> &'static [u8] {
     &[
-        0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, b'I', b'H',
-        b'D', b'R', 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x04, 0x00, 0x00,
-        0x00, 0xB5, 0x1C, 0x0C, 0x02, 0x00, 0x00, 0x00, 0x0B, b'I', b'D', b'A', b'T', 0x78,
-        0xDA, 0x63, 0xFC, 0xFF, 0x1F, 0x00, 0x03, 0x03, 0x01, 0xFF, 0xA5, 0x5B, 0x9B, 0xB0,
-        0x00, 0x00, 0x00, 0x00, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82,
+        0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, b'I', b'H', b'D',
+        b'R', 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x04, 0x00, 0x00, 0x00, 0xB5,
+        0x1C, 0x0C, 0x02, 0x00, 0x00, 0x00, 0x0B, b'I', b'D', b'A', b'T', 0x78, 0xDA, 0x63, 0xFC,
+        0xFF, 0x1F, 0x00, 0x03, 0x03, 0x01, 0xFF, 0xA5, 0x5B, 0x9B, 0xB0, 0x00, 0x00, 0x00, 0x00,
+        b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82,
     ]
 }
 
@@ -79,7 +78,10 @@ fn dispatch_compose_generate_writes_stubbed_html_output() {
         Some(&json!(output_path.display().to_string()))
     );
     assert_eq!(response.result.get("size"), Some(&json!(html.len() as u64)));
-    assert_eq!(fs::read_to_string(&output_path).expect("read stub html"), html);
+    assert_eq!(
+        fs::read_to_string(&output_path).expect("read stub html"),
+        html
+    );
 }
 
 #[test]
@@ -128,10 +130,7 @@ fn dispatch_fs_dialog_open_rejects_invalid_filters() {
     assert!(!response.ok);
     assert_eq!(response.id, "req-fs.dialogOpen");
     assert_eq!(response.result, Value::Null);
-    assert_error_contains(
-        response.error.as_deref(),
-        "extension must not be empty",
-    );
+    assert_error_contains(response.error.as_deref(), "extension must not be empty");
 }
 
 #[test]
@@ -142,10 +141,7 @@ fn dispatch_fs_dialog_save_uses_stubbed_selection_and_default_extension() {
     let mut env_guard = EnvOverrideGuard::new();
     env_guard.set("NF_BRIDGE_TEST_DIALOG_SAVE_PATH", selected_path.as_os_str());
 
-    let response = dispatch_request(
-        "fs.dialogSave",
-        json!({ "defaultName": "project.nfproj" }),
-    );
+    let response = dispatch_request("fs.dialogSave", json!({ "defaultName": "project.nfproj" }));
 
     assert!(response.ok, "{response:?}");
     assert_eq!(

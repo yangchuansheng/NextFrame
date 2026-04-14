@@ -211,7 +211,8 @@ pub(crate) fn make_request(
 
 pub(crate) fn remove_view_from_superview(view: &AnyObject) {
     // SAFETY: `view` is an Objective-C view object and both `catch` and `removeFromSuperview` are valid at this AppKit boundary.
-    let _ = unsafe { // SAFETY: see comment above.
+    let _ = unsafe {
+        // SAFETY: see comment above.
         // SAFETY: see comment above.
         objc2::exception::catch(std::panic::AssertUnwindSafe(|| {
             // SAFETY: `view` is a live NSView/NSResponder object and `removeFromSuperview` is a valid selector on it.

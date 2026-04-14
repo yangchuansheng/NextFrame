@@ -287,8 +287,8 @@ fn whisper_script_path() -> Result<PathBuf> {
     }
 
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let source_tree = Some(manifest.join("scripts/whisper_transcribe.py"))
-        .filter(|path| path.exists());
+    let source_tree =
+        Some(manifest.join("scripts/whisper_transcribe.py")).filter(|path| path.exists());
     if let Some(path) = source_tree {
         return Ok(path);
     }

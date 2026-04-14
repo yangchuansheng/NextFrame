@@ -75,14 +75,13 @@ pub(super) fn max_data_cue(html: &str) -> Option<usize> {
 }
 
 pub(super) fn parse_segments_manifest(source: &str) -> Result<SegmentsManifest, String> {
-    let mut manifest: SegmentsManifest = serde_json::from_str(source)
-        .map_err(|err| {
-            error_with_fix(
-                "parse the segments manifest",
-                err,
-                "Fix the `segments.json` syntax and retry.",
-            )
-        })?;
+    let mut manifest: SegmentsManifest = serde_json::from_str(source).map_err(|err| {
+        error_with_fix(
+            "parse the segments manifest",
+            err,
+            "Fix the `segments.json` syntax and retry.",
+        )
+    })?;
     manifest.segments.sort_by_key(|entry| entry.id);
     Ok(manifest)
 }
@@ -99,31 +98,27 @@ pub(super) fn load_manifest_fallback(html_path: &Path) -> Result<Option<Manifest
         return Ok(Some(default_file_convention_fallback(html_path)));
     };
 
-    let manifest_source = fs::read_to_string(&manifest_path)
-        .map_err(|err| {
-            error_with_fix(
-                "read the segments manifest",
-                format!("failed to read {}: {err}", manifest_path.display()),
-                "Ensure `segments.json` exists and is readable, then retry.",
-            )
-        })?;
-    let manifest = parse_segments_manifest(&manifest_source)
-        .map_err(|err| {
-            error_with_fix(
-                "parse the segments manifest",
-                format!("failed to parse {}: {err}", manifest_path.display()),
-                "Fix `segments.json` and retry.",
-            )
-        })?;
-    let manifest_dir = manifest_path
-        .parent()
-        .ok_or_else(|| {
-            error_with_fix(
-                "resolve segments manifest assets",
-                format!("{} has no parent directory", manifest_path.display()),
-                "Place `segments.json` under a real project directory and retry.",
-            )
-        })?;
+    let manifest_source = fs::read_to_string(&manifest_path).map_err(|err| {
+        error_with_fix(
+            "read the segments manifest",
+            format!("failed to read {}: {err}", manifest_path.display()),
+            "Ensure `segments.json` exists and is readable, then retry.",
+        )
+    })?;
+    let manifest = parse_segments_manifest(&manifest_source).map_err(|err| {
+        error_with_fix(
+            "parse the segments manifest",
+            format!("failed to parse {}: {err}", manifest_path.display()),
+            "Fix `segments.json` and retry.",
+        )
+    })?;
+    let manifest_dir = manifest_path.parent().ok_or_else(|| {
+        error_with_fix(
+            "resolve segments manifest assets",
+            format!("{} has no parent directory", manifest_path.display()),
+            "Place `segments.json` under a real project directory and retry.",
+        )
+    })?;
 
     let stem = html_path
         .file_stem()

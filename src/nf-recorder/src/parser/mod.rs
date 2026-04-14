@@ -43,23 +43,20 @@ pub fn detect_slide_type(html_content: &str) -> SlideType {
 
 /// Parses an HTML frame file and derives its audio, subtitle, and cue metadata.
 pub fn parse_frame_file(path: &Path) -> Result<FrameMetadata, String> {
-    let html_path = path
-        .canonicalize()
-        .map_err(|err| {
-            error_with_fix(
-                "open the HTML frame file",
-                format!("failed to canonicalize {}: {err}", path.display()),
-                "Pass an existing HTML frame file path and retry.",
-            )
-        })?;
-    let html = fs::read_to_string(&html_path)
-        .map_err(|err| {
-            error_with_fix(
-                "read the HTML frame file",
-                format!("failed to read {}: {err}", html_path.display()),
-                "Ensure the HTML frame file is readable and retry.",
-            )
-        })?;
+    let html_path = path.canonicalize().map_err(|err| {
+        error_with_fix(
+            "open the HTML frame file",
+            format!("failed to canonicalize {}: {err}", path.display()),
+            "Pass an existing HTML frame file path and retry.",
+        )
+    })?;
+    let html = fs::read_to_string(&html_path).map_err(|err| {
+        error_with_fix(
+            "read the HTML frame file",
+            format!("failed to read {}: {err}", html_path.display()),
+            "Ensure the HTML frame file is readable and retry.",
+        )
+    })?;
     let slide_type = detect_slide_type(&html);
 
     let mut warnings = Vec::new();
@@ -144,15 +141,13 @@ pub fn parse_frame_file(path: &Path) -> Result<FrameMetadata, String> {
 }
 
 fn resolve_relative(html_path: &Path, rel: String) -> Result<std::path::PathBuf, String> {
-    let parent = html_path
-        .parent()
-        .ok_or_else(|| {
-            error_with_fix(
-                "resolve a frame-relative asset path",
-                format!("{} has no parent directory", html_path.display()),
-                "Place the HTML frame on disk under a real directory and retry.",
-            )
-        })?;
+    let parent = html_path.parent().ok_or_else(|| {
+        error_with_fix(
+            "resolve a frame-relative asset path",
+            format!("{} has no parent directory", html_path.display()),
+            "Place the HTML frame on disk under a real directory and retry.",
+        )
+    })?;
     Ok(parent.join(rel))
 }
 
@@ -165,15 +160,13 @@ fn extract_cuemap(source: &str) -> Result<Vec<usize>, String> {
         .map(str::trim)
         .filter(|chunk| !chunk.is_empty())
         .map(|chunk| {
-            chunk
-                .parse::<usize>()
-                .map_err(|err| {
-                    error_with_fix(
-                        "parse the CUEMAP array",
-                        format!("invalid CUEMAP entry {chunk:?}: {err}"),
-                        "Use integer cue indexes in the inline CUEMAP array and retry.",
-                    )
-                })
+            chunk.parse::<usize>().map_err(|err| {
+                error_with_fix(
+                    "parse the CUEMAP array",
+                    format!("invalid CUEMAP entry {chunk:?}: {err}"),
+                    "Use integer cue indexes in the inline CUEMAP array and retry.",
+                )
+            })
         })
         .collect()
 }

@@ -584,7 +584,7 @@ html, body {
    ══════════════════════════════════════ */
 .audio-card {
   display: flex;
-  overflow: hidden;
+  height: auto;
   transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
   animation: fadeUp 0.5s var(--ease) both;
 }
@@ -676,8 +676,9 @@ html, body {
 }
 .play-btn:hover { opacity: 0.85; }
 .play-btn.playing {
-  background: rgba(255,255,255,0.12);
-  color: var(--t80);
+  background: var(--accent);
+  color: rgba(0,0,0,0.90);
+  box-shadow: 0 0 12px rgba(167,139,250,0.40), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .status-badge {
@@ -717,20 +718,28 @@ html, body {
 .sentence-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .sentence-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: start;
-  padding: var(--sp-8) var(--sp-8);
+  padding: 10px var(--sp-12);
   border-radius: var(--r-xs);
-  gap: var(--sp-8);
-  transition: background 0.15s var(--ease);
+  gap: var(--sp-12);
+  border-left: 2px solid transparent;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
 }
 .sentence-row:hover {
   background: rgba(255,255,255,0.025);
+}
+.sentence-row.active {
+  border-left-color: var(--accent);
+  background: var(--accent-06);
+}
+.sentence-row.active .s-text {
+  color: var(--t100);
 }
 
 .s-content {
@@ -742,7 +751,7 @@ html, body {
 .s-text {
   font-size: 13px;
   font-weight: 500;
-  color: var(--t65);
+  color: var(--t80);
   line-height: 1.5;
 }
 
@@ -767,9 +776,9 @@ html, body {
 
 /* Progress bar under sentence */
 .s-progress {
-  height: 2px;
+  height: 3px;
   background: rgba(255,255,255,0.06);
-  border-radius: 1px;
+  border-radius: 2px;
   margin-top: 4px;
   overflow: hidden;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
@@ -1007,17 +1016,17 @@ html, body {
             <div class="sentence-section-label">逐句分解</div>
             <div class="sentence-list">
               <div class="sentence-row">
+                <span class="s-timecode">00:00.0</span>
                 <div class="s-content">
                   <span class="s-text">每天，我们花3小时在重复性工作上。</span>
-                  <span class="s-timecode">00:00.0 <span class="s-arrow">&rarr;</span> 00:04.1</span>
                   <div class="s-progress"><div class="s-progress-fill"></div></div>
                 </div>
                 <span class="s-dur">4.1s</span>
               </div>
               <div class="sentence-row">
+                <span class="s-timecode">00:04.1</span>
                 <div class="s-content">
                   <span class="s-text">这些时间，本可以用来做更有价值的事。</span>
-                  <span class="s-timecode">00:04.1 <span class="s-arrow">&rarr;</span> 00:08.2</span>
                   <div class="s-progress"><div class="s-progress-fill"></div></div>
                 </div>
                 <span class="s-dur">4.1s</span>
@@ -1043,17 +1052,17 @@ html, body {
             <div class="sentence-section-label">逐句分解</div>
             <div class="sentence-list">
               <div class="sentence-row">
+                <span class="s-timecode">00:00.0</span>
                 <div class="s-content">
                   <span class="s-text">如果有一个工具，能把这些时间还给你？</span>
-                  <span class="s-timecode">00:00.0 <span class="s-arrow">&rarr;</span> 00:04.8</span>
                   <div class="s-progress"><div class="s-progress-fill"></div></div>
                 </div>
                 <span class="s-dur">4.8s</span>
               </div>
               <div class="sentence-row">
+                <span class="s-timecode">00:04.8</span>
                 <div class="s-content">
                   <span class="s-text">NextFrame，让视频制作像写文档一样简单。</span>
-                  <span class="s-timecode">00:04.8 <span class="s-arrow">&rarr;</span> 00:10.5</span>
                   <div class="s-progress"><div class="s-progress-fill"></div></div>
                 </div>
                 <span class="s-dur">5.7s</span>
@@ -1079,17 +1088,17 @@ html, body {
             <div class="sentence-section-label">逐句分解</div>
             <div class="sentence-list">
               <div class="sentence-row">
+                <span class="s-timecode">00:00.0</span>
                 <div class="s-content">
                   <span class="s-text">从脚本到音频，从画面到成片——</span>
-                  <span class="s-timecode">00:00.0 <span class="s-arrow">&rarr;</span> 00:04.6</span>
                   <div class="s-progress"><div class="s-progress-fill"></div></div>
                 </div>
                 <span class="s-dur">4.6s</span>
               </div>
               <div class="sentence-row">
+                <span class="s-timecode">00:04.6</span>
                 <div class="s-content">
                   <span class="s-text">AI全自动编排，你只需要审核。</span>
-                  <span class="s-timecode">00:04.6 <span class="s-arrow">&rarr;</span> 00:09.8</span>
                   <div class="s-progress"><div class="s-progress-fill"></div></div>
                 </div>
                 <span class="s-dur">5.2s</span>
@@ -1192,6 +1201,8 @@ function playKaraoke(btn) {
     karaokeBtn.closest('.card-audio').querySelectorAll('.ch').forEach(function(c) { c.className = 'ch unspoken'; });
     // Reset progress bars
     karaokeBtn.closest('.card-audio').querySelectorAll('.s-progress-fill').forEach(function(p) { p.style.width = '0'; });
+    // Reset active sentence rows
+    karaokeBtn.closest('.card-audio').querySelectorAll('.sentence-row').forEach(function(r) { r.classList.remove('active'); });
   }
 
   if (karaokeBtn === btn) { karaokeBtn = null; return; } // toggle off
@@ -1216,6 +1227,10 @@ function playKaraoke(btn) {
   var sentenceIdx = 0;
   var charInSentence = 0;
 
+  // Activate first sentence row
+  sentenceRows.forEach(function(r) { r.classList.remove('active'); });
+  if (sentenceRows[0]) sentenceRows[0].classList.add('active');
+
   karaokeTimer = setInterval(function() {
     if (idx > 0) chars[idx - 1].className = 'ch spoken';
     if (idx >= chars.length) {
@@ -1225,6 +1240,8 @@ function playKaraoke(btn) {
       card.classList.remove('playing');
       // Fill last progress bar
       if (progressBars[sentenceIdx]) progressBars[sentenceIdx].style.width = '100%';
+      // Clear active sentence
+      sentenceRows.forEach(function(r) { r.classList.remove('active'); });
       karaokeBtn = null;
       return;
     }
@@ -1234,8 +1251,11 @@ function playKaraoke(btn) {
     charInSentence++;
     if (sentenceCharCounts[sentenceIdx] && charInSentence > sentenceCharCounts[sentenceIdx]) {
       if (progressBars[sentenceIdx]) progressBars[sentenceIdx].style.width = '100%';
+      // Move active to next sentence
+      if (sentenceRows[sentenceIdx]) sentenceRows[sentenceIdx].classList.remove('active');
       sentenceIdx++;
       charInSentence = 1;
+      if (sentenceRows[sentenceIdx]) sentenceRows[sentenceIdx].classList.add('active');
     }
     if (progressBars[sentenceIdx] && sentenceCharCounts[sentenceIdx]) {
       progressBars[sentenceIdx].style.width = (charInSentence / sentenceCharCounts[sentenceIdx] * 100) + '%';

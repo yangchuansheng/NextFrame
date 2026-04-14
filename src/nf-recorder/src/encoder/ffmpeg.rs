@@ -40,7 +40,11 @@ pub fn probe_audio_duration(audio_path: Option<&Path>) -> Result<f64, String> {
     if !output.status.success() {
         return Err(error_with_fix(
             "inspect the audio track duration",
-            format!("ffprobe failed for {} with exit {}", path.display(), output.status),
+            format!(
+                "ffprobe failed for {} with exit {}",
+                path.display(),
+                output.status
+            ),
             "Verify the audio file is readable by ffprobe, then retry.",
         ));
     }
@@ -65,16 +69,13 @@ pub fn concat_segments(segment_paths: &[PathBuf], output_path: &Path) -> Result<
 
     let args = build_concat_segments_args(segment_paths, output_path);
 
-    let output = Command::new("ffmpeg")
-        .args(&args)
-        .output()
-        .map_err(|err| {
-            error_with_fix(
-                "launch ffmpeg to concatenate segments",
-                err,
-                "Install `ffmpeg` and ensure it is available on PATH before retrying.",
-            )
-        })?;
+    let output = Command::new("ffmpeg").args(&args).output().map_err(|err| {
+        error_with_fix(
+            "launch ffmpeg to concatenate segments",
+            err,
+            "Install `ffmpeg` and ensure it is available on PATH before retrying.",
+        )
+    })?;
     if output.status.success() {
         return Ok(());
     }
@@ -92,7 +93,10 @@ fn parse_probe_audio_duration_output(path: &Path, stdout: &[u8]) -> Result<f64, 
         .map_err(|err| {
             error_with_fix(
                 "parse the ffprobe duration output",
-                format!("failed to parse ffprobe duration for {}: {err}", path.display()),
+                format!(
+                    "failed to parse ffprobe duration for {}: {err}",
+                    path.display()
+                ),
                 "Verify the audio file reports a numeric duration in ffprobe and retry.",
             )
         })
@@ -197,7 +201,10 @@ pub(super) fn mux_audio_track(
         .map_err(|err| {
             error_with_fix(
                 "launch ffmpeg to mux audio",
-                format!("failed to start ffmpeg for {}: {err}", output_path.display()),
+                format!(
+                    "failed to start ffmpeg for {}: {err}",
+                    output_path.display()
+                ),
                 "Install `ffmpeg` and ensure it is available on PATH before retrying.",
             )
         })?;

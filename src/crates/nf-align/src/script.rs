@@ -77,7 +77,10 @@ pub(crate) fn align_script_path() -> Result<PathBuf> {
 
     let exe = std::env::current_exe().context("resolve current executable")?;
     for parent in exe.ancestors() {
-        for relative in ["src/nf-tts/scripts/align_ffa.py", "nf-tts/scripts/align_ffa.py"] {
+        for relative in [
+            "src/nf-tts/scripts/align_ffa.py",
+            "nf-tts/scripts/align_ffa.py",
+        ] {
             let candidate = parent.join(relative);
             if candidate.exists() {
                 return Ok(candidate);

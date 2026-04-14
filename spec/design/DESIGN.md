@@ -141,6 +141,9 @@ Hover: Primary brightens 12%, others increase background opacity. All transition
 - Title: 16px weight 600, 0.95 opacity
 - Body: 14px weight 400, 0.65 opacity, line-height 1.7
 - Footer: row of buttons with 8px gap
+- **Height: auto (content-driven).** Cards must NOT have fixed height. Content dictates height. No overflow hidden on card body.
+- **Two-column cards** (text + meta): meta column min-width 260px, flex-shrink 0. Text column flex 1. Both columns independently scroll if needed, but prefer auto-height.
+- **Meta column readability**: meta labels at `--t50` (0.50), meta values at `--t80` (0.80) minimum. Never use `--t65` for meta values — they must be clearly readable against glass background.
 
 ### Badges & Pills
 
@@ -172,6 +175,15 @@ Hover: Primary brightens 12%, others increase background opacity. All transition
 - Placeholder: 0.50 opacity
 - Focus: accent border (`rgba(167,139,250,0.35)`), slightly brighter bg
 - Height: ~36px
+
+### Audio Sentence Playback (karaoke)
+- Each sentence is a visible row inside the audio card: timecode (mono) + text + duration
+- **Active sentence**: accent left border (2px), background `--accent-06`, text at `--t100`
+- **Inactive sentence**: no border, transparent bg, text at `--t80`
+- **Progress bar per sentence**: 3px track below text, accent fill animates left-to-right during playback
+- **Character highlighting**: current word/character uses `--accent` color, spoken characters at `--t100`, unspoken at `--t50`
+- Play button per segment card: toggles playback, accent bg when playing
+- Sentence rows must be clearly separated with enough padding (8-12px vertical) and readable timecodes
 
 ### Slider
 - Track: 3px height, `rgba(255,255,255,0.06)` bg, inset shadow
@@ -235,6 +247,8 @@ On dark backgrounds, traditional shadows (dark on dark) are invisible. NextFrame
 - Use hover-lift (`translateY(-2px)` + deeper shadow) on interactive glass cards
 - Use antialiased font rendering on every page
 - Keep accent color usage sparse — it means "important" or "interactive"
+- Let card height be auto (content-driven) — never set fixed height on content cards
+- Use `--t80` (0.80) minimum for meta values in two-column cards — right-side content must be readable
 - Test readability on an actual screen, not just in code
 
 ### Don't
@@ -247,6 +261,8 @@ On dark backgrounds, traditional shadows (dark on dark) are invisible. NextFrame
 - Put more than 1 primary (solid accent) button per view
 - Use gradients on UI elements — gradients are exclusively for the background aurora
 - Use decorative gray text that serves no function — if it's not worth reading, delete it
+- Set fixed height on content cards — height must be auto, driven by content. Overflow hidden on card body = content gets cut off
+- Use `--t65` for meta values in two-column layouts — meta values need `--t80` minimum to be readable on glass background
 - Use film grain overlays — the 3D glass system provides sufficient texture
 - Use translucent/glass background on overlapping panels (dropdowns, modals, popovers, tooltips) — they must be opaque (`#141416`), otherwise the content underneath bleeds through and text becomes unreadable
 

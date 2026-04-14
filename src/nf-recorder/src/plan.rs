@@ -133,7 +133,10 @@ pub fn detect_root(frame_files: &[PathBuf]) -> Result<PathBuf, String> {
         .map_err(|err| {
             error_with_fix(
                 "detect the frame root directory",
-                format!("failed to canonicalize the parent of {}: {err}", first.display()),
+                format!(
+                    "failed to canonicalize the parent of {}: {err}",
+                    first.display()
+                ),
                 "Ensure the frame file path exists on disk and retry.",
             )
         })?;
@@ -146,7 +149,10 @@ pub fn detect_root(frame_files: &[PathBuf]) -> Result<PathBuf, String> {
                 .map_err(|err| {
                     error_with_fix(
                         "detect the frame root directory",
-                        format!("failed to canonicalize the parent of {}: {err}", path.display()),
+                        format!(
+                            "failed to canonicalize the parent of {}: {err}",
+                            path.display()
+                        ),
                         "Ensure each frame file path exists on disk and retry.",
                     )
                 })

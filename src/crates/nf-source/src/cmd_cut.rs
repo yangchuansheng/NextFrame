@@ -4,6 +4,7 @@ use nf_cut_core::CutReport;
 use serde_json::to_string;
 
 use crate::cli::CutArgs;
+use crate::output::write_stdout_line;
 
 pub fn run(args: CutArgs) -> Result<()> {
     let report_path = args.out_dir.join("cut_report.json");
@@ -17,7 +18,7 @@ pub fn run(args: CutArgs) -> Result<()> {
         },
         |event| {
             if let Ok(line) = to_string(event) {
-                println!("{line}");
+                let _ = write_stdout_line(&line);
             }
         },
     )?;

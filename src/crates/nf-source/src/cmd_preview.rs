@@ -3,6 +3,7 @@ use nf_cut_core::{CutReport, PreviewClip, PreviewTimelines, Sentences, remap_wor
 use serde_json::json;
 
 use crate::cli::PreviewArgs;
+use crate::output::write_json_pretty;
 
 pub fn run(args: PreviewArgs) -> Result<()> {
     let sentences = Sentences::from_path(&args.sentences_path)?;
@@ -41,13 +42,10 @@ pub fn run(args: PreviewArgs) -> Result<()> {
     };
     timelines.write_to_path(&args.out_path)?;
 
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&json!({
-            "out_path": args.out_path,
-            "clips": timelines.clips.len(),
-        }))?
-    );
+    write_json_pretty(&json!({
+        "out_path": args.out_path,
+        "clips": timelines.clips.len(),
+    }))?;
 
     Ok(())
 }

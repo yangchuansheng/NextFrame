@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nextframe_recorder::{RecordArgs, RecordOutput, record_segments};
+use nextframe_recorder::{record_segments, RecordArgs, RecordOutput};
 
 use super::recorder_bridge::{resolve_recorder_frame_path_from_url, RecorderRequest};
 use crate::util::time::trim_float;
@@ -198,11 +198,16 @@ fn run_test_export(
             fs::write(&request.output_path, b"stub export")
                 .map_err(|error| format!("failed to write stub export output: {error}"))?;
             writeln!(log_file, "Stub export completed").map_err(|error| {
-                format!("failed to write export log '{}': {error}", request.output_path.display())
+                format!(
+                    "failed to write export log '{}': {error}",
+                    request.output_path.display()
+                )
             })?;
             Ok(())
         }
         "error" => Err("failed to run embedded recorder: stubbed export failure".to_string()),
-        _ => Err(format!("failed to run embedded recorder: unknown test export mode '{mode}'")),
+        _ => Err(format!(
+            "failed to run embedded recorder: unknown test export mode '{mode}'"
+        )),
     }
 }

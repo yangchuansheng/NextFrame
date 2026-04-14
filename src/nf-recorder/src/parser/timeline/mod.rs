@@ -233,14 +233,12 @@ fn resolve_path_from(base_path: &Path, rel: &str) -> Result<PathBuf, String> {
     if path.is_absolute() {
         return Ok(path.to_path_buf());
     }
-    let parent = base_path
-        .parent()
-        .ok_or_else(|| {
-            error_with_fix(
-                "resolve a timeline-relative asset path",
-                format!("{} has no parent directory", base_path.display()),
-                "Place the timeline on disk under a real directory and retry.",
-            )
-        })?;
+    let parent = base_path.parent().ok_or_else(|| {
+        error_with_fix(
+            "resolve a timeline-relative asset path",
+            format!("{} has no parent directory", base_path.display()),
+            "Place the timeline on disk under a real directory and retry.",
+        )
+    })?;
     Ok(parent.join(path))
 }
