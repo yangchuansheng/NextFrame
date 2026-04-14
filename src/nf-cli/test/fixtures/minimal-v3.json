@@ -9,22 +9,18 @@
   "layers": [
     {
       "id": "bg",
-      "scene": "auroraGradient",
+      "scene": "darkGradient",
       "start": 0,
       "dur": 1,
-      "params": {
-        "hueA": 220,
-        "hueB": 280
-      }
+      "params": {}
     },
     {
       "id": "hero",
-      "scene": "headline",
+      "scene": "codeTerminal",
       "start": 0,
       "dur": 1,
       "params": {
-        "text": "NEXTFRAME",
-        "subtitle": "v0.3"
+        "lines": ["NEXTFRAME v0.3"]
       }
     }
   ],

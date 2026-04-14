@@ -1,5 +1,5 @@
 // AI tool definitions — v0.3 layers[] format.
-import { REGISTRY, listScenes, getScene } from '../lib/scene-registry.js';
+import { getREGISTRY, listScenes, getScene } from '../lib/scene-registry.js';
 import { validateTimelineV3 } from '../lib/timeline-validate.js';
 import { describeAt } from '../lib/v3-describe.js';
 import { addLayer, removeLayer, moveLayer, resizeLayer, setLayerProp, listLayers } from 'nf-core/engine/ops.js';
@@ -59,10 +59,11 @@ export const TOOLS = {
       description: "Get full layer details by id",
       params: [{ name: "timeline", type: "object", required: true }, { name: "layerId", type: "string", required: true }],
     },
-    handler: ({ timeline, layerId }) => {
+    handler: async ({ timeline, layerId }) => {
       const layer = (timeline.layers || []).find(l => l.id === layerId);
       if (!layer) return { ok: false, error: { code: "NOT_FOUND", message: `no layer "${layerId}"` } };
-      return { ok: true, value: { ...layer, sceneMeta: REGISTRY.get(layer.scene) || null } };
+      const reg = await getREGISTRY();
+      return { ok: true, value: { ...layer, sceneMeta: reg.get(layer.scene) || null } };
     },
   },
   list_layers: {

@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { validateTimeline as validateLegacy } from "../src/engine/legacy/validate.js";
-import { validateTimeline as validateV3 } from "../src/engine/v2/validate.js";
+import { validateTimelineLegacy as validateLegacy, validateTimelineV3 as validateV3 } from "../src/lib/timeline-validate.js";
 
 test("legacy validator requires version and clip contract fields", () => {
   const result = validateLegacy({
