@@ -72,6 +72,45 @@
         "applications": ["自媒体全链路", "教育课件生成", "数据报告视频化", "产品 Demo 生成", "演示/Slide"]
       },
       "implication": "先把引擎做到极致，上层应用自然生长。Scene 组件不只为短视频设计，教育/数据/代码场景同样重要。"
+    },
+    {
+      "id": "ADR-004",
+      "title": "JS 模块拆分：nf-core 引擎独立于 nf-cli",
+      "status": "accepted",
+      "date": "2026-04-14",
+      "context": "当前 engine/scenes/fx 全在 nf-cli 内部，导致：桌面端想用引擎要依赖 CLI、以后做 SDK 要从 CLI 里拆、50 个 scene 文件平铺无分类。CLI 应该是薄壳（解析参数→调用引擎），不应包含引擎核心。",
+      "decision": "新建 src/nf-core/，将 engine + scenes + animation + filters 从 nf-cli 移入。nf-cli 只保留 commands/ 和 bin/。",
+      "structure": {
+        "nf-core": {
+          "engine": "timeline.js, validate.js, build.js, keyframes.js",
+          "animation": {
+            "easing.js": "10 种缓动 + spring + cubicBezier",
+            "effects/": "14 个入场/退场效果",
+            "transitions/": "13 个场景转场"
+          },
+          "filters": "filmGrain, sepia, grayscale, coolTone, warmTone",
+          "scenes": {
+            "backgrounds/": "aurora, starfield, fluid, particleFlow...",
+            "typography/": "headline, bulletList, codeBlock, quoteBlock...",
+            "data/": "barChart, lineChart, numberCounter...",
+            "media/": "videoClip, videoWindow, imageHero",
+            "overlays/": "lowerThird, cornerBadge, vignette, subtitleBar...",
+            "shapes/": "neonGrid, circleRipple, meshGrid...",
+            "browser/": "htmlSlide, svgOverlay, markdownSlide, lottieAnim"
+          }
+        },
+        "nf-cli": "commands/ + bin/ only, imports from nf-core"
+      },
+      "dependency_direction": {
+        "allowed": ["nf-cli → nf-core", "nf-core → nf-runtime", "nf-shell → nf-core"],
+        "forbidden": ["nf-core → nf-cli"]
+      },
+      "benefits": [
+        "桌面端可直接调 nf-core，不经过 CLI",
+        "nf-core 就是未来的 JS SDK",
+        "scenes 按类别分目录，不再 50 文件平铺",
+        "动画系统在 animation/ 下，引擎在 engine/ 下，职责清晰"
+      ]
     }
   ]
 }
