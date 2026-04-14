@@ -2900,20 +2900,28 @@ function showView(viewName, data) {
   if (viewName === 'home') {
     // Home: just logo, no breadcrumb
   } else if (viewName === 'project') {
+    if (data?.path) { currentProjectPath = data.path; currentProjectName = data.name || ''; }
     bc.style.display = 'flex';
-    bc1.textContent = data?.name || '项目';
+    bc1.textContent = currentProjectName || '项目';
     bc1.dataset.view = '';
     bc1.style.cursor = 'default';
     bc1.classList.add('tb-bc-current');
+    // Update sidebar
+    const nameEl = document.getElementById('vp-project-name');
+    if (nameEl) nameEl.textContent = currentProjectName;
+    loadEpisodes();
   } else if (viewName === 'pipeline') {
+    if (data?.episodePath) { currentEpisodePath = data.episodePath; currentEpisodeName = data.episodeName || ''; }
     bc.style.display = 'flex';
     plTabs.style.display = 'flex';
-    bc1.textContent = data?.projectName || '项目';
+    bc1.textContent = currentProjectName || '项目';
     bc1.dataset.view = 'project';
     bc1.style.cursor = 'pointer';
     bc1.classList.remove('tb-bc-current');
     sep2.style.display = '';
-    bc2.textContent = data?.episodeName || '剧集';
+    bc2.textContent = currentEpisodeName || '剧集';
+    loadPipelineData();
+    loadEditorTimeline();
   }
 }
 // Expose globally for onclick handlers
@@ -2943,138 +2951,249 @@ function switchTab(tabEl) {
 }
 
 // ══════════════════════════════════════
-// PROJECT VIEW — Episode grid rendering
+// NAVIGATION STATE
 // ══════════════════════════════════════
-const MOCK_EPISODES = [
-  { id: 'ep01', num: 'EP01', title: '痛点 — 0播放vs爆款', segments: 5, duration: '42.6s', status: 'published', tags: ['抖音','YouTube'], edited: '2h ago' },
-  { id: 'ep02', num: 'EP02', title: '方案 — 三段公式', segments: 4, duration: '38.2s', status: 'published', tags: ['抖音'], edited: '1d ago' },
-  { id: 'ep03', num: 'EP03', title: '案例 — 实战拆解', segments: 6, duration: '51.0s', status: 'published', tags: ['YouTube'], edited: '3d ago' },
-  { id: 'ep04', num: 'EP04', title: '工具 — NextFrame 演示', segments: 3, duration: '28.5s', status: 'progress', tags: ['Editing'], edited: '30m ago' },
-  { id: 'ep05', num: 'EP05', title: '总结 — 行动指南', segments: 4, duration: '35.0s', status: 'draft', tags: ['Draft'], edited: '5d ago' },
-];
+let currentProjectPath = '';
+let currentProjectName = '';
+let currentEpisodePath = '';
+let currentEpisodeName = '';
 
-function renderProjectEpisodes() {
-  const grid = document.getElementById('vp-episode-grid');
-  if (!grid) return;
-  let html = '';
-  MOCK_EPISODES.forEach(function(ep) {
-    const statusClass = ep.status === 'published' ? 'published' : ep.status === 'progress' ? 'progress' : 'draft';
-    const statusLabel = ep.status === 'published' ? 'Published' : ep.status === 'progress' ? 'In Progress' : 'Draft';
-    html += '<div class="vp-ep-card glass" onclick="showView(\'pipeline\')">' +
-      '<div class="vp-ep-thumb">' +
-        '<span class="vp-ep-thumb-badge">' + ep.num + '</span>' +
-        '<div class="vp-ep-thumb-status vp-ep-thumb-status--' + statusClass + '"></div>' +
-        '<svg class="vp-ep-thumb-icon" width="36" height="36" viewBox="0 0 36 36" fill="none"><polygon points="14,9 27,18 14,27" fill="currentColor"/></svg>' +
-      '</div>' +
-      '<div class="vp-ep-body">' +
-        '<div class="vp-ep-title">' + ep.title + '</div>' +
-        '<div class="vp-ep-stats">' +
-          '<span class="vp-ep-stat"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/><line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" stroke-width="1.3"/></svg> ' + ep.segments + ' segments</span>' +
-          '<span class="vp-ep-duration">' + ep.duration + '</span>' +
-          '<span class="vp-ep-status vp-ep-status--' + statusClass + '">' + statusLabel + '</span>' +
+// ══════════════════════════════════════
+// PROJECT VIEW — Real episode data
+// ══════════════════════════════════════
+function loadEpisodes() {
+  if (typeof bridgeCall !== 'function' || !currentProjectPath) return;
+  bridgeCall('episode.list', { project: currentProjectPath }).then(function(data) {
+    const episodes = data.episodes || [];
+    const grid = document.getElementById('vp-episode-grid');
+    if (!grid) return;
+    if (episodes.length === 0) {
+      grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--t50)">暂无剧集，点击上方 + 新建</div>';
+      return;
+    }
+    let html = '';
+    episodes.forEach(function(ep, i) {
+      const num = 'EP' + String(i + 1).padStart(2, '0');
+      const segCount = ep.segments || 0;
+      html += '<div class="vp-ep-card glass" data-nf-action="open-episode" data-path="' + (ep.path || '') + '" onclick="openEpisode(\'' + (ep.path || '').replace(/'/g, "\\'") + '\',\'' + (ep.name || '').replace(/'/g, "\\'") + '\')">' +
+        '<div class="vp-ep-thumb">' +
+          '<span class="vp-ep-thumb-badge">' + num + '</span>' +
+          '<svg class="vp-ep-thumb-icon" width="36" height="36" viewBox="0 0 36 36" fill="none"><polygon points="14,9 27,18 14,27" fill="currentColor"/></svg>' +
         '</div>' +
-        '<div class="vp-ep-tags">' + ep.tags.map(function(t) {
-          const tagClass = ep.status === 'published' ? 'green' : ep.status === 'progress' ? 'yellow' : 'neutral';
-          return '<span class="vp-ep-tag vp-ep-tag--' + tagClass + '">' + t + '</span>';
-        }).join('') + '</div>' +
-        '<div class="vp-ep-edited">edited ' + ep.edited + '</div>' +
-      '</div>' +
+        '<div class="vp-ep-body">' +
+          '<div class="vp-ep-title">' + (ep.name || 'Untitled') + '</div>' +
+          '<div class="vp-ep-stats">' +
+            '<span class="vp-ep-stat">' + segCount + ' segments</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    });
+    grid.innerHTML = html;
+  }).catch(function(e) { console.error('[project] load episodes:', e); });
+}
+
+function openEpisode(path, name) {
+  currentEpisodePath = path;
+  currentEpisodeName = name;
+  showView('pipeline', { projectName: currentProjectName, episodeName: name, episodePath: path });
+}
+
+// ══════════════════════════════════════
+// PIPELINE — Load real data per tab
+// ══════════════════════════════════════
+function loadPipelineData() {
+  if (typeof bridgeCall !== 'function') return;
+  // Load segments for script/audio tabs
+  if (currentEpisodePath) {
+    bridgeCall('segment.list', { episode: currentEpisodePath }).then(function(data) {
+      const segs = data.segments || [];
+      renderScriptTab(segs);
+      renderAudioTab(segs);
+    }).catch(function(e) { console.error('[pipeline] segments:', e); });
+  }
+  // Load scenes for atoms tab
+  bridgeCall('scene.list', {}).then(function(data) {
+    renderAtomsTab(data.scenes || []);
+  }).catch(function(e) { console.error('[pipeline] scenes:', e); });
+  // Load export log for output tab
+  bridgeCall('export.log', {}).then(function(data) {
+    renderOutputTab(data.entries || data.logs || []);
+  }).catch(function(e) { console.error('[pipeline] exports:', e); });
+}
+
+function renderScriptTab(segments) {
+  const el = document.querySelector('#pl-tab-script .pl-main');
+  if (!el) return;
+  if (segments.length === 0) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">暂无脚本段落</div>';
+    return;
+  }
+  let html = '';
+  segments.forEach(function(seg, i) {
+    html += '<div class="glass" style="padding:16px;margin-bottom:8px;border-radius:10px">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--t100)">段落 ' + (i+1) + '</div>' +
+      '<div style="font-size:12px;color:var(--t65);margin-top:4px">' + (seg.name || seg.path || '') + '</div>' +
     '</div>';
   });
-  grid.innerHTML = html;
+  el.innerHTML = html;
+}
+
+function renderAudioTab(segments) {
+  const el = document.querySelector('#pl-tab-audio .pl-main');
+  if (!el) return;
+  if (segments.length === 0) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">暂无音频数据</div>';
+    return;
+  }
+  let html = '';
+  segments.forEach(function(seg, i) {
+    html += '<div class="glass" style="padding:16px;margin-bottom:8px;border-radius:10px">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--t100)">音频 ' + (i+1) + '</div>' +
+      '<div style="font-size:12px;color:var(--t65);margin-top:4px">' + (seg.name || '') + '</div>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function renderAtomsTab(scenes) {
+  const el = document.querySelector('#pl-tab-atom .pl-main');
+  if (!el) return;
+  if (scenes.length === 0) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">暂无场景组件</div>';
+    return;
+  }
+  let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px">';
+  scenes.forEach(function(s) {
+    const name = typeof s === 'string' ? s : (s.name || s.id || '');
+    html += '<div class="glass" style="padding:14px;border-radius:10px">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--t100)">' + name + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderOutputTab(entries) {
+  const el = document.querySelector('#pl-tab-output .pl-output-main');
+  if (!el) return;
+  if (entries.length === 0) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t50)">暂无导出记录</div>';
+    return;
+  }
+  let html = '';
+  entries.forEach(function(e) {
+    html += '<div class="glass" style="padding:16px;margin-bottom:8px;border-radius:10px">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--t100)">' + (e.name || e.path || 'Export') + '</div>' +
+      '<div style="font-size:12px;color:var(--t65);margin-top:4px">' + (e.status || '') + '</div>' +
+    '</div>';
+  });
+  el.innerHTML = html;
 }
 
 // ══════════════════════════════════════
-// PIPELINE VIEW — Tab switching
+// EDITOR — Real timeline data
 // ══════════════════════════════════════
-function switchPipelineTab(tabName, tabEl) {
-  // Update tab buttons
-  document.querySelectorAll('#pl-tabs .pl-tab').forEach(function(t) { t.classList.remove('active'); });
-  if (tabEl) tabEl.classList.add('active');
-  // Update tab content
-  document.querySelectorAll('#view-pipeline .pl-tab-content').forEach(function(c) { c.classList.remove('active'); });
-  const content = document.getElementById('pl-tab-' + tabName);
-  if (content) content.classList.add('active');
+
+let edTimelineData = null;
+let edActiveClip = null;
+
+function loadEditorTimeline() {
+  // Find first segment timeline to load
+  if (typeof bridgeCall !== 'function' || !currentEpisodePath) return;
+  bridgeCall('segment.list', { episode: currentEpisodePath }).then(function(data) {
+    const segs = data.segments || [];
+    if (segs.length === 0) {
+      showEditorEmpty('暂无时间线数据');
+      return;
+    }
+    // Load the first segment's timeline
+    const firstSeg = segs[0];
+    const tlPath = firstSeg.path || '';
+    if (!tlPath) { showEditorEmpty('段落路径缺失'); return; }
+    return bridgeCall('timeline.load', { path: tlPath });
+  }).then(function(data) {
+    if (!data) return;
+    edTimelineData = data;
+    renderEditorFromTimeline(data);
+  }).catch(function(e) {
+    console.error('[editor] load timeline:', e);
+    showEditorEmpty('加载时间线失败');
+  });
 }
-window.switchPipelineTab = switchPipelineTab;
 
-// ══════════════════════════════════════
-// EDITOR VIEW — Mock data + rendering
-// ══════════════════════════════════════
-const ED_CLIPS = [
-  { id: 'clip-1', name: '痛点', tcIn: '00:00.0', tcOut: '00:08.5', seg: '段1', dur: '8.5s', scene: 'barChart', layer: 2 },
-  { id: 'clip-2', name: '方案', tcIn: '00:08.5', tcOut: '00:18.0', seg: '段2', dur: '9.5s', scene: 'splitCompare', layer: 2 },
-  { id: 'clip-3', name: '案例', tcIn: '00:18.0', tcOut: '00:28.2', seg: '段3', dur: '10.2s', scene: 'caseStudy', layer: 2 },
-  { id: 'clip-4', name: '数据', tcIn: '00:28.2', tcOut: '00:38.0', seg: '段4', dur: '9.8s', scene: 'statsGrid', layer: 2 },
-  { id: 'clip-5', name: 'CTA', tcIn: '00:38.0', tcOut: '00:45.2', seg: '段5', dur: '7.2s', scene: 'ctaCard', layer: 2 },
-];
+function showEditorEmpty(msg) {
+  const el = document.getElementById('ed-clip-list2');
+  if (el) el.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px;text-align:center">' + (msg || '暂无数据') + '</div>';
+  const tl = document.getElementById('ed-tl-body2');
+  if (tl) tl.innerHTML = '';
+  const insp = document.getElementById('ed-insp-inner2');
+  if (insp) insp.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px">选择一个片段查看参数</div>';
+}
 
-const ED_TRACKS = [
-  { name: 'Audio', clips: [
-    { name: '痛点', left: 0, width: 18.8, color: 'audio' },
-    { name: '方案', left: 18.8, width: 21.0, color: 'audio' },
-    { name: '案例', left: 39.8, width: 22.6, color: 'audio' },
-    { name: '数据', left: 62.4, width: 21.7, color: 'audio' },
-    { name: 'CTA', left: 84.1, width: 15.9, color: 'audio' },
-  ]},
-  { name: '画面', clips: [
-    { name: '痛点', left: 0, width: 18.8, color: 'visual' },
-    { name: '方案', left: 18.8, width: 21.0, color: 'visual' },
-    { name: '案例', left: 39.8, width: 22.6, color: 'visual' },
-    { name: '数据', left: 62.4, width: 21.7, color: 'visual' },
-    { name: 'CTA', left: 84.1, width: 15.9, color: 'visual' },
-  ]},
-  { name: 'Video', clips: [
-    { name: 'bg-loop', left: 0, width: 100, color: 'video' },
-  ]},
-  { name: '字幕', clips: [
-    { name: '痛点', left: 0, width: 18.8, color: 'subtitle' },
-    { name: '方案', left: 18.8, width: 21.0, color: 'subtitle' },
-    { name: '案例', left: 39.8, width: 22.6, color: 'subtitle' },
-    { name: '数据', left: 62.4, width: 21.7, color: 'subtitle' },
-    { name: 'CTA', left: 84.1, width: 15.9, color: 'subtitle' },
-  ]},
-];
+function renderEditorFromTimeline(tl) {
+  const layers = tl.layers || tl.clips || [];
+  // Render clip list
+  const clipEl = document.getElementById('ed-clip-list2');
+  const countEl = document.getElementById('ed-clip-count2');
+  if (countEl) countEl.textContent = layers.length;
+  if (clipEl) {
+    let html = '';
+    layers.forEach(function(layer, i) {
+      const name = layer.scene || layer.name || ('Layer ' + (i+1));
+      const start = typeof layer.start === 'number' ? layer.start.toFixed(1) + 's' : (layer.start || '');
+      const dur = typeof layer.duration === 'number' ? layer.duration.toFixed(1) + 's' : (layer.duration || '');
+      html += '<div class="ed-clip-item" data-nf-action="select-clip" data-index="' + i + '" onclick="edSelectClip(' + i + ')">' +
+        '<div class="ed-clip-top"><span class="ed-clip-name">' + name + '</span><span class="ed-clip-tc">' + start + '</span></div>' +
+        '<div class="ed-clip-tags"><span class="ed-clip-tag dur">' + dur + '</span></div>' +
+      '</div>';
+    });
+    clipEl.innerHTML = html;
+  }
+  // Render simple timeline
+  const tlEl = document.getElementById('ed-tl-body2');
+  if (tlEl && layers.length > 0) {
+    const totalDur = tl.duration || layers.reduce(function(s, l) { return Math.max(s, (l.start || 0) + (l.duration || 0)); }, 0);
+    let html = '<div class="ed-tl-ruler"><div class="ed-tl-ruler-bg"></div>';
+    for (let t = 0; t <= totalDur; t += 5) {
+      html += '<span class="ed-tl-tick" style="left:' + (t/totalDur*100).toFixed(1) + '%">' + t + 's</span>';
+    }
+    html += '</div>';
+    layers.forEach(function(layer) {
+      const name = layer.scene || layer.name || '';
+      const left = totalDur > 0 ? ((layer.start || 0) / totalDur * 100) : 0;
+      const width = totalDur > 0 ? ((layer.duration || 0) / totalDur * 100) : 0;
+      html += '<div class="ed-tl-track"><span class="ed-tl-track-label">' + name + '</span><div class="ed-tl-track-clips">' +
+        '<div class="ed-tl-clip ed-tl-clip--visual" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%"><span class="ed-tl-clip-label">' + name + '</span></div>' +
+      '</div></div>';
+    });
+    tlEl.innerHTML = html;
+  }
+  showEditorEmpty(); // Clear inspector
+}
 
-const ED_INSPECTOR = {
-  'clip-1': {
-    name: 'barChart', id: 'clip-pain-01',
-    clip: { scene: 'barChart', start: '00:00.0', duration: '8.5s', layer: 2 },
-    params: { title: '"剪辑耗时对比"', bars: 3, animStyle: '"stagger"', colorScheme: '"warm"' },
-    position: { x: 0, y: 0, width: 1080, height: 1920 },
-    file: '/projects/ai-course/ep01/scenes/barChart.json',
-  },
-  'clip-2': {
-    name: 'splitCompare', id: 'clip-solution-02',
-    clip: { scene: 'splitCompare', start: '00:08.5', duration: '9.5s', layer: 2 },
-    params: { leftLabel: '"传统流程"', rightLabel: '"AI流程"', splitRatio: 0.5 },
-    position: { x: 0, y: 0, width: 1080, height: 1920 },
-    file: '/projects/ai-course/ep01/scenes/splitCompare.json',
-  },
-  'clip-3': {
-    name: 'caseStudy', id: 'clip-case-03',
-    clip: { scene: 'caseStudy', start: '00:18.0', duration: '10.2s', layer: 2 },
-    params: { avatar: '"user-a.png"', quote: '"效率提升300%"', metric: '"3x"' },
-    position: { x: 0, y: 0, width: 1080, height: 1920 },
-    file: '/projects/ai-course/ep01/scenes/caseStudy.json',
-  },
-  'clip-4': {
-    name: 'statsGrid', id: 'clip-data-04',
-    clip: { scene: 'statsGrid', start: '00:28.2', duration: '9.8s', layer: 2 },
-    params: { columns: 2, rows: 2, animStyle: '"countUp"' },
-    position: { x: 0, y: 0, width: 1080, height: 1920 },
-    file: '/projects/ai-course/ep01/scenes/statsGrid.json',
-  },
-  'clip-5': {
-    name: 'ctaCard', id: 'clip-cta-05',
-    clip: { scene: 'ctaCard', start: '00:38.0', duration: '7.2s', layer: 2 },
-    params: { headline: '"立即体验"', subtext: '"免费试用7天"', btnLabel: '"开始使用"' },
-    position: { x: 0, y: 0, width: 1080, height: 1920 },
-    file: '/projects/ai-course/ep01/scenes/ctaCard.json',
-  },
-};
-
-let edActiveClip = 'clip-1';
+function edSelectClip(index) {
+  if (!edTimelineData) return;
+  const layers = edTimelineData.layers || edTimelineData.clips || [];
+  const layer = layers[index];
+  if (!layer) return;
+  edActiveClip = index;
+  const insp = document.getElementById('ed-insp-inner2');
+  if (!insp) return;
+  let html = '<div style="padding:16px">';
+  html += '<div style="font-size:14px;font-weight:600;color:var(--t100);margin-bottom:12px">' + (layer.scene || layer.name || 'Clip') + '</div>';
+  html += '<div style="font-size:12px;color:var(--t50);margin-bottom:16px">Layer ' + (index+1) + '</div>';
+  // Show all layer properties
+  Object.keys(layer).forEach(function(key) {
+    const val = layer[key];
+    const display = typeof val === 'object' ? JSON.stringify(val).substring(0, 60) : String(val);
+    html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="font-size:12px;color:var(--t65)">' + key + '</span>' +
+      '<span style="font-size:12px;font-family:var(--mono);color:var(--t80)">' + display + '</span>' +
+    '</div>';
+  });
+  html += '</div>';
+  insp.innerHTML = html;
+}
 
 function renderEditorClipList() {
   const el = document.getElementById('ed-clip-list');
