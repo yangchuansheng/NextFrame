@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Animation System Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  #stage {
+    width: 1920px;
+    height: 1080px;
+    position: relative;
+    overflow: hidden;
+    transform-origin: top left;
+    font-family: 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+  }
+  .layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- Layer 0: Aurora background (full 20s) -->
+  <div id="bg" class="layer"></div>
+  <!-- Layer 1: "EFFECTS" springIn headline (0-4s) -->
+  <div id="headline-effects" class="layer"></div>
+  <!-- Layer 2: slideLeft panel (4-8s) -->
+  <div id="panel-slide" class="layer"></div>
+  <!-- Label for slideLeft -->
+  <div id="label-slide" class="layer" style="align-items:flex-end;justify-content:flex-start;padding:40px 60px;"></div>
+  <!-- Layer 3: bounceIn data text (8-12s) -->
+  <div id="data-text" class="layer"></div>
+  <!-- Layer 4A: wipeLeft out (blurIn panel going out, 10-12s) -->
+  <div id="panel-wipe-a" class="layer"></div>
+  <!-- Layer 4B: wipeLeft in (new panel, 10-12s) -->
+  <div id="panel-wipe-b" class="layer"></div>
+  <!-- Layer 5: blurIn panel (12-16s) -->
+  <div id="panel-blur" class="layer"></div>
+  <!-- Label for blurIn -->
+  <div id="label-blur" class="layer" style="align-items:flex-end;justify-content:flex-start;padding:40px 60px;"></div>
+  <!-- Layer 6: "NEXTFRAME" fadeIn headline (16-20s) -->
+  <div id="headline-nf" class="layer"></div>
+  <!-- Effect labels overlay -->
+  <div id="effect-label" style="position:absolute;top:40px;left:60px;font-size:28px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.7);"></div>
+</div>
+
+<script>
+// ── Easing functions (inlined from keyframes.js) ──────────────────────────────
+function clamp01(v) { return Math.min(1, Math.max(0, isFinite(v) ? v : 0)); }
+function bounce(t) {
+  let p = clamp01(t);
+  const n = 7.5625, d = 2.75;
+  if (p < 1/d) return n*p*p;
+  if (p < 2/d) { p -= 1.5/d; return n*p*p+0.75; }
+  if (p < 2.5/d) { p -= 2.25/d; return n*p*p+0.9375; }
+  p -= 2.625/d; return n*p*p+0.984375;
+}
+function easeOut(t) { const p = clamp01(t); return p*(2-p); }
+
+// ── Effect functions (inlined) ────────────────────────────────────────────────
+
+// 1. springIn
+function springIn(progress) {
+  const p = clamp01(progress);
+  const springVal = 1 - Math.exp(-6*p) * Math.cos(p*Math.PI*4) * (1-p);
+  const scale = 0.5 + springVal * 0.5;
+  return { opacity: Math.min(1, p*1.6), transform: `scale(${scale.toFixed(4)})`, transformOrigin: '50% 50%' };
+}
+
+// 2. slideLeft
+function slideLeft(progress, distance) {
+  distance = distance ?? 40;
+  const p = clamp01(progress);
+  const tx = -distance * (1 - p);
+  return { opacity: p, transform: `translate3d(${tx.toFixed(4)}px,0,0)` };
+}
+
+// 3. bounceIn
+function bounceIn(progress) {
+  const p = clamp01(progress);
+  const bp = bounce(p);
+  const scale = 0.35 + bp * 0.65;
+  return { opacity: Math.min(1, p*1.5), transform: `scale(${scale.toFixed(4)})`, transformOrigin: '50% 50%' };
+}
+
+// 4. blurIn
+function blurIn(progress, maxBlur) {
+  maxBlur = maxBlur ?? 20;
+  const p = clamp01(progress);
+  const blurPx = maxBlur * (1 - p);
+  return { opacity: p, filter: blurPx > 0.01 ? `blur(${blurPx.toFixed(4)}px)` : 'none' };
+}
+
+// 5. fadeIn
+function fadeIn(progress) {
+  return { opacity: clamp01(progress) };
+}
+
+// Transition: wipeLeft
+function wipeLeft(progress) {
+  const p = clamp01(progress);
+  return {
+    layerA: { clipPath: `inset(0% ${(p*100).toFixed(4)}% 0% 0%)` },
+    layerB: { clipPath: `inset(0% 0% 0% ${((1-p)*100).toFixed(4)}%)` },
+  };
+}
+
+// Apply CSS object to element
+function applyCSS(el, css) {
+  el.style.opacity = (css.opacity !== undefined) ? css.opacity : '';
+  el.style.transform = css.transform || '';
+  el.style.filter = css.filter || '';
+  el.style.clipPath = css.clipPath || '';
+  if (css.transformOrigin) el.style.transformOrigin = css.transformOrigin;
+}
+
+// ── Scene builder helpers ────────────────────────────────────────────────────
+
+function makeGradientBg(el) {
+  el.innerHTML = `
+    <svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="rg1" cx="20%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#0f0c29"/>
+          <stop offset="50%" stop-color="#302b63"/>
+          <stop offset="100%" stop-color="#24243e"/>
+        </radialGradient>
+        <radialGradient id="rg2" cx="80%" cy="70%" r="60%">
+          <stop offset="0%" stop-color="#4776e6" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#4776e6" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="rg3" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#8e54e9" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#8e54e9" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="1920" height="1080" fill="url(#rg1)"/>
+      <rect width="1920" height="1080" fill="url(#rg2)"/>
+      <rect width="1920" height="1080" fill="url(#rg3)"/>
+      <!-- Grid lines -->
+      <g stroke="rgba(255,255,255,0.04)" stroke-width="1">
+        ${Array.from({length:20},(_,i)=>`<line x1="${i*101}" y1="0" x2="${i*101}" y2="1080"/>`).join('')}
+        ${Array.from({length:12},(_,i)=>`<line x1="0" y1="${i*91}" x2="1920" y2="${i*91}"/>`).join('')}
+      </g>
+    </svg>`;
+}
+
+function makeHeadline(el, text, sub) {
+  el.innerHTML = `
+    <div style="text-align:center;">
+      <div style="font-size:140px;font-weight:900;letter-spacing:-0.02em;
+        background:linear-gradient(135deg,#fff 0%,#a78bfa 60%,#60a5fa 100%);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+        line-height:1;">${text}</div>
+      ${sub ? `<div style="margin-top:24px;font-size:36px;font-weight:400;color:rgba(255,255,255,0.5);letter-spacing:0.3em;text-transform:uppercase;">${sub}</div>` : ''}
+    </div>`;
+}
+
+function makeSlidePanel(el) {
+  el.innerHTML = `
+    <div style="width:760px;height:480px;border-radius:24px;
+      background:linear-gradient(135deg,rgba(71,118,230,0.9),rgba(142,84,233,0.9));
+      backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.2);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:48px;">
+      <div style="font-size:52px;font-weight:800;color:#fff;letter-spacing:-0.02em;">slideLeft</div>
+      <div style="font-size:22px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.6;">
+        translate3d(−40px → 0) + fade<br>Slides content in from the left
+      </div>
+      <div style="width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);overflow:hidden;">
+        <div style="width:70%;height:100%;background:#fff;border-radius:2px;"></div>
+      </div>
+    </div>`;
+}
+
+function makeDataText(el) {
+  el.innerHTML = `
+    <div style="text-align:center;padding:40px;">
+      <div style="font-size:44px;font-weight:800;color:#fff;margin-bottom:16px;letter-spacing:-0.01em;">bounceIn</div>
+      <div style="font-size:22px;color:rgba(255,255,255,0.6);margin-bottom:48px;letter-spacing:0.1em;">ELASTIC SCALE ENTRANCE</div>
+      <div style="display:flex;gap:32px;justify-content:center;">
+        ${['scale(0.35)', 'scale(0.7)', 'scale(1.05)', 'scale(1.0)'].map((s,i)=>`
+          <div style="width:160px;height:160px;border-radius:16px;
+            background:linear-gradient(135deg,rgba(96,165,250,0.8),rgba(167,139,250,0.8));
+            border:1px solid rgba(255,255,255,0.2);
+            display:flex;align-items:center;justify-content:center;
+            font-size:18px;font-weight:700;color:#fff;text-align:center;padding:16px;">
+            t=${(i*0.33).toFixed(2)}<br><span style="font-size:14px;opacity:0.7;">${s}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function makeWipePanelA(el) {
+  el.innerHTML = `
+    <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);
+      display:flex;align-items:center;justify-content:center;">
+      <div style="font-size:80px;font-weight:900;color:rgba(255,255,255,0.15);letter-spacing:0.1em;">SCENE A</div>
+    </div>`;
+}
+
+function makeWipePanelB(el) {
+  el.innerHTML = `
+    <div style="width:100%;height:100%;background:linear-gradient(135deg,#0d0d0d,#1a0533,#0d0d2b);
+      display:flex;align-items:center;justify-content:center;">
+      <div style="text-align:center;">
+        <div style="font-size:56px;font-weight:900;color:#fff;letter-spacing:0.05em;margin-bottom:16px;">wipeLeft</div>
+        <div style="font-size:26px;color:rgba(255,255,255,0.5);letter-spacing:0.2em;">TRANSITION</div>
+        <div style="margin-top:32px;font-size:18px;color:rgba(255,255,255,0.4);">clipPath: inset reveals B while clipping A</div>
+      </div>
+    </div>`;
+}
+
+function makeBlurPanel(el) {
+  el.innerHTML = `
+    <div style="width:820px;height:500px;border-radius:24px;
+      background:linear-gradient(135deg,rgba(15,15,50,0.95),rgba(50,15,80,0.95));
+      backdrop-filter:blur(20px);
+      border:1px solid rgba(167,139,250,0.3);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:56px;">
+      <div style="font-size:60px;font-weight:800;color:#fff;letter-spacing:-0.02em;">blurIn</div>
+      <div style="font-size:22px;color:rgba(255,255,255,0.6);text-align:center;line-height:1.7;">
+        blur(20px → 0px) + fade<br>Resolves from soft blur to crisp content
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        ${[20,12,6,2,0].map(b=>`
+          <div style="width:80px;height:80px;border-radius:50%;
+            background:linear-gradient(135deg,#a78bfa,#60a5fa);
+            filter:blur(${b}px);
+            display:flex;align-items:center;justify-content:center;
+            font-size:12px;font-weight:700;color:#fff;">${b}px</div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function makeNFHeadline(el) {
+  el.innerHTML = `
+    <div style="text-align:center;">
+      <div style="font-size:180px;font-weight:900;letter-spacing:-0.04em;
+        background:linear-gradient(135deg,#fff 0%,#60a5fa 40%,#a78bfa 70%,#f472b6 100%);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+        line-height:1;">NEXTFRAME</div>
+      <div style="margin-top:24px;font-size:32px;font-weight:400;color:rgba(255,255,255,0.4);letter-spacing:0.4em;text-transform:uppercase;">CSS ANIMATION SYSTEM</div>
+      <div style="margin-top:16px;font-size:20px;font-weight:400;color:rgba(255,255,255,0.25);letter-spacing:0.2em;">fadeIn · springIn · slideLeft · bounceIn · blurIn · wipeLeft</div>
+    </div>`;
+}
+
+// ── Init DOM ──────────────────────────────────────────────────────────────────
+const bg = document.getElementById('bg');
+const headlineEffects = document.getElementById('headline-effects');
+const panelSlide = document.getElementById('panel-slide');
+const dataText = document.getElementById('data-text');
+const panelWipeA = document.getElementById('panel-wipe-a');
+const panelWipeB = document.getElementById('panel-wipe-b');
+const panelBlur = document.getElementById('panel-blur');
+const headlineNF = document.getElementById('headline-nf');
+const effectLabel = document.getElementById('effect-label');
+
+makeGradientBg(bg);
+makeHeadline(headlineEffects, 'EFFECTS', 'CSS Animation System Demo');
+makeSlidePanel(panelSlide);
+makeDataText(dataText);
+makeWipePanelA(panelWipeA);
+makeWipePanelB(panelWipeB);
+makeBlurPanel(panelBlur);
+makeNFHeadline(headlineNF);
+
+// ── Segment timing ────────────────────────────────────────────────────────────
+// t=0-4:    springIn headline "EFFECTS"
+// t=4-8:    slideLeft colored panel
+// t=8-12:   bounceIn data text
+// t=10-12:  wipeLeft transition (A→B overlay, 2s)
+// t=12-16:  blurIn panel
+// t=16-20:  fadeIn "NEXTFRAME" headline
+
+const ENTER_DUR = 1.2;  // seconds for enter animation
+const EXIT_DUR  = 0.6;  // seconds for exit animation
+
+function seg(t, start, end) {
+  if (t < start || t >= end) return null;
+  return (t - start) / (end - start);
+}
+
+function enterP(t, start) {
+  return clamp01((t - start) / ENTER_DUR);
+}
+
+function exitP(t, end) {
+  return clamp01((t - (end - EXIT_DUR)) / EXIT_DUR);
+}
+
+function hide(el) {
+  el.style.opacity = '0';
+  el.style.display = 'none';
+}
+
+function show(el) {
+  el.style.display = 'flex';
+}
+
+// ── Render function (frame-pure) ──────────────────────────────────────────────
+const DURATION = 20;
+
+function render(t) {
+  t = Math.max(0, Math.min(DURATION, t));
+
+  // Background always visible
+  bg.style.opacity = '1';
+  bg.style.display = 'flex';
+
+  // ── Segment 0-4: springIn headline ──────────────────────────────────────────
+  if (t < 4) {
+    show(headlineEffects);
+    const ep = enterP(t, 0);
+    const css = springIn(ep);
+    headlineEffects.style.opacity = css.opacity;
+    headlineEffects.style.transform = css.transform;
+    headlineEffects.style.transformOrigin = css.transformOrigin;
+    effectLabel.textContent = 'springIn';
+  } else {
+    hide(headlineEffects);
+  }
+
+  // ── Segment 4-8: slideLeft panel ────────────────────────────────────────────
+  if (t >= 4 && t < 8) {
+    show(panelSlide);
+    const ep = enterP(t, 4);
+    const css = slideLeft(ep, 120);
+    panelSlide.style.opacity = css.opacity;
+    panelSlide.style.transform = css.transform;
+    panelSlide.style.filter = '';
+    panelSlide.style.clipPath = '';
+    effectLabel.textContent = 'slideLeft';
+  } else {
+    hide(panelSlide);
+  }
+
+  // ── Segment 8-12: bounceIn data text ────────────────────────────────────────
+  if (t >= 8 && t < 10) {
+    show(dataText);
+    const ep = enterP(t, 8);
+    const css = bounceIn(ep);
+    dataText.style.opacity = css.opacity;
+    dataText.style.transform = css.transform;
+    dataText.style.filter = '';
+    dataText.style.clipPath = '';
+    effectLabel.textContent = 'bounceIn';
+  } else {
+    hide(dataText);
+  }
+
+  // ── Segment 10-12: wipeLeft transition (A→B) ─────────────────────────────────
+  if (t >= 10 && t < 12) {
+    show(panelWipeA);
+    show(panelWipeB);
+    const p = clamp01((t - 10) / 2);
+    const wipe = wipeLeft(p);
+    // Layer A (outgoing)
+    panelWipeA.style.opacity = '1';
+    panelWipeA.style.transform = '';
+    panelWipeA.style.filter = '';
+    panelWipeA.style.clipPath = wipe.layerA.clipPath;
+    // Layer B (incoming)
+    panelWipeB.style.opacity = '1';
+    panelWipeB.style.transform = '';
+    panelWipeB.style.filter = '';
+    panelWipeB.style.clipPath = wipe.layerB.clipPath;
+    effectLabel.textContent = 'wipeLeft (transition)';
+  } else {
+    hide(panelWipeA);
+    hide(panelWipeB);
+  }
+
+  // ── Segment 12-16: blurIn panel ─────────────────────────────────────────────
+  if (t >= 12 && t < 16) {
+    show(panelBlur);
+    const ep = enterP(t, 12);
+    const css = blurIn(ep, 30);
+    panelBlur.style.opacity = css.opacity;
+    panelBlur.style.filter = css.filter;
+    panelBlur.style.transform = '';
+    panelBlur.style.clipPath = '';
+    effectLabel.textContent = 'blurIn';
+  } else {
+    hide(panelBlur);
+  }
+
+  // ── Segment 16-20: fadeIn "NEXTFRAME" ───────────────────────────────────────
+  if (t >= 16) {
+    show(headlineNF);
+    const ep = enterP(t, 16);
+    const css = fadeIn(ep);
+    headlineNF.style.opacity = css.opacity;
+    headlineNF.style.transform = '';
+    headlineNF.style.filter = '';
+    headlineNF.style.clipPath = '';
+    effectLabel.textContent = 'fadeIn';
+  } else {
+    hide(headlineNF);
+  }
+}
+
+// ── Playback & recording protocol ────────────────────────────────────────────
+window.__duration = DURATION;
+
+// Scale stage to fit viewport in preview
+function scaleStage() {
+  const stage = document.getElementById('stage');
+  const scaleX = window.innerWidth / 1920;
+  const scaleY = window.innerHeight / 1080;
+  const s = Math.min(scaleX, scaleY);
+  stage.style.transform = `scale(${s})`;
+  document.body.style.background = '#000';
+  document.body.style.display = 'flex';
+  document.body.style.alignItems = 'center';
+  document.body.style.justifyContent = 'center';
+}
+
+// Recording mode: recorder calls window.__onFrame({time: t})
+window.__onFrame = function(data) {
+  const t = typeof data === 'object' ? data.time : data;
+  // In recording mode: stage is always 1920×1080, no scaling needed
+  document.getElementById('stage').style.transform = '';
+  render(t);
+};
+
+// Preview mode: auto-play
+if (!window.__recordingMode) {
+  scaleStage();
+  window.addEventListener('resize', scaleStage);
+  let startTime = null;
+  function loop(ts) {
+    if (!startTime) startTime = ts;
+    const t = ((ts - startTime) / 1000) % DURATION;
+    render(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
