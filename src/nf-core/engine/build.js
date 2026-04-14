@@ -497,7 +497,10 @@ function buildDocument(timeline, sceneModules) {
   const width = Number(timeline.width || 1920);
   const height = Number(timeline.height || 1080);
   const inlineSrt = extractTimelineSrt(timeline);
-  const scriptBody = escapeInlineScript(`const SRT = ${serializeSrtLiteral(inlineSrt)};
+  const dur = Number(timeline.duration || 0);
+  const audioSrc = timeline.audio && typeof timeline.audio === "object" ? String(timeline.audio.src || "") : typeof timeline.audio === "string" ? timeline.audio : "";
+  const scriptBody = escapeInlineScript(`window.__SLIDE_SEGMENTS = { audio: ${JSON.stringify(audioSrc)}, gap: 0, segments: [{ phaseId: "main", duration: ${dur}, srt: [{ s: 0, e: ${dur}, t: "" }] }] };
+const SRT = ${serializeSrtLiteral(inlineSrt)};
 const TIMELINE = ${JSON.stringify(timeline, null, 2)};
 ${sceneBundles}
 const SCENES = {
