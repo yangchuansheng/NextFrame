@@ -15,6 +15,8 @@ mod eval;
 mod keyboard;
 mod polling;
 mod state;
+#[cfg(test)]
+mod tests;
 mod ui;
 
 use objc2_app_kit::{
