@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { resolve as resolvePath, isAbsolute } from "node:path";
 import { resolveTimeline } from "./time.js";
 import { guarded } from "./_guard.js";
-import { REGISTRY } from "../scenes/index.js";
+import { REGISTRY } from "../../scenes/index.js";
 import { EFFECT_IDS } from "../../fx/effects/index.js";
 import { FILTER_IDS } from "../../fx/filters/index.js";
 import { TRANSITION_IDS } from "../../fx/transitions/index.js";

@@ -1,7 +1,7 @@
 // Aggregate describe() across all active scenes at a given time.
 // Returns a FrameDescription per spec/architecture/04-interfaces.md.
 
-import { REGISTRY } from "../scenes/index.js";
+import { REGISTRY } from "../../scenes/index.js";
 import { resolveTimeline } from "./time.js";
 
 /**

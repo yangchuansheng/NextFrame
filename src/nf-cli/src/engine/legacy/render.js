@@ -18,7 +18,7 @@
 
 import { createCanvas } from "@napi-rs/canvas";
 import "./fonts.js"; // side-effect: register CJK fonts
-import { REGISTRY } from "../scenes/index.js";
+import { REGISTRY } from "../../scenes/index.js";
 import { guarded } from "./_guard.js";
 import { resolveTimeline } from "./time.js";
 import { resolveKeyframes } from "./keyframes.js";

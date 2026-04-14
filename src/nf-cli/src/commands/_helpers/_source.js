@@ -277,51 +277,6 @@ export async function finalizeDownloadDirectory(tempDir, title) {
   return { finalDir, finalSlug };
 }
 
-export function summarizeTranscript(rawSentences, options = {}) {
-  const sentences = normalizeSentences(rawSentences);
-  const totalWords = sentences.reduce((sum, sentence) => {
-    if (sentence.words.length > 0) return sum + sentence.words.length;
-    return sum + countWords(sentence.text);
-  }, 0);
-  const rawLanguage =
-    valueOrUndefined(options.language && options.language !== "auto" ? options.language : undefined)
-    ?? valueOrUndefined(rawSentences?.language)
-    ?? valueOrUndefined(sentences.find((sentence) => sentence.language)?.language)
-    ?? (options.language === "auto" ? "auto" : null);
-  const rawModel =
-    valueOrUndefined(options.model)
-    ?? valueOrUndefined(rawSentences?.model)
-    ?? valueOrUndefined(options.previousTranscript?.model)
-    ?? null;
-  return {
-    total_sentences: sentences.length,
-    total_words: totalWords,
-    language: rawLanguage,
-    model: rawModel,
-  };
-}
-
-export function normalizeSentences(rawSentences) {
-  const list = Array.isArray(rawSentences)
-    ? rawSentences
-    : Array.isArray(rawSentences?.sentences)
-      ? rawSentences.sentences
-      : Array.isArray(rawSentences?.items)
-        ? rawSentences.items
-        : [];
-  return list.map((sentence, index) => normalizeSentence(sentence, index));
-}
-
-export function buildClipsFromCut(sourceDir, cutReport, rawSentences) {
-  const sentences = normalizeSentences(rawSentences);
-  const rawClips = Array.isArray(cutReport)
-    ? cutReport
-    : Array.isArray(cutReport?.clips)
-      ? cutReport.clips
-      : [];
-  return rawClips.map((rawClip, index) => normalizeClip(sourceDir, rawClip, index, sentences));
-}
-
 export function success(value) {
   process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 }
@@ -339,8 +294,6 @@ export async function readMetaJson(sourceDir) {
 function toFinite(value, fallback) { const num = Number(value); return Number.isFinite(num) ? num : fallback; }
 
 function isNonEmptyString(value) { return typeof value === "string" && value.trim().length > 0; }
-
-function valueOrUndefined(value) { return isNonEmptyString(value) ? value : undefined; }
 
 function toSourceJsonPath(sourceDirOrFile) {
   const resolved = resolve(sourceDirOrFile);
