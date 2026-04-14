@@ -66,7 +66,8 @@ fn build_subprocess_args(cli: &CommonArgs, group: &[PathBuf], group_out: &Path) 
     args
 }
 
-#[allow(dead_code)]
+/// Frame-based parallel encoding — planned replacement for webview parallel recording.
+#[allow(dead_code)] // planned feature: not yet wired into CLI
 pub(crate) fn run_parallel(
     cli: &CommonArgs,
     frame_files: &[PathBuf],

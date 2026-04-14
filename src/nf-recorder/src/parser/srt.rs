@@ -187,6 +187,7 @@ pub(super) fn extract_srt_array(source: &str) -> Result<Vec<SubtitleCue>, String
 }
 
 /// Parses a JSON array of subtitle entries into `SubtitleCue` values.
+// Called from parser module when HTML metadata contains inline subtitle arrays.
 #[allow(dead_code)]
 pub(super) fn parse_subtitle_array(entries: &[Value], default_duration: f64) -> Vec<SubtitleCue> {
     if entries.is_empty() {
@@ -265,6 +266,7 @@ pub(super) fn parse_subtitle_array(entries: &[Value], default_duration: f64) -> 
     cues
 }
 
+// Helper for parse_subtitle_array; unused when only SRT parsing path is active.
 #[allow(dead_code)]
 fn extract_time_field(object: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<f64> {
     for key in keys {

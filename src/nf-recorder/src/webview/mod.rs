@@ -28,9 +28,11 @@ pub(crate) use navigation::relative_http_url;
 pub(crate) use parallel::ParallelHost;
 
 /// Default recorder viewport width in CSS pixels.
+// Used by ParallelHost and future headed-mode callers; not yet referenced from main path.
 #[allow(dead_code)]
 pub(crate) const VIEW_WIDTH: f64 = 1920.0;
 /// Default recorder viewport height in CSS pixels.
+// Used by ParallelHost and future headed-mode callers; not yet referenced from main path.
 #[allow(dead_code)]
 pub(crate) const VIEW_HEIGHT: f64 = 1080.0;
 const OFFSCREEN_ORIGIN_X: f64 = -10000.0;
@@ -131,6 +133,7 @@ impl WebViewHost {
     }
 
     /// Moves the host window to the requested screen position.
+    // Planned feature: headed-mode window arrangement for visual debugging.
     #[allow(dead_code)]
     pub(crate) fn set_window_origin(&self, x: f64, y: f64) {
         self.window.setFrameOrigin(NSPoint::new(x, y));
@@ -138,6 +141,7 @@ impl WebViewHost {
     }
 
     /// Updates the host window title.
+    // Planned feature: headed-mode labeling for parallel recording slots.
     #[allow(dead_code)]
     pub(crate) fn set_window_title(&self, title: &str) {
         self.window.setTitle(&NSString::from_str(title));

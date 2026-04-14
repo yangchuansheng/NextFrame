@@ -1,10 +1,10 @@
 //! Progress bar geometry shared between DOM probing and pixel overlays.
 
 /// DOM id used by slide templates for the progress bar slot.
-#[allow(dead_code)]
+#[allow(dead_code)] // canonical ID constant; PROGRESS_SELECTOR uses the string directly
 pub(crate) const PROGRESS_ELEMENT_ID: &str = "sk-progress";
 /// Legacy DOM id used by older HTML templates for the progress track.
-#[allow(dead_code)]
+#[allow(dead_code)] // kept for backwards compatibility with older templates
 pub(crate) const LEGACY_PROGRESS_ELEMENT_ID: &str = "progress";
 /// Shadow-DOM-friendly selector used by component slides that render a custom track.
 pub const PROGRESS_TRACK_SELECTOR: &str = ".progress-bar .track";
@@ -24,7 +24,8 @@ const DEFAULT_FILL_G: f64 = 0.467;
 const DEFAULT_FILL_B: f64 = 0.337;
 
 /// Parse a hex color string (#RGB, #RRGGBB, or #RRGGBBAA) into (r, g, b) floats 0-1.
-#[allow(dead_code)]
+/// (Not yet called — will be used when custom progress bar colors are supported.)
+#[allow(dead_code)] // planned feature: custom progress bar colors
 pub(crate) fn parse_hex_color(hex: &str) -> Option<(f64, f64, f64)> {
     let hex = hex.trim_start_matches('#');
     let (r, g, b) = match hex.len() {

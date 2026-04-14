@@ -8,11 +8,13 @@ use super::{VIEW_HEIGHT, VIEW_WIDTH, WebViewHost};
 use crate::{error_with_fix, internal_error_with_fix};
 
 /// Owns multiple `WebViewHost` instances for parallel experiments and benchmarks.
+// Planned feature: parallel recording orchestration uses this struct via api::parallel.
 #[allow(dead_code)]
 pub(crate) struct ParallelHost {
     hosts: Vec<WebViewHost>,
 }
 
+// Planned feature: all methods needed for parallel recording benchmarks.
 #[allow(dead_code)]
 impl ParallelHost {
     /// Creates a set of hosts with staggered window placement.

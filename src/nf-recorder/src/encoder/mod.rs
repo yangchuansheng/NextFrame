@@ -129,6 +129,7 @@ impl SegmentEncoder {
     }
 
     /// Appends an `NSImage` frame to the segment.
+    // Public API for callers that capture NSImage; main path uses write_cgimage_with_progress.
     #[allow(dead_code)]
     pub(crate) fn write_nsimage(&mut self, image: &NSImage) -> Result<(), String> {
         let cg_image = cgimage_from_nsimage(image)?;
@@ -136,6 +137,7 @@ impl SegmentEncoder {
     }
 
     /// Appends a `CGImage` frame to the segment.
+    // Convenience wrapper without progress overlay; main path uses write_cgimage_with_progress.
     #[allow(dead_code)]
     pub(crate) fn write_cgimage(&mut self, image: &CGImage) -> Result<(), String> {
         self.write_cgimage_with_progress(image, None)

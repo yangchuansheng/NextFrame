@@ -1,4 +1,7 @@
 //! NextFrame `timeline.json` parsing into recorder segment metadata.
+//! This module is fully implemented but not yet wired into the recording pipeline.
+//! All structs exist for serde deserialization — fields must be present even if not yet consumed.
+#![allow(dead_code)]
 
 mod layers;
 mod slides;
@@ -23,7 +26,6 @@ use slides::{
 };
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeTimeline {
     #[serde(default)]
     pub(super) fps: Option<f64>,
@@ -42,42 +44,36 @@ pub(super) struct NextframeTimeline {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeProject {
     #[serde(default)]
     pub(super) fps: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeMeta {
     #[serde(default)]
     pub(super) fps: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeChapter {
     pub(super) id: String,
     pub(super) start: f64,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeMarker {
     pub(super) id: String,
     pub(super) t: f64,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeTrack {
     #[serde(default)]
     pub(super) clips: Vec<NextframeClip>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub(super) struct NextframeClip {
     #[serde(default)]
     pub(super) id: Option<String>,
@@ -108,7 +104,6 @@ pub(super) struct NextframeClip {
 }
 
 /// Parses a NextFrame `timeline.json` file into recorder segment metadata.
-#[allow(dead_code)]
 pub(crate) fn parse_nextframe_timeline(path: &Path) -> Result<Vec<FrameMetadata>, String> {
     let timeline_path = path.canonicalize().map_err(|err| {
         error_with_fix(
