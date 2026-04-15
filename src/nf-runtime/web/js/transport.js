@@ -8,34 +8,44 @@ function getPreviewWindow() {
   try { return iframe.contentWindow; } catch (error) { return null; }
 }
 function updatePlayButton(playing) {
-  const html = playing ? '&#x23F8;' : '&#9654;';
+  const playSvg = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><polygon points="5,3 15,9 5,15" fill="currentColor"/></svg>';
+  const pauseSvg = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="3" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="10.5" y="3" width="3.5" height="12" rx="1" fill="currentColor"/></svg>';
+  const heroPlaySvg = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><polygon points="7,4 17,11 7,18" fill="currentColor"/></svg>';
+  const heroPauseSvg = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="5" y="4" width="4" height="14" rx="1" fill="currentColor"/><rect x="13" y="4" width="4" height="14" rx="1" fill="currentColor"/></svg>';
   const mainBtn = document.getElementById('ed-btn-play');
   const heroBtn = document.querySelector('.ed-play-btn');
-  if (mainBtn) mainBtn.innerHTML = html;
-  if (heroBtn) { heroBtn.innerHTML = html; heroBtn.style.fontSize = playing ? '24px' : '20px'; }
+  if (mainBtn) mainBtn.innerHTML = playing ? pauseSvg : playSvg;
+  if (heroBtn) heroBtn.innerHTML = playing ? heroPauseSvg : heroPlaySvg;
 }
 function updatePlayhead(currentTime, duration) {
-  const playhead = document.querySelector('.ed-tl-playhead');
-  if (playhead) playhead.style.left = duration > 0 ? Math.max(0, Math.min(100, currentTime / duration * 100)).toFixed(1) + '%' : '0%';
+  const playhead = document.getElementById('ed-tl-playhead2');
+  if (!playhead) return;
+  // Playhead left = 100px (label width) + percentage of track area
+  const timeline = playhead.parentElement;
+  if (!timeline) return;
+  const trackWidth = timeline.clientWidth - 100; // minus label area
+  const pct = duration > 0 ? Math.max(0, Math.min(1, currentTime / duration)) : 0;
+  playhead.style.left = (100 + pct * trackWidth) + 'px';
+}
+function updateTransportThumb(currentTime, duration) {
+  const thumb = document.querySelector('.ed-transport-thumb');
+  if (thumb) {
+    const pct = duration > 0 ? Math.max(0, Math.min(100, currentTime / duration * 100)) : 0;
+    thumb.style.left = pct.toFixed(1) + '%';
+  }
 }
 function ensureTransportPlayhead() {
-  const tlBody = document.getElementById('ed-tl-body2');
-  if (!tlBody || tlBody.querySelector('.ed-tl-playhead')) return;
-  const playhead = document.createElement('div');
-  playhead.className = 'ed-tl-playhead';
-  playhead.style.height = '100%';
-  tlBody.style.position = 'relative';
-  tlBody.appendChild(playhead);
+  // Playhead is now in HTML, no need to create dynamically
 }
 function syncPreviewTransportState(state) {
   const nextState = state || {};
   edPlaybackState.currentTime = Number.isFinite(nextState.currentTime) ? nextState.currentTime : 0;
   edPlaybackState.duration = Number.isFinite(nextState.duration) ? nextState.duration : 0;
   edPlaybackState.isPlaying = !!nextState.isPlaying;
-  ensureTransportPlayhead();
   updateEditorPreviewState(edPlaybackState.currentTime, edPlaybackState.duration);
   updatePlayButton(edPlaybackState.isPlaying);
   updatePlayhead(edPlaybackState.currentTime, edPlaybackState.duration);
+  updateTransportThumb(edPlaybackState.currentTime, edPlaybackState.duration);
 }
 function pollPreviewState() {
   const previewWindow = getPreviewWindow();

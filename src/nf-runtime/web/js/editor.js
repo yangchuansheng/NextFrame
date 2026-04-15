@@ -142,17 +142,16 @@ function showEditorSaveBadge() {
   setTimeout(function() { badge.style.opacity = '0'; }, 2000);
 }
 function ensureComposePreviewButton() {
-  const btnRow = document.querySelector('.ed-transport-btns');
-  if (!btnRow || btnRow.querySelector('[data-nf-action="compose-preview"]')) return;
+  const transport = document.querySelector('.ed-transport');
+  if (!transport || transport.querySelector('[data-nf-action="compose-preview"]')) return;
   const button = document.createElement('button');
   button.className = 'ed-t-btn';
   button.type = 'button';
   button.dataset.nfAction = 'compose-preview';
   button.textContent = 'PREVIEW';
-  button.style.width = 'auto';
-  button.style.padding = '0 12px';
+  button.style.cssText = 'width:auto;padding:0 12px;font-size:10px;font-weight:600;letter-spacing:0.06em';
   button.onclick = function() { window.composePreview(); };
-  btnRow.appendChild(button);
+  transport.appendChild(button);
 }
 function tagEditorControls() {
   document.querySelectorAll('.ed-play-btn, .ed-t-btn:not([data-nf-action="compose-preview"])').forEach(function(el) { el.dataset.nfAction = 'preview'; });
@@ -220,32 +219,40 @@ function renderEditorFromTimeline(tl) {
   if (clipEl) {
     clipEl.innerHTML = layers.map(function(layer, i) {
       const name = layer.scene || layer.name || ('Layer ' + (i + 1));
-      const start = typeof layer.start === 'number' ? layer.start.toFixed(1) + 's' : (layer.start || '');
-      const duration = typeof layer.duration === 'number' ? layer.duration.toFixed(1) + 's' : (layer.duration || '');
+      const dur = typeof layer.duration === 'number' ? layer.duration.toFixed(1) + 's' : '';
       return '<div class="ed-clip-item" data-nf-action="select-clip" data-index="' + i + '" onclick="edSelectClip(' + i + ')">' +
-        '<div class="ed-clip-top"><span class="ed-clip-name">' + name + '</span><span class="ed-clip-tc">' + start + '</span></div>' +
-        '<div class="ed-clip-tags"><span class="ed-clip-tag dur">' + duration + '</span></div></div>';
+        '<div class="ed-clip-num">' + (i + 1) + '</div>' +
+        '<div class="ed-clip-info"><div class="ed-clip-name">' + name + '</div>' +
+        '<div class="ed-clip-meta"><span>' + dur + '</span></div></div></div>';
     }).join('');
   }
+  // Render ruler
+  const rulerEl = document.getElementById('ed-tl-ruler2');
+  if (rulerEl && totalDuration > 0) {
+    const step = totalDuration <= 20 ? 2 : totalDuration <= 40 ? 5 : 10;
+    let rulerHTML = '';
+    for (let t = 0; t <= totalDuration; t += step) {
+      const pct = (t / totalDuration * 100).toFixed(1);
+      rulerHTML += '<span class="ed-tl-ruler-mark" style="left:' + pct + '%">' + t + 's</span>';
+      rulerHTML += '<span class="ed-tl-ruler-tick" style="left:' + pct + '%"></span>';
+    }
+    rulerEl.innerHTML = rulerHTML;
+  }
+  // Render tracks
   if (tlEl) {
     if (!layers.length) {
       tlEl.innerHTML = '';
     } else {
-      let html = '<div class="ed-tl-ruler"><div class="ed-tl-ruler-bg"></div>';
-      for (let t = 0; t <= totalDuration; t += 5) {
-        const pct = totalDuration > 0 ? (t / totalDuration * 100).toFixed(1) : '0.0';
-        html += '<span class="ed-tl-tick" style="left:' + pct + '%">' + t + 's</span>';
-      }
-      html += '</div>';
+      let html = '';
       layers.forEach(function(layer, i) {
         const name = layer.scene || layer.name || '';
         const left = totalDuration > 0 ? ((layer.start || 0) / totalDuration * 100) : 0;
         const width = totalDuration > 0 ? ((layer.duration || 0) / totalDuration * 100) : 0;
-        html += '<div class="ed-tl-track"><span class="ed-tl-track-label">' + name + '</span><div class="ed-tl-track-lane" data-index="' + i + '" onclick="handleTimelineTrackClick(event)">' +
-          '<div class="ed-tl-clip visual" data-index="' + i + '" data-nf-action="preview" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%"><span class="ed-tl-clip-label">' + name + '</span></div></div></div>';
+        html += '<div class="ed-tl-track">' +
+          '<span class="ed-tl-track-label">' + name + '</span>' +
+          '<div class="ed-tl-clip" data-index="' + i + '" data-nf-action="preview" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%" onclick="handleTimelineTrackClick(event)">' + name + '</div></div>';
       });
       tlEl.innerHTML = html;
-      if (typeof window.ensureTransportPlayhead === 'function') window.ensureTransportPlayhead();
     }
   }
   if (insp && edActiveClip === null) insp.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px">选择一个片段查看参数</div>';
@@ -311,14 +318,17 @@ function previewFrame(t) {
   }).catch(function(error) { console.error('[editor] preview frame:', error); return null; });
 }
 function handleTimelineTrackClick(event) {
-  const lane = (event.target.closest && event.target.closest('.ed-tl-track-lane')) || event.currentTarget;
-  if (!lane || !edTimelineData) return;
-  const clip = event.target.closest ? event.target.closest('.ed-tl-clip[data-index]') : null;
-  if (clip) edSelectClip(Number(clip.dataset.index));
+  const clip = event.target.closest ? event.target.closest('.ed-tl-clip[data-index]') : event.currentTarget;
+  if (!clip || !edTimelineData) return;
+  edSelectClip(Number(clip.dataset.index));
   const totalDuration = getEditorTimelineDuration();
-  if (!lane.clientWidth || totalDuration <= 0) return;
-  const rect = lane.getBoundingClientRect();
-  previewFrame(Math.max(0, Math.min(totalDuration, (event.clientX - rect.left) / rect.width * totalDuration)));
+  const tracksEl = document.getElementById('ed-tl-body2');
+  if (!tracksEl || totalDuration <= 0) return;
+  const rect = tracksEl.getBoundingClientRect();
+  const trackLeft = rect.left + 100; // label width
+  const trackWidth = rect.width - 100;
+  if (trackWidth <= 0) return;
+  previewFrame(Math.max(0, Math.min(totalDuration, (event.clientX - trackLeft) / trackWidth * totalDuration)));
 }
 async function composePreview() {
   if (!edTimelineData) return null;

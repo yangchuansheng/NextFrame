@@ -49,7 +49,7 @@
 <div class="tb-pl-tab" data-stage="audio" data-nf-action="tab-audio" onclick="switchTab(this)">音频</div>
 <div class="tb-pl-tab" data-stage="clips" data-nf-action="tab-clips" onclick="switchTab(this)">智能切片</div>
 <div class="tb-pl-tab" data-stage="atoms" data-nf-action="tab-atoms" onclick="switchTab(this)">原子</div>
-<div class="tb-pl-tab" data-stage="assembly" data-nf-action="tab-assembly" onclick="switchTab(this)">剪辑</div>
+<div class="tb-pl-tab" data-stage="assembly" data-nf-action="tab-assembly" onclick="switchTab(this)">智能剪辑</div>
 <div class="tb-pl-tab" data-stage="output" data-nf-action="tab-output" onclick="switchTab(this)">产出</div>
 </div>
 <div class="tb-spacer">
@@ -837,59 +837,50 @@
 </div>
 </div>
 </div>
-<!-- Edit tab — full editor inline -->
+<!-- Edit tab — two-column: clips | preview+transport+timeline -->
 <div class="pl-tab-content" id="pl-tab-edit">
 <div class="ed-body">
+<!-- LEFT: Clips list -->
 <div class="ed-panel-left glass">
-<div class="ed-clip-header">
-<span class="ed-clip-header-label">CLIPS</span>
-<span class="ed-clip-count" id="ed-clip-count2">5</span>
+<div class="ed-clip-header">CLIPS <span class="ed-clip-count" id="ed-clip-count2">0</span></div>
+<div class="ed-clip-list" id="ed-clip-list2"></div>
 </div>
-<div class="ed-clip-list" id="ed-clip-list2">
-</div>
-</div>
+<!-- CENTER: Preview + Transport + Timeline -->
 <div class="ed-panel-center">
-<div class="ed-preview-panel glass">
-<div class="ed-preview-inner">
+<!-- Preview -->
+<div class="ed-preview-wrapper">
 <div class="ed-preview-canvas">
-<div class="ed-preview-gradient">
+<div class="ed-preview-gradient"></div>
+<button class="ed-play-btn" type="button" data-nf-action="preview" aria-label="Play">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><polygon points="7,4 17,11 7,18" fill="currentColor"/></svg>
+</button>
+<span class="ed-preview-tc">00:00.0 / 00:00.0</span>
 </div>
-<div class="ed-play-btn" data-nf-action="preview">&#9654;</div>
-<span class="ed-preview-tc">00:00.0 / 00:45.2</span>
 </div>
+<!-- Transport -->
 <div class="ed-transport">
-<div class="ed-transport-btns">
-<button class="ed-t-btn" id="ed-btn-start">&#x23EE;</button>
-<button class="ed-t-btn" id="ed-btn-back5">&#x23EA;</button>
-<button class="ed-t-btn play-main" id="ed-btn-play">&#9654;</button>
-<button class="ed-t-btn" id="ed-btn-fwd5">&#x23E9;</button>
-<button class="ed-t-btn" id="ed-btn-end">&#x23ED;</button>
-</div>
-<span class="ed-transport-tc">00:14.4</span>
+<button class="ed-t-btn" id="ed-btn-start" type="button" title="Previous"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="2" height="10" rx="0.5" fill="currentColor"/><path d="M13 3.5L6 8l7 4.5V3.5z" fill="currentColor"/></svg></button>
+<button class="ed-t-btn" id="ed-btn-back5" type="button" title="-5s"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9 3L2 8l7 5V3z" fill="currentColor"/><path d="M15 3L8 8l7 5V3z" fill="currentColor"/></svg></button>
+<button class="ed-t-btn play-main" id="ed-btn-play" type="button" title="Play / Pause"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><polygon points="5,3 15,9 5,15" fill="currentColor"/></svg></button>
+<button class="ed-t-btn" id="ed-btn-fwd5" type="button" title="+5s"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M7 3l7 5-7 5V3z" fill="currentColor"/><path d="M1 3l7 5-7 5V3z" fill="currentColor"/></svg></button>
+<button class="ed-t-btn" id="ed-btn-end" type="button" title="Next"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3.5l7 4.5-7 4.5V3.5z" fill="currentColor"/><rect x="12" y="3" width="2" height="10" rx="0.5" fill="currentColor"/></svg></button>
+<span class="ed-transport-tc">00:00.0</span>
 <div class="ed-transport-progress">
-<div class="ed-transport-fill">
+<div class="ed-transport-fill"></div>
+<div class="ed-transport-thumb"></div>
 </div>
 </div>
+<!-- Timeline -->
+<div class="ed-timeline">
+<div class="ed-tl-ruler" id="ed-tl-ruler2"></div>
+<div class="ed-tl-scroll">
+<div class="ed-tl-tracks" id="ed-tl-body2"></div>
+</div>
+<div class="ed-tl-playhead" id="ed-tl-playhead2"><div class="ed-tl-playhead-hit"></div></div>
 </div>
 </div>
-</div>
-<div class="ed-timeline-panel glass">
-<div class="ed-tl-header">
-<span class="ed-tl-title">TIMELINE</span>
-<div class="ed-tl-meta">
-<span class="ed-tl-meta-tag">45.2s</span>
-<span class="ed-tl-meta-tag">5 layers</span>
-<span class="ed-tl-meta-tag">30fps</span>
-</div>
-</div>
-<div class="ed-tl-body" id="ed-tl-body2">
-</div>
-</div>
-</div>
-<div class="ed-panel-right glass">
-<div class="ed-insp-inner" id="ed-insp-inner2">
-</div>
-</div>
+<!-- Hidden inspector data cache for JS bindings -->
+<div class="ed-inspector-cache" id="ed-insp-inner2" hidden aria-hidden="true"></div>
 </div>
 </div>
 <!-- Output tab -->

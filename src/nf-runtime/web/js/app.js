@@ -10,6 +10,7 @@ const STAGE_TO_TAB = {
   clips: 'pl-tab-asset',
   atoms: 'pl-tab-atom',
   assembly: 'pl-tab-edit',
+  'smart-edit': 'pl-tab-edit',
   output: 'pl-tab-output',
 };
 
