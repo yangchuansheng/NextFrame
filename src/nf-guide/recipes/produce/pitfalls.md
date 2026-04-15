@@ -23,6 +23,13 @@
 - **修复**: audio 必须是字符串或 {src: "path"} 对象
 - **防呆**: validate 检查 BAD_AUDIO
 
+### 录制后无声音（-91dB 静音）
+- **触发**: timeline.audio.src 是绝对路径（如 /Users/xxx/clip.mp4），recorder 通过 HTTP 服务加载 HTML
+- **现象**: ffprobe 显示有 aac 音轨但 mean_volume = -91dB，完全静音
+- **原因**: 浏览器把绝对路径 `/Users/xxx/clip.mp4` 解析为 `http://localhost:PORT/Users/xxx/clip.mp4`，resolver 去掉 base_url 后丢失开头的 `/`，拼接 root 后路径不存在，fallback 到 anullsrc 静音
+- **修复**: resolve_media_src 现在会尝试还原绝对路径（补 `/` 前缀）；build-runtime 同时设置 window.__audioSrc 保留原始路径
+- **防呆**: mux_audio_track 在 fallback 到静音时输出 warn 日志，recorder 日志里搜 "no audio file found" 即可定位
+
 ## 布局
 
 ### 标题和视频重叠

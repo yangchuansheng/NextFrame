@@ -210,6 +210,9 @@ function selectTimelineClip(index) {
   if (!edTimelineData || !Array.isArray(edTimelineData.layers) || !edTimelineData.layers[index]) return;
   edActiveClip = index;
   syncEditorSelectionUI(index);
+  if (window.previewEngine && typeof window.previewEngine.select === 'function') {
+    window.previewEngine.select(index);
+  }
 }
 
 function previewFrame(time) {
@@ -234,11 +237,20 @@ function handleTimelineTrackClick(event) {
   previewFrame(layer.start + layer.dur * pct);
 }
 
+function updatePreviewAspectRatio() {
+  const canvas = document.querySelector('.ed-preview-canvas');
+  if (!canvas || !edTimelineData) return;
+  const w = edTimelineData.width || 1920;
+  const h = edTimelineData.height || 1080;
+  canvas.style.aspectRatio = w + ' / ' + h;
+}
+
 async function composePreview() {
   if (!edTimelineData || !canUseDomPreview()) return null;
   const stage = ensureEditorPreviewStage();
   if (!stage) return null;
   stage.innerHTML = '';
+  updatePreviewAspectRatio();
   window.previewEngine.setStage(stage);
   window.edPreviewMode = 'dom';
   window.previewEngine.loadTimeline(edTimelineData);

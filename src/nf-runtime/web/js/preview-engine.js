@@ -176,6 +176,11 @@
     return { duration: duration, layerCount: layers.length, width: state.timeline.width, height: state.timeline.height };
   }
 
+  function select(index) {
+    state.selectedIndex = Number.isFinite(index) ? index : -1;
+    applySelection();
+  }
+
   const api = {
     loadTimeline: loadTimeline,
     compose: compose,
@@ -183,6 +188,7 @@
     pause: pause,
     seek: seek,
     toggle: toggle,
+    select: select,
     getState: getState,
     setStage: setStage,
     onStateChange: null,
