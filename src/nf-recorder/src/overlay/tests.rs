@@ -69,7 +69,7 @@ impl Drop for EnvVarGuard {
 #[test]
 fn build_overlay_filter_uses_expected_geometry() {
     assert_eq!(
-        build_overlay_filter(),
+        build_overlay_filter(1.0),
         "[1:v]scale=920:538:force_original_aspect_ratio=decrease,pad=920:538:(ow-iw)/2:(oh-ih)/2:black[vid];[0:v][vid]overlay=80:276[out]"
     );
 }
