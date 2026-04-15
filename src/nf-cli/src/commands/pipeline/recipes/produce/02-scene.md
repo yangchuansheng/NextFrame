@@ -123,19 +123,21 @@ nextframe scenes <id>
 # 2. 硬编码检测（应该 0 结果）
 grep -n "#[0-9a-fA-F]\{3,8\}" src/nf-core/scenes/{ratio}/*/*/index.js
 
-# 3. 写一个最小 timeline 测试这个组件
-node -e "
-  const t = { version:'0.3', ratio:'9:16', width:1080, height:1920, fps:30, duration:10,
-    layers:[{ id:'test', scene:'<id>', start:0, dur:10, params:{} }] };
-  require('fs').writeFileSync('/tmp/test-scene.json', JSON.stringify(t));
-"
-nextframe build /tmp/test-scene.json --out /tmp/test-scene.html
+# 3. 人眼预览（带 Play/Pause + 拖动条）
+nextframe scene-preview <id> --ratio=9:16
 
-# 4. 读截图确认效果
-# Read /tmp/test-scene-preview/frame-*.png
+# 4. AI 截图验证（自动截 t=0.5s 和 t=5s）
+nextframe scene-preview <id> --ratio=9:16 --screenshot=/tmp/scene-check
+# 输出截图路径 → Read 截图确认:
+#   - 内容可见（不是空白/黑屏）
+#   - 位置在 GRID 定义的区域内
+#   - 颜色匹配 TOKENS
+#   - 文字可读
 ```
 
-如果截图不对 → 改 → 重新 build → 再看截图。循环直到满意。
+**截图不对 → 改代码 → 再跑 scene-preview --screenshot → 再看。循环直到满意。**
+
+**注意：** preview.html 由 `scene-new` 自动生成（design.js 已内联）。不要手写 preview.html。
 
 ## 2.5 参考老版本
 
