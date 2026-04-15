@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NextFrame Build</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111111; color: #f4efe8; font-family: system-ui, -apple-system, sans-serif; }
+  body { position: relative; }
+  #stage-shell { position: fixed; width: 1080px; height: 1920px; transform-origin: 0 0; }
+  #stage { position: relative; width: 100%; height: 100%; overflow: hidden; background: #111111; box-shadow: 0 24px 100px rgba(0, 0, 0, 0.35); }
+  #controls {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 56px; z-index: 9999;
+    display: flex; align-items: center; gap: 14px; padding: 0 20px;
+    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+  }
+  #playBtn {
+    height: 34px; padding: 0 12px; border: 0; border-radius: 999px; cursor: pointer;
+    background: #f4efe8; color: #111; font: 600 13px/1 system-ui, -apple-system, sans-serif;
+  }
+  #scrubber { flex: 1; min-width: 160px; }
+  #timeInfo, #phaseInfo { font: 500 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+  #phaseInfo { opacity: 0.78; }
+</style>
+</head>
+<body>
+<div id="stage-shell"><div id="stage"></div></div>
+<div id="controls">
+  <button id="playBtn" type="button">Play</button>
+  <input type="range" id="scrubber" min="0" max="10000" value="0">
+  <span id="timeInfo">0.00s / 0.00s</span>
+  <span id="phaseInfo">Phase: idle</span>
+</div>
+<audio id="timeline-audio" preload="auto"></audio>
+<script>
+window.__SLIDE_SEGMENTS = { audio: "/Users/Zhuanz/bigbang/MediaAgentTeam/series/硅谷访谈/E01-Dario-Amodei-指数终局/clips/clip_01.mp4", gap: 0, segments: [{ phaseId: "main", duration: 81.31, srt: [{ s: 0, e: 81.31, t: "" }] }] };
+const SRT = [
+  { s: 0.2, e: 1.63, t: "我们三年前谈过一次。" },
+  { s: 1.63, e: 5, t: "这三年，你最大的认知更新是什么？" },
+  { s: 5.16, e: 7.98, t: "三年前和现在，差别在哪里？" },
+  { s: 8.12, e: 19.47, t: "底层技术的指数增长，基本跟我预期差不多。" },
+  { s: 19.47, e: 25.67, t: "当然，会有一两年的偏差。" },
+  { s: 25.67, e: 29.42, t: "代码这个方向，我倒没特别预判到。" },
+  { s: 29.64, e: 33.33, t: "但看整体的指数曲线，" },
+  { s: 33.33, e: 36.2, t: "跟我预期差不多——" },
+  { s: 36.2, e: 39.89, t: "从聪明的高中生水平，" },
+  { s: 39.89, e: 43.17, t: "到大学生，到博士级，" },
+  { s: 43.17, e: 46.85, t: "代码甚至超过了博士级。" },
+  { s: 46.85, e: 48.68, t: "所以，前沿进展有点参差不齐。" },
+  { s: 49.18, e: 50.42, t: "但大体上跟我预期一致。" },
+  { s: 51.08, e: 53.46, t: "不过，最让我意外的是另一件事。" },
+  { s: 53.56, e: 61.54, t: "大众完全没意识到，我们离指数终点有多近。" },
+  { s: 61.58, e: 65.64, t: "对我来说，真的太荒诞了——" },
+  { s: 65.64, e: 70.11, t: "不管在圈子里还是圈子外，" },
+  { s: 70.11, e: 74.58, t: "大家还在扯那些陈词滥调，" },
+  { s: 74.58, e: 81.08, t: "我们这边说——指数快到头了！" }
+];
+const TIMELINE = {
+  "version": "0.3",
+  "ratio": "9:16",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "duration": 81.31,
+  "background": "#111111",
+  "audio": {
+    "src": "/Users/Zhuanz/bigbang/MediaAgentTeam/series/硅谷访谈/E01-Dario-Amodei-指数终局/clips/clip_01.mp4"
+  },
+  "layers": [
+    {
+      "id": "chrome",
+      "scene": "interviewChrome",
+      "start": 0,
+      "dur": 81.31,
+      "params": {
+        "seriesName": "速通硅谷访谈 · E01 · Dario Amodei",
+        "title": "指数快到头了，大众浑然不知",
+        "clipLabel": "CLIP 01",
+        "origRange": "原片 2:22:19 ｜ 内容来源：00:00 — 01:21",
+        "topicLabel": "正在聊",
+        "topic": "AI 能力增长的指数曲线为什么还没到头，以及公众认知为什么仍然落后。",
+        "tags": [
+          "Dwarkesh Podcast",
+          "Dario Amodei",
+          "原声 1:21"
+        ],
+        "brand": "NEXTFRAME",
+        "teamLine": "Produced by NextFrame AI-native video pipeline"
+      }
+    },
+    {
+      "id": "videoArea",
+      "scene": "interviewVideoArea",
+      "start": 0,
+      "dur": 81.31,
+      "videoOverlay": {
+        "x": "7.4074%",
+        "y": "14.3750%",
+        "w": "85.1852%",
+        "h": "28.0208%"
+      },
+      "params": {
+        "src": "/Users/Zhuanz/bigbang/MediaAgentTeam/series/硅谷访谈/E01-Dario-Amodei-指数终局/clips/clip_01.mp4",
+        "clipLabel": "CLIP 01 / 01"
+      }
+    },
+    {
+      "id": "biSub",
+      "scene": "interviewBiSub",
+      "start": 0,
+      "dur": 81.31,
+      "params": {
+        "segments": [
+          {
+            "s": 0.2,
+            "e": 1.63,
+            "speaker": "dwarkesh",
+            "en": "So we talked three years ago.",
+            "cn": [
+              {
+                "text": "我们三年前谈过一次。",
+                "s": 0.2,
+                "e": 1.63
+              }
+            ]
+          },
+          {
+            "s": 1.63,
+            "e": 5,
+            "speaker": "dwarkesh",
+            "en": "I'm curious in your view, what has been the biggest update of the last three years?",
+            "cn": [
+              {
+                "text": "这三年，你最大的认知更新是什么？",
+                "s": 1.63,
+                "e": 5
+              }
+            ]
+          },
+          {
+            "s": 5.16,
+            "e": 7.98,
+            "speaker": "dwarkesh",
+            "en": "What has been the biggest difference between what I felt like last three years versus now?",
+            "cn": [
+              {
+                "text": "三年前和现在，差别在哪里？",
+                "s": 5.16,
+                "e": 7.98
+              }
+            ]
+          },
+          {
+            "s": 8.12,
+            "e": 19.47,
+            "speaker": "dario",
+            "en": "Yeah, I would say actually the underlying technology, like the exponential of the technology, has gone broadly speaking, I would say about as I expected it to go.",
+            "cn": [
+              {
+                "text": "底层技术的指数增长，基本跟我预期差不多。",
+                "s": 8.12,
+                "e": 19.47
+              }
+            ]
+          },
+          {
+            "s": 19.47,
+            "e": 25.67,
+            "speaker": "dario",
+            "en": "I mean, there's like plus or minus, you know, a couple, there's plus or minus a year or two here, there's plus or minus a year or two there.",
+            "cn": [
+              {
+                "text": "当然，会有一两年的偏差。",
+                "s": 19.47,
+                "e": 25.67
+              }
+            ]
+          },
+          {
+            "s": 25.67,
+            "e": 29.42,
+            "speaker": "dario",
+            "en": "I don't know that I was predicted the specific direction of code.",
+            "cn": [
+              {
+                "text": "代码这个方向，我倒没特别预判到。",
+                "s": 25.67,
+                "e": 29.42
+              }
+            ]
+          },
+          {
+            "s": 29.64,
+            "e": 46.85,
+            "speaker": "dario",
+            "en": "But actually when I look at the exponential, it is roughly what I expected in terms of the March of the Models from like, you know, smart high school student to smart college student to like, you know, beginning to do PhD and professional stuff and in the case of code reaching beyond that.",
+            "cn": [
+              {
+                "text": "但看整体的指数曲线，",
+                "s": 29.64,
+                "e": 33.33
+              },
+              {
+                "text": "跟我预期差不多——",
+                "s": 33.33,
+                "e": 36.2
+              },
+              {
+                "text": "从聪明的高中生水平，",
+                "s": 36.2,
+                "e": 39.89
+              },
+              {
+                "text": "到大学生，到博士级，",
+                "s": 39.89,
+                "e": 43.17
+              },
+              {
+                "text": "代码甚至超过了博士级。",
+                "s": 43.17,
+                "e": 46.85
+              }
+            ]
+          },
+          {
+            "s": 46.85,
+            "e": 48.68,
+            "speaker": "dario",
+            "en": "So, you know, the frontier is a little bit uneven.",
+            "cn": [
+              {
+                "text": "所以，前沿进展有点参差不齐。",
+                "s": 46.85,
+                "e": 48.68
+              }
+            ]
+          },
+          {
+            "s": 49.18,
+            "e": 50.42,
+            "speaker": "dario",
+            "en": "It's roughly what I expected.",
+            "cn": [
+              {
+                "text": "但大体上跟我预期一致。",
+                "s": 49.18,
+                "e": 50.42
+              }
+            ]
+          },
+          {
+            "s": 51.08,
+            "e": 53.46,
+            "speaker": "dario",
+            "en": "I will tell you though, what the most surprising thing has been.",
+            "cn": [
+              {
+                "text": "不过，最让我意外的是另一件事。",
+                "s": 51.08,
+                "e": 53.46
+              }
+            ]
+          },
+          {
+            "s": 53.56,
+            "e": 61.54,
+            "speaker": "dario",
+            "en": "The most surprising thing has been the lack of public recognition of how close we are to the end of the exponential.",
+            "cn": [
+              {
+                "text": "大众完全没意识到，我们离指数终点有多近。",
+                "s": 53.56,
+                "e": 61.54
+              }
+            ]
+          },
+          {
+            "s": 61.58,
+            "e": 81.08,
+            "speaker": "dario",
+            "en": "To me, it is absolutely wild that you have, within the bubble and outside the bubble, but you have people talking about these, just the same tired old hot button political issues and like, or around us, we're like, here's the end of the exponential.",
+            "cn": [
+              {
+                "text": "对我来说，真的太荒诞了——",
+                "s": 61.58,
+                "e": 65.64
+              },
+              {
+                "text": "不管在圈子里还是圈子外，",
+                "s": 65.64,
+                "e": 70.11
+              },
+              {
+                "text": "大家还在扯那些陈词滥调，",
+                "s": 70.11,
+                "e": 74.58
+              },
+              {
+                "text": "我们这边说——指数快到头了！",
+                "s": 74.58,
+                "e": 81.08
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "progress",
+      "scene": "progressBar9x16",
+      "start": 0,
+      "dur": 81.31,
+      "params": {
+        "duration": 81.31
+      }
+    }
+  ],
+  "_audioSrc": "/Users/Zhuanz/bigbang/MediaAgentTeam/series/硅谷访谈/E01-Dario-Amodei-指数终局/clips/clip_01.mp4"
+};
+// Shared scene utilities (design tokens, helpers)
+// NextFrame Shared Design System
+// 通用工具 + 可选预设。Scene 通过 preset 名选色板/布局/字号。
+// 加新系列 = 加新 preset，不改工具函数。
+
+// ═══════════════════════════════════════════════════════════════
+// 1. PRESETS — 色板 + 布局 + 字号的命名组合
+//    scene 通过 getPreset(name) 获取，或直接用 params 覆盖
+// ═══════════════════════════════════════════════════════════════
+
+const PRESETS = {
+  // ── 硅谷访谈 9:16 ──
+  "interview-dark": {
+    colors: {
+      bg: "#111111",
+      primary: "#e8c47a",      // gold
+      accent: "#da7756",       // warm orange
+      text: "#ffffff",
+      textDim: "rgba(255,255,255,0.7)",
+      textFaint: "rgba(255,255,255,0.3)",
+      blue: "#7ec8e3",
+      tagBg: "rgba(126,200,227,0.06)",
+      tagBorder: "rgba(126,200,227,0.15)",
+      tagText: "#7ec8e3",
+      decoLine: "rgba(232,196,122,0.12)",
+      decoLineDiamond: "rgba(232,196,122,0.2)",
+      gridDot: "rgba(232,196,122,0.08)",
+      glowTop: "rgba(232,196,122,0.03)",
+      glowBottom: "rgba(232,196,122,0.02)",
+      vignette: "rgba(17,17,17,0.5)",
+    },
+    // 布局: 1080×1920 参考画布的绝对 px
+    layout: {
+      baseW: 1080, baseH: 1920,
+      sidePad: 80,
+      header: { top: 0, height: 260 },
+      decoLine1: 258,
+      video: { top: 276, height: 538, left: 80, right: 80 },
+      decoLine2: 820,
+      subs: { top: 830, left: 140, right: 140, height: 340 },
+      timeInfo: 1186,
+      topic: { top: 1224, height: 256 },
+      progress: 1496,
+      decoLine3: 1580,
+      brand: 1590,
+      teamLine: 1760,
+    },
+    type: {
+      seriesName: { size: 44, weight: 800, spacing: "0.06em", font: "'PingFang SC','Noto Sans SC',Inter,system-ui,sans-serif" },
+      title:      { size: 60, weight: 700, spacing: "-0.01em", lineHeight: 1.2, font: "'PingFang SC','Noto Sans SC',Inter,system-ui,sans-serif" },
+      cnSub:      { size: 52, weight: 700, lineHeight: 1.3, font: "-apple-system,'PingFang SC','Microsoft YaHei',system-ui,sans-serif" },
+      enSub:      { size: 22, weight: 400, lineHeight: 1.6, font: "-apple-system,'PingFang SC',system-ui,sans-serif" },
+      topicLabel: { size: 20, weight: 600, spacing: "0.1em", font: "'PingFang SC','Noto Sans SC',sans-serif" },
+      topicText:  { size: 24, weight: 500, lineHeight: 1.65, font: "'PingFang SC','Noto Sans SC',sans-serif" },
+      tag:        { size: 22, weight: 500, spacing: "0.03em", font: "'SF Mono','JetBrains Mono',monospace" },
+      timeInfo:   { size: 22, weight: 500, spacing: "0.05em", font: "'SF Mono','JetBrains Mono',monospace" },
+      brand:      { size: 40, weight: 900, spacing: "0.2em", font: "'Iowan Old Style','Songti SC','Playfair Display',Georgia,serif" },
+      teamLine:   { size: 20, weight: 500, spacing: "0.03em", font: "'SF Mono','JetBrains Mono',monospace" },
+      clipLabel:  { size: 14, weight: 500, spacing: "0.08em", font: "'SF Mono','JetBrains Mono',monospace" },
+    },
+  },
+
+  // ── 讲解视频 16:9 ──
+  "lecture-warm": {
+    colors: {
+      bg: "#1a1510",
+      primary: "#d4b483",      // warm gold
+      accent: "#da7756",
+      text: "#f5ece0",
+      textDim: "rgba(245,236,224,0.6)",
+      textFaint: "rgba(245,236,224,0.3)",
+      green: "#7ec699",
+      codeBg: "#1e1e2e",
+      comment: "#6a6a7a",
+      red: "#e06c75",
+    },
+    layout: {
+      baseW: 1920, baseH: 1080,
+      sidePad: 60,
+      topPad: 40,
+      chrome: { top: 0, height: 48 },
+      content: { top: 80, left: 60, right: 60, height: 860 },
+      codeArea: { top: 100, left: 60, width: 900, height: 820 },
+      panelArea: { top: 100, left: 1000, width: 860, height: 820 },
+      subtitle: { bottom: 60, left: 120, right: 120, height: 80 },
+      progress: { bottom: 0, height: 4 },
+      headline: { top: 340, left: 120, right: 120 },
+    },
+    type: {
+      headline:      { size: 72, weight: 800, lineHeight: 1.15, font: "Georgia,'Noto Serif SC',serif" },
+      subtitle:      { size: 32, weight: 500, lineHeight: 1.5, font: "system-ui,sans-serif" },
+      code:          { size: 28, weight: 400, lineHeight: 1.7, font: "'SF Mono',Menlo,monospace" },
+      panelTitle:    { size: 42, weight: 700, lineHeight: 1.2, font: "Georgia,'Noto Serif SC',serif" },
+      panelBody:     { size: 18, weight: 400, lineHeight: 1.7, font: "system-ui,sans-serif" },
+      chromeBrand:   { size: 16, weight: 700, spacing: "0.04em", font: "system-ui,sans-serif" },
+      srtText:       { size: 32, weight: 500, lineHeight: 1.5, font: "system-ui,sans-serif" },
+      flowNode:      { size: 28, weight: 600, font: "system-ui,sans-serif" },
+    },
+  },
+};
+
+/**
+ * 获取预设。scene 用这个拿色板/布局/字号。
+ * 找不到返回空对象，scene 用自己的 params 兜底。
+ */
+function getPreset(name) {
+  return PRESETS[name] || {};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 2. UTILITIES — 通用工具函数，不绑定任何预设
+// ═══════════════════════════════════════════════════════════════
+
+function esc(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escAttr(value) {
+  return esc(value).replace(/'/g, "&#39;");
+}
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
+function easeOutCubic(value) {
+  const p = clamp01(value);
+  return 1 - Math.pow(1 - p, 3);
+}
+
+/** 按参考画布缩放像素值。baseW/baseH 从 preset.layout 取。 */
+function scale(vp, px, base) {
+  return Math.round((vp.width * px) / (base || 1080));
+}
+
+function scaleW(vp, px, baseW) {
+  return Math.round((vp.width * px) / (baseW || 1080));
+}
+
+function scaleH(vp, px, baseH) {
+  return Math.round((vp.height * px) / (baseH || 1920));
+}
+
+function fadeIn(t, delay, duration) {
+  const d = Number.isFinite(delay) ? delay : 0;
+  const dur = Number.isFinite(duration) ? duration : 0.45;
+  return easeOutCubic((t - d) / Math.max(dur, 0.001));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 3. SUBTITLE — 两级查找（通用，不绑定预设）
+// ═══════════════════════════════════════════════════════════════
+
+// Schema: params.segments = fine.json.segments (array)
+//   segment: { s, e, speaker, en, cn: [{ text, s, e }] }
+// Two-level: segment → EN + speaker, cn[] → CN text
+
+function findActiveSub(segments, t) {
+  if (!Array.isArray(segments)) return null;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (t >= seg.s && t < seg.e) {
+      const cnArr = Array.isArray(seg.cn) ? seg.cn : [];
+      for (let j = 0; j < cnArr.length; j++) {
+        const c = cnArr[j];
+        if (t >= c.s && t < c.e) {
+          return { en: seg.en || "", cn: c.text || "", speaker: seg.speaker || "" };
+        }
+      }
+      return { en: seg.en || "", cn: "", speaker: seg.speaker || "" };
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 4. DECORATIVE HELPERS — 通用装饰元素（接受颜色参数）
+// ═══════════════════════════════════════════════════════════════
+
+/** 渲染装饰分隔线 + 菱形端点。颜色从外部传入。 */
+function decoLine(vp, y, colors, baseW, baseH) {
+  const lineColor = colors?.decoLine || "rgba(232,196,122,0.12)";
+  const diamondColor = colors?.decoLineDiamond || "rgba(232,196,122,0.2)";
+  const bgColor = colors?.bg || "#111";
+  const left = scaleW(vp, 80, baseW);
+  const lineY = scaleH(vp, y, baseH);
+  const dSize = scaleW(vp, 10, baseW);
+  return `<div style="position:absolute;left:${left}px;right:${left}px;top:${lineY}px;height:1px;background:linear-gradient(90deg,transparent,${lineColor} 20%,${lineColor} 80%,transparent);pointer-events:none">` +
+    `<div style="position:absolute;left:0;top:${-dSize/2}px;width:${dSize}px;height:${dSize}px;border:1px solid ${diamondColor};transform:rotate(45deg);background:${bgColor}"></div>` +
+    `<div style="position:absolute;right:0;top:${-dSize/2}px;width:${dSize}px;height:${dSize}px;border:1px solid ${diamondColor};transform:rotate(45deg);background:${bgColor}"></div>` +
+    `</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 5. BACKWARD COMPAT — 旧代码的快捷引用（逐步废弃）
+// ═══════════════════════════════════════════════════════════════
+
+// 旧代码用 TOKENS.interview.gold 等。保留兼容但新代码用 getPreset()。
+const TOKENS = {
+  interview: PRESETS["interview-dark"]?.colors || {},
+  lecture: PRESETS["lecture-warm"]?.colors || {},
+};
+const GRID = PRESETS["interview-dark"]?.layout || {};
+const TYPE = PRESETS["interview-dark"]?.type || {};
+const GRID_16x9 = PRESETS["lecture-warm"]?.layout || {};
+const TYPE_16x9 = PRESETS["lecture-warm"]?.type || {};
+// interviewChrome (/Users/Zhuanz/bigbang/NextFrame/src/nf-core/scenes/9x16/overlays/interviewChrome/index.js)
+var interviewChrome = (function(){
+const PRESET_NAME = "interview-dark";
+
+const SAMPLE_TAGS = [
+  "Dwarkesh Podcast",
+  "Dario Amodei",
+  "原声 1:21",
+];
+
+function defaultTags(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value !== "string") return [];
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function getPresetParts() {
+  const preset = getPreset(PRESET_NAME);
+  return {
+    colors: preset.colors || {},
+    layout: preset.layout || {},
+    type: preset.type || {},
+  };
+}
+
+const meta = {
+  id: "interviewChrome",
+  version: 1,
+  ratio: "9:16",
+  category: "overlays",
+  label: "Interview Chrome",
+  description: "Static portrait interview baseplate with background, title, metadata, brand, and decorative lines.",
+  tech: "dom",
+  duration_hint: 81,
+  tags: ["interview", "portrait", "chrome"],
+  mood: ["editorial"],
+  theme: ["interview-dark"],
+  default_theme: PRESET_NAME,
+  themes: {
+    "interview-dark": {},
+    "interview-soft": {},
+    "interview-contrast": {},
+  },
+  params: {
+    seriesName: { type: "string", default: "速通硅谷访谈 · E01 · Dario Amodei", label: "系列名", group: "content" },
+    title: { type: "string", default: "指数快到头了，大众浑然不知", label: "标题", group: "content" },
+    clipLabel: { type: "string", default: "CLIP 01", label: "片段标签", group: "content" },
+    origRange: { type: "string", default: "原片 2:22:19 ｜ 内容来源：00:00 — 01:21", label: "原片范围", group: "meta" },
+    topicLabel: { type: "string", default: "正在聊", label: "话题标签", group: "meta" },
+    topic: { type: "string", default: "Anthropic 的指数曲线为什么还没到头，以及社会为什么几乎没意识到这一点。", label: "话题", group: "meta" },
+    tags: { type: "array", default: SAMPLE_TAGS, label: "标签", group: "meta" },
+    brand: { type: "string", default: "NEXTFRAME", label: "品牌", group: "brand" },
+    teamLine: { type: "string", default: "Produced by NextFrame AI-native video pipeline", label: "团队签名", group: "brand" },
+  },
+  ai: {
+    when: "Use as the static chrome layer for a 9:16 interview clip.",
+    how: "Pair with interviewVideoArea, interviewBiSub, and progressBar9x16 for a complete portrait interview timeline.",
+    example: {},
+    avoid: "Do not use for layouts that need changing title blocks or dynamic metadata over time.",
+    pairs_with: ["interviewVideoArea", "interviewBiSub", "progressBar9x16"],
+  },
+};
+
+function render(t, params, vp) {
+  const { colors, layout, type } = getPresetParts();
+  const sidePad = scaleW(vp, layout.sidePad, layout.baseW);
+  const headerTop = scaleH(vp, layout.header.top, layout.baseH);
+  const headerHeight = scaleH(vp, layout.header.height, layout.baseH);
+  const topicTop = scaleH(vp, layout.topic.top, layout.baseH);
+  const topicHeight = scaleH(vp, layout.topic.height, layout.baseH);
+  const timeInfoTop = scaleH(vp, layout.timeInfo, layout.baseH);
+  const brandTop = scaleH(vp, layout.brand, layout.baseH);
+  const teamTop = scaleH(vp, layout.teamLine, layout.baseH);
+  const titleSize = scaleW(vp, type.title.size, layout.baseW);
+  const seriesSize = scaleW(vp, type.seriesName.size, layout.baseW);
+  const topicLabelSize = scaleW(vp, type.topicLabel.size, layout.baseW);
+  const topicTextSize = scaleW(vp, type.topicText.size, layout.baseW);
+  const tagSize = scaleW(vp, type.tag.size, layout.baseW);
+  const timeInfoSize = scaleW(vp, type.timeInfo.size, layout.baseW);
+  const brandSize = scaleW(vp, type.brand.size, layout.baseW);
+  const teamSize = scaleW(vp, type.teamLine.size, layout.baseW);
+  const dotSize = Math.max(2, scaleW(vp, 2, layout.baseW));
+  const gridSize = Math.max(16, scaleW(vp, 20, layout.baseW));
+  const tagList = defaultTags(params.tags).slice(0, 3);
+
+  return `
+    <div style="position:absolute;inset:0;overflow:hidden;background:${colors.bg};">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse at 50% 18%, ${colors.glowTop} 0%, transparent 58%),
+        radial-gradient(ellipse at 50% 82%, ${colors.glowBottom} 0%, transparent 52%);
+      "></div>
+      <div style="position:absolute;inset:0;opacity:0.9;background:
+        radial-gradient(ellipse at 50% 45%, transparent 38%, ${colors.vignette} 100%);
+      "></div>
+      <div style="position:absolute;inset:0;opacity:1;background-image:radial-gradient(${colors.gridDot} ${dotSize}px, transparent ${dotSize}px);background-size:${gridSize}px ${gridSize}px;"></div>
+
+      <div style="position:absolute;left:${sidePad}px;right:${sidePad}px;top:${headerTop}px;height:${headerHeight}px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:${scaleH(vp, 22, layout.baseH)}px;text-align:center;">
+        <div style="font-family:${type.seriesName.font};font-size:${seriesSize}px;font-weight:${type.seriesName.weight};letter-spacing:${type.seriesName.spacing};color:${colors.primary};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">
+          ${esc(params.seriesName)}
+        </div>
+        <div style="margin-top:${scaleH(vp, 12, layout.baseH)}px;font-family:${type.title.font};font-size:${titleSize}px;font-weight:${type.title.weight};letter-spacing:${type.title.spacing};line-height:${type.title.lineHeight};color:${colors.text};max-width:100%;">
+          ${esc(params.title)}
+        </div>
+      </div>
+
+      ${decoLine(vp, layout.decoLine1, colors, layout.baseW, layout.baseH)}
+      ${decoLine(vp, layout.decoLine2, colors, layout.baseW, layout.baseH)}
+      ${decoLine(vp, layout.decoLine3, colors, layout.baseW, layout.baseH)}
+
+      <div style="position:absolute;left:${sidePad}px;right:${sidePad}px;top:${timeInfoTop}px;text-align:center;font-family:${type.timeInfo.font};font-size:${timeInfoSize}px;font-weight:${type.timeInfo.weight};letter-spacing:${type.timeInfo.spacing};color:${colors.primary};opacity:0.68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${esc(params.origRange)}
+      </div>
+
+      <div style="position:absolute;left:${sidePad}px;right:${sidePad}px;top:${topicTop}px;height:${topicHeight}px;">
+        <div style="display:flex;align-items:center;gap:${scaleW(vp, 18, layout.baseW)}px;font-family:${type.topicLabel.font};font-size:${topicLabelSize}px;font-weight:${type.topicLabel.weight};letter-spacing:${type.topicLabel.spacing};color:${colors.primary};text-transform:uppercase;">
+          <span>${esc(params.topicLabel)}</span>
+          <span style="flex:1;height:1px;background:linear-gradient(90deg, ${colors.primary}, transparent);opacity:0.3;"></span>
+        </div>
+        <div style="margin-top:${scaleH(vp, 16, layout.baseH)}px;font-family:${type.topicText.font};font-size:${topicTextSize}px;font-weight:${type.topicText.weight};line-height:${type.topicText.lineHeight};color:${colors.textDim};">
+          ${esc(params.topic)}
+        </div>
+        <div style="margin-top:${scaleH(vp, 22, layout.baseH)}px;display:flex;justify-content:center;gap:${scaleW(vp, 14, layout.baseW)}px;flex-wrap:nowrap;overflow:hidden;">
+          ${tagList.map((tag) => `
+            <span style="display:inline-flex;align-items:center;padding:${scaleH(vp, 9, layout.baseH)}px ${scaleW(vp, 18, layout.baseW)}px;border:1px solid ${colors.tagBorder};border-radius:${scaleW(vp, 10, layout.baseW)}px;background:${colors.tagBg};font-family:${type.tag.font};font-size:${tagSize}px;font-weight:${type.tag.weight};letter-spacing:${type.tag.spacing};color:${colors.tagText};white-space:nowrap;">
+              ${esc(tag)}
+            </span>
+          `).join("")}
+        </div>
+      </div>
+
+      <div style="position:absolute;left:${sidePad}px;top:${scaleH(vp, layout.video.top + 18, layout.baseH)}px;padding:${scaleH(vp, 6, layout.baseH)}px ${scaleW(vp, 12, layout.baseW)}px;border:1px solid ${colors.tagBorder};border-radius:${scaleW(vp, 8, layout.baseW)}px;background:${colors.tagBg};font-family:${type.clipLabel.font};font-size:${scaleW(vp, type.clipLabel.size, layout.baseW)}px;font-weight:${type.clipLabel.weight};letter-spacing:${type.clipLabel.spacing};color:${colors.primary};">
+        ${esc(params.clipLabel)}
+      </div>
+
+      <div style="position:absolute;left:0;right:0;top:${brandTop}px;text-align:center;font-family:${type.brand.font};font-size:${brandSize}px;font-weight:${type.brand.weight};letter-spacing:${type.brand.spacing};color:${colors.primary};">
+        ${esc(params.brand)}
+      </div>
+      <div style="position:absolute;left:${sidePad}px;right:${sidePad}px;top:${teamTop}px;text-align:center;font-family:${type.teamLine.font};font-size:${teamSize}px;font-weight:${type.teamLine.weight};letter-spacing:${type.teamLine.spacing};color:${colors.textFaint};">
+        ${esc(params.teamLine)}
+      </div>
+    </div>
+  `;
+}
+
+function screenshots() {
+  return [
+    { t: 0.5, label: "opening" },
+    { t: 5, label: "title-and-meta" },
+    { t: 40, label: "brand-zone" },
+  ];
+}
+
+function lint(params) {
+  const errors = [];
+  if (!params.seriesName) errors.push("seriesName is required");
+  if (!params.title) errors.push("title is required");
+  if (!params.brand) errors.push("brand is required");
+  if (!Array.isArray(params.tags) && typeof params.tags !== "string") {
+    errors.push("tags must be an array or comma-separated string");
+  }
+  return { ok: errors.length === 0, errors };
+}
+return { meta: typeof meta !== "undefined" ? meta : null, render: typeof render === "function" ? render : null };
+})();
+
+// interviewVideoArea (/Users/Zhuanz/bigbang/NextFrame/src/nf-core/scenes/9x16/overlays/interviewVideoArea/index.js)
+var interviewVideoArea = (function(){
+const PRESET_NAME = "interview-dark";
+const preset = getPreset(PRESET_NAME);
+const layout = preset.layout || {};
+
+function pct(value, total) {
+  return Number((((value || 0) / (total || 1)) * 100).toFixed(4));
+}
+
+function pctString(value, total) {
+  return `${pct(value, total)}%`;
+}
+
+const meta = {
+  id: "interviewVideoArea",
+  version: 1,
+  ratio: "9:16",
+  category: "overlays",
+  label: "Interview Video Area",
+  description: "Portrait interview video slot placeholder with recorder overlay metadata for the real clip.",
+  tech: "dom",
+  duration_hint: 81,
+  videoOverlay: {
+    x: pctString(layout.video?.left, layout.baseW),
+    y: pctString(layout.video?.top, layout.baseH),
+    w: pctString((layout.baseW || 0) - (layout.video?.left || 0) - (layout.video?.right || 0), layout.baseW),
+    h: pctString(layout.video?.height, layout.baseH),
+  },
+  tags: ["interview", "video", "portrait"],
+  mood: ["editorial"],
+  theme: ["interview-dark"],
+  default_theme: PRESET_NAME,
+  themes: {
+    "interview-dark": {},
+    "interview-soft": {},
+    "interview-contrast": {},
+  },
+  params: {
+    src: { type: "string", default: "/absolute/path/to/clip_01.mp4", label: "视频源", group: "content" },
+    clipLabel: { type: "string", default: "CLIP 01 / 01", label: "片段标签", group: "content" },
+  },
+  ai: {
+    when: "Use for the interview clip video window inside a 9:16 composition.",
+    how: "Keep it full-duration and pass the real clip path through params.src; recorder will overlay the source video into this slot.",
+    example: {},
+    avoid: "Do not use as a fullscreen background video layer.",
+    pairs_with: ["interviewChrome", "interviewBiSub", "progressBar9x16"],
+  },
+};
+
+function render(t, params, vp) {
+  const presetNow = getPreset(PRESET_NAME);
+  const colors = presetNow.colors || {};
+  const currentLayout = presetNow.layout || {};
+  const left = scaleW(vp, currentLayout.video.left, currentLayout.baseW);
+  const right = scaleW(vp, currentLayout.video.right, currentLayout.baseW);
+  const top = scaleH(vp, currentLayout.video.top, currentLayout.baseH);
+  const height = scaleH(vp, currentLayout.video.height, currentLayout.baseH);
+  const radius = scaleW(vp, 12, currentLayout.baseW);
+  const labelSize = scaleW(vp, presetNow.type?.clipLabel?.size || 14, currentLayout.baseW);
+  const labelPadY = scaleH(vp, 7, currentLayout.baseH);
+  const labelPadX = scaleW(vp, 12, currentLayout.baseW);
+  const shineOffset = Math.round((t * 60) % Math.max(scaleW(vp, 360, currentLayout.baseW), 1));
+
+  return `
+    <div style="position:absolute;left:${left}px;right:${right}px;top:${top}px;height:${height}px;border-radius:${radius}px;overflow:hidden;background:
+      linear-gradient(135deg, rgba(0,0,0,0.95), ${colors.bg}),
+      radial-gradient(circle at 30% 20%, ${colors.glowTop}, transparent 50%);
+      box-shadow:0 ${scaleH(vp, 16, currentLayout.baseH)}px ${scaleW(vp, 40, currentLayout.baseW)}px rgba(0,0,0,0.35), inset 0 0 0 1px ${colors.decoLineDiamond};">
+      <div style="position:absolute;inset:0;background:
+        linear-gradient(90deg, transparent, ${colors.decoLine} ${Math.max(18, shineOffset)}%, transparent ${Math.max(28, shineOffset + 14)}%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), transparent 45%);
+      "></div>
+      <div style="position:absolute;inset:${scaleW(vp, 18, currentLayout.baseW)}px;border:1px solid ${colors.decoLineDiamond};border-radius:${Math.max(radius - 6, 2)}px;"></div>
+      <div style="position:absolute;left:${scaleW(vp, 18, currentLayout.baseW)}px;top:${scaleH(vp, 18, currentLayout.baseH)}px;padding:${labelPadY}px ${labelPadX}px;border-radius:${scaleW(vp, 8, currentLayout.baseW)}px;border:1px solid ${colors.tagBorder};background:${colors.tagBg};font-family:${presetNow.type?.clipLabel?.font};font-size:${labelSize}px;font-weight:${presetNow.type?.clipLabel?.weight || 500};letter-spacing:${presetNow.type?.clipLabel?.spacing || "0.08em"};color:${colors.primary};">
+        ${esc(params.clipLabel)}
+      </div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);display:flex;flex-direction:column;align-items:center;gap:${scaleH(vp, 16, currentLayout.baseH)}px;color:${colors.textDim};text-align:center;">
+        <div style="width:${scaleW(vp, 96, currentLayout.baseW)}px;height:${scaleW(vp, 96, currentLayout.baseW)}px;border-radius:50%;border:1px solid ${colors.decoLineDiamond};display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);font-family:${presetNow.type?.brand?.font};font-size:${scaleW(vp, 28, currentLayout.baseW)}px;color:${colors.primary};">
+          ▶
+        </div>
+        <div style="font-family:${presetNow.type?.timeInfo?.font};font-size:${scaleW(vp, 18, currentLayout.baseW)}px;letter-spacing:${presetNow.type?.timeInfo?.spacing || "0.05em"};text-transform:uppercase;">
+          Recorder will composite source video here
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function screenshots() {
+  return [
+    { t: 0.5, label: "slot" },
+    { t: 5, label: "placeholder" },
+    { t: 40, label: "video-overlay-zone" },
+  ];
+}
+
+function lint(params) {
+  const errors = [];
+  if (!params.src || typeof params.src !== "string") errors.push("src is required");
+  if (!params.clipLabel) errors.push("clipLabel is required");
+  return { ok: errors.length === 0, errors };
+}
+return { meta: typeof meta !== "undefined" ? meta : null, render: typeof render === "function" ? render : null };
+})();
+
+// interviewBiSub (/Users/Zhuanz/bigbang/NextFrame/src/nf-core/scenes/9x16/overlays/interviewBiSub/index.js)
+var interviewBiSub = (function(){
+const PRESET_NAME = "interview-dark";
+
+const SAMPLE_SEGMENTS = [
+  {
+    s: 0,
+    e: 3.2,
+    speaker: "dwarkesh",
+    en: "Three years ago, we had this conversation in a much calmer world.",
+    cn: [
+      { s: 0, e: 1.5, text: "我们三年前谈过一次。" },
+      { s: 1.5, e: 3.2, text: "那时外界还没意识到曲线有多陡。" },
+    ],
+  },
+  {
+    s: 3.2,
+    e: 6.8,
+    speaker: "dario",
+    en: "Now the capabilities are moving so fast that the public signal is still lagging behind reality.",
+    cn: [
+      { s: 3.2, e: 5.2, text: "现在能力爬升得太快了。" },
+      { s: 5.2, e: 6.8, text: "公众感知仍然落后于现实。" },
+    ],
+  },
+];
+
+function speakerColor(colors, speaker) {
+  if (!speaker) return colors.primary;
+  const normalized = String(speaker).toLowerCase();
+  return normalized.includes("dwarkesh") ? colors.text : colors.primary;
+}
+
+const meta = {
+  id: "interviewBiSub",
+  version: 1,
+  ratio: "9:16",
+  category: "overlays",
+  label: "Interview Bilingual Subtitle",
+  description: "Portrait bilingual subtitle block that reads fine.json segments via findActiveSub for Chinese and English timing.",
+  tech: "dom",
+  duration_hint: 81,
+  tags: ["interview", "subtitle", "bilingual"],
+  mood: ["editorial"],
+  theme: ["interview-dark"],
+  default_theme: PRESET_NAME,
+  themes: {
+    "interview-dark": {},
+    "interview-soft": {},
+    "interview-contrast": {},
+  },
+  params: {
+    segments: { type: "array", default: SAMPLE_SEGMENTS, label: "fine.json segments", group: "content", semantic: "fine-segments" },
+  },
+  ai: {
+    when: "Use for portrait interview clips that already have fine.json bilingual segments.",
+    how: "Pass fine.json.segments directly without flattening; render uses findActiveSub(params.segments, t).",
+    example: {},
+    avoid: "Do not pass flattened SRT rows because English will repeat on each Chinese child cue.",
+    pairs_with: ["interviewChrome", "interviewVideoArea", "progressBar9x16"],
+  },
+};
+
+function render(t, params, vp) {
+  const preset = getPreset(PRESET_NAME);
+  const { colors, layout, type } = preset;
+  const active = findActiveSub(params.segments, t);
+  if (!active) {
+    return `<div style="position:absolute;left:${scaleW(vp, layout.subs.left, layout.baseW)}px;right:${scaleW(vp, layout.subs.right, layout.baseW)}px;top:${scaleH(vp, layout.subs.top, layout.baseH)}px;height:${scaleH(vp, layout.subs.height, layout.baseH)}px;"></div>`;
+  }
+
+  const top = scaleH(vp, layout.subs.top, layout.baseH);
+  const left = scaleW(vp, layout.subs.left, layout.baseW);
+  const right = scaleW(vp, layout.subs.right, layout.baseW);
+  const height = scaleH(vp, layout.subs.height, layout.baseH);
+  const cnSize = scaleW(vp, type.cnSub.size, layout.baseW);
+  const enSize = scaleW(vp, type.enSub.size, layout.baseW);
+  const opacity = fadeIn(t, 0, 0.18);
+  const cnColor = speakerColor(colors, active.speaker);
+  const speakerName = active.speaker ? String(active.speaker).toUpperCase() : "";
+
+  return `
+    <div style="position:absolute;left:${left}px;right:${right}px;top:${top}px;height:${height}px;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;text-align:center;pointer-events:none;opacity:${opacity};">
+      <div style="padding:${scaleH(vp, 10, layout.baseH)}px ${scaleW(vp, 18, layout.baseW)}px;border:1px solid ${colors.tagBorder};border-radius:${scaleW(vp, 999, layout.baseW)}px;background:${colors.tagBg};font-family:${type.clipLabel.font};font-size:${scaleW(vp, 16, layout.baseW)}px;font-weight:${type.clipLabel.weight};letter-spacing:${type.clipLabel.spacing};color:${colors.tagText};text-transform:uppercase;">
+        ${esc(speakerName || "Speaker")}
+      </div>
+      <div style="margin-top:${scaleH(vp, 18, layout.baseH)}px;font-family:${type.cnSub.font};font-size:${cnSize}px;font-weight:${type.cnSub.weight};line-height:${type.cnSub.lineHeight};color:${cnColor};text-shadow:0 ${scaleH(vp, 4, layout.baseH)}px ${scaleW(vp, 24, layout.baseW)}px rgba(0,0,0,0.38);max-width:100%;">
+        ${esc(active.cn || "")}
+      </div>
+      <div style="margin-top:${scaleH(vp, 14, layout.baseH)}px;font-family:${type.enSub.font};font-size:${enSize}px;font-weight:${type.enSub.weight};line-height:${type.enSub.lineHeight};color:${colors.textDim};font-style:italic;max-width:100%;">
+        ${esc(active.en || "")}
+      </div>
+    </div>
+  `;
+}
+
+function screenshots() {
+  return [
+    { t: 0.5, label: "subtitle-start" },
+    { t: 4, label: "speaker-switch" },
+    { t: 6, label: "english-and-chinese" },
+  ];
+}
+
+function lint(params) {
+  const errors = [];
+  if (!Array.isArray(params.segments)) {
+    errors.push("segments must be an array");
+  } else {
+    const sample = params.segments[0];
+    if (sample && (typeof sample.s !== "number" || typeof sample.e !== "number" || !Array.isArray(sample.cn))) {
+      errors.push("segments must keep fine.json shape: {s,e,speaker,en,cn[]}");
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+return { meta: typeof meta !== "undefined" ? meta : null, render: typeof render === "function" ? render : null };
+})();
+
+// progressBar9x16 (/Users/Zhuanz/bigbang/NextFrame/src/nf-core/scenes/9x16/overlays/progressBar9x16/index.js)
+var progressBar9x16 = (function(){
+const PRESET_NAME = "interview-dark";
+
+const meta = {
+  id: "progressBar9x16",
+  version: 1,
+  ratio: "9:16",
+  category: "overlays",
+  label: "Progress Bar 9x16",
+  description: "Portrait interview progress bar aligned to the interview-dark preset footer slot.",
+  tech: "dom",
+  duration_hint: 81,
+  tags: ["progress", "portrait", "interview"],
+  mood: ["editorial"],
+  theme: ["interview-dark"],
+  default_theme: PRESET_NAME,
+  themes: {
+    "interview-dark": {},
+    "interview-soft": {},
+    "interview-contrast": {},
+  },
+  params: {
+    duration: { type: "number", default: 81.31, label: "总时长", group: "timing" },
+  },
+  ai: {
+    when: "Use as the bottom progress layer in a 9:16 interview layout.",
+    how: "Keep it full-duration and pass the clip duration so fill width matches playback time.",
+    example: {},
+    avoid: "Do not use for segmented chapter progress bars.",
+    pairs_with: ["interviewChrome", "interviewVideoArea", "interviewBiSub"],
+  },
+};
+
+function render(t, params, vp) {
+  const preset = getPreset(PRESET_NAME);
+  const { colors, layout } = preset;
+  const duration = Number(params.duration) > 0 ? Number(params.duration) : 1;
+  const progress = clamp01(t / duration);
+  const left = scaleW(vp, layout.sidePad, layout.baseW);
+  const top = scaleH(vp, layout.progress, layout.baseH);
+  const trackHeight = Math.max(3, scaleH(vp, 6, layout.baseH));
+  const knobSize = scaleW(vp, 20, layout.baseW);
+  const width = vp.width - left * 2;
+
+  return `
+    <div style="position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${knobSize}px;">
+      <div style="position:absolute;left:0;right:0;top:${Math.round((knobSize - trackHeight) / 2)}px;height:${trackHeight}px;border-radius:${trackHeight}px;background:rgba(255,255,255,0.08);overflow:hidden;">
+        <div style="height:100%;width:${(progress * 100).toFixed(3)}%;background:linear-gradient(90deg, ${colors.primary}, ${colors.accent});border-radius:${trackHeight}px;"></div>
+      </div>
+      <div style="position:absolute;top:0;left:calc(${(progress * 100).toFixed(3)}% - ${Math.round(knobSize / 2)}px);width:${knobSize}px;height:${knobSize}px;border-radius:50%;border:1px solid ${colors.decoLineDiamond};background:${colors.bg};box-shadow:0 0 0 ${Math.max(2, scaleW(vp, 2, layout.baseW))}px rgba(232,196,122,0.12);"></div>
+    </div>
+  `;
+}
+
+function screenshots() {
+  return [
+    { t: 0.5, label: "start" },
+    { t: 20, label: "midway" },
+    { t: 70, label: "near-end" },
+  ];
+}
+
+function lint(params) {
+  const errors = [];
+  if (typeof params.duration !== "number" || params.duration <= 0) {
+    errors.push("duration must be a positive number");
+  }
+  return { ok: errors.length === 0, errors };
+}
+return { meta: typeof meta !== "undefined" ? meta : null, render: typeof render === "function" ? render : null };
+})();
+const SCENES = {
+"interviewChrome": interviewChrome,
+"interviewVideoArea": interviewVideoArea,
+"interviewBiSub": interviewBiSub,
+"progressBar9x16": progressBar9x16
+};
+(() => {
+  const stageShell = document.getElementById("stage-shell");
+  const stage = document.getElementById("stage");
+  const controls = document.getElementById("controls");
+  const playBtn = document.getElementById("playBtn");
+  const scrubber = document.getElementById("scrubber");
+  const timeInfo = document.getElementById("timeInfo");
+  const phaseInfo = document.getElementById("phaseInfo");
+  const audioEl = document.getElementById("timeline-audio");
+  const timeline = TIMELINE || {};
+  const fps = Number(timeline.fps || 30);
+  const duration = Math.max(0, Number(timeline.duration || 0));
+  const viewport = {
+    width: Number(timeline.width || 1920),
+    height: Number(timeline.height || 1080),
+  };
+  const layers = Array.isArray(timeline.layers) ? timeline.layers : [];
+  if (audioEl && timeline.audio) {
+    var _audioSrc = typeof timeline.audio === "object" ? (timeline.audio.src || "") : String(timeline.audio);
+    if (_audioSrc) { audioEl.src = _audioSrc; window.__audioSrc = _audioSrc; }
+  }
+  let currentTime = 0;
+  let rafId = 0;
+  let isPlaying = false;
+  let recorderMode = false;
+  let dragActive = false;
+  let clockBaseTime = 0;
+  let clockBaseNow = 0;
+  let lastVisible = [];
+
+  function clampTime(value) {
+    if (!Number.isFinite(value)) return 0;
+    if (value < 0) return 0;
+    if (value > duration) return duration;
+    return value;
+  }
+
+  function formatTime(value) {
+    return clampTime(value).toFixed(2) + "s";
+  }
+
+  function applyScale() {
+    const controlsH = 56;
+    const availW = window.innerWidth;
+    const availH = window.innerHeight - controlsH;
+    const scale = Math.min(availW / viewport.width, availH / viewport.height);
+    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    const scaledW = viewport.width * safeScale;
+    const scaledH = viewport.height * safeScale;
+    stageShell.style.transform = "scale(" + safeScale + ")";
+    stageShell.style.left = Math.round((availW - scaledW) / 2) + "px";
+    stageShell.style.top = Math.round((availH - scaledH) / 2) + "px";
+  }
+
+  function replayInlineScripts(root) {
+    const scripts = root.querySelectorAll("script");
+    scripts.forEach((oldScript) => {
+      const newScript = document.createElement("script");
+      for (const attr of oldScript.attributes) {
+        newScript.setAttribute(attr.name, attr.value);
+      }
+      newScript.textContent = oldScript.textContent;
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+  }
+
+  function renderSceneError(layer, message) {
+    return '<div style="position:absolute;inset:24px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,120,120,.35);background:rgba(20,0,0,.4);color:#ffb4b4;font:600 18px monospace">' +
+      message + " (" + String(layer.scene || "unknown") + ")</div>";
+  }
+
+  // Auto-generate SRT from timeline.audio.sentences (if audio-synth was used)
+  const _autoSrt = (function() {
+    const audio = timeline.audio;
+    if (!audio || typeof audio === "string") return null;
+    // audio can be {src:"path", sentences:[{text,start,end,words}]} from pipeline
+    const sentences = audio.sentences || (audio.segments && audio.segments.flatMap(function(seg) { return seg.sentences || []; }));
+    if (!Array.isArray(sentences) || sentences.length === 0) return null;
+    return sentences.map(function(s) { return { s: Number(s.start || 0), e: Number(s.end || 0), t: String(s.text || "") }; }).filter(function(e) { return e.t; });
+  })();
+
+  function resolveSceneParams(scene, rawParams, layerDataSource) {
+    const input = rawParams && typeof rawParams === "object" ? rawParams : {};
+    const meta = scene && scene.meta && typeof scene.meta === "object" ? scene.meta : {};
+    const paramsMeta = meta.params && typeof meta.params === "object" ? meta.params : {};
+    const defaults = {};
+    for (const [key, spec] of Object.entries(paramsMeta)) {
+      if (spec && Object.prototype.hasOwnProperty.call(spec, "default")) {
+        defaults[key] = spec.default;
+      }
+    }
+    const themes = meta.themes && typeof meta.themes === "object" ? meta.themes : {};
+    const themeKey = input.theme || meta.default_theme;
+    const themeValues = themeKey && themes[themeKey] && typeof themes[themeKey] === "object"
+      ? themes[themeKey]
+      : {};
+    const merged = { ...defaults, ...themeValues, ...input };
+    // Auto-inject SRT if layer has dataSource:"audio" and scene has srt param
+    if (layerDataSource === "audio" && _autoSrt && !merged.srt) {
+      merged.srt = _autoSrt;
+    }
+    // Auto-inject progress for progressBar scenes
+    if (layerDataSource === "progress" || (meta.id && meta.id.toLowerCase().indexOf("progress") >= 0)) {
+      // progress is handled per-frame in compose, not here
+    }
+    return merged;
+  }
+
+  function getPhaseLabel(visible) {
+    const active = visible[visible.length - 1];
+    if (!active) return "idle";
+    const meta = active.scene && active.scene.meta ? active.scene.meta : {};
+    const label = meta.label || active.layer.scene || "scene";
+    const layerId = active.layer.id || active.layer.scene || "layer";
+    return layerId + " · " + label;
+  }
+
+  function updateControls(time, visible) {
+    const activeVisible = visible && visible.length ? visible : lastVisible;
+    if (!dragActive) {
+      scrubber.value = duration > 0
+        ? String(Math.round((clampTime(time) / duration) * 10000))
+        : "0";
+    }
+    timeInfo.textContent = formatTime(time) + " / " + formatTime(duration);
+    phaseInfo.textContent = "Phase: " + getPhaseLabel(activeVisible);
+    playBtn.textContent = isPlaying ? "Pause" : "Play";
+    if (window.parent !== window) {
+      window.parent.postMessage({type:"nf-state", currentTime: clampTime(time), duration: duration, isPlaying: isPlaying}, "*");
+    }
+  }
+
+  function compose(time) {
+    const t = clampTime(time);
+    currentTime = t;
+    const visible = [];
+    const html = [];
+    for (let index = 0; index < layers.length; index += 1) {
+      const layer = layers[index];
+      const start = Number(layer.start || 0);
+      const dur = Number(layer.dur || 0);
+      if (t < start || t >= start + dur) continue;
+      const scene = SCENES[layer.scene];
+      let inner = "";
+      if (!scene || typeof scene.render !== "function") {
+        inner = renderSceneError(layer, "Missing scene renderer");
+      } else {
+        try {
+          inner = scene.render(t - start, resolveSceneParams(scene, layer.params, layer.dataSource), viewport);
+        } catch (err) {
+          inner = renderSceneError(layer, String(err && err.message ? err.message : err));
+        }
+      }
+      visible.push({ layer, scene });
+      html.push(
+        '<div class="nf-layer" data-layer-id="' + String(layer.id || layer.scene || index) + '"' +
+        ' style="position:absolute;inset:0;pointer-events:none;z-index:' + index + ';">' +
+        inner +
+        "</div>"
+      );
+    }
+    // Persistent video elements: don't destroy & recreate, just update currentTime
+    const existingVideos = {};
+    stage.querySelectorAll("video[data-nf-persist]").forEach(function(v) {
+      existingVideos[v.getAttribute("data-nf-persist")] = v.parentElement.parentElement;
+    });
+
+    // Build new DOM, but reuse persistent video layers
+    const frag = document.createElement("div");
+    frag.innerHTML = html.join("");
+    const newChildren = Array.from(frag.children);
+
+    // Check which layers have persistent video
+    const usedPersist = new Set();
+    for (const child of newChildren) {
+      const vid = child.querySelector("video[data-nf-persist]");
+      if (vid) {
+        const key = vid.getAttribute("data-nf-persist");
+        if (existingVideos[key]) {
+          // Reuse existing layer — just update currentTime
+          const existingLayer = existingVideos[key];
+          const existingVid = existingLayer.querySelector("video[data-nf-persist]");
+          const newTime = parseFloat(vid.getAttribute("data-nf-time") || "0");
+          if (existingVid && Math.abs(existingVid.currentTime - newTime) > 0.1) {
+            existingVid.currentTime = newTime;
+          }
+          existingLayer.style.zIndex = child.style.zIndex;
+          usedPersist.add(key);
+        }
+      }
+    }
+
+    // Remove layers that are no longer visible (but keep persistent ones that are still active)
+    Array.from(stage.children).forEach(function(child) {
+      const vid = child.querySelector("video[data-nf-persist]");
+      if (vid && usedPersist.has(vid.getAttribute("data-nf-persist"))) return; // keep
+      child.remove();
+    });
+
+    // Add new layers (skip ones already persisted)
+    for (const child of newChildren) {
+      const vid = child.querySelector("video[data-nf-persist]");
+      if (vid && existingVideos[vid.getAttribute("data-nf-persist")]) continue; // already in DOM
+      stage.appendChild(child);
+    }
+
+    replayInlineScripts(stage);
+    lastVisible = visible;
+    updateControls(t, visible);
+    return { time: t, visible };
+  }
+
+  function syncClock(time) {
+    clockBaseTime = clampTime(time);
+    clockBaseNow = performance.now();
+  }
+
+  function stopPlayback() {
+    isPlaying = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+    if (audioEl) audioEl.pause();
+    updateControls(currentTime, []);
+  }
+
+  function tick() {
+    if (!isPlaying) return;
+    const nextTime = audioEl
+      ? clampTime(audioEl.currentTime)
+      : clampTime(clockBaseTime + (performance.now() - clockBaseNow) / 1000);
+    compose(nextTime);
+    if (nextTime >= duration) {
+      stopPlayback();
+      compose(duration);
+      return;
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // Sync all persistent video elements
+  function syncVideos(t, playing) {
+    stage.querySelectorAll("video[data-nf-persist]").forEach(function(v) {
+      if (playing && v.paused) v.play().catch(function(){});
+      if (!playing && !v.paused) v.pause();
+      // Only seek if drift > 0.3s
+      if (Math.abs(v.currentTime - t) > 0.3) v.currentTime = t;
+    });
+  }
+
+  function play() {
+    if (isPlaying || duration <= 0 || recorderMode) return;
+    if (currentTime >= duration) {
+      currentTime = 0;
+      if (audioEl) audioEl.currentTime = 0;
+    }
+    isPlaying = true;
+    syncClock(currentTime);
+    if (audioEl) {
+      audioEl.currentTime = currentTime;
+      const playPromise = audioEl.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {
+          stopPlayback();
+          compose(currentTime);
+        });
+      }
+    }
+    syncVideos(currentTime, true);
+    updateControls(currentTime, []);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    if (!isPlaying) return;
+    if (audioEl) currentTime = clampTime(audioEl.currentTime);
+    else currentTime = clampTime(clockBaseTime + (performance.now() - clockBaseNow) / 1000);
+    stopPlayback();
+    syncVideos(currentTime, false);
+    compose(currentTime);
+  }
+
+  function togglePlayback() {
+    if (isPlaying) pause();
+    else play();
+  }
+
+  function seek(time) {
+    const nextTime = clampTime(time);
+    currentTime = nextTime;
+    syncClock(nextTime);
+    if (audioEl) audioEl.currentTime = nextTime;
+    return compose(nextTime);
+  }
+
+  function scrubberTime() {
+    return duration <= 0
+      ? 0
+      : (Number(scrubber.value || 0) / 10000) * duration;
+  }
+
+  function extractTime(data) {
+    if (typeof data === "number") return clampTime(data);
+    if (data && Number.isFinite(data.time)) return clampTime(Number(data.time));
+    if (data && Number.isFinite(data.t)) return clampTime(Number(data.t));
+    if (data && Number.isFinite(data.currentTime)) return clampTime(Number(data.currentTime));
+    return currentTime;
+  }
+
+  function enableRecorderMode() {
+    if (recorderMode) return;
+    recorderMode = true;
+    stopPlayback();
+    controls.style.display = "none";
+  }
+
+  window.__onFrame = function(data) {
+    enableRecorderMode();
+    var result = seek(extractTime(data));
+    // Force layout flush + paint for WKWebView recorder
+    void stage.offsetHeight;
+    void stage.getBoundingClientRect();
+    return result;
+  };
+
+  playBtn.addEventListener("click", () => togglePlayback());
+  scrubber.addEventListener("pointerdown", () => { dragActive = true; });
+  scrubber.addEventListener("pointerup", () => { dragActive = false; });
+  scrubber.addEventListener("input", () => {
+    if (isPlaying) pause();
+    seek(scrubberTime());
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.code !== "Space") return;
+    const tag = event.target && event.target.tagName ? event.target.tagName : "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    event.preventDefault();
+    togglePlayback();
+  });
+  window.addEventListener("resize", applyScale);
+
+  if (audioEl) {
+    audioEl.addEventListener("ended", () => {
+      currentTime = duration;
+      stopPlayback();
+      compose(duration);
+    });
+  }
+
+  // Iframe embedding mode — use setInterval instead of rAF (rAF may not fire in WKWebView iframes)
+  var _iframeMode = (window.parent !== window);
+  var _intervalId = 0;
+  if (_iframeMode) {
+    controls.style.display = "none";
+    // Override play to use setInterval instead of rAF
+    var _origPlay = play;
+    play = function() {
+      _origPlay();
+      if (isPlaying && !_intervalId) {
+        _intervalId = setInterval(function() {
+          if (!isPlaying) { clearInterval(_intervalId); _intervalId = 0; return; }
+          tick(performance.now());
+        }, 33); // ~30fps
+      }
+    };
+    var _origPause = pause;
+    pause = function() {
+      _origPause();
+      if (_intervalId) { clearInterval(_intervalId); _intervalId = 0; }
+    };
+    window.addEventListener("message", function(event) {
+      var d = event.data;
+      if (!d || d.type !== "nf-cmd") return;
+      if (d.action === "play") play();
+      else if (d.action === "pause") pause();
+      else if (d.action === "toggle") togglePlayback();
+      else if (d.action === "seek" && typeof d.time === "number") seek(d.time);
+    });
+  }
+
+  applyScale();
+  // Support #t=N in URL to start at a specific time
+  var hashTime = parseFloat((location.hash.match(/t=([\d.]+)/) || [])[1]);
+  var initTime = isFinite(hashTime) ? hashTime : 0;
+  compose(initTime);
+  // Expose controls for external access (iframe parent, console, AppleScript)
+  window.__nfSeek = seek;
+  window.__nfPlay = play;
+  window.__nfPause = stopPlayback;
+  window.__nfToggle = togglePlayback;
+  window.__nfState = function() { return { currentTime: currentTime, duration: duration, isPlaying: isPlaying }; };
+  window.__nfPlay = play;
+  window.__nfPause = pause;
+})();
+</script>
+</body>
+</html>

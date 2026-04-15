@@ -1,5 +1,7 @@
-// Editor timeline and DOM preview integration for the WKWebView editor.
-const ED_DEMO_TIMELINE_PATH = 'data/demo-timeline.json';
+// Editor timeline and preview integration for the WKWebView editor.
+// Two preview modes: 'dom' (scene-bundle real-time) or 'html' (load built HTML).
+const ED_DEMO_TIMELINE_PATH = 'data/demo-timeline-9x16.json';
+const ED_DEMO_HTML_PATH = 'data/demo-preview.html';
 
 let edTimelineData = null;
 let edActiveClip = null;
@@ -245,12 +247,46 @@ function updatePreviewAspectRatio() {
   canvas.style.aspectRatio = w + ' / ' + h;
 }
 
+function loadHtmlPreview(htmlSrc) {
+  const canvas = document.querySelector('.ed-preview-canvas');
+  if (!canvas) return;
+  updatePreviewAspectRatio();
+  const stage = ensureEditorPreviewStage();
+  if (stage) stage.innerHTML = '';
+  let iframe = canvas.querySelector('#preview-iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'preview-iframe';
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;z-index:2;background:#000;';
+    iframe.allow = 'autoplay';
+    canvas.appendChild(iframe);
+  }
+  iframe.srcdoc = htmlSrc;
+  window.edPreviewMode = 'html';
+  window.edPreviewIframe = iframe;
+  toggleEditorPreviewPlaceholder(false);
+  if (typeof window.bindPreviewStateSource === 'function') window.bindPreviewStateSource();
+}
+
 async function composePreview() {
-  if (!edTimelineData || !canUseDomPreview()) return null;
+  if (!edTimelineData) return null;
+  updatePreviewAspectRatio();
+  // Try loading built HTML first (universal, any ratio/scene)
+  try {
+    const htmlResponse = await fetch(ED_DEMO_HTML_PATH, { cache: 'no-store' });
+    if (htmlResponse.ok) {
+      const htmlContent = await htmlResponse.text();
+      loadHtmlPreview(htmlContent);
+      return 'html';
+    }
+  } catch { /* fall through to DOM engine */ }
+  // Fallback: DOM engine (real-time, only bundled scenes)
+  if (!canUseDomPreview()) return null;
   const stage = ensureEditorPreviewStage();
   if (!stage) return null;
+  const iframe = document.querySelector('#preview-iframe');
+  if (iframe) iframe.remove();
   stage.innerHTML = '';
-  updatePreviewAspectRatio();
   window.previewEngine.setStage(stage);
   window.edPreviewMode = 'dom';
   window.previewEngine.loadTimeline(edTimelineData);
@@ -258,13 +294,13 @@ async function composePreview() {
   if (typeof window.bindPreviewStateSource === 'function') window.bindPreviewStateSource();
   toggleEditorPreviewPlaceholder(false);
   const result = window.previewEngine.compose(0);
-  const state = typeof window.previewEngine.getState === 'function'
+  const engineState = typeof window.previewEngine.getState === 'function'
     ? window.previewEngine.getState()
     : { currentTime: 0, duration: getEditorTimelineDuration(), isPlaying: false };
   if (typeof window.syncPreviewTransportState === 'function') {
-    window.syncPreviewTransportState(state);
+    window.syncPreviewTransportState(engineState);
   } else {
-    updateEditorPreviewState(state.currentTime, state.duration);
+    updateEditorPreviewState(engineState.currentTime, engineState.duration);
   }
   return result;
 }
