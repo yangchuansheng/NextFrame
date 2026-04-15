@@ -63,6 +63,12 @@
 - **修复**: 已修复。如仍遇到，用绝对路径或 ASCII symlink
 - **防呆**: UTF-8 路径单元测试
 
+### recorder 需要 --features cli
+- **触发**: `cargo run --bin nextframe-recorder` 不加 `--features cli`
+- **现象**: 编译失败或找不到 binary
+- **修复**: 用 `cargo run --release --features cli --bin nextframe-recorder -- slide ...`
+- **防呆**: 06-record.md 已有正确命令，按状态机走不会错
+
 ### WKWebView 渲染不全
 - **触发**: 多个 absolute-positioned div 在快速 DOM 更新时丢失
 - **现象**: 代码块只显示前几行，流程图只显示第一个节点
