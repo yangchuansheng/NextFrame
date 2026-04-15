@@ -293,7 +293,7 @@ export async function run(argv) {
     return 2;
   }
 
-  const scenesRoot = resolve(dirname(createRequire(import.meta.url).resolve("nf-core/package.json")), "scenes");
+  const scenesRoot = resolve(__HERE, "../../../../nf-core/scenes");
   const dir = resolve(scenesRoot, RATIO_DIRS[ratio], category, name);
 
   if (existsSync(dir)) {
