@@ -44,17 +44,16 @@ ls data/*.json  # 或数据文件
 nextframe scenes
 ```
 
-### 9:16 需要 7 个
+### 9:16 需要 4 个（静态合并后）
 
-| scene | 类别 | 作用 |
+| scene | 类型 | 作用 |
 |-------|------|------|
-| interviewBg | backgrounds | 深黑底 + 金色光晕 + 网格 + 暗角 |
-| interviewHeader | overlays | 顶部系列名 + 标题 + 分隔线 |
-| interviewVideoArea | media | 视频嵌入框（recorder 叠加真实视频） |
-| interviewBiSub | overlays | 双语字幕（两级查找：segment→英文, cn[]→中文） |
-| interviewMeta | overlays | 时间信息 + 话题 + 标签 |
-| interviewBrand | overlays | 底部品牌 + 团队署名 |
-| progressBar9x16 | overlays | 进度条 |
+| interviewChrome | **静态** | 背景+标题+元信息+品牌 — 全程不变的所有元素合在一个组件 |
+| interviewVideoArea | **动态** | 视频嵌入框（recorder 叠加真实视频） |
+| interviewBiSub | **动态** | 双语字幕（两级查找：segment→英文, cn[]→中文） |
+| progressBar9x16 | **动态** | 进度条 |
+
+**设计原则：** 全程不变的元素合成一个"chrome"组件，随时间变化的各自独立。减少 layer 数量，方便维护。
 
 ### 16:9 需要 9 个
 

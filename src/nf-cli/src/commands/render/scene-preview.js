@@ -121,13 +121,15 @@ body{background:#111;color:#fff;font-family:system-ui;display:flex;flex-directio
 export async function run(argv) {
   const { positional, flags } = parseFlags(argv);
   if (flags.help || positional.length === 0) {
-    process.stdout.write(`scene-preview — Preview a scene component with Play/Pause + scrubber.
+    process.stdout.write(`scene-preview — Preview a scene with Play/Pause + scrubber, or screenshot for AI verification.
 
-Usage: nextframe scene-preview <name> [--ratio=9:16] [--port=3300]
+Usage:
+  nextframe scene-preview <name> [--ratio=9:16] [--port=3300]       # 人看模式
+  nextframe scene-preview <name> [--ratio=9:16] --screenshot=DIR    # AI截图模式
 
 Example:
-  nextframe scene-preview interviewHeader --ratio=9:16
-  nextframe scene-preview interviewBg --ratio=9:16 --port=3301
+  nextframe scene-preview interviewChrome --ratio=9:16
+  nextframe scene-preview interviewChrome --ratio=9:16 --screenshot=/tmp/check
 `);
     return positional.length === 0 ? 3 : 0;
   }
@@ -149,6 +151,56 @@ Example:
   }
 
   const html = buildPreview(name, ratio, scenePath);
+
+  // Screenshot mode: write HTML, use puppeteer to capture, output paths
+  if (flags.screenshot) {
+    const { mkdirSync, writeFileSync: writeFS } = await import("node:fs");
+    const outDir = String(flags.screenshot);
+    mkdirSync(outDir, { recursive: true });
+    const htmlPath = resolve(outDir, `${name}-preview.html`);
+    writeFS(htmlPath, html);
+
+    try {
+      const puppeteer = await import("puppeteer-core");
+      const browser = await puppeteer.default.launch({
+        executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        headless: true,
+        args: [`--window-size=800,1000`],
+      });
+      const page = await browser.newPage();
+      const [w, h] = DIMS[ratio];
+      await page.setViewport({ width: 800, height: 1000, deviceScaleFactor: 2 });
+      await page.goto(`file://${htmlPath}`, { waitUntil: "networkidle0" });
+      // Screenshot at t=0.5 (default) and t=5
+      for (const t of [0.5, 5]) {
+        await page.evaluate((time, dur) => {
+          const scrub = document.getElementById("scrubber");
+          if (scrub) { scrub.value = (time / dur) * 1000; scrub.dispatchEvent(new Event("input")); }
+        }, t, 10);
+        await new Promise((r) => setTimeout(r, 200));
+        const shotPath = resolve(outDir, `${name}-t${t}s.png`);
+        await page.screenshot({ path: shotPath, fullPage: true });
+      }
+      await browser.close();
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        screenshots: [
+          resolve(outDir, `${name}-t0.5s.png`),
+          resolve(outDir, `${name}-t5s.png`),
+        ],
+      }, null, 2) + "\n");
+    } catch (err) {
+      // Puppeteer not available — just output the HTML path
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        html: htmlPath,
+        note: "puppeteer unavailable, open HTML manually",
+      }, null, 2) + "\n");
+    }
+    return 0;
+  }
+
+  // Interactive mode: serve via HTTP
   const server = createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(html);

@@ -2,9 +2,13 @@
 // Creates scene with WORKING render code (not TODOs). Ready to preview immediately.
 
 import { parseFlags } from "../_helpers/_io.js";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+
+const __HERE = dirname(fileURLToPath(import.meta.url));
+const DESIGN_JS_PATH = resolve(__HERE, "../../../../nf-core/scenes/shared/design.js");
 
 const RATIOS = ["16:9", "9:16", "4:3"];
 const RATIO_DIRS = { "16:9": "16x9", "9:16": "9x16", "4:3": "4x3" };
@@ -197,10 +201,20 @@ function previewTemplate(name, ratio, tech, renderCode) {
   const previewW = Math.round(w * scaleX);
   const previewH = Math.round(h * scaleX);
 
-  // Strip "export " from render code for inline use
+  // Inline design.js so preview works without ESM imports (file:// CORS)
+  let designInline = "";
+  try {
+    designInline = readFileSync(DESIGN_JS_PATH, "utf8")
+      .replace(/^import\s+.+?;?\s*$/gm, "")
+      .replace(/^export\s+(function|const|let|var|class)\s+/gm, "$1 ")
+      .replace(/^export\s*\{[^}]*\};?\s*$/gm, "");
+  } catch { /* no design.js */ }
+
+  // Strip ESM from scene render code
   const inlineRender = renderCode
+    .replace(/^import\s+.+?;?\s*$/gm, "")
     .replace(/^export\s+/gm, "")
-    .replace(/^function esc/gm, "function esc"); // keep helper functions
+    .replace(/^function esc/gm, "function esc");
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -229,6 +243,9 @@ body{background:#111;color:#fff;font-family:system-ui;display:flex;flex-directio
 </div>
 <script>
 (function(){
+  // ── Design system (shared/design.js inlined) ──
+  ${designInline}
+  // ── Scene ──
   ${inlineRender}
 
   var DEMO = {};
