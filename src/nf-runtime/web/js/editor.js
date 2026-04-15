@@ -5,6 +5,8 @@ let edCurrentTime = 0;
 let edPlaying = false;
 let edRafId = null;
 let edLastFrameTime = 0;
+let edVideos = [];
+let edCurrentVideoIdx = 0;
 function buildEditorTimelinePath() { return window.currentEpisodePath + '/timeline.json'; }
 function normalizeEditorTimeline(timeline) {
   if (!timeline || typeof timeline !== 'object') return timeline;
@@ -165,107 +167,123 @@ function tagEditorControls() {
   document.querySelectorAll('.ed-play-btn, .ed-t-btn:not([data-nf-action="compose-preview"])').forEach(function(el) { el.dataset.nfAction = 'preview'; });
   ensureComposePreviewButton();
 }
+function buildVideoFromAtom(atom, index) {
+  var dur = atom.duration || 10;
+  var layers = Array.isArray(atom.layers) ? atom.layers : [];
+  if (!layers.length) {
+    layers = [{ name: atom.type || 'video', scene: atom.type || 'video', start: 0, duration: dur }];
+    if (atom.subtitles && atom.subtitles.length) layers.push({ name: 'subtitles', scene: 'subtitle', start: 0, duration: dur });
+  }
+  return { name: atom.name || ('Video ' + (index + 1)), duration: dur, layerCount: layers.length, file: atom.file || '', tracks: layers };
+}
+function edSwitchVideo(idx) {
+  if (idx < 0 || idx >= edVideos.length) return;
+  edPause(); edCurrentVideoIdx = idx; edCurrentTime = 0; edActiveClip = null;
+  var video = edVideos[idx];
+  edTimelineData = normalizeEditorTimeline({ layers: video.tracks, duration: video.duration });
+  renderEditorVideoList(); renderEditorTracks();
+  updateEditorPreviewState(0, video.duration);
+  if (edTimelineData.layers && edTimelineData.layers.some(function(l) { return l.scene; })) composePreview();
+}
 async function loadEditorTimeline() {
   if (typeof bridgeCall !== 'function' || !window.currentEpisodePath) return showEditorEmpty('选择一个剧集查看时间线');
-  const pipelinePath = window.currentEpisodePath + '/pipeline.json';
+  var pipelinePath = window.currentEpisodePath + '/pipeline.json';
   try {
-    let parsed = {};
+    var parsed = {};
     try {
-      const pipelineData = await bridgeCall('fs.read', { path: pipelinePath });
-      const raw = pipelineData.contents || pipelineData.content || '';
+      var pipelineData = await bridgeCall('fs.read', { path: pipelinePath });
+      var raw = pipelineData.contents || pipelineData.content || '';
       parsed = typeof raw === 'object' ? raw : JSON.parse(raw);
     } catch (error) { parsed = {}; }
-    const atoms = parsed.atoms || [];
+    var atoms = parsed.atoms || [];
     if (atoms.length > 0) {
-      let totalDuration = 0;
-      const layers = atoms.map(function(atom, index) {
-        const start = totalDuration;
-        const duration = atom.duration || 10;
-        totalDuration += duration;
-        return { name: atom.name || ('Atom ' + (index + 1)), scene: atom.type || 'video', start: start, duration: duration, file: atom.file || '', subtitles: atom.subtitles ? atom.subtitles.length + ' subs' : '' };
-      });
-      edTimelineData = normalizeEditorTimeline({ layers: layers, duration: totalDuration });
-      return renderEditorFromTimeline(edTimelineData);
+      edVideos = atoms.map(buildVideoFromAtom);
+      edCurrentVideoIdx = 0;
+      return edSwitchVideo(0);
     }
-    const dirData = await bridgeCall('fs.listDir', { path: window.currentEpisodePath });
-    const entries = dirData.entries || dirData || [];
-    const timelineEntry = entries.find(function(entry) {
-      const name = typeof entry === 'string' ? entry : entry.name;
-      return name && (name === 'timeline.json' || name.startsWith('segment-')) && name.endsWith('.json');
+    var dirData = await bridgeCall('fs.listDir', { path: window.currentEpisodePath });
+    var entries = dirData.entries || dirData || [];
+    var segmentEntries = entries.filter(function(entry) {
+      var name = typeof entry === 'string' ? entry : entry.name;
+      return name && name.startsWith('segment-') && name.endsWith('.json');
     });
-    const timelineName = timelineEntry ? (typeof timelineEntry === 'string' ? timelineEntry : timelineEntry.name) : '';
-    if (!timelineName) return showEditorEmpty('暂无时间线数据');
-    const timelineData = await bridgeCall('timeline.load', { path: window.currentEpisodePath + '/' + timelineName });
-    edTimelineData = normalizeEditorTimeline(timelineData);
-    renderEditorFromTimeline(edTimelineData);
-    if (edTimelineData.layers && edTimelineData.layers.some(function(layer) { return layer.scene; })) composePreview();
+    if (segmentEntries.length > 0) {
+      edVideos = await Promise.all(segmentEntries.map(async function(entry) {
+        var name = typeof entry === 'string' ? entry : entry.name;
+        var data = await bridgeCall('timeline.load', { path: window.currentEpisodePath + '/' + name });
+        var tl = normalizeEditorTimeline(data);
+        var dur = tl.duration || 0;
+        return { name: name.replace(/\.json$/, '').replace(/^segment-/, 'Video '), duration: dur, layerCount: (tl.layers || []).length, file: '', tracks: tl.layers || [] };
+      }));
+      edCurrentVideoIdx = 0;
+      return edSwitchVideo(0);
+    }
+    var timelineEntry = entries.find(function(entry) {
+      var name = typeof entry === 'string' ? entry : entry.name;
+      return name === 'timeline.json';
+    });
+    if (!timelineEntry) return showEditorEmpty('暂无时间线数据');
+    var timelineData = await bridgeCall('timeline.load', { path: window.currentEpisodePath + '/timeline.json' });
+    var tl = normalizeEditorTimeline(timelineData);
+    edVideos = [{ name: '主时间线', duration: tl.duration || 0, layerCount: (tl.layers || []).length, file: '', tracks: tl.layers || [] }];
+    edCurrentVideoIdx = 0;
+    edSwitchVideo(0);
   } catch (error) {
     console.error('[editor] load timeline:', error);
     showEditorEmpty('暂无时间线数据');
   }
 }
 function showEditorEmpty(msg) {
-  edActiveClip = null;
-  const clipList = document.getElementById('ed-clip-list2');
-  const tl = document.getElementById('ed-tl-body2');
-  const insp = document.getElementById('ed-insp-inner2');
-  if (clipList) clipList.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px;text-align:center">' + (msg || '暂无数据') + '</div>';
-  if (tl) tl.innerHTML = '';
-  if (insp) insp.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px">选择一个片段查看参数</div>';
-  clearEditorPreviewContent();
-  updateEditorPreviewState(0, 0);
+  edActiveClip = null; edVideos = [];
+  var cl = document.getElementById('ed-clip-list2'); var tl = document.getElementById('ed-tl-body2'); var insp = document.getElementById('ed-insp-inner2');
+  if (cl) cl.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px;text-align:center">' + (msg || '暂无数据') + '</div>';
+  if (tl) tl.innerHTML = ''; if (insp) insp.innerHTML = '';
+  clearEditorPreviewContent(); updateEditorPreviewState(0, 0);
 }
-function renderEditorFromTimeline(tl) {
-  const timeline = normalizeEditorTimeline(tl);
-  const layers = timeline.layers || [];
-  const totalDuration = timeline.duration || getEditorTimelineDuration();
-  const clipEl = document.getElementById('ed-clip-list2');
-  const countEl = document.getElementById('ed-clip-count2');
-  const tlEl = document.getElementById('ed-tl-body2');
-  const insp = document.getElementById('ed-insp-inner2');
-  if (countEl) countEl.textContent = layers.length;
-  if (clipEl) {
-    clipEl.innerHTML = layers.map(function(layer, i) {
-      const name = layer.scene || layer.name || ('Layer ' + (i + 1));
-      const dur = typeof layer.duration === 'number' ? layer.duration.toFixed(1) + 's' : '';
-      return '<div class="ed-clip-item" data-nf-action="select-clip" data-index="' + i + '" onclick="edSelectClip(' + i + ')">' +
-        '<div class="ed-clip-num">' + (i + 1) + '</div>' +
-        '<div class="ed-clip-info"><div class="ed-clip-name">' + name + '</div>' +
-        '<div class="ed-clip-meta"><span>' + dur + '</span></div></div></div>';
-    }).join('');
-  }
-  // Render ruler
-  const rulerEl = document.getElementById('ed-tl-ruler2');
-  if (rulerEl && totalDuration > 0) {
-    const step = totalDuration <= 20 ? 2 : totalDuration <= 40 ? 5 : 10;
-    let rulerHTML = '';
-    for (let t = 0; t <= totalDuration; t += step) {
-      const pct = (t / totalDuration * 100).toFixed(1);
-      rulerHTML += '<span class="ed-tl-ruler-mark" style="left:' + pct + '%">' + t + 's</span>';
-      rulerHTML += '<span class="ed-tl-ruler-tick" style="left:' + pct + '%"></span>';
-    }
+function renderEditorVideoList() {
+  var clipEl = document.getElementById('ed-clip-list2');
+  var countEl = document.getElementById('ed-clip-count2');
+  if (countEl) countEl.textContent = edVideos.length;
+  if (!clipEl) return;
+  clipEl.innerHTML = edVideos.map(function(video, i) {
+    var active = i === edCurrentVideoIdx ? ' active' : '';
+    return '<div class="ed-clip-item' + active + '" data-nf-action="select-clip" data-index="' + i + '" onclick="edSwitchVideo(' + i + ')">' +
+      '<div class="ed-clip-num">' + (i + 1) + '</div>' +
+      '<div class="ed-clip-info"><div class="ed-clip-name">' + escapeEditorAttr(video.name) + '</div>' +
+      '<div class="ed-clip-meta"><span>' + video.duration.toFixed(1) + 's</span><span>' + video.layerCount + ' layers</span></div></div></div>';
+  }).join('');
+}
+function renderEditorTracks() {
+  var video = edVideos[edCurrentVideoIdx]; if (!video) return;
+  var layers = video.tracks || [];
+  var dur = video.duration || 0;
+  var rulerEl = document.getElementById('ed-tl-ruler2');
+  if (rulerEl && dur > 0) {
+    var step = dur <= 20 ? 2 : dur <= 40 ? 5 : 10; var rulerHTML = '';
+    for (var t = 0; t <= dur; t += step) { var pct = (t / dur * 100).toFixed(1); rulerHTML += '<span class="ed-tl-ruler-mark" style="left:' + pct + '%">' + t + 's</span><span class="ed-tl-ruler-tick" style="left:' + pct + '%"></span>'; }
     rulerEl.innerHTML = rulerHTML;
   }
-  // Render tracks
+  var tlEl = document.getElementById('ed-tl-body2');
   if (tlEl) {
-    if (!layers.length) {
-      tlEl.innerHTML = '';
-    } else {
-      let html = '';
-      layers.forEach(function(layer, i) {
-        const name = layer.scene || layer.name || '';
-        const left = totalDuration > 0 ? ((layer.start || 0) / totalDuration * 100) : 0;
-        const width = totalDuration > 0 ? ((layer.duration || 0) / totalDuration * 100) : 0;
-        html += '<div class="ed-tl-track">' +
-          '<span class="ed-tl-track-label">' + name + '</span>' +
-          '<div class="ed-tl-clip" data-index="' + i + '" data-nf-action="preview" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%" onclick="handleTimelineTrackClick(event)">' + name + '</div></div>';
-      });
-      tlEl.innerHTML = html;
-    }
+    tlEl.innerHTML = layers.map(function(layer, i) {
+      var name = layer.scene || layer.name || '';
+      var left = dur > 0 ? ((layer.start || 0) / dur * 100) : 0;
+      var width = dur > 0 ? ((layer.duration || 0) / dur * 100) : 0;
+      return '<div class="ed-tl-track"><span class="ed-tl-track-label">' + name + '</span>' +
+        '<div class="ed-tl-clip" data-index="' + i + '" data-nf-action="preview" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%" onclick="handleTimelineTrackClick(event)">' + name + '</div></div>';
+    }).join('');
   }
-  if (insp && edActiveClip === null) insp.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px">选择一个片段查看参数</div>';
+  var insp = document.getElementById('ed-insp-inner2');
+  if (insp && edActiveClip === null) insp.innerHTML = '<div style="padding:20px;color:var(--t50);font-size:13px">选择一个轨道查看参数</div>';
   syncEditorSelectionUI(edActiveClip);
-  updateEditorPreviewState(0, totalDuration);
+}
+function renderEditorFromTimeline(tl) {
+  var timeline = normalizeEditorTimeline(tl);
+  edTimelineData = timeline;
+  var video = edVideos[edCurrentVideoIdx];
+  if (video) { video.tracks = timeline.layers || []; video.duration = timeline.duration || 0; video.layerCount = (timeline.layers || []).length; }
+  renderEditorVideoList(); renderEditorTracks();
+  updateEditorPreviewState(0, timeline.duration || 0);
 }
 function selectTimelineClip(index) {
   if (!edTimelineData || !Array.isArray(edTimelineData.layers)) return;
@@ -391,8 +409,7 @@ function edUpdatePlayhead() {
 }
 function edUpdateVideoCounter() {
   var c = document.getElementById('ed-video-counter'); if (!c) return;
-  var n = edTimelineData && Array.isArray(edTimelineData.layers) ? edTimelineData.layers.length : 0;
-  c.textContent = (edActiveClip !== null ? edActiveClip + 1 : n ? 1 : 0) + '/' + n;
+  c.textContent = (edVideos.length ? edCurrentVideoIdx + 1 : 0) + '/' + edVideos.length;
 }
 function edDomPreview(method) {
   if (window.edPreviewMode !== 'dom' || !window.previewEngine) return;
@@ -425,10 +442,8 @@ function edTick(now) {
   if (edPlaying) edRafId = requestAnimationFrame(edTick);
 }
 function edStepClip(delta) {
-  var layers = edTimelineData && Array.isArray(edTimelineData.layers) ? edTimelineData.layers : [];
-  if (!layers.length) return;
-  var idx = edActiveClip !== null ? Math.max(0, Math.min(edActiveClip + delta, layers.length - 1)) : 0;
-  edSelectClip(idx); if (layers[idx]) edSeekTo(layers[idx].start || 0);
+  if (!edVideos.length) return;
+  edSwitchVideo(Math.max(0, Math.min(edCurrentVideoIdx + delta, edVideos.length - 1)));
 }
 function edClickSeek(el, e) {
   var rect = el.getBoundingClientRect();
@@ -480,3 +495,4 @@ window.edPlay = edPlay;
 window.edPause = edPause;
 window.edSeekTo = edSeekTo;
 window.edStepClip = edStepClip;
+window.edSwitchVideo = edSwitchVideo;
