@@ -1,15 +1,40 @@
+# Build
 target/
-spec/
-.DS_Store
-*.log
-data/**/*.log
-.worktrees/
-.ally/
-.env
-cron.log
-projects/
 node_modules/
+*.log
+
+# Private / internal
+spec/
+poc/
+projects/
+.autopilot/
+.ally/
+.worktrees/
+
+# Secrets / env
+.env
+*.env.local
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+cron.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / output artifacts
 test-results/
 output/
 !src/nf-tts/src/output/
 !src/nf-tts/src/output/*.rs
+
+# Media (large binary files)
+*.mp4
+*.mp3
+*.wav
+*.png
+*.jpg
+*.jpeg
+!src/nf-runtime/web/data/*.json
