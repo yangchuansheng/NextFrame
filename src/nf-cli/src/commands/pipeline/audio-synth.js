@@ -105,17 +105,33 @@ export async function run(argv) {
 
   const stem = `seg-${segmentNumber}`;
   const outputDir = join(context.episodePath, "audio", stem);
-  const artifactDir = join(outputDir, stem);
-  const mp3Path = join(artifactDir, `${stem}.mp3`);
-  const timelinePath = join(artifactDir, `${stem}.timeline.json`);
-  const srtPath = join(artifactDir, `${stem}.srt`);
+  // Vox always creates a sub-dir matching the -o stem and puts files inside.
+  // We invoke with stem name `audio` so the path becomes <outputDir>/audio/audio.mp3,
+  // then flatten by moving files up one level: <outputDir>/audio.mp3.
+  const voxStem = "audio";
+  const voxNestedDir = join(outputDir, voxStem);
+  const mp3Path = join(outputDir, `${voxStem}.mp3`);
+  const timelinePath = join(outputDir, `${voxStem}.timeline.json`);
+  const srtPath = join(outputDir, `${voxStem}.srt`);
 
   try {
     await mkdir(outputDir, { recursive: true });
-    execFileSync(voxPath, buildSynthArgs(narration, outputDir, stem, voice, backend), {
+    execFileSync(voxPath, buildSynthArgs(narration, outputDir, voxStem, voice, backend), {
       encoding: "utf8",
       stdio: "pipe",
     });
+    // Flatten: move vox's nested files up one level (best-effort, idempotent)
+    const { rename, rm } = await import("node:fs/promises");
+    for (const ext of ["mp3", "timeline.json", "srt"]) {
+      const from = join(voxNestedDir, `${voxStem}.${ext}`);
+      const to = join(outputDir, `${voxStem}.${ext}`);
+      try {
+        await rename(from, to);
+      } catch (_e) { /* file may already be flat from prior run */ }
+    }
+    try {
+      await rm(voxNestedDir, { recursive: true, force: true });
+    } catch (_e) { /* ignore */ }
   } catch (err) {
     emit({
       ok: false,
@@ -162,7 +178,7 @@ export async function run(argv) {
 
   const sentences = normalizeTimelineSegments(timeline?.segments);
   const duration = deriveDuration(sentences);
-  const file = join("audio", stem, stem, `${stem}.mp3`);
+  const file = join("audio", stem, "audio.mp3");
 
   const nextAudio = { ...pipeline.audio };
   if (voice !== undefined) nextAudio.voice = voice;
