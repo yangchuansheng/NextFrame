@@ -96,6 +96,7 @@ window.__nfDiagnose = function() {
       newProject: document.getElementById('new-project-modal')?.classList.contains('open') || false,
     },
     actions: Array.from(document.querySelectorAll('[data-nf-action]')).map(e => e.dataset.nfAction),
+    editor: typeof window.__nfEditorDiagnose === 'function' ? JSON.parse(window.__nfEditorDiagnose()) : null,
   }, null, 2);
 };
 

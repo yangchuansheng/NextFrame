@@ -294,6 +294,30 @@ function edSelectClip(idOrIndex) {
   selectTimelineClip(index);
 }
 
+window.__nfEditorDiagnose = function() {
+  const engine = window.previewEngine;
+  const scenes = window.__scenes || {};
+  const stage = document.getElementById('preview-stage');
+  const layers = edTimelineData && Array.isArray(edTimelineData.layers) ? edTimelineData.layers : [];
+  const tracks = document.querySelectorAll('.ed-tl-track');
+  const engineState = engine && typeof engine.getState === 'function' ? engine.getState() : null;
+  return JSON.stringify({
+    ready: !!(engine && Object.keys(scenes).length && stage),
+    sceneCount: Object.keys(scenes).length,
+    sceneIds: Object.keys(scenes),
+    engineLoaded: !!engine,
+    stagePresent: !!stage,
+    stageChildren: stage ? stage.children.length : 0,
+    timelineLoaded: !!edTimelineData,
+    layerCount: layers.length,
+    trackElements: tracks.length,
+    duration: edTimelineData ? edTimelineData.duration : 0,
+    previewMode: window.edPreviewMode || 'none',
+    playbackState: engineState,
+    activeClip: edActiveClip,
+  }, null, 2);
+};
+
 window.loadEditorTimeline = loadEditorTimeline;
 window.showEditorEmpty = showEditorEmpty;
 window.renderEditorFromTimeline = renderEditorFromTimeline;
